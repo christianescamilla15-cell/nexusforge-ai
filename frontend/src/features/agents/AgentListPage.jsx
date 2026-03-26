@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { api } from '../../api/client'
 import { t } from '../../shared/i18n/translations'
 import AgentCard from './AgentCard'
 import AgentDetailPanel from './AgentDetailPanel'
@@ -165,8 +164,8 @@ const DEMO_AGENTS = [
 ]
 
 export default function AgentListPage({ lang = 'en' }) {
-  const [agents, setAgents] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Always start with demo data — no backend required
+  const [agents] = useState(DEMO_AGENTS)
   const [selected, setSelected] = useState(null)
   const [activeTab, setActiveTab] = useState('agents')
   const [isMobile, setIsMobile] = useState(false)
@@ -178,34 +177,11 @@ export default function AgentListPage({ lang = 'en' }) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await api.get('/agents')
-        setAgents(Array.isArray(data) ? data : data.items || DEMO_AGENTS)
-      } catch {
-        setAgents(DEMO_AGENTS)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
-
   const TABS = [
     { key: 'agents', label: t('agents', lang), count: agents.length },
     { key: 'memory', label: t('memory', lang) },
     { key: 'healing', label: t('selfHealing', lang) },
   ]
-
-  if (loading) {
-    return (
-      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 8 }}>{t('agents', lang)}</h1>
-        <p style={{ fontSize: 14, color: '#9CA3AF' }}>{t('loadingAgents', lang)}</p>
-      </div>
-    )
-  }
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>

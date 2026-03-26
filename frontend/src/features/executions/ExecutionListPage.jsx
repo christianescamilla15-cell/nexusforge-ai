@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
-import { api } from '../../api/client'
+import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
 import StatusBadge from '../../shared/components/StatusBadge'
 
@@ -30,34 +29,16 @@ function formatDate(iso, lang) {
 }
 
 export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
-  const [executions, setExecutions] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Always start with demo data — no backend required
+  const [executions] = useState(DEMO_EXECUTIONS)
   const [filter, setFilter] = useState('all')
   const [isMobile, setIsMobile] = useState(false)
-  const intervalRef = useRef(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
-  }, [])
-
-  const fetchExecutions = async () => {
-    try {
-      const data = await api.get('/executions')
-      setExecutions(Array.isArray(data) ? data : data.items || DEMO_EXECUTIONS)
-    } catch {
-      setExecutions(DEMO_EXECUTIONS)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchExecutions()
-    intervalRef.current = setInterval(fetchExecutions, 5000)
-    return () => clearInterval(intervalRef.current)
   }, [])
 
   const FILTERS = [
@@ -71,15 +52,6 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   const filtered = filter === 'all' ? executions : executions.filter((e) => e.status === filter)
 
   const tableHeaders = [t('status', lang), t('workflow', lang), t('start', lang), t('duration', lang), t('cost', lang), t('steps', lang)]
-
-  if (loading) {
-    return (
-      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 8 }}>{t('executions', lang)}</h1>
-        <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 24 }}>{t('loading', lang)}</p>
-      </div>
-    )
-  }
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>

@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useAPI } from '../../shared/hooks/useAPI'
 import { t } from '../../shared/i18n/translations'
 import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
-import LoadingSpinner from '../../shared/components/LoadingSpinner'
 
-// Demo data for when API is unreachable
-const DEMO_KPIS = { workflows: 12, activeRuns: 3, agentsOnline: 5, documents: 847 }
+// Demo data — always used (demo-first, no backend required)
+const DEMO_KPIS = { workflows: 12, activeRuns: 3, agentsOnline: 22, documents: 47 }
 const DEMO_RUNS = [
   { id: 1, status: 'completed', workflow: 'Analisis de Documentos', started: 'Hace 5 min', duration: '2m 14s', cost: '0.23', steps: 4 },
   { id: 2, status: 'running', workflow: 'Clasificacion de Datos', started: 'Hace 12 min', duration: '8m 02s', cost: '0.67', steps: 6 },
@@ -44,9 +42,7 @@ function KPIIcon({ type }) {
 }
 
 export default function DashboardPage({ lang = 'en' }) {
-  const { data: stats, loading: statsLoading, error: statsError } = useAPI('/stats')
-  const { data: runs, loading: runsLoading, error: runsError } = useAPI('/executions/recent')
-  const { data: agentStats, loading: agentsLoading } = useAPI('/agents/activity')
+  // Always start with demo data — API is optional enhancement
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -56,11 +52,9 @@ export default function DashboardPage({ lang = 'en' }) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const kpis = stats || DEMO_KPIS
-  const recentRuns = runs || DEMO_RUNS
-  const agents = agentStats || DEMO_AGENTS
-
-  const isDemo = statsError || runsError
+  const kpis = DEMO_KPIS
+  const recentRuns = DEMO_RUNS
+  const agents = DEMO_AGENTS
 
   const costItems = [
     { label: t('today', lang), value: '$2.14' },
@@ -82,53 +76,47 @@ export default function DashboardPage({ lang = 'en' }) {
             {t('dashboardSubtitle', lang)}
           </p>
         </div>
-        {isDemo && (
-          <span style={{
-            padding: '4px 12px', borderRadius: 6, fontSize: 12,
-            background: 'rgba(245,158,11,0.1)', color: '#F59E0B',
-            border: '1px solid rgba(245,158,11,0.2)',
-          }}>
-            {t('demoMode', lang)}
-          </span>
-        )}
+        <span style={{
+          padding: '4px 12px', borderRadius: 6, fontSize: 12,
+          background: 'rgba(99,102,241,0.1)', color: '#818CF8',
+          border: '1px solid rgba(99,102,241,0.2)',
+        }}>
+          Demo Mode
+        </span>
       </div>
 
       {/* KPI Cards */}
-      {statsLoading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="nxf-kpi-grid" style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-          gap: isMobile ? 10 : 16,
-          marginBottom: 24,
-        }}>
-          <KPICard
-            icon={<KPIIcon type="workflows" />}
-            value={kpis.workflows}
-            label={t('totalWorkflows', lang)}
-            trend={12}
-          />
-          <KPICard
-            icon={<KPIIcon type="runs" />}
-            value={kpis.activeRuns}
-            label={t('activeRuns', lang)}
-            trend={-5}
-          />
-          <KPICard
-            icon={<KPIIcon type="agents" />}
-            value={kpis.agentsOnline}
-            label={t('agentsOnline', lang)}
-            trend={0}
-          />
-          <KPICard
-            icon={<KPIIcon type="docs" />}
-            value={kpis.documents}
-            label={t('docsIndexed', lang)}
-            trend={23}
-          />
-        </div>
-      )}
+      <div className="nxf-kpi-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: isMobile ? 10 : 16,
+        marginBottom: 24,
+      }}>
+        <KPICard
+          icon={<KPIIcon type="workflows" />}
+          value={kpis.workflows}
+          label={t('totalWorkflows', lang)}
+          trend={12}
+        />
+        <KPICard
+          icon={<KPIIcon type="runs" />}
+          value={kpis.activeRuns}
+          label={t('activeRuns', lang)}
+          trend={-5}
+        />
+        <KPICard
+          icon={<KPIIcon type="agents" />}
+          value={kpis.agentsOnline}
+          label={t('agentsOnline', lang)}
+          trend={0}
+        />
+        <KPICard
+          icon={<KPIIcon type="docs" />}
+          value={kpis.documents}
+          label={t('docsIndexed', lang)}
+          trend={23}
+        />
+      </div>
 
       {/* Main content grid */}
       <div style={{
@@ -139,12 +127,12 @@ export default function DashboardPage({ lang = 'en' }) {
       }}>
         {/* Recent runs */}
         <div style={{ overflowX: 'auto' }}>
-          {runsLoading ? <LoadingSpinner /> : <RecentRuns runs={recentRuns} />}
+          <RecentRuns runs={recentRuns} />
         </div>
 
         {/* Right sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {agentsLoading ? <LoadingSpinner /> : <AgentActivity agents={agents} />}
+          <AgentActivity agents={agents} />
 
           {/* Cost overview */}
           <div style={{

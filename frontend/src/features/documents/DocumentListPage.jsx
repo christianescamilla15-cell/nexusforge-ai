@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { api } from '../../api/client'
 import { t } from '../../shared/i18n/translations'
 import StatusBadge from '../../shared/components/StatusBadge'
 import DocumentUpload from './DocumentUpload'
@@ -49,8 +48,8 @@ function formatSize(kb) {
 }
 
 export default function DocumentListPage({ lang = 'en' }) {
-  const [docs, setDocs] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Always start with demo data — no backend required
+  const [docs] = useState(DEMO_DOCS)
   const [showUpload, setShowUpload] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -61,29 +60,7 @@ export default function DocumentListPage({ lang = 'en' }) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const fetchDocs = async () => {
-    try {
-      const data = await api.get('/documents')
-      setDocs(Array.isArray(data) ? data : data.items || DEMO_DOCS)
-    } catch {
-      setDocs(DEMO_DOCS)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchDocs() }, [])
-
   const tableHeaders = [t('title', lang), t('type', lang), t('lang', lang), t('status', lang), t('size', lang), t('created', lang)]
-
-  if (loading) {
-    return (
-      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 8 }}>{t('documents', lang)}</h1>
-        <p style={{ fontSize: 14, color: '#9CA3AF' }}>{t('loading', lang)}</p>
-      </div>
-    )
-  }
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -123,7 +100,7 @@ export default function DocumentListPage({ lang = 'en' }) {
       {showUpload && (
         <DocumentUpload
           onClose={() => setShowUpload(false)}
-          onUploaded={fetchDocs}
+          onUploaded={() => {}}
         />
       )}
 

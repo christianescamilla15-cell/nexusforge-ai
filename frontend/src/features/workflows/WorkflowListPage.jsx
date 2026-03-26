@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useAPI } from '../../shared/hooks/useAPI'
 import { t } from '../../shared/i18n/translations'
 import DataTable from '../../shared/components/DataTable'
 import StatusBadge from '../../shared/components/StatusBadge'
-import LoadingSpinner from '../../shared/components/LoadingSpinner'
 import EmptyState from '../../shared/components/EmptyState'
 import WorkflowCreateModal from './WorkflowCreateModal'
 
@@ -17,7 +15,7 @@ const DEMO_WORKFLOWS = [
 ]
 
 export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
-  const { data, loading, error, refetch } = useAPI('/workflows')
+  // Always start with demo data — no backend required
   const [filter, setFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -51,7 +49,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
     { key: 'created', label: t('created', lang) },
   ]
 
-  const workflows = data || DEMO_WORKFLOWS
+  const workflows = DEMO_WORKFLOWS
   const filtered = filter === 'all' ? workflows : workflows.filter((w) => w.status === filter)
 
   return (
@@ -112,9 +110,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
       </div>
 
       {/* Table */}
-      {loading ? (
-        <LoadingSpinner />
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState
           icon={
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
@@ -145,7 +141,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
       <WorkflowCreateModal
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={() => { setShowCreate(false); refetch() }}
+        onCreated={() => { setShowCreate(false) }}
       />
     </div>
   )

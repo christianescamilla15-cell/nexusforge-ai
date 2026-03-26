@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { api } from '../../api/client'
 import { t } from '../../shared/i18n/translations'
 
 export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
@@ -7,22 +6,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
     () => (typeof window !== 'undefined' && import.meta.env.VITE_API_URL) || 'http://localhost:8000/api'
   )
   const [darkMode] = useState(true)
-  const [healthResult, setHealthResult] = useState(null)
-  const [healthLoading, setHealthLoading] = useState(false)
   const [tourResetDone, setTourResetDone] = useState(false)
-
-  const checkHealth = async () => {
-    setHealthLoading(true)
-    setHealthResult(null)
-    try {
-      const data = await api.get('/health')
-      setHealthResult({ ok: true, data })
-    } catch (err) {
-      setHealthResult({ ok: false, error: err.message || 'Connection failed' })
-    } finally {
-      setHealthLoading(false)
-    }
-  }
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out', maxWidth: 640 }}>
@@ -102,40 +86,31 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
           </div>
         </div>
 
-        {/* Health Check */}
+        {/* API Status — Demo Mode */}
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>{t('apiStatus', lang)}</label>
-            <p style={descStyle}>{t('apiStatusDesc', lang)}</p>
+            <p style={descStyle}>
+              {lang === 'es'
+                ? 'Modo demo — no se requiere backend.'
+                : 'Demo mode — no backend required.'}
+            </p>
           </div>
-          <button
-            onClick={checkHealth}
-            disabled={healthLoading}
-            aria-label={t('healthCheck', lang)}
-            style={{
-              padding: '10px 24px', borderRadius: 8, border: 'none',
-              background: healthLoading ? 'rgba(99,102,241,0.3)' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-              color: '#fff', fontSize: 14, fontWeight: 600,
-              cursor: healthLoading ? 'not-allowed' : 'pointer',
-              marginBottom: healthResult ? 12 : 0,
-            }}
-          >
-            {healthLoading ? t('verifying', lang) : t('verifyConnection', lang)}
-          </button>
-          {healthResult && (
-            <div style={{
-              padding: '12px 16px', borderRadius: 8,
-              background: healthResult.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
-              border: `1px solid ${healthResult.ok ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
-              color: healthResult.ok ? '#10B981' : '#EF4444',
-              fontSize: 13,
-            }}>
-              {healthResult.ok
-                ? `${t('apiOperative', lang)}: ${JSON.stringify(healthResult.data)}`
-                : `${t('error', lang)}: ${healthResult.error}`
-              }
-            </div>
-          )}
+          <div style={{
+            padding: '12px 16px', borderRadius: 8,
+            background: 'rgba(99,102,241,0.08)',
+            border: '1px solid rgba(99,102,241,0.2)',
+            color: '#818CF8', fontSize: 13,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: '#818CF8', flexShrink: 0,
+            }} />
+            {lang === 'es'
+              ? 'Demo Mode — todos los datos son de ejemplo'
+              : 'Demo Mode — all data is simulated'}
+          </div>
         </div>
 
         {/* Reset Tour */}
