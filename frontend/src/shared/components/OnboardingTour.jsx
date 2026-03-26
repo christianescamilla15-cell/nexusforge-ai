@@ -173,9 +173,38 @@ export default function OnboardingTour({ lang, onNavigate, onComplete }) {
           <h1 style={{ fontSize: 26, fontWeight: 700, color: '#E5E7EB', marginBottom: 12 }}>
             {t('welcome', lang)}
           </h1>
-          <p style={{ fontSize: 15, color: '#9CA3AF', lineHeight: 1.6, marginBottom: 36 }}>
+          <p style={{ fontSize: 15, color: '#9CA3AF', lineHeight: 1.6, marginBottom: 24 }}>
             {t('welcomeDesc', lang)}
           </p>
+          {/* Language selector */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 28 }}>
+            <button
+              onClick={() => onSetLang && onSetLang('es')}
+              aria-label="Español"
+              style={{
+                padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                background: lang === 'es' ? '#6366F1' : 'transparent',
+                color: lang === 'es' ? '#fff' : '#9CA3AF',
+                border: lang === 'es' ? '1px solid #6366F1' : '1px solid rgba(255,255,255,0.15)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              ES Español
+            </button>
+            <button
+              onClick={() => onSetLang && onSetLang('en')}
+              aria-label="English"
+              style={{
+                padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                background: lang === 'en' ? '#6366F1' : 'transparent',
+                color: lang === 'en' ? '#fff' : '#9CA3AF',
+                border: lang === 'en' ? '1px solid #6366F1' : '1px solid rgba(255,255,255,0.15)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              EN English
+            </button>
+          </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <button
               onClick={handleFinish}

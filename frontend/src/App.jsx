@@ -94,6 +94,7 @@ export default function App() {
       {showTour && (
         <OnboardingTour
           lang={lang}
+          onSetLang={setLang}
           onNavigate={navigate}
           onComplete={() => setShowTour(false)}
         />
