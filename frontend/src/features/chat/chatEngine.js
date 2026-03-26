@@ -3,34 +3,54 @@ import { NEXUSFORGE_KB } from './ChatKnowledgeBase'
 function normalize(text) {
   return text.toLowerCase().trim()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
-    .replace(/[¿¡?!.,;:]/g, '') // remove punctuation
+    .replace(/[¿¡?!.,;:'"()]/g, '') // remove punctuation
 }
 
 export function generateResponse(message, lang = 'en') {
   const lower = normalize(message)
 
-  // Greetings
-  if (/^(hola|hello|hi|hey|buenos|buenas|good morning|que tal)/.test(lower)) {
+  // 1. Greetings
+  if (/^(hola|hello|hi|hey|buenos|buenas|good morning|good afternoon|que tal|saludos|greetings)/.test(lower)) {
     const greeting = lang === 'es'
-      ? '¡Hola! Soy el asistente de NexusForge. Puedo explicarte sobre:\n\n• **Agentes** (22 tipos especializados)\n• **Topologías** (6 patrones de colaboración)\n• **Memoria** (3 niveles)\n• **Auto-Reparación** (5 estrategias)\n• **RAG Pipeline** (búsqueda semántica)\n• **Arquitectura** (stack técnico)\n\n¿Qué te interesa saber?'
-      : 'Hi! I\'m the NexusForge assistant. I can explain:\n\n• **Agents** (22 specialized types)\n• **Topologies** (6 collaboration patterns)\n• **Memory** (3 tiers)\n• **Self-Healing** (5 strategies)\n• **RAG Pipeline** (semantic search)\n• **Architecture** (tech stack)\n\nWhat would you like to know?'
-    return { text: greeting, topic: 'greeting', confidence: 1, suggestedFollowups: lang === 'es' ? ['¿Qué es NexusForge?', '¿Cómo funciona?', 'Explica los agentes'] : ['What is NexusForge?', 'How does it work?', 'Explain the agents'] }
+      ? '**Hola! Soy el asistente de NexusForge AI.** Puedo explicarte sobre:\n\n**Inicio:** Que es NexusForge, como funciona, casos de uso\n**Agentes:** 22 agentes IA especializados\n**Topologias:** 6 patrones de colaboracion multi-agente\n**Memoria:** Sistema de 3 niveles (trabajo, episodica, semantica)\n**Auto-Reparacion:** 5 estrategias de recuperacion automatica\n**Tecnico:** RAG Pipeline, LLM Router, infraestructura, SDK, CLI\n\nPreguntame lo que quieras!'
+      : '**Hi! I\'m the NexusForge AI assistant.** I can explain:\n\n**Getting Started:** What is NexusForge, how it works, use cases\n**Agents:** 22 specialized AI agents\n**Topologies:** 6 multi-agent collaboration patterns\n**Memory:** 3-tier system (working, episodic, semantic)\n**Self-Healing:** 5 automatic recovery strategies\n**Technical:** RAG Pipeline, LLM Router, infrastructure, SDK, CLI\n\nAsk me anything!'
+    return {
+      text: greeting,
+      topic: 'greeting',
+      confidence: 1,
+      suggestedFollowups: lang === 'es'
+        ? ['Que es NexusForge?', 'Como funciona?', 'Explica los agentes', 'Topologias']
+        : ['What is NexusForge?', 'How does it work?', 'Explain the agents', 'Topologies']
+    }
   }
 
-  // Help command
-  if (/^(help|ayuda|menu|commands|opciones|que puedo preguntar)/.test(lower)) {
-    const help = lang === 'es'
-      ? '**Temas disponibles:**\n\n🚀 **Inicio:** qué es, cómo funciona, casos de uso, cómo empezar\n🤖 **Agentes:** overview, classifier, extractor, summarizer, validator, repair, planner, critic\n🔄 **Flujos:** workflows, DAG engine, checkpointing\n🐝 **Enjambres:** 6 topologías, cuál usar\n🧠 **Memoria:** 3 niveles, cómo funciona\n🛡️ **Auto-Reparación:** detección, estrategias\n🔍 **RAG:** pipeline, búsqueda semántica\n⚡ **LLM Router:** Groq, Claude, circuit breaker\n🏗️ **Infraestructura:** Docker, Terraform, K8s\n🔧 **Herramientas:** SDK, CLI, plugins\n📊 **Stats:** números del proyecto\n🏆 **Comparaciones:** vs LangChain, CrewAI, n8n'
-      : '**Available topics:**\n\n🚀 **Getting Started:** what is it, how it works, use cases\n🤖 **Agents:** overview, classifier, extractor, summarizer, validator, repair, planner, critic\n🔄 **Workflows:** DAG engine, checkpointing\n🐝 **Swarms:** 6 topologies, which to use\n🧠 **Memory:** 3 tiers\n🛡️ **Self-Healing:** detection, strategies\n🔍 **RAG:** pipeline, semantic search\n⚡ **LLM Router:** Groq, Claude, circuit breaker\n🏗️ **Infrastructure:** Docker, Terraform, K8s\n🔧 **Tools:** SDK, CLI, plugins\n📊 **Stats:** project numbers\n🏆 **Comparisons:** vs LangChain, CrewAI, n8n'
-    return { text: help, topic: 'help', confidence: 1, suggestedFollowups: lang === 'es' ? ['¿Qué es NexusForge?', 'Agentes', 'Topologías', 'Arquitectura'] : ['What is NexusForge?', 'Agents', 'Topologies', 'Architecture'] }
+  // 2. Help / menu command
+  if (/^(help|ayuda|menu|commands|opciones|que puedo preguntar|todos los temas|all topics)/.test(lower)) {
+    const topic = NEXUSFORGE_KB.help
+    return {
+      text: lang === 'es' ? topic.answer_es : topic.answer_en,
+      topic: 'help',
+      confidence: 1,
+      suggestedFollowups: lang === 'es'
+        ? ['Que es NexusForge?', 'Agentes', 'Topologias', 'Arquitectura']
+        : ['What is NexusForge?', 'Agents', 'Topologies', 'Architecture']
+    }
   }
 
-  // Score all topics by pattern match count (longer matches = higher score)
+  // 3. Score all KB topics by pattern match quality
   const scores = Object.entries(NEXUSFORGE_KB).map(([key, topic]) => {
     let score = 0
     for (const pattern of topic.question_patterns) {
-      if (lower.includes(normalize(pattern))) {
-        score += pattern.split(' ').length
+      const normalizedPattern = normalize(pattern)
+      if (lower.includes(normalizedPattern)) {
+        // Longer pattern matches get higher score (more specific = better)
+        score += normalizedPattern.split(' ').length
+      }
+    }
+    // Bonus: exact start match
+    for (const pattern of topic.question_patterns) {
+      if (lower.startsWith(normalize(pattern))) {
+        score += 2
       }
     }
     return { key, topic, score }
@@ -38,81 +58,169 @@ export function generateResponse(message, lang = 'en') {
 
   if (scores.length > 0) {
     const best = scores[0]
-    const followups = getFollowups(best.key, lang)
     return {
       text: lang === 'es' ? (best.topic.answer_es || best.topic.answer_en) : best.topic.answer_en,
       topic: best.key,
-      confidence: Math.min(0.95, best.score * 0.25),
-      suggestedFollowups: followups
+      confidence: Math.min(0.95, best.score * 0.2),
+      suggestedFollowups: getContextualFollowups(best.key, lang)
     }
   }
 
-  // Intelligent fallback
+  // 4. Intelligent fallback with categorized suggestions
   const fallback = lang === 'es'
-    ? 'No encontré un tema exacto, pero puedo ayudarte con:\n\n• "¿Qué es NexusForge?" — visión general\n• "Agentes" — los 22 agentes\n• "Topologías" — 6 patrones de enjambre\n• "Memoria" — sistema de 3 niveles\n• "Auto-reparación" — 5 estrategias\n• "Ayuda" — ver todos los temas\n\n¡Intenta ser más específico!'
-    : 'I couldn\'t find an exact match, but I can help with:\n\n• "What is NexusForge?" — overview\n• "Agents" — all 22 agents\n• "Topologies" — 6 swarm patterns\n• "Memory" — 3-tier system\n• "Self-healing" — 5 strategies\n• "Help" — see all topics\n\nTry being more specific!'
-  return { text: fallback, topic: 'fallback', confidence: 0.3, suggestedFollowups: lang === 'es' ? ['¿Qué es NexusForge?', 'Ayuda', 'Agentes'] : ['What is NexusForge?', 'Help', 'Agents'] }
+    ? 'No encontre un tema exacto para esa pregunta. Prueba con alguno de estos:\n\n**Populares:** "Que es NexusForge?" | "Agentes" | "Topologias"\n**Tecnico:** "RAG Pipeline" | "LLM Router" | "Self-Healing"\n**Detalle:** "Classifier" | "Debate topology" | "Memoria semantica"\n**General:** "Ayuda" para ver todos los temas disponibles\n\nIntenta ser mas especifico o usa palabras clave!'
+    : 'I couldn\'t find an exact topic for that question. Try one of these:\n\n**Popular:** "What is NexusForge?" | "Agents" | "Topologies"\n**Technical:** "RAG Pipeline" | "LLM Router" | "Self-Healing"\n**Detailed:** "Classifier" | "Debate topology" | "Semantic memory"\n**General:** "Help" to see all available topics\n\nTry being more specific or use keywords!'
+  return {
+    text: fallback,
+    topic: 'fallback',
+    confidence: 0.2,
+    suggestedFollowups: lang === 'es'
+      ? ['Que es NexusForge?', 'Ayuda completa', 'Agentes', 'Topologias']
+      : ['What is NexusForge?', 'Full help', 'Agents', 'Topologies']
+  }
 }
 
-function getFollowups(topic, lang) {
-  const map = {
-    what_is_nexusforge: ['how_it_works', 'agents_overview', 'swarms_overview'],
-    how_it_works: ['workflows', 'rag_pipeline', 'llm_router'],
-    agents_overview: ['classifier', 'planner', 'repair'],
-    classifier: ['extractor', 'summarizer', 'validator'],
-    extractor: ['classifier', 'summarizer', 'agents_overview'],
-    summarizer: ['extractor', 'validator', 'agents_overview'],
-    validator: ['repair', 'critic', 'self_healing'],
-    repair: ['self_healing', 'validator', 'planner'],
-    planner: ['swarms_overview', 'critic', 'agents_overview'],
-    critic: ['debate_topology', 'validator', 'planner'],
-    workflows: ['checkpointing', 'swarms_overview', 'agents_overview'],
-    swarms_overview: ['debate_topology', 'which_topology', 'workflows'],
-    debate_topology: ['critic', 'which_topology', 'swarms_overview'],
-    which_topology: ['swarms_overview', 'debate_topology', 'workflows'],
-    memory_system: ['agents_overview', 'rag_pipeline', 'self_healing'],
-    self_healing: ['repair', 'memory_system', 'infrastructure'],
-    rag_pipeline: ['llm_router', 'memory_system', 'tech_stack'],
-    llm_router: ['rag_pipeline', 'infrastructure', 'tech_stack'],
-    infrastructure: ['tech_stack', 'project_stats', 'sdk_cli'],
-    tech_stack: ['infrastructure', 'project_stats', 'design_decisions'],
-    project_stats: ['tech_stack', 'about_creator', 'testing'],
+// Contextual follow-up suggestions based on current topic
+function getContextualFollowups(topicKey, lang) {
+  const followupMap = {
+    // Getting started
+    what_is_nexusforge: ['how_it_works', 'agents_overview', 'swarms_intro'],
+    how_it_works: ['workflows_intro', 'rag_pipeline', 'llm_router'],
+    use_cases: ['getting_started', 'agents_overview', 'workflows_intro'],
+    getting_started: ['what_is_nexusforge', 'agents_overview', 'swarms_intro'],
+    // Agents
+    agents_overview: ['classifier_agent', 'planner_agent', 'swarms_intro'],
+    classifier_agent: ['extractor_agent', 'summarizer_agent', 'workflows_intro'],
+    extractor_agent: ['classifier_agent', 'normalizer_agent', 'summarizer_agent'],
+    summarizer_agent: ['analyzer_agent', 'validator_agent', 'topology_debate'],
+    analyzer_agent: ['sentiment_agent', 'summarizer_agent', 'agents_overview'],
+    validator_agent: ['repair_agent', 'critic_agent', 'healing_overview'],
+    repair_agent: ['healing_overview', 'healing_strategies', 'validator_agent'],
+    planner_agent: ['topology_hierarchical', 'critic_agent', 'agents_overview'],
+    critic_agent: ['topology_debate', 'validator_agent', 'planner_agent'],
+    normalizer_agent: ['extractor_agent', 'enricher_agent', 'agents_overview'],
+    enricher_agent: ['knowledge_agent', 'researcher_agent', 'agents_overview'],
+    researcher_agent: ['summarizer_agent', 'knowledge_agent', 'rag_pipeline'],
+    translator_agent: ['summarizer_agent', 'agents_overview', 'use_cases'],
+    compliance_agent: ['validator_agent', 'security', 'agents_overview'],
+    monitor_agent: ['infrastructure', 'healing_overview', 'agents_overview'],
+    router_agent: ['topology_adaptive', 'llm_router', 'agents_overview'],
+    knowledge_agent: ['semantic_memory', 'rag_pipeline', 'enricher_agent'],
+    scraper_agent: ['ocr_agent', 'researcher_agent', 'rag_pipeline'],
+    ocr_agent: ['normalizer_agent', 'extractor_agent', 'scraper_agent'],
+    sentiment_agent: ['analyzer_agent', 'agents_overview', 'use_cases'],
+    scheduler_agent: ['webhook_agent', 'workflows_intro', 'agents_overview'],
+    webhook_agent: ['scheduler_agent', 'infrastructure', 'agents_overview'],
+    // Workflows
+    workflows_intro: ['dag_engine', 'create_workflow', 'swarms_intro'],
+    dag_engine: ['checkpointing', 'workflow_execution', 'swarms_intro'],
+    create_workflow: ['workflow_execution', 'agents_overview', 'swarms_intro'],
+    workflow_execution: ['checkpointing', 'healing_overview', 'dag_engine'],
+    checkpointing: ['healing_overview', 'workflow_execution', 'dag_engine'],
+    // Swarms
+    swarms_intro: ['topology_debate', 'topology_adaptive', 'topology_hierarchical'],
+    topology_sequential: ['topology_parallel', 'swarms_intro', 'workflows_intro'],
+    topology_parallel: ['topology_sequential', 'topology_hierarchical', 'swarms_intro'],
+    topology_hierarchical: ['planner_agent', 'topology_debate', 'swarms_intro'],
+    topology_debate: ['critic_agent', 'topology_consensus', 'swarms_intro'],
+    topology_consensus: ['topology_debate', 'topology_adaptive', 'swarms_intro'],
+    topology_adaptive: ['router_agent', 'swarms_intro', 'topology_debate'],
+    // Memory
+    memory_overview: ['working_memory', 'episodic_memory', 'semantic_memory'],
+    working_memory: ['episodic_memory', 'semantic_memory', 'memory_overview'],
+    episodic_memory: ['semantic_memory', 'working_memory', 'healing_overview'],
+    semantic_memory: ['rag_pipeline', 'knowledge_agent', 'memory_overview'],
+    // Healing
+    healing_overview: ['error_detection', 'healing_strategies', 'healing_example'],
+    error_detection: ['healing_strategies', 'repair_agent', 'healing_overview'],
+    healing_strategies: ['healing_example', 'repair_agent', 'healing_overview'],
+    healing_example: ['healing_strategies', 'repair_agent', 'healing_overview'],
+    // Technical
+    llm_router: ['cost_tracking', 'rag_pipeline', 'infrastructure'],
+    rag_pipeline: ['semantic_memory', 'llm_router', 'knowledge_agent'],
+    cost_tracking: ['llm_router', 'infrastructure', 'project_stats'],
+    infrastructure: ['testing', 'security', 'tech_stack'],
     testing: ['project_stats', 'infrastructure', 'agents_overview'],
-    sdk_cli: ['plugins', 'infrastructure', 'tech_stack'],
-    plugins: ['sdk_cli', 'agents_overview', 'infrastructure'],
-    design_decisions: ['tech_stack', 'infrastructure', 'about_creator'],
-  }
-  const keys = map[topic] || ['what_is_nexusforge', 'agents_overview', 'swarms_overview']
-
-  const labels = {
-    what_is_nexusforge: lang === 'es' ? '¿Qué es NexusForge?' : 'What is NexusForge?',
-    how_it_works: lang === 'es' ? '¿Cómo funciona?' : 'How does it work?',
-    agents_overview: lang === 'es' ? 'Ver agentes' : 'View agents',
-    classifier: 'Classifier agent',
-    extractor: 'Extractor agent',
-    summarizer: 'Summarizer agent',
-    validator: 'Validator agent',
-    repair: 'Repair agent',
-    planner: 'Planner agent',
-    critic: 'Critic agent',
-    workflows: lang === 'es' ? 'Flujos de trabajo' : 'Workflows',
-    checkpointing: 'Checkpointing',
-    swarms_overview: lang === 'es' ? 'Topologías' : 'Topologies',
-    debate_topology: lang === 'es' ? 'Topología Debate' : 'Debate topology',
-    which_topology: lang === 'es' ? '¿Cuál topología usar?' : 'Which topology?',
-    memory_system: lang === 'es' ? 'Sistema de memoria' : 'Memory system',
-    self_healing: 'Self-Healing',
-    rag_pipeline: 'RAG Pipeline',
-    llm_router: 'LLM Router',
-    infrastructure: lang === 'es' ? 'Infraestructura' : 'Infrastructure',
-    tech_stack: 'Tech Stack',
-    project_stats: lang === 'es' ? 'Estadísticas' : 'Project stats',
-    testing: 'Testing (231)',
-    sdk_cli: 'SDK & CLI',
-    plugins: 'Plugins',
-    design_decisions: 'ADRs',
-    about_creator: lang === 'es' ? 'Sobre el creador' : 'About creator',
+    sdk: ['cli', 'plugins', 'infrastructure'],
+    cli: ['sdk', 'plugins', 'infrastructure'],
+    plugins: ['sdk', 'cli', 'agents_overview'],
+    architecture_decisions: ['tech_stack', 'infrastructure', 'comparison'],
+    security: ['infrastructure', 'architecture_decisions', 'testing'],
+    comparison: ['what_is_nexusforge', 'agents_overview', 'swarms_intro'],
+    // About
+    about_creator: ['tech_stack', 'project_stats', 'what_is_nexusforge'],
+    tech_stack: ['infrastructure', 'project_stats', 'architecture_decisions'],
+    project_stats: ['tech_stack', 'about_creator', 'testing'],
+    help: ['what_is_nexusforge', 'agents_overview', 'swarms_intro'],
   }
 
-  return keys.map(k => labels[k] || k)
+  const topicLabels = {
+    what_is_nexusforge: { en: 'What is NexusForge?', es: 'Que es NexusForge?' },
+    how_it_works: { en: 'How does it work?', es: 'Como funciona?' },
+    use_cases: { en: 'Use cases', es: 'Casos de uso' },
+    getting_started: { en: 'Getting started', es: 'Como empezar' },
+    agents_overview: { en: 'All 22 agents', es: 'Los 22 agentes' },
+    classifier_agent: { en: 'Classifier agent', es: 'Agente Clasificador' },
+    extractor_agent: { en: 'Extractor agent', es: 'Agente Extractor' },
+    summarizer_agent: { en: 'Summarizer agent', es: 'Agente Resumidor' },
+    analyzer_agent: { en: 'Analyzer agent', es: 'Agente Analizador' },
+    validator_agent: { en: 'Validator agent', es: 'Agente Validador' },
+    repair_agent: { en: 'Repair agent', es: 'Agente Reparacion' },
+    planner_agent: { en: 'Planner agent', es: 'Agente Planificador' },
+    critic_agent: { en: 'Critic agent', es: 'Agente Critico' },
+    normalizer_agent: { en: 'Normalizer agent', es: 'Agente Normalizador' },
+    enricher_agent: { en: 'Enricher agent', es: 'Agente Enriquecedor' },
+    researcher_agent: { en: 'Researcher agent', es: 'Agente Investigador' },
+    translator_agent: { en: 'Translator agent', es: 'Agente Traductor' },
+    compliance_agent: { en: 'Compliance agent', es: 'Agente Cumplimiento' },
+    monitor_agent: { en: 'Monitor agent', es: 'Agente Monitor' },
+    router_agent: { en: 'Router agent', es: 'Agente Router' },
+    knowledge_agent: { en: 'Knowledge agent', es: 'Agente Conocimiento' },
+    scraper_agent: { en: 'Scraper agent', es: 'Agente Scraper' },
+    ocr_agent: { en: 'OCR agent', es: 'Agente OCR' },
+    sentiment_agent: { en: 'Sentiment agent', es: 'Agente Sentimiento' },
+    scheduler_agent: { en: 'Scheduler agent', es: 'Agente Programador' },
+    webhook_agent: { en: 'Webhook agent', es: 'Agente Webhook' },
+    workflows_intro: { en: 'Workflows', es: 'Flujos de trabajo' },
+    dag_engine: { en: 'DAG engine', es: 'Motor DAG' },
+    create_workflow: { en: 'Create workflow', es: 'Crear workflow' },
+    workflow_execution: { en: 'Run workflow', es: 'Ejecutar workflow' },
+    checkpointing: { en: 'Checkpointing', es: 'Checkpointing' },
+    swarms_intro: { en: 'Swarm topologies', es: 'Topologias de enjambre' },
+    topology_sequential: { en: 'Sequential topology', es: 'Topologia Secuencial' },
+    topology_parallel: { en: 'Parallel topology', es: 'Topologia Paralela' },
+    topology_hierarchical: { en: 'Hierarchical topology', es: 'Topologia Jerarquica' },
+    topology_debate: { en: 'Debate topology', es: 'Topologia Debate' },
+    topology_consensus: { en: 'Consensus topology', es: 'Topologia Consenso' },
+    topology_adaptive: { en: 'Adaptive topology', es: 'Topologia Adaptiva' },
+    memory_overview: { en: 'Memory system', es: 'Sistema de memoria' },
+    working_memory: { en: 'Working memory', es: 'Memoria de trabajo' },
+    episodic_memory: { en: 'Episodic memory', es: 'Memoria episodica' },
+    semantic_memory: { en: 'Semantic memory', es: 'Memoria semantica' },
+    healing_overview: { en: 'Self-healing', es: 'Auto-reparacion' },
+    error_detection: { en: 'Error types', es: 'Tipos de error' },
+    healing_strategies: { en: '5 recovery strategies', es: '5 estrategias' },
+    healing_example: { en: 'Healing example', es: 'Ejemplo de reparacion' },
+    llm_router: { en: 'LLM Router', es: 'Router LLM' },
+    rag_pipeline: { en: 'RAG Pipeline', es: 'Pipeline RAG' },
+    cost_tracking: { en: 'Cost tracking', es: 'Seguimiento de costos' },
+    infrastructure: { en: 'Infrastructure', es: 'Infraestructura' },
+    testing: { en: 'Testing (231 tests)', es: 'Testing (231 tests)' },
+    sdk: { en: 'TypeScript SDK', es: 'SDK TypeScript' },
+    cli: { en: 'CLI (13 commands)', es: 'CLI (13 comandos)' },
+    plugins: { en: 'Plugin system', es: 'Sistema de plugins' },
+    architecture_decisions: { en: 'Architecture decisions', es: 'Decisiones de arquitectura' },
+    security: { en: 'Security', es: 'Seguridad' },
+    comparison: { en: 'vs LangChain/CrewAI', es: 'vs LangChain/CrewAI' },
+    about_creator: { en: 'About the creator', es: 'Sobre el creador' },
+    tech_stack: { en: 'Tech stack', es: 'Stack tecnologico' },
+    project_stats: { en: 'Project stats', es: 'Estadisticas del proyecto' },
+    help: { en: 'Full help', es: 'Ayuda completa' },
+  }
+
+  const keys = followupMap[topicKey] || ['what_is_nexusforge', 'agents_overview', 'swarms_intro']
+  return keys.map(k => {
+    const label = topicLabels[k]
+    return label ? (lang === 'es' ? label.es : label.en) : k
+  })
 }
