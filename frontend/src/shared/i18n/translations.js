@@ -377,6 +377,16 @@ export const translations = {
     type: 'Tipo',
     lang: 'Idioma',
     size: 'Tamano',
+    dragDropHere: 'Arrastra un archivo aqui, o haz clic para explorar',
+    uploading: 'Subiendo...',
+    extracting: 'Extrayendo texto...',
+    chunking: 'Fragmentando...',
+    embedding: 'Generando embeddings...',
+    indexing: 'Indexando...',
+    chunkParams: '500 caracteres, 50 de solapamiento',
+    processingComplete: 'Documento listo para buscar!',
+    noSearchResults: 'No se encontraron resultados para esta consulta.',
+    searchTip: 'Prueba con diferentes palabras clave o terminos mas cortos.',
 
     // Settings misc
     settingsSubtitle: 'Configura las preferencias del sistema NexusForge.',
