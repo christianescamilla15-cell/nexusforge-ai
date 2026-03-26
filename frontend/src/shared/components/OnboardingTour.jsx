@@ -92,7 +92,7 @@ const TOUR_STEPS = [
   },
 ]
 
-export default function OnboardingTour({ lang, onNavigate, onComplete }) {
+export default function OnboardingTour({ lang, onSetLang, onNavigate, onComplete }) {
   const [step, setStep] = useState(-1) // -1 = welcome screen
   const [fadeIn, setFadeIn] = useState(true)
   const [ready, setReady] = useState(false) // delay showing tooltip after navigation
