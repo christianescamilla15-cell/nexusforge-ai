@@ -2,14 +2,16 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { generateResponse } from './chatEngine'
 
 const QUICK_ACTIONS = [
+  // Row 1
   { label: 'What is NexusForge?', labelEs: '¿Qué es NexusForge?' },
-  { label: 'Agents (22)', labelEs: 'Agentes (22)' },
+  { label: 'How does it work?', labelEs: '¿Cómo funciona?' },
+  { label: 'Agents', labelEs: 'Agentes' },
   { label: 'Topologies', labelEs: 'Topologías' },
-  { label: 'Memory system', labelEs: 'Memoria' },
+  // Row 2
   { label: 'Self-Healing', labelEs: 'Auto-Reparación' },
   { label: 'RAG Pipeline', labelEs: 'Pipeline RAG' },
   { label: 'Architecture', labelEs: 'Arquitectura' },
-  { label: 'Help', labelEs: 'Ayuda' },
+  { label: 'Help', labelEs: 'Ayuda completa' },
 ]
 
 function formatMessage(text) {
