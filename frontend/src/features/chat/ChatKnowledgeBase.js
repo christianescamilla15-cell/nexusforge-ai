@@ -114,7 +114,7 @@ export const NEXUSFORGE_KB = {
 
   // SELF-HEALING
   self_healing: {
-    question_patterns: ['healing', 'self-healing', 'auto-reparacion', 'repair', 'recovery', 'error handling', 'manejo de errores'],
+    question_patterns: ['healing', 'self-healing', 'auto-reparacion', 'auto-reparación', 'reparacion', 'reparación', 'repair', 'recovery', 'error handling', 'manejo de errores', 'self heal', 'auto heal', 'estrategias de recuperacion', 'fallo', 'failure'],
     answer_en: 'Self-healing engine: FailureDetector classifies errors into 6 types (network, timeout, data_quality, schema_mismatch, llm_error, auth). Then selects from 5 strategies:\n• Retry: same step, different config/provider\n• Skip: default output, continue pipeline\n• Repair: RepairAgent diagnoses and fixes\n• Escalate: human review queue\n• Fallback: cached result from previous run',
     answer_es: 'Motor de auto-reparación: FailureDetector clasifica errores en 6 tipos (red, timeout, calidad_datos, schema, llm, auth). Selecciona de 5 estrategias:\n• Retry: mismo paso, diferente config/proveedor\n• Skip: output default, continuar pipeline\n• Repair: RepairAgent diagnostica y arregla\n• Escalate: cola de revisión humana\n• Fallback: resultado cacheado de ejecución anterior'
   },

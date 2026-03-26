@@ -1,7 +1,13 @@
 import { NEXUSFORGE_KB } from './ChatKnowledgeBase'
 
+function normalize(text) {
+  return text.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[¿¡?!.,;:]/g, '') // remove punctuation
+}
+
 export function generateResponse(message, lang = 'en') {
-  const lower = message.toLowerCase().trim()
+  const lower = normalize(message)
 
   // Greetings
   if (/^(hola|hello|hi|hey|buenos|buenas|good morning|que tal)/.test(lower)) {
@@ -23,7 +29,7 @@ export function generateResponse(message, lang = 'en') {
   const scores = Object.entries(NEXUSFORGE_KB).map(([key, topic]) => {
     let score = 0
     for (const pattern of topic.question_patterns) {
-      if (lower.includes(pattern.toLowerCase())) {
+      if (lower.includes(normalize(pattern))) {
         score += pattern.split(' ').length
       }
     }
