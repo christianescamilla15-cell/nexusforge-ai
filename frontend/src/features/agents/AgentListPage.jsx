@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
 import AgentCard from './AgentCard'
 import AgentDetailPanel from './AgentDetailPanel'
-import MemoryPanel from './MemoryPanel'
-import HealingPanel from '../executions/HealingPanel'
 
 const DEMO_AGENTS = [
   {
@@ -164,10 +162,8 @@ const DEMO_AGENTS = [
 ]
 
 export default function AgentListPage({ lang = 'en' }) {
-  // Always start with demo data — no backend required
   const [agents] = useState(DEMO_AGENTS)
   const [selected, setSelected] = useState(null)
-  const [activeTab, setActiveTab] = useState('agents')
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -176,12 +172,6 @@ export default function AgentListPage({ lang = 'en' }) {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
-
-  const TABS = [
-    { key: 'agents', label: t('agents', lang), count: agents.length },
-    { key: 'memory', label: t('memory', lang) },
-    { key: 'healing', label: t('selfHealing', lang) },
-  ]
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -195,65 +185,24 @@ export default function AgentListPage({ lang = 'en' }) {
         </p>
       </div>
 
-      {/* Tabs */}
       <div style={{
-        display: 'flex', gap: 4, marginBottom: 20,
-        borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 0,
-        overflowX: 'auto',
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
+        gap: 16, marginBottom: 24,
       }}>
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            aria-label={`Tab ${tab.label}`}
-            style={{
-              padding: '10px 18px', borderRadius: '8px 8px 0 0', border: 'none',
-              background: activeTab === tab.key ? 'rgba(99,102,241,0.12)' : 'transparent',
-              color: activeTab === tab.key ? '#818CF8' : '#9CA3AF',
-              fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
-              cursor: 'pointer', transition: 'all 0.15s',
-              borderBottom: activeTab === tab.key ? '2px solid #6366F1' : '2px solid transparent',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {tab.label}
-            {tab.count != null && (
-              <span style={{
-                marginLeft: 6, fontSize: 11, padding: '1px 6px', borderRadius: 6,
-                background: activeTab === tab.key ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.05)',
-                color: activeTab === tab.key ? '#818CF8' : '#6B7280',
-              }}>{tab.count}</span>
-            )}
-          </button>
+        {agents.map((agent) => (
+          <AgentCard
+            key={agent.id}
+            agent={agent}
+            selected={selected?.id === agent.id}
+            onClick={(a) => setSelected(selected?.id === a.id ? null : a)}
+          />
         ))}
       </div>
 
-      {/* Tab content */}
-      {activeTab === 'agents' && (
-        <>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: 16, marginBottom: 24,
-          }}>
-            {agents.map((agent) => (
-              <AgentCard
-                key={agent.id}
-                agent={agent}
-                selected={selected?.id === agent.id}
-                onClick={(a) => setSelected(selected?.id === a.id ? null : a)}
-              />
-            ))}
-          </div>
-
-          {selected && (
-            <AgentDetailPanel agent={selected} onClose={() => setSelected(null)} />
-          )}
-        </>
+      {selected && (
+        <AgentDetailPanel agent={selected} onClose={() => setSelected(null)} />
       )}
-
-      {activeTab === 'memory' && <MemoryPanel />}
-      {activeTab === 'healing' && <HealingPanel />}
     </div>
   )
 }

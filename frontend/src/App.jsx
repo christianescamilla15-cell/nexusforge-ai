@@ -8,7 +8,9 @@ import WorkflowDetailPage from './features/workflows/WorkflowDetailPage'
 import ExecutionListPage from './features/executions/ExecutionListPage'
 import ExecutionDetailPage from './features/executions/ExecutionDetailPage'
 import AgentListPage from './features/agents/AgentListPage'
+import MemoryPage from './features/memory/MemoryPage'
 import SwarmListPage from './features/swarms/SwarmListPage'
+import HealingPage from './features/healing/HealingPage'
 import DocumentListPage from './features/documents/DocumentListPage'
 import SettingsPage from './features/settings/SettingsPage'
 import ChatAssistant from './features/chat/ChatAssistant'
@@ -66,8 +68,12 @@ export default function App() {
         )
       case 'agents':
         return <AgentListPage lang={lang} />
+      case 'memory':
+        return <MemoryPage lang={lang} />
       case 'swarms':
         return <SwarmListPage lang={lang} />
+      case 'healing':
+        return <HealingPage lang={lang} />
       case 'documents':
         return <DocumentListPage lang={lang} />
       case 'settings':
