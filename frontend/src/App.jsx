@@ -18,7 +18,7 @@ export default function App() {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null)
   const [selectedExecution, setSelectedExecution] = useState(null)
   const { lang, setLang, toggle: toggleLang } = useLanguage()
-  const [showTour, setShowTour] = useState(() => !localStorage.getItem('nxf-tour-done'))
+  const [showTour, setShowTour] = useState(true)
 
   const navigate = (page) => {
     setCurrentPage(page)

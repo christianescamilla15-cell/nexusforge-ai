@@ -129,7 +129,6 @@ export default function OnboardingTour({ lang, onNavigate, onComplete }) {
   }
 
   const handleFinish = () => {
-    localStorage.setItem('nxf-tour-done', 'true')
     onComplete()
   }
 
