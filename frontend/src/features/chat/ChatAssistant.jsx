@@ -3,10 +3,13 @@ import { generateResponse } from './chatEngine'
 
 const QUICK_ACTIONS = [
   { label: 'What is NexusForge?', labelEs: '¿Qué es NexusForge?' },
-  { label: 'Show agents', labelEs: 'Mostrar agentes' },
-  { label: 'Explain swarms', labelEs: 'Explicar enjambres' },
-  { label: 'How does self-healing work?', labelEs: '¿Cómo funciona auto-reparación?' },
+  { label: 'Agents (22)', labelEs: 'Agentes (22)' },
+  { label: 'Topologies', labelEs: 'Topologías' },
+  { label: 'Memory system', labelEs: 'Memoria' },
+  { label: 'Self-Healing', labelEs: 'Auto-Reparación' },
+  { label: 'RAG Pipeline', labelEs: 'Pipeline RAG' },
   { label: 'Architecture', labelEs: 'Arquitectura' },
+  { label: 'Help', labelEs: 'Ayuda' },
 ]
 
 function formatMessage(text) {

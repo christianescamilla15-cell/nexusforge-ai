@@ -39,7 +39,7 @@ export default function SwarmListPage({ lang = 'en' }) {
       </div>
 
       {executing && (
-        <SwarmExecuteModal topology={executing} onClose={() => setExecuting(null)} />
+        <SwarmExecuteModal topology={executing} onClose={() => setExecuting(null)} lang={lang} />
       )}
     </div>
   )
