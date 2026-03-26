@@ -19,6 +19,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
   const [filter, setFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [localWorkflows, setLocalWorkflows] = useState([])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -49,7 +50,9 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
     { key: 'created', label: t('created', lang) },
   ]
 
-  const workflows = DEMO_WORKFLOWS
+  const workflows = [...localWorkflows.map(w => ({
+    ...w, version: 'v1.0', steps: w.dag_definition?.steps?.length || 0, created: w.created_at?.slice(0, 10) || 'now'
+  })), ...DEMO_WORKFLOWS]
   const filtered = filter === 'all' ? workflows : workflows.filter((w) => w.status === filter)
 
   return (
@@ -141,7 +144,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
       <WorkflowCreateModal
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={() => { setShowCreate(false) }}
+        onCreated={(wf) => { if (wf) setLocalWorkflows(prev => [wf, ...prev]); setShowCreate(false) }}
       />
     </div>
   )

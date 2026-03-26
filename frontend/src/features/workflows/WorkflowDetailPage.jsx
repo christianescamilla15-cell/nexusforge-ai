@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useAPI } from '../../shared/hooks/useAPI'
 import { t } from '../../shared/i18n/translations'
 import StatusBadge from '../../shared/components/StatusBadge'
 import DataTable from '../../shared/components/DataTable'
-import LoadingSpinner from '../../shared/components/LoadingSpinner'
 import DAGVisualization from './DAGVisualization'
-import { api } from '../../api/client'
 
 const DEMO_WORKFLOW = {
   id: 'wf-1',
@@ -40,10 +37,9 @@ const statusMap = {
 }
 
 export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) {
-  const { data: workflow, loading, error } = useAPI(`/workflows/${workflowId}`)
-  const { data: runs, loading: runsLoading } = useAPI(`/workflows/${workflowId}/runs`)
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState(null)
+  const [demoRuns, setDemoRuns] = useState(DEMO_RUNS)
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -53,8 +49,8 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const wf = workflow || DEMO_WORKFLOW
-  const runHistory = runs || DEMO_RUNS
+  const wf = DEMO_WORKFLOW
+  const runHistory = demoRuns
 
   const runColumns = [
     { key: 'status', label: t('status', lang), render: (v) => <StatusBadge status={v} /> },
@@ -64,19 +60,23 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
     { key: 'steps_done', label: t('steps', lang) },
   ]
 
-  const handleRun = async () => {
+  const handleRun = () => {
     setRunning(true)
     setRunError(null)
-    try {
-      await api.post(`/workflows/${workflowId}/run`, {})
-    } catch (e) {
-      setRunError(e.message)
-    } finally {
+    // Demo mode: simulate execution
+    setTimeout(() => {
+      const newRun = {
+        id: 'run-' + Date.now(),
+        status: 'completed',
+        started: new Date().toLocaleString(lang === 'es' ? 'es-ES' : 'en-US'),
+        duration: `${Math.floor(Math.random() * 2 + 1)}m ${Math.floor(Math.random() * 50 + 10)}s`,
+        cost: `$${(Math.random() * 0.3 + 0.05).toFixed(2)}`,
+        steps_done: `${wf.dag_definition.steps.length}/${wf.dag_definition.steps.length}`,
+      }
+      setDemoRuns(prev => [newRun, ...prev])
       setRunning(false)
-    }
+    }, 2000)
   }
-
-  if (loading) return <LoadingSpinner />
 
   const locale = lang === 'es' ? 'es-ES' : 'en-US'
 

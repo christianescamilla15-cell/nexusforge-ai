@@ -164,6 +164,16 @@ export const translations = {
     type: 'Type',
     lang: 'Language',
     size: 'Size',
+    dragDropHere: 'Drag & drop a file here, or click to browse',
+    uploading: 'Uploading...',
+    extracting: 'Extracting text...',
+    chunking: 'Chunking...',
+    embedding: 'Generating embeddings...',
+    indexing: 'Indexing...',
+    chunkParams: '500 chars, 50 char overlap',
+    processingComplete: 'Document ready for search!',
+    noSearchResults: 'No results found for this query.',
+    searchTip: 'Try different keywords or shorter terms.',
 
     // Settings misc
     settingsSubtitle: 'Configure NexusForge system preferences.',

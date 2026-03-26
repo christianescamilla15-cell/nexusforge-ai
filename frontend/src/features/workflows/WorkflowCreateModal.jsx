@@ -97,22 +97,24 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
 
     setSaving(true)
     setError(null)
-    try {
-      await api.post('/workflows', {
+    // Demo mode: save locally (no backend needed)
+    setTimeout(() => {
+      const newWorkflow = {
+        id: 'wf-' + Date.now(),
         name: name.trim(),
         description: description.trim(),
         dag_definition: JSON.parse(dagJson),
-      })
+        status: 'active',
+        version: 1,
+        created_at: new Date().toISOString(),
+      }
       setName('')
       setDescription('')
       setDagJson(JSON.stringify(TEMPLATES[0].dag, null, 2))
       setValidationMsg(null)
-      onCreated()
-    } catch (e) {
-      setError(e.message)
-    } finally {
       setSaving(false)
-    }
+      onCreated(newWorkflow)
+    }, 800)
   }
 
   return (
