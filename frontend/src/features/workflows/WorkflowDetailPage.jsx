@@ -4,23 +4,75 @@ import StatusBadge from '../../shared/components/StatusBadge'
 import DataTable from '../../shared/components/DataTable'
 import DAGVisualization from './DAGVisualization'
 
-const DEMO_WORKFLOW = {
-  id: 'wf-1',
-  name: 'Analisis de Documentos',
-  description: 'Pipeline completo para ingerir, clasificar, resumir y validar documentos automaticamente con agentes IA.',
-  status: 'active',
-  version: 'v1.3',
-  created_at: '2026-03-20T10:30:00Z',
-  updated_at: '2026-03-25T14:15:00Z',
-  dag_definition: {
-    steps: [
+const DEMO_WORKFLOWS = {
+  'wf-1': {
+    id: 'wf-1', name: 'Analisis de Documentos',
+    description: 'Pipeline completo para ingerir, clasificar, resumir y validar documentos automaticamente con agentes IA.',
+    status: 'active', version: 'v1.3', created_at: '2026-03-20T10:30:00Z', updated_at: '2026-03-25T14:15:00Z',
+    dag_definition: { steps: [
       { name: 'ingest', type: 'extractor', depends_on: [] },
       { name: 'classify', type: 'classifier', depends_on: ['ingest'] },
       { name: 'summarize', type: 'summarizer', depends_on: ['classify'] },
       { name: 'validate', type: 'validator', depends_on: ['summarize'] },
-    ],
+    ]},
+  },
+  'wf-2': {
+    id: 'wf-2', name: 'Clasificacion de Datos',
+    description: 'Pipeline de clasificacion con procesamiento paralelo y fusion de resultados.',
+    status: 'active', version: 'v2.1', created_at: '2026-03-18T09:00:00Z', updated_at: '2026-03-24T11:00:00Z',
+    dag_definition: { steps: [
+      { name: 'load_data', type: 'extractor', depends_on: [] },
+      { name: 'preprocess', type: 'normalizer', depends_on: ['load_data'] },
+      { name: 'classify_a', type: 'classifier', depends_on: ['preprocess'] },
+      { name: 'classify_b', type: 'classifier', depends_on: ['preprocess'] },
+      { name: 'merge', type: 'enricher', depends_on: ['classify_a', 'classify_b'] },
+      { name: 'export', type: 'validator', depends_on: ['merge'] },
+    ]},
+  },
+  'wf-3': {
+    id: 'wf-3', name: 'Resumen Ejecutivo',
+    description: 'Genera resumenes ejecutivos de documentos largos con puntos clave.',
+    status: 'draft', version: 'v1.0', created_at: '2026-03-22T14:00:00Z', updated_at: '2026-03-22T14:00:00Z',
+    dag_definition: { steps: [
+      { name: 'extract', type: 'extractor', depends_on: [] },
+      { name: 'summarize', type: 'summarizer', depends_on: ['extract'] },
+    ]},
+  },
+  'wf-4': {
+    id: 'wf-4', name: 'Extraccion de Entidades',
+    description: 'Extrae personas, organizaciones, fechas y montos de documentos.',
+    status: 'paused', version: 'v1.1', created_at: '2026-03-15T08:30:00Z', updated_at: '2026-03-20T16:00:00Z',
+    dag_definition: { steps: [
+      { name: 'ingest', type: 'extractor', depends_on: [] },
+      { name: 'ner', type: 'extractor', depends_on: ['ingest'] },
+      { name: 'validate', type: 'validator', depends_on: ['ner'] },
+    ]},
+  },
+  'wf-5': {
+    id: 'wf-5', name: 'Pipeline RAG',
+    description: 'Indexa documentos con embeddings y permite busqueda semantica.',
+    status: 'active', version: 'v3.0', created_at: '2026-03-10T10:00:00Z', updated_at: '2026-03-25T09:00:00Z',
+    dag_definition: { steps: [
+      { name: 'upload', type: 'extractor', depends_on: [] },
+      { name: 'chunk', type: 'normalizer', depends_on: ['upload'] },
+      { name: 'embed', type: 'enricher', depends_on: ['chunk'] },
+      { name: 'index', type: 'validator', depends_on: ['embed'] },
+      { name: 'search', type: 'knowledge', depends_on: ['index'] },
+    ]},
+  },
+  'wf-6': {
+    id: 'wf-6', name: 'Traduccion Masiva',
+    description: 'Traduce documentos a multiples idiomas con verificacion de calidad.',
+    status: 'archived', version: 'v1.2', created_at: '2026-02-28T12:00:00Z', updated_at: '2026-03-10T15:00:00Z',
+    dag_definition: { steps: [
+      { name: 'extract', type: 'extractor', depends_on: [] },
+      { name: 'translate', type: 'translator', depends_on: ['extract'] },
+      { name: 'review', type: 'critic', depends_on: ['translate'] },
+    ]},
   },
 }
+
+const DEFAULT_WORKFLOW = DEMO_WORKFLOWS['wf-1']
 
 const DEMO_RUNS = [
   { id: 'run-1', status: 'completed', started: '2026-03-25 14:10', duration: '2m 14s', cost: '$0.23', steps_done: '4/4' },
@@ -49,7 +101,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const wf = DEMO_WORKFLOW
+  const wf = DEMO_WORKFLOWS[workflowId] || DEFAULT_WORKFLOW
   const runHistory = demoRuns
 
   const runColumns = [
