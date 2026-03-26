@@ -1,0 +1,108 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: nexusforge
+
+resources:
+  - ../../base
+
+commonLabels:
+  environment: staging
+
+patches:
+  # Gateway: 1 replica, smaller resources
+  - target:
+      kind: Deployment
+      name: gateway
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 100m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 128Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 256Mi
+
+  # Worker: 1 replica, smaller resources
+  - target:
+      kind: Deployment
+      name: worker
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 250m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 512Mi
+
+  # Frontend: 1 replica
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # HPA: lower minimums
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: gateway-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: worker-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 5
+
+  # ConfigMap: staging-specific values
+  - target:
+      kind: ConfigMap
+      name: nexusforge-config
+    patch: |
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: debug
+      - op: replace
+        path: /data/ENVIRONMENT
+        value: staging
+      - op: replace
+        path: /data/CORS_ORIGINS
+        value: "http://localhost:3000,https://staging.nexusforge.io"
+
+images:
+  - name: nexusforge/gateway
+    newTag: staging
+  - name: nexusforge/worker
+    newTag: staging
+  - name: nexusforge/frontend
+    newTag: staging

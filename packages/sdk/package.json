@@ -1,0 +1,21 @@
+{
+  "name": "@nexusforge/sdk",
+  "version": "0.1.0",
+  "description": "NexusForge AI SDK — programmatic access to the agent orchestration platform",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo 'SDK tests'"
+  },
+  "license": "MIT",
+  "keywords": [
+    "nexusforge",
+    "ai",
+    "agents",
+    "orchestration",
+    "sdk"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,46 @@
+groups:
+  - name: pipeline-alerts
+    rules:
+      - alert: PipelineStuck
+        expr: |
+          (time() - pipeline_run_start_timestamp_seconds{status="running"}) > 1800
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pipeline run {{ $labels.run_id }} stuck in running state"
+          description: "Pipeline run {{ $labels.run_id }} has been in 'running' state for over 30 minutes."
+
+      - alert: PipelineHighFailureRate
+        expr: |
+          (
+            sum(rate(pipeline_run_total{status="failed"}[15m]))
+            /
+            sum(rate(pipeline_run_total[15m]))
+          ) > 0.3
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pipeline failure rate above 30%"
+          description: "Pipeline failure rate is {{ $value | humanizePercentage }} over the last 15 minutes."
+
+      - alert: DeadLetterQueueGrowing
+        expr: |
+          dead_letter_queue_size > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dead letter queue has {{ $value }} items"
+          description: "Dead letter queue has grown to {{ $value }} items — investigate failed messages."
+
+      - alert: CheckpointStale
+        expr: |
+          (time() - pipeline_checkpoint_last_update_timestamp_seconds) > 600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pipeline checkpoint stale for run {{ $labels.run_id }}"
+          description: "No checkpoint update for run {{ $labels.run_id }} in over 10 minutes."

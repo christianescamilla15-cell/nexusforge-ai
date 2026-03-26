@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexusforge-config
+  namespace: nexusforge
+data:
+  API_BASE_URL: "http://gateway.nexusforge.svc.cluster.local"
+  LOG_LEVEL: "info"
+  CORS_ORIGINS: "https://app.nexusforge.io"
+  ENVIRONMENT: "staging"
+  REDIS_HOST: "redis.nexusforge.svc.cluster.local"
+  REDIS_PORT: "6379"
+  DB_PORT: "5432"
+  DB_NAME: "nexusforge"
+  S3_REGION: "us-east-1"
+  MAX_UPLOAD_SIZE: "52428800"
+  WORKER_CONCURRENCY: "4"
+  RATE_LIMIT_PER_MINUTE: "100"
+  SESSION_TIMEOUT: "3600"
+  ENABLE_TELEMETRY: "true"
+  OTEL_EXPORTER_ENDPOINT: "http://otel-collector.monitoring.svc.cluster.local:4317"

@@ -1,0 +1,169 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Agent Execution Count",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(increase(agent_execution_total[1h])) by (agent_type)",
+          "legendFormat": "{{ agent_type }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisBorderShow": false, "fillOpacity": 80 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Agent Success / Failure Rate",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(agent_execution_total{status=\"success\"}[5m])) by (agent_type)",
+          "legendFormat": "{{ agent_type }} - success"
+        },
+        {
+          "expr": "sum(rate(agent_execution_total{status=\"failed\"}[5m])) by (agent_type)",
+          "legendFormat": "{{ agent_type }} - failed"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "stacking": { "mode": "normal" }, "fillOpacity": 80 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Average Latency per Agent",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(agent_execution_duration_seconds_sum[5m]) / rate(agent_execution_duration_seconds_count[5m])",
+          "legendFormat": "{{ agent_type }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Token Usage per Agent",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(increase(agent_token_usage_total[1h])) by (agent_type, token_type)",
+          "legendFormat": "{{ agent_type }} - {{ token_type }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 80 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Active Swarm Executions",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(swarm_execution_active)",
+          "legendFormat": "Active"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          },
+          "min": 0,
+          "max": 20
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Swarm Topology Usage Distribution",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(increase(swarm_execution_total[24h])) by (topology)",
+          "legendFormat": "{{ topology }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Memory Tier Usage",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(memory_tier_size_bytes{tier=\"working\"}) / 1073741824",
+          "legendFormat": "Working"
+        },
+        {
+          "expr": "sum(memory_tier_size_bytes{tier=\"episodic\"}) / 1073741824",
+          "legendFormat": "Episodic"
+        },
+        {
+          "expr": "sum(memory_tier_size_bytes{tier=\"semantic\"}) / 1073741824",
+          "legendFormat": "Semantic"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decgbytes",
+          "custom": { "fillOpacity": 80 }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["nexusforge", "agents", "swarm"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Agent & Swarm Overview",
+  "uid": "nexusforge-agent-swarm",
+  "version": 1
+}

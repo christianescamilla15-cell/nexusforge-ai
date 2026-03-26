@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: nexusforge
+
+commonLabels:
+  app.kubernetes.io/part-of: nexusforge
+
+resources:
+  - namespace.yml
+  - configmap.yml
+  - secrets.yml
+  - gateway-deployment.yml
+  - gateway-service.yml
+  - gateway-hpa.yml
+  - worker-deployment.yml
+  - worker-hpa.yml
+  - frontend-deployment.yml
+  - frontend-service.yml
+  - redis-statefulset.yml

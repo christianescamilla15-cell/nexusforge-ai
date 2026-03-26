@@ -1,0 +1,56 @@
+groups:
+  - name: agent-alerts
+    rules:
+      - alert: AgentHighFailureRate
+        expr: |
+          (
+            sum(rate(agent_execution_total{status="failed"}[5m])) by (agent_type)
+            /
+            sum(rate(agent_execution_total[5m])) by (agent_type)
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Agent {{ $labels.agent_type }} failure rate above 20%"
+          description: "Agent {{ $labels.agent_type }} has a failure rate of {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: AgentHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(agent_execution_duration_seconds_bucket[5m])) by (le, agent_type)) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent {{ $labels.agent_type }} p95 latency above 10s"
+          description: "Agent {{ $labels.agent_type }} p95 latency is {{ $value | humanizeDuration }}."
+
+      - alert: AgentHighCost
+        expr: |
+          sum(increase(agent_llm_cost_dollars_total[1h])) by (agent_type) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent {{ $labels.agent_type }} LLM cost exceeds $1/hour"
+          description: "Agent {{ $labels.agent_type }} has spent ${{ $value }} in the last hour."
+
+      - alert: SwarmExecutionFailed
+        expr: |
+          sum(increase(swarm_execution_total{status="failed"}[15m])) by (topology) >= 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Swarm topology {{ $labels.topology }} failed 3+ times"
+          description: "Swarm topology {{ $labels.topology }} has failed {{ $value }} times in the last 15 minutes."
+
+      - alert: MemoryHighUsage
+        expr: |
+          semantic_memory_size_bytes / 1073741824 > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Semantic memory exceeds 10GB for tenant {{ $labels.tenant_id }}"
+          description: "Tenant {{ $labels.tenant_id }} semantic memory is at {{ $value | humanize1024 }}B."

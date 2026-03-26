@@ -6,6 +6,7 @@ import WorkflowDetailPage from './features/workflows/WorkflowDetailPage'
 import ExecutionListPage from './features/executions/ExecutionListPage'
 import ExecutionDetailPage from './features/executions/ExecutionDetailPage'
 import AgentListPage from './features/agents/AgentListPage'
+import SwarmListPage from './features/swarms/SwarmListPage'
 import DocumentListPage from './features/documents/DocumentListPage'
 import SettingsPage from './features/settings/SettingsPage'
 
@@ -56,6 +57,8 @@ export default function App() {
         )
       case 'agents':
         return <AgentListPage />
+      case 'swarms':
+        return <SwarmListPage />
       case 'documents':
         return <DocumentListPage />
       case 'settings':
