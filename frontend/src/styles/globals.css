@@ -40,3 +40,79 @@ input, textarea, select { font-family: inherit; }
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ===== Responsive Design ===== */
+
+/* Tablet and below */
+@media (max-width: 768px) {
+  /* Sidebar collapses — controlled via JS, but hide desktop-only elements */
+  .nxf-sidebar {
+    position: fixed !important;
+  }
+
+  /* Tables become horizontally scrollable */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  thead, tbody, tr {
+    min-width: 600px;
+  }
+
+  /* Modals become near full-screen */
+  [role="dialog"] > div,
+  .modal-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 90vh !important;
+    border-radius: 12px !important;
+  }
+
+  /* Slightly smaller base font */
+  body {
+    font-size: 14px;
+  }
+
+  /* Make buttons easier to tap */
+  button {
+    min-height: 40px;
+  }
+
+  /* Scrollbar thinner on mobile */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+
+  /* Full-width buttons on very small screens */
+  .nxf-action-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Tighter spacing */
+  main {
+    padding: 8px !important;
+  }
+
+  /* Modals truly full-screen */
+  [role="dialog"] > div,
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  /* Stack flex items */
+  .nxf-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

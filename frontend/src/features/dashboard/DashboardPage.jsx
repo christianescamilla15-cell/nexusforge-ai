@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAPI } from '../../shared/hooks/useAPI'
+import { t } from '../../shared/i18n/translations'
 import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
@@ -42,10 +43,18 @@ function KPIIcon({ type }) {
   )
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ lang = 'en' }) {
   const { data: stats, loading: statsLoading, error: statsError } = useAPI('/stats')
   const { data: runs, loading: runsLoading, error: runsError } = useAPI('/executions/recent')
   const { data: agentStats, loading: agentsLoading } = useAPI('/agents/activity')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const kpis = stats || DEMO_KPIS
   const recentRuns = runs || DEMO_RUNS
@@ -53,13 +62,24 @@ export default function DashboardPage() {
 
   const isDemo = statsError || runsError
 
+  const costItems = [
+    { label: t('today', lang), value: '$2.14' },
+    { label: t('thisWeek', lang), value: '$18.73' },
+    { label: t('thisMonth', lang), value: '$64.50' },
+  ]
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 24, flexWrap: 'wrap', gap: 8,
+      }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB' }}>Dashboard</h1>
-          <p style={{ fontSize: 14, color: '#9CA3AF', marginTop: 4 }}>
-            Vista general del sistema NexusForge AI
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB' }}>
+            {t('dashboard', lang)}
+          </h1>
+          <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF', marginTop: 4 }}>
+            {t('dashboardSubtitle', lang)}
           </p>
         </div>
         {isDemo && (
@@ -68,7 +88,7 @@ export default function DashboardPage() {
             background: 'rgba(245,158,11,0.1)', color: '#F59E0B',
             border: '1px solid rgba(245,158,11,0.2)',
           }}>
-            Modo demo — API no disponible
+            {t('demoMode', lang)}
           </span>
         )}
       </div>
@@ -77,38 +97,48 @@ export default function DashboardPage() {
       {statsLoading ? (
         <LoadingSpinner />
       ) : (
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+        <div className="nxf-kpi-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+          gap: isMobile ? 10 : 16,
+          marginBottom: 24,
+        }}>
           <KPICard
             icon={<KPIIcon type="workflows" />}
             value={kpis.workflows}
-            label="Total Workflows"
+            label={t('totalWorkflows', lang)}
             trend={12}
           />
           <KPICard
             icon={<KPIIcon type="runs" />}
             value={kpis.activeRuns}
-            label="Ejecuciones Activas"
+            label={t('activeRuns', lang)}
             trend={-5}
           />
           <KPICard
             icon={<KPIIcon type="agents" />}
             value={kpis.agentsOnline}
-            label="Agentes en Linea"
+            label={t('agentsOnline', lang)}
             trend={0}
           />
           <KPICard
             icon={<KPIIcon type="docs" />}
             value={kpis.documents}
-            label="Documentos Indexados"
+            label={t('docsIndexed', lang)}
             trend={23}
           />
         </div>
       )}
 
       {/* Main content grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, alignItems: 'start' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 380px',
+        gap: 16,
+        alignItems: 'start',
+      }}>
         {/* Recent runs */}
-        <div>
+        <div style={{ overflowX: 'auto' }}>
           {runsLoading ? <LoadingSpinner /> : <RecentRuns runs={recentRuns} />}
         </div>
 
@@ -122,13 +152,9 @@ export default function DashboardPage() {
             border: '1px solid rgba(255,255,255,0.06)', padding: 20,
           }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB', marginBottom: 16 }}>
-              Resumen de Costos
+              {t('costOverview', lang)}
             </h3>
-            {[
-              { label: 'Hoy', value: '$2.14' },
-              { label: 'Esta semana', value: '$18.73' },
-              { label: 'Este mes', value: '$64.50' },
-            ].map((item) => (
+            {costItems.map((item) => (
               <div key={item.label} style={{
                 display: 'flex', justifyContent: 'space-between',
                 padding: '10px 0',

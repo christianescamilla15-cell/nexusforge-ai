@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../api/client'
+import { t } from '../../shared/i18n/translations'
 import AgentCard from './AgentCard'
 import AgentDetailPanel from './AgentDetailPanel'
 import MemoryPanel from './MemoryPanel'
@@ -163,11 +164,19 @@ const DEMO_AGENTS = [
   },
 ]
 
-export default function AgentListPage() {
+export default function AgentListPage({ lang = 'en' }) {
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [activeTab, setActiveTab] = useState('agents')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -184,16 +193,16 @@ export default function AgentListPage() {
   }, [])
 
   const TABS = [
-    { key: 'agents', label: 'Agentes', count: agents.length },
-    { key: 'memory', label: 'Memoria' },
-    { key: 'healing', label: 'Self-Healing' },
+    { key: 'agents', label: t('agents', lang), count: agents.length },
+    { key: 'memory', label: t('memory', lang) },
+    { key: 'healing', label: t('selfHealing', lang) },
   ]
 
   if (loading) {
     return (
       <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 8 }}>Agentes</h1>
-        <p style={{ fontSize: 14, color: '#9CA3AF' }}>Cargando agentes...</p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 8 }}>{t('agents', lang)}</h1>
+        <p style={{ fontSize: 14, color: '#9CA3AF' }}>{t('loadingAgents', lang)}</p>
       </div>
     )
   }
@@ -201,15 +210,21 @@ export default function AgentListPage() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>Agentes</h1>
-        <p style={{ fontSize: 14, color: '#9CA3AF' }}>
-          Gestiona y configura los agentes IA disponibles.
-          <span style={{ marginLeft: 8, color: '#6366F1' }}>{agents.length} registrados</span>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+          {t('agents', lang)}
+        </h1>
+        <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>
+          {t('manageAgents', lang)}
+          <span style={{ marginLeft: 8, color: '#6366F1' }}>{agents.length} {t('registered', lang)}</span>
         </p>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 0 }}>
+      <div style={{
+        display: 'flex', gap: 4, marginBottom: 20,
+        borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 0,
+        overflowX: 'auto',
+      }}>
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -222,6 +237,7 @@ export default function AgentListPage() {
               fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
               cursor: 'pointer', transition: 'all 0.15s',
               borderBottom: activeTab === tab.key ? '2px solid #6366F1' : '2px solid transparent',
+              whiteSpace: 'nowrap',
             }}
           >
             {tab.label}
@@ -239,7 +255,11 @@ export default function AgentListPage() {
       {/* Tab content */}
       {activeTab === 'agents' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: 16, marginBottom: 24,
+          }}>
             {agents.map((agent) => (
               <AgentCard
                 key={agent.id}

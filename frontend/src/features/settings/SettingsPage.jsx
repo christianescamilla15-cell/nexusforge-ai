@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { api } from '../../api/client'
+import { t } from '../../shared/i18n/translations'
 
-export default function SettingsPage() {
+export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
   const [apiUrl, setApiUrl] = useState(
     () => (typeof window !== 'undefined' && import.meta.env.VITE_API_URL) || 'http://localhost:8000/api'
   )
-  const [language, setLanguage] = useState('es')
   const [darkMode] = useState(true)
   const [healthResult, setHealthResult] = useState(null)
   const [healthLoading, setHealthLoading] = useState(false)
+  const [tourResetDone, setTourResetDone] = useState(false)
 
   const checkHealth = async () => {
     setHealthLoading(true)
@@ -17,7 +18,7 @@ export default function SettingsPage() {
       const data = await api.get('/health')
       setHealthResult({ ok: true, data })
     } catch (err) {
-      setHealthResult({ ok: false, error: err.message || 'No se pudo conectar' })
+      setHealthResult({ ok: false, error: err.message || 'Connection failed' })
     } finally {
       setHealthLoading(false)
     }
@@ -25,9 +26,11 @@ export default function SettingsPage() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out', maxWidth: 640 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>Ajustes</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+        {t('settings', lang)}
+      </h1>
       <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 32 }}>
-        Configura las preferencias del sistema NexusForge.
+        {t('settingsSubtitle', lang)}
       </p>
 
       {/* Settings cards */}
@@ -36,14 +39,14 @@ export default function SettingsPage() {
         {/* API URL */}
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>API Base URL</label>
-            <p style={descStyle}>URL del servidor backend de NexusForge.</p>
+            <label style={labelStyle}>{t('apiBaseUrl', lang)}</label>
+            <p style={descStyle}>{t('apiBaseUrlDesc', lang)}</p>
           </div>
           <input
             type="text"
             value={apiUrl}
             onChange={(e) => setApiUrl(e.target.value)}
-            aria-label="API Base URL"
+            aria-label={t('apiBaseUrl', lang)}
             style={inputStyle}
             onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
             onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
@@ -54,8 +57,8 @@ export default function SettingsPage() {
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <label style={labelStyle}>Tema</label>
-              <p style={descStyle}>Dark mode esta activado. Otros temas proximamente.</p>
+              <label style={labelStyle}>{t('theme', lang)}</label>
+              <p style={descStyle}>{t('themeDesc', lang)}</p>
             </div>
             <div style={{
               width: 44, height: 24, borderRadius: 12, padding: 2,
@@ -74,26 +77,26 @@ export default function SettingsPage() {
         {/* Language */}
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Idioma</label>
-            <p style={descStyle}>Selecciona el idioma de la interfaz.</p>
+            <label style={labelStyle}>{t('language', lang)}</label>
+            <p style={descStyle}>{t('languageDesc', lang)}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {[
               { key: 'es', label: 'Espanol' },
               { key: 'en', label: 'English' },
-            ].map((lang) => (
+            ].map((option) => (
               <button
-                key={lang.key}
-                onClick={() => setLanguage(lang.key)}
-                aria-label={`Idioma ${lang.label}`}
+                key={option.key}
+                onClick={() => setLang && setLang(option.key)}
+                aria-label={`${t('language', lang)}: ${option.label}`}
                 style={{
                   padding: '8px 20px', borderRadius: 8, border: 'none', fontSize: 14,
                   fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
-                  background: language === lang.key ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
-                  color: language === lang.key ? '#818CF8' : '#9CA3AF',
+                  background: lang === option.key ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
+                  color: lang === option.key ? '#818CF8' : '#9CA3AF',
                 }}
               >
-                {lang.label}
+                {option.label}
               </button>
             ))}
           </div>
@@ -102,13 +105,13 @@ export default function SettingsPage() {
         {/* Health Check */}
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Estado del API</label>
-            <p style={descStyle}>Verifica la conexion con el backend.</p>
+            <label style={labelStyle}>{t('apiStatus', lang)}</label>
+            <p style={descStyle}>{t('apiStatusDesc', lang)}</p>
           </div>
           <button
             onClick={checkHealth}
             disabled={healthLoading}
-            aria-label="Verificar estado del API"
+            aria-label={t('healthCheck', lang)}
             style={{
               padding: '10px 24px', borderRadius: 8, border: 'none',
               background: healthLoading ? 'rgba(99,102,241,0.3)' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
@@ -117,7 +120,7 @@ export default function SettingsPage() {
               marginBottom: healthResult ? 12 : 0,
             }}
           >
-            {healthLoading ? 'Verificando...' : 'Verificar Conexion'}
+            {healthLoading ? t('verifying', lang) : t('verifyConnection', lang)}
           </button>
           {healthResult && (
             <div style={{
@@ -128,9 +131,41 @@ export default function SettingsPage() {
               fontSize: 13,
             }}>
               {healthResult.ok
-                ? `API operativo: ${JSON.stringify(healthResult.data)}`
-                : `Error: ${healthResult.error}`
+                ? `${t('apiOperative', lang)}: ${JSON.stringify(healthResult.data)}`
+                : `${t('error', lang)}: ${healthResult.error}`
               }
+            </div>
+          )}
+        </div>
+
+        {/* Reset Tour */}
+        <div style={cardStyle}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>{t('resetTour', lang)}</label>
+            <p style={descStyle}>{t('resetTourDesc', lang)}</p>
+          </div>
+          <button
+            onClick={() => { onResetTour && onResetTour(); setTourResetDone(true) }}
+            aria-label={t('resetTourBtn', lang)}
+            style={{
+              padding: '10px 24px', borderRadius: 8,
+              border: '1px solid rgba(99,102,241,0.3)',
+              background: 'transparent',
+              color: '#818CF8', fontSize: 14, fontWeight: 500,
+              cursor: 'pointer', transition: 'all 0.15s',
+              marginBottom: tourResetDone ? 12 : 0,
+            }}
+          >
+            {t('resetTourBtn', lang)}
+          </button>
+          {tourResetDone && (
+            <div style={{
+              padding: '10px 16px', borderRadius: 8,
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.2)',
+              color: '#10B981', fontSize: 13,
+            }}>
+              {t('tourReset', lang)}
             </div>
           )}
         </div>
@@ -139,8 +174,8 @@ export default function SettingsPage() {
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <label style={labelStyle}>Version</label>
-              <p style={descStyle}>NexusForge AI Platform</p>
+              <label style={labelStyle}>{t('versionLabel', lang)}</label>
+              <p style={descStyle}>{t('versionDesc', lang)}</p>
             </div>
             <span style={{
               fontSize: 14, fontWeight: 600, color: '#6366F1',

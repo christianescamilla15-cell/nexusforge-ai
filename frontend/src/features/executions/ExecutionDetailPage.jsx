@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../../api/client'
+import { t } from '../../shared/i18n/translations'
 import { connectExecutionWS } from '../../api/websocket'
 import StatusBadge from '../../shared/components/StatusBadge'
 import StepTimeline from './StepTimeline'
@@ -39,18 +40,27 @@ function formatDuration(ms) {
   return `${Math.floor(s / 60)}m ${s % 60}s`
 }
 
-function formatDate(iso) {
+function formatDate(iso, lang) {
   if (!iso) return '--'
-  return new Date(iso).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const locale = lang === 'es' ? 'es-ES' : 'en-US'
+  return new Date(iso).toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-export default function ExecutionDetailPage({ runId, onBack }) {
+export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
   const [execution, setExecution] = useState(null)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [elapsed, setElapsed] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
   const wsRef = useRef(null)
   const timerRef = useRef(null)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -106,11 +116,11 @@ export default function ExecutionDetailPage({ runId, onBack }) {
   if (loading) {
     return (
       <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        <button onClick={onBack} aria-label="Volver a ejecuciones" style={backBtnStyle}>
+        <button onClick={onBack} aria-label={t('back', lang)} style={backBtnStyle}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          Volver
+          {t('backToExecutions', lang)}
         </button>
-        <p style={{ color: '#9CA3AF', marginTop: 24 }}>Cargando ejecucion...</p>
+        <p style={{ color: '#9CA3AF', marginTop: 24 }}>{t('loadingExecution', lang)}</p>
       </div>
     )
   }
@@ -130,9 +140,9 @@ export default function ExecutionDetailPage({ runId, onBack }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       {/* Back button */}
-      <button onClick={onBack} aria-label="Volver a ejecuciones" style={backBtnStyle}>
+      <button onClick={onBack} aria-label={t('back', lang)} style={backBtnStyle}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-        Volver
+        {t('backToExecutions', lang)}
       </button>
 
       {/* Header */}
@@ -141,21 +151,24 @@ export default function ExecutionDetailPage({ runId, onBack }) {
         marginTop: 16, marginBottom: 24, flexWrap: 'wrap', gap: 16,
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#E5E7EB', margin: 0 }}>{execution.workflow_name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#E5E7EB', margin: 0 }}>{execution.workflow_name}</h1>
             <StatusBadge status={execution.status} />
           </div>
           <span style={{ fontSize: 13, color: '#9CA3AF', fontFamily: 'monospace' }}>{execution.run_id}</span>
         </div>
-        <div style={{ display: 'flex', gap: 20 }}>
+        <div style={{
+          display: 'flex', gap: isMobile ? 12 : 20,
+          flexWrap: 'wrap',
+        }}>
           {[
-            { label: 'Duracion', value: formatDuration(totalDuration) },
-            { label: 'Costo', value: `$${execution.total_cost?.toFixed(3) || '0.000'}`, color: '#10B981' },
-            { label: 'Tokens', value: execution.total_tokens?.toLocaleString() || '0' },
+            { label: t('duration', lang), value: formatDuration(totalDuration) },
+            { label: t('cost', lang), value: `$${execution.total_cost?.toFixed(3) || '0.000'}`, color: '#10B981' },
+            { label: t('tokens', lang), value: execution.total_tokens?.toLocaleString() || '0' },
           ].map((m) => (
             <div key={m.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4 }}>{m.label}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: m.color || '#E5E7EB' }}>{m.value}</div>
+              <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: m.color || '#E5E7EB' }}>{m.value}</div>
             </div>
           ))}
         </div>
@@ -164,8 +177,8 @@ export default function ExecutionDetailPage({ runId, onBack }) {
       {/* Progress bar */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: '#9CA3AF' }}>Progreso</span>
-          <span style={{ fontSize: 12, color: '#9CA3AF' }}>{completedSteps}/{totalSteps} pasos</span>
+          <span style={{ fontSize: 12, color: '#9CA3AF' }}>{t('progress', lang)}</span>
+          <span style={{ fontSize: 12, color: '#9CA3AF' }}>{completedSteps}/{totalSteps} {t('steps', lang).toLowerCase()}</span>
         </div>
         <div style={{
           height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden',
@@ -180,13 +193,17 @@ export default function ExecutionDetailPage({ runId, onBack }) {
 
       {/* Timeline */}
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 16 }}>Pipeline de Ejecucion</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 16 }}>
+          {t('executionPipeline', lang)}
+        </h2>
         <StepTimeline steps={execution.steps || []} />
       </div>
 
       {/* Log panel */}
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 12 }}>Log de Eventos</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 12 }}>
+          {t('eventLog', lang)}
+        </h2>
         <LiveLog events={events} />
       </div>
 
@@ -201,13 +218,13 @@ export default function ExecutionDetailPage({ runId, onBack }) {
             fontSize: 14, fontWeight: 600, marginBottom: 10,
             color: execution.status === 'completed' ? '#10B981' : '#EF4444',
           }}>
-            {execution.status === 'completed' ? 'Ejecucion Completada' : 'Ejecucion Fallida'}
+            {execution.status === 'completed' ? t('executionCompleted', lang) : t('executionFailed', lang)}
           </h3>
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: 13, color: '#D1D5DB' }}>
-            <span>Tiempo total: <strong>{formatDuration(totalDuration)}</strong></span>
-            <span>Costo total: <strong style={{ color: '#10B981' }}>${execution.total_cost?.toFixed(3)}</strong></span>
-            <span>Tokens usados: <strong>{execution.total_tokens?.toLocaleString()}</strong></span>
-            <span>Inicio: <strong>{formatDate(execution.started_at)}</strong></span>
+          <div style={{ display: 'flex', gap: isMobile ? 12 : 24, flexWrap: 'wrap', fontSize: 13, color: '#D1D5DB' }}>
+            <span>{t('totalTime', lang)}: <strong>{formatDuration(totalDuration)}</strong></span>
+            <span>{t('totalCost', lang)}: <strong style={{ color: '#10B981' }}>${execution.total_cost?.toFixed(3)}</strong></span>
+            <span>{t('tokensUsed', lang)}: <strong>{execution.total_tokens?.toLocaleString()}</strong></span>
+            <span>{t('start', lang)}: <strong>{formatDate(execution.started_at, lang)}</strong></span>
           </div>
         </div>
       )}
