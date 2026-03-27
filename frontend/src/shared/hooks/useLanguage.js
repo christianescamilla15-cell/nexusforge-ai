@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 
 export function useLanguage() {
-  const [lang, setLang] = useState(() => localStorage.getItem('nxf-lang') || 'en')
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem('nxf-lang') || 'en' } catch { return 'en' }
+  })
 
   useEffect(() => {
-    localStorage.setItem('nxf-lang', lang)
+    try { localStorage.setItem('nxf-lang', lang) } catch { /* storage unavailable */ }
     document.documentElement.lang = lang
   }, [lang])
 

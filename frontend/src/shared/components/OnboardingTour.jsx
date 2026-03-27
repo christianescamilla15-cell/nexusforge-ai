@@ -617,7 +617,7 @@ export default function OnboardingTour({ lang, onSetLang, onNavigate, onComplete
   }
 
   const handleFinish = () => {
-    localStorage.setItem('nxf-tour-done', 'true')
+    try { localStorage.setItem('nxf-tour-done', 'true') } catch { /* */ }
     onComplete()
   }
 

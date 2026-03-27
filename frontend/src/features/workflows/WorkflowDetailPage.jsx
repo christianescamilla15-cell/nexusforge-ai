@@ -267,11 +267,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
             {t('executionHistory', lang)}
           </h3>
         </div>
-        {runsLoading ? (
-          <LoadingSpinner />
-        ) : (
-          <DataTable columns={runColumns} data={runHistory} pageSize={5} />
-        )}
+        <DataTable columns={runColumns} data={runHistory} pageSize={5} />
       </div>
     </div>
   )
