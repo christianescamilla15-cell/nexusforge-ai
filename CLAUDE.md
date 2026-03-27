@@ -6,6 +6,7 @@ Enterprise-grade AI Agent Orchestration Platform with DAG-based workflow executi
 ## Stack
 - Backend: Python 3.12 + FastAPI
 - Database: PostgreSQL 16 + pgvector
+- Document Store: MongoDB 7 (episodic memory, polyglot persistence)
 - Cache/Queue: Redis 7
 - LLM: Groq (primary) + Claude (fallback)
 - Embeddings: Voyage AI (512d)

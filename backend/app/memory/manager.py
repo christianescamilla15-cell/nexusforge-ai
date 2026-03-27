@@ -1,4 +1,9 @@
-"""Unified memory manager — wraps all three memory tiers."""
+"""Unified memory manager — wraps all three memory tiers.
+
+Supports polyglot persistence: Redis (fast) + MongoDB (rich queries) for
+episodic memory via dual-write.  MongoDB is optional — everything works
+without it.
+"""
 
 from __future__ import annotations
 
@@ -7,22 +12,25 @@ from typing import Any
 
 from app.memory.working import WorkingMemory
 from app.memory.episodic import EpisodicMemory
+from app.memory.episodic_mongo import MongoEpisodicMemory
 from app.memory.semantic import SemanticMemory
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryManager:
-    """Single entry-point for agent memory across all three tiers.
+    """Single entry-point for agent memory across all tiers.
 
     * **working**  — in-process dict (tier 1)
-    * **episodic** — Redis with 30-day TTL (tier 2)
+    * **episodic** — Redis with 30-day TTL (tier 2a, fast)
+    * **episodic_mongo** — MongoDB with TTL index (tier 2b, rich queries)
     * **semantic** — pgvector long-term store (tier 3)
     """
 
     def __init__(self) -> None:
         self.working = WorkingMemory()
         self.episodic = EpisodicMemory()
+        self.episodic_mongo = MongoEpisodicMemory()
         self.semantic = SemanticMemory()
 
     # --- unified write ---
@@ -40,11 +48,20 @@ class MemoryManager:
             if t == "working":
                 self.working.set(f"last_{agent_id}", text)
             elif t == "episodic":
+                # Dual-write: Redis (fast) + MongoDB (rich queries)
                 await self.episodic.store_episode(
                     agent_id=agent_id,
                     episode_type=metadata.get("type", "info") if metadata else "info",
                     summary=text,
                     context=metadata,
+                )
+                # MongoDB write is fire-and-forget; failure is logged
+                await self.episodic_mongo.store_episode(
+                    agent_id=agent_id,
+                    episode_type=metadata.get("type", "info") if metadata else "info",
+                    summary=text,
+                    context=metadata,
+                    outcome=metadata.get("outcome", "success") if metadata else "success",
                 )
             elif t == "semantic":
                 await self.semantic.store(agent_id, text, metadata)
@@ -69,7 +86,10 @@ class MemoryManager:
                 results["working"] = ctx
 
         if "episodic" in tiers:
-            episodes = await self.episodic.recall_recent(agent_id, limit=10)
+            # Try MongoDB first (richer queries), fall back to Redis
+            episodes = await self.episodic_mongo.recall_recent(agent_id, limit=10)
+            if not episodes:
+                episodes = await self.episodic.recall_recent(agent_id, limit=10)
             if episodes:
                 results["episodic"] = episodes
 
