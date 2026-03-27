@@ -8,7 +8,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Agents: 22](https://img.shields.io/badge/Agents-22-orange)
 ![Topologies: 6](https://img.shields.io/badge/Topologies-6-blueviolet)
-![Tests: 231](https://img.shields.io/badge/Tests-231-brightgreen)
+![Tests: 247](https://img.shields.io/badge/Tests-247-brightgreen)
 
 NexusForge AI is an enterprise-grade platform for orchestrating multi-agent AI workflows. It provides a DAG-based execution engine, 22 specialized agents, 6 swarm topologies, a 3-tier memory system, self-healing pipelines, a plugin architecture, multi-provider LLM routing with circuit-breaker failover, RAG-powered document retrieval, real-time WebSocket monitoring, and automatic cost tracking -- all exposed through a production-ready REST API.
 
