@@ -77,6 +77,96 @@ docker compose exec api pytest tests/ -v
 
 ---
 
+## Local Kubernetes (minikube / kind / Docker Desktop)
+
+Deploy NexusForge to a local Kubernetes cluster for testing K8s manifests, networking, and production-like behavior without cloud infrastructure.
+
+### Prerequisites
+
+- Docker 24+
+- kubectl 1.28+
+- One of: minikube, kind, or Docker Desktop with Kubernetes enabled
+
+### 1. Start your local cluster
+
+```bash
+# Option A: minikube
+minikube start --cpus=4 --memory=4096
+
+# Option B: kind
+kind create cluster --name nexusforge
+
+# Option C: Docker Desktop
+# Enable Kubernetes in Docker Desktop settings
+```
+
+### 2. Deploy
+
+```bash
+./scripts/k8s-local-deploy.sh
+```
+
+This script will:
+- Build Docker images locally
+- Load images into the cluster (kind auto-loads)
+- Create the `nexusforge` namespace
+- Apply ConfigMaps and Secrets
+- Deploy Redis, backend gateway, workers, and frontend
+
+### 3. Access services via port-forward
+
+```bash
+# Backend API
+kubectl -n nexusforge port-forward svc/gateway 8000:8000
+# -> http://localhost:8000
+
+# Frontend
+kubectl -n nexusforge port-forward svc/frontend 3000:80
+# -> http://localhost:3000
+
+# Redis (for debugging)
+kubectl -n nexusforge port-forward svc/redis 6379:6379
+```
+
+### 4. Health check
+
+```bash
+./scripts/k8s-health.sh
+
+# Or manually:
+curl http://localhost:8000/health
+```
+
+### 5. View logs
+
+```bash
+# Gateway logs
+kubectl -n nexusforge logs -f deployment/gateway
+
+# Worker logs
+kubectl -n nexusforge logs -f deployment/worker
+
+# All pods
+kubectl -n nexusforge logs -f -l app.kubernetes.io/part-of=nexusforge
+```
+
+### 6. Teardown
+
+```bash
+./scripts/k8s-teardown.sh
+```
+
+This deletes the `nexusforge` namespace and all resources within it.
+
+### Notes
+
+- HPAs are skipped in local mode (no metrics-server by default)
+- Secrets use placeholder values -- update `infrastructure/k8s/base/secrets.yml` with real API keys
+- Resource limits are reduced for local (128Mi-256Mi memory, 100m-250m CPU)
+- Replicas are set to 1 for all services to conserve resources
+
+---
+
 ## Staging
 
 Staging uses Terraform to provision cloud infrastructure and Kubernetes for orchestration.
