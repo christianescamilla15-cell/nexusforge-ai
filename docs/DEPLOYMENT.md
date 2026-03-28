@@ -167,6 +167,72 @@ This deletes the `nexusforge` namespace and all resources within it.
 
 ---
 
+## Kind (Local K8s with NodePort Access)
+
+A streamlined deployment using [kind](https://kind.sigs.k8s.io/) (Kubernetes in Docker) with NodePort services for direct localhost access — no port-forwarding needed.
+
+### Prerequisites
+
+- Docker Desktop (running)
+- kubectl 1.28+
+- kind v0.25.0 (auto-downloaded by the deploy script if not present)
+
+### 1. One-command deploy
+
+```bash
+./scripts/k8s-kind-deploy.sh
+```
+
+This script will:
+- Download kind if not installed
+- Create a kind cluster named `nexusforge` with port mappings
+- Build backend and frontend Docker images
+- Load images into the kind cluster
+- Apply all K8s manifests (namespace, configmaps, secrets, Redis, gateway, workers, frontend)
+- Wait for pods to become ready
+
+### 2. Access services
+
+No port-forwarding required — services are exposed via NodePort:
+
+| Service      | URL                          |
+|-------------|------------------------------|
+| Backend API | http://localhost:8080         |
+| Health check| http://localhost:8080/health  |
+| Frontend    | http://localhost:3000         |
+
+### 3. Capture evidence
+
+Generate deployment evidence files for portfolio or interview demonstrations:
+
+```bash
+./scripts/k8s-evidence.sh
+```
+
+Evidence is saved to `docs/k8s-evidence/` and includes: pods, services, deployments, cluster info, health checks, and resource usage.
+
+### 4. View logs
+
+```bash
+kubectl -n nexusforge logs -l app=gateway -f
+kubectl -n nexusforge logs -l app=frontend -f
+kubectl -n nexusforge logs -l app=worker -f
+```
+
+### 5. Teardown
+
+```bash
+kind delete cluster --name nexusforge
+```
+
+### Kind cluster config
+
+The cluster configuration lives at `infrastructure/k8s/kind-config.yml` and maps:
+- Container port 30080 -> host port 8080 (backend API)
+- Container port 30081 -> host port 3000 (frontend)
+
+---
+
 ## Staging
 
 Staging uses Terraform to provision cloud infrastructure and Kubernetes for orchestration.
