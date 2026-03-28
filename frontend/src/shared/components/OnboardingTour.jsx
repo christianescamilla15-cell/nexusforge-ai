@@ -424,30 +424,46 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
     switch (currentStep.action) {
       case 'clickFirstWorkflowRow': {
         addTimeout(() => {
-          // Click first row in workflow table
+          // Click first row in workflow table — try multiple selectors for resilience
           const row = document.querySelector('[data-tour="workflow-table"] tbody tr')
+            || document.querySelector('[data-tour="workflow-table"] tr:nth-child(1)')
+            || document.querySelector('[data-tour="workflow-table"] [role="row"]')
           if (row) row.click()
         }, 300)
-        addTimeout(() => setActionRunning(false), currentStep.wait)
+        // Safety fallback: force-stop action after wait, even if click did nothing
+        addTimeout(() => {
+          setActionRunning(false)
+        }, currentStep.wait)
+        // Hard fallback: if still stuck after 5 seconds, force advance
+        addTimeout(() => {
+          setActionRunning(prev => {
+            // If still running, force stop
+            return false
+          })
+        }, 5000)
         break
       }
 
       case 'clickFirstExecutionRow': {
         addTimeout(() => {
           const row = document.querySelector('[data-tour="execution-table"] tbody tr')
+            || document.querySelector('[data-tour="execution-table"] tr:nth-child(1)')
           if (row) row.click()
         }, 300)
         addTimeout(() => setActionRunning(false), currentStep.wait)
+        // Hard fallback
+        addTimeout(() => setActionRunning(false), 5000)
         break
       }
 
       case 'clickFirstAgent': {
         addTimeout(() => {
-          // Click the first agent card
           const card = document.querySelector('[data-tour="agent-grid"] > div:first-child')
           if (card) card.click()
         }, 300)
         addTimeout(() => setActionRunning(false), currentStep.wait)
+        // Hard fallback
+        addTimeout(() => setActionRunning(false), 5000)
         break
       }
 
