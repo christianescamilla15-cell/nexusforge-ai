@@ -4,11 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.client import get_db_pool, get_redis, close_connections
 from app.db.mongo_client import close_mongo
-from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth
+from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth, metrics
+from app.observability.tracing import get_tracer
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    get_tracer()  # Initialize OpenTelemetry tracing
     await get_db_pool()
     await get_redis()
     yield
@@ -40,3 +42,4 @@ app.include_router(swarms.router, prefix="/api/swarms", tags=["swarms"])
 app.include_router(plugins.router, prefix="/api/plugins", tags=["plugins"])
 app.include_router(memory.router, prefix="/api", tags=["memory"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
+app.include_router(metrics.router, prefix="/api", tags=["metrics"])
