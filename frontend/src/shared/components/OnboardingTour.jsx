@@ -7,7 +7,7 @@ const TOUR_STEPS = [
   { id: 'dashboard', page: 'dashboard', target: '[data-tour="dashboard-kpis"]', action: null, wait: 1200 },
   { id: 'workflows', page: 'workflows', target: '[data-tour="workflow-table"]', action: 'clickFirstWorkflowRow', wait: 1000 },
   { id: 'executions', page: 'executions', target: '[data-tour="execution-table"]', action: 'clickFirstExecutionRow', wait: 1000 },
-  { id: 'execution-detail', page: null, target: '[data-tour="step-timeline"]', action: null, wait: 500 },
+  // execution-detail removed — can't navigate without real workflow selection
   { id: 'agents', page: 'agents', target: '[data-tour="agent-grid"]', action: 'clickFirstAgent', wait: 1000 },
   { id: 'swarms', page: 'swarms', target: '[data-tour="swarm-grid"]', action: null, wait: 500 },
   { id: 'memory', page: 'memory', target: '[data-tour="memory-input"]', action: 'storeMemory', wait: 4000 },
@@ -423,47 +423,18 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
 
     switch (currentStep.action) {
       case 'clickFirstWorkflowRow': {
-        addTimeout(() => {
-          // Click first row in workflow table — try multiple selectors for resilience
-          const row = document.querySelector('[data-tour="workflow-table"] tbody tr')
-            || document.querySelector('[data-tour="workflow-table"] tr:nth-child(1)')
-            || document.querySelector('[data-tour="workflow-table"] [role="row"]')
-          if (row) row.click()
-        }, 300)
-        // Safety fallback: force-stop action after wait, even if click did nothing
-        addTimeout(() => {
-          setActionRunning(false)
-        }, currentStep.wait)
-        // Hard fallback: if still stuck after 5 seconds, force advance
-        addTimeout(() => {
-          setActionRunning(prev => {
-            // If still running, force stop
-            return false
-          })
-        }, 5000)
+        // Skip the click action — just show the table and auto-advance
+        addTimeout(() => setActionRunning(false), 800)
         break
       }
 
       case 'clickFirstExecutionRow': {
-        addTimeout(() => {
-          const row = document.querySelector('[data-tour="execution-table"] tbody tr')
-            || document.querySelector('[data-tour="execution-table"] tr:nth-child(1)')
-          if (row) row.click()
-        }, 300)
-        addTimeout(() => setActionRunning(false), currentStep.wait)
-        // Hard fallback
-        addTimeout(() => setActionRunning(false), 5000)
+        addTimeout(() => setActionRunning(false), 800)
         break
       }
 
       case 'clickFirstAgent': {
-        addTimeout(() => {
-          const card = document.querySelector('[data-tour="agent-grid"] > div:first-child')
-          if (card) card.click()
-        }, 300)
-        addTimeout(() => setActionRunning(false), currentStep.wait)
-        // Hard fallback
-        addTimeout(() => setActionRunning(false), 5000)
+        addTimeout(() => setActionRunning(false), 800)
         break
       }
 
