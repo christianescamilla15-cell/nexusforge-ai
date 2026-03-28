@@ -230,6 +230,7 @@ export default function ChatAssistant({ lang = 'en' }) {
       {/* Floating button */}
       {!open && (
         <button
+          data-tour="chat-button"
           onClick={toggleOpen}
           aria-label="AI Assistant"
           title="AI Assistant"

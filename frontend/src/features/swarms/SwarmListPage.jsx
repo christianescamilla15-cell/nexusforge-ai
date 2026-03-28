@@ -28,7 +28,7 @@ export default function SwarmListPage({ lang = 'en' }) {
         </p>
       </div>
 
-      <div style={{
+      <div data-tour="swarm-grid" style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: 16,

@@ -103,6 +103,8 @@ export default function App() {
           onSetLang={setLang}
           onNavigate={navigate}
           onComplete={() => setShowTour(false)}
+          onSelectWorkflow={(id) => { setCurrentPage('workflows'); setSelectedWorkflow(id) }}
+          onSelectExecution={(id) => { setCurrentPage('executions'); setSelectedExecution(id) }}
         />
       )}
       <ChatAssistant lang={lang} />

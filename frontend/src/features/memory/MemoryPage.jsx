@@ -174,7 +174,7 @@ export default function MemoryPage({ lang = 'en' }) {
       </div>
 
       {/* Input section */}
-      <div style={{
+      <div data-tour="memory-input" style={{
         background: '#161E2E', borderRadius: 12, padding: 16, marginBottom: 20,
         border: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',

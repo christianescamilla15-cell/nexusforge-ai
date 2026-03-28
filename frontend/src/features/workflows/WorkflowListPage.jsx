@@ -127,7 +127,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
           onAction={() => setShowCreate(true)}
         />
       ) : (
-        <div style={{
+        <div data-tour="workflow-table" style={{
           background: '#161E2E', borderRadius: 12,
           border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
           overflowX: 'auto',

@@ -193,7 +193,7 @@ export default function HealingPage({ lang = 'en' }) {
         {/* Main simulator area */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Failure simulator */}
-          <div style={{
+          <div data-tour="healing-simulator" style={{
             background: '#161E2E', borderRadius: 14, padding: 20,
             border: `1px solid ${simPhase ? phaseColor(simPhase) + '44' : 'rgba(255,255,255,0.06)'}`,
             marginBottom: 16, transition: 'border-color 0.3s',

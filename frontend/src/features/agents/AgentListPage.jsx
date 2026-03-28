@@ -185,7 +185,7 @@ export default function AgentListPage({ lang = 'en' }) {
         </p>
       </div>
 
-      <div style={{
+      <div data-tour="agent-grid" style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: 16, marginBottom: 24,

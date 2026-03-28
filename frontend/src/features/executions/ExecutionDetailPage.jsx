@@ -192,7 +192,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
       </div>
 
       {/* Timeline */}
-      <div style={{ marginBottom: 28 }}>
+      <div data-tour="step-timeline" style={{ marginBottom: 28 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 16 }}>
           {t('executionPipeline', lang)}
         </h2>

@@ -86,7 +86,7 @@ export default function DashboardPage({ lang = 'en' }) {
       </div>
 
       {/* KPI Cards */}
-      <div className="nxf-kpi-grid" style={{
+      <div className="nxf-kpi-grid" data-tour="dashboard-kpis" style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
         gap: isMobile ? 10 : 16,

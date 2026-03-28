@@ -90,7 +90,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
       </div>
 
       {/* Table */}
-      <div style={{
+      <div data-tour="execution-table" style={{
         background: '#161E2E', borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)',
         overflow: 'hidden', overflowX: 'auto',
       }}>

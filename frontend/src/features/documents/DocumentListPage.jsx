@@ -203,7 +203,9 @@ export default function DocumentListPage({ lang = 'en' }) {
       </div>
 
       {/* Semantic Search */}
-      <SemanticSearch lang={lang} refreshKey={searchRefreshKey} />
+      <div data-tour="semantic-search">
+        <SemanticSearch lang={lang} refreshKey={searchRefreshKey} />
+      </div>
 
       <style>{`
         @keyframes fadeIn {
