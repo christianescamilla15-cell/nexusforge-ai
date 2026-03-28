@@ -148,7 +148,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
   }
 
   return (
-    <div style={tooltipStyle}>
+    <div data-tour-tooltip style={tooltipStyle}>
       {/* Step counter badge */}
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -266,8 +266,12 @@ function CompletionModal({ lang, onRestart, onExplore }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(0,0,0,0.8)',
       animation: 'tourFadeIn 0.4s ease-out',
+      cursor: 'pointer',
+    }} onClick={(e) => {
+      if (e.target.closest('[data-tour-completion]') || e.target.closest('button')) return;
+      onExplore();
     }}>
-      <div style={{
+      <div data-tour-completion style={{
         background: '#1A1F2E',
         border: '1px solid rgba(99,102,241,0.4)',
         borderRadius: 20, padding: '36px 40px',
@@ -622,12 +626,16 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
         }} />
       )}
 
-      {/* Clickable overlay to prevent interaction outside tooltip */}
+      {/* Clickable overlay — tap anywhere to advance */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 9998,
         pointerEvents: actionRunning ? 'none' : 'auto',
         background: 'transparent',
-      }} onClick={(e) => e.stopPropagation()}>
+        cursor: 'pointer',
+      }} onClick={(e) => {
+        if (e.target.closest('[data-tour-tooltip]') || e.target.closest('button')) return;
+        handleNext();
+      }}>
         <TourTooltip
           step={currentStep}
           stepIndex={stepIndex}
