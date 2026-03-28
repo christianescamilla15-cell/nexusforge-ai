@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Embeddings
     voyage_api_key: str = ""
 
+    # JWT
+    jwt_secret: str = "nexusforge-dev-secret-2026"
+
     # App
     app_name: str = "NexusForge AI"
     debug: bool = True
