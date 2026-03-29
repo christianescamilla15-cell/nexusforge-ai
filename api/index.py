@@ -127,7 +127,7 @@ async def providers_status():
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
     openai_key = os.environ.get("OPENAI_API_KEY", "")
     return {
-        "groq": {"configured": bool(groq_key), "model": "llama-3.3-70b-versatile"},
+        "groq": {"configured": bool(groq_key), "model": "llama-3.3-70b-versatile", "key_prefix": groq_key[:8] + "..." if groq_key else ""},
         "claude": {"configured": bool(anthropic_key), "model": "claude-sonnet-4-20250514"},
         "openai": {"configured": bool(openai_key), "model": "gpt-4o"},
         "active_provider": (
@@ -137,6 +137,16 @@ async def providers_status():
             else "none"
         ),
     }
+
+@app.get("/api/providers/test")
+async def test_provider():
+    """Test the active LLM provider with a simple prompt."""
+    try:
+        from app.use_cases.shared.llm_client import llm_generate
+        result = await llm_generate("Say hello in one word.", system="Respond briefly.", max_tokens=10)
+        return result
+    except Exception as e:
+        return {"error": str(e), "llm_used": False}
 
 # ── Runs (in-memory) ──
 @app.get("/api/runs")
