@@ -3,8 +3,10 @@
 import json
 from uuid import UUID
 from app.db.client import get_db_pool
+from app.domain.tracking.events import ExecutionContext
 
-async def save_checkpoint(run_id: UUID, step_name: str, state: dict):
+async def save_checkpoint(run_id: UUID, step_name: str, state: dict,
+                          ctx: ExecutionContext = None, step_id: str = None):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         await conn.execute(
@@ -13,6 +15,14 @@ async def save_checkpoint(run_id: UUID, step_name: str, state: dict):
                ON CONFLICT (run_id, step_name)
                DO UPDATE SET state = $3, created_at = now()""",
             run_id, step_name, json.dumps(state)
+        )
+
+    # Tracking: checkpoint created
+    if ctx and ctx.tracker and step_id:
+        await ctx.tracker.checkpoint_created(
+            run_id=str(run_id),
+            step_id=step_id,
+            checkpoint_data=state,
         )
 
 async def load_checkpoint(run_id: UUID, step_name: str) -> dict | None:

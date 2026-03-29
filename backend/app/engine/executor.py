@@ -10,12 +10,13 @@ from app.engine.state_machine import transition_workflow
 from app.engine.checkpoint import get_completed_steps
 from app.models.workflow import DAGDefinition
 from app.db.client import get_db_pool, get_redis
+from app.domain.tracking.events import ExecutionContext
 
 class ExecutionError(Exception):
     pass
 
 async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
-                          input_data: dict = None) -> dict:
+                          input_data: dict = None, ctx: ExecutionContext = None) -> dict:
     """Execute a complete workflow DAG with parallel group scheduling."""
     pool = await get_db_pool()
     redis = await get_redis()
@@ -43,6 +44,15 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
 
     # Broadcast start event
     await redis.publish(f"run:{run_id}", json.dumps({"event": "run_started", "groups": len(groups)}))
+
+    # Tracking: workflow started
+    if ctx and ctx.tracker:
+        await ctx.tracker.workflow_started(
+            run_id=str(run_id),
+            workflow_name=ctx.workflow_name,
+            topology=json.dumps([list(g) for g in groups]),
+            input_payload=input_data,
+        )
 
     # Check for completed steps (resume from checkpoint)
     completed = await get_completed_steps(run_id)
@@ -81,6 +91,8 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                     input_data=step_input,
                     config=step.config,
                     retry_max=step.retry_max,
+                    ctx=ctx,
+                    step_order=group_idx,
                 )
 
                 # Broadcast step completion
@@ -126,6 +138,12 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                     await redis.publish(f"run:{run_id}", json.dumps({
                         "event": "run_failed", "failed_step": step_name
                     }))
+                    # Tracking: workflow failed (step failure)
+                    if ctx and ctx.tracker:
+                        await ctx.tracker.workflow_failed(
+                            run_id=str(run_id),
+                            error_message=f"Step '{step_name}' failed: {results[step_name].get('error', 'unknown')}",
+                        )
                     return {"status": "failed", "results": results, "total_tokens": total_tokens, "total_cost_usd": total_cost}
 
         # All steps completed
@@ -141,6 +159,14 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
             "event": "run_completed", "total_tokens": total_tokens, "total_cost_usd": total_cost
         }))
 
+        # Tracking: workflow completed
+        if ctx and ctx.tracker:
+            await ctx.tracker.workflow_completed(
+                run_id=str(run_id),
+                output_payload={"results": {k: v.get("status") for k, v in results.items()},
+                                "total_tokens": total_tokens, "total_cost_usd": total_cost},
+            )
+
         return {"status": "completed", "results": results, "total_tokens": total_tokens, "total_cost_usd": total_cost}
 
     except Exception as e:
@@ -149,4 +175,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                 "UPDATE workflow_runs SET status = 'failed', error_message = $1, completed_at = now() WHERE id = $2",
                 str(e), run_id
             )
+        # Tracking: workflow failed (unhandled exception)
+        if ctx and ctx.tracker:
+            await ctx.tracker.workflow_failed(run_id=str(run_id), error_message=str(e))
         return {"status": "failed", "error": str(e), "results": results}

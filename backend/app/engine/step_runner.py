@@ -8,9 +8,11 @@ from app.engine.state_machine import transition_step
 from app.engine.checkpoint import save_checkpoint
 from app.agents.registry import get_agent
 from app.db.client import get_db_pool
+from app.domain.tracking.events import ExecutionContext
 
 async def run_step(run_id: UUID, step_name: str, step_type: str,
-                   input_data: dict, config: dict, retry_max: int = 3) -> dict:
+                   input_data: dict, config: dict, retry_max: int = 3,
+                   ctx: ExecutionContext = None, step_order: int = 0) -> dict:
     """Execute a single step with retry logic and checkpointing."""
     pool = await get_db_pool()
     step_id = uuid4()
@@ -21,6 +23,16 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
             """INSERT INTO step_executions (id, run_id, step_name, step_type, agent_type, status, input_data, started_at)
                VALUES ($1, $2, $3, $4, $5, 'running', $6, now())""",
             step_id, run_id, step_name, step_type, step_type, json.dumps(input_data)
+        )
+
+    # Tracking: step started
+    if ctx and ctx.tracker:
+        await ctx.tracker.step_started(
+            run_id=str(run_id),
+            step_id=str(step_id),
+            step_order=step_order,
+            agent_name=step_type,
+            input_payload=input_data,
         )
 
     policy = RetryPolicy(max_retries=retry_max)
@@ -48,7 +60,17 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
                 )
 
             # Checkpoint
-            await save_checkpoint(run_id, step_name, {"status": "completed", "output": result.output})
+            await save_checkpoint(run_id, step_name, {"status": "completed", "output": result.output},
+                                  ctx=ctx, step_id=str(step_id))
+
+            # Tracking: step completed
+            if ctx and ctx.tracker:
+                await ctx.tracker.step_completed(
+                    step_id=str(step_id),
+                    output_payload=result.output if isinstance(result.output, dict) else None,
+                    tokens_used=result.tokens_used,
+                    cost_usd=result.cost_usd,
+                )
 
             return {
                 "step_name": step_name,
@@ -69,6 +91,9 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
                         "UPDATE step_executions SET status = 'retrying', retry_count = $1, error_message = $2 WHERE id = $3",
                         attempt + 1, str(e), step_id
                     )
+                # Tracking: retry recorded
+                if ctx and ctx.tracker:
+                    await ctx.tracker.retry_recorded(step_id=str(step_id), attempt=attempt + 1)
                 await policy.wait(attempt)
             else:
                 break
@@ -89,6 +114,10 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
                VALUES ($1, $2, $3, $4, $5)""",
             run_id, step_name, json.dumps(input_data), str(last_error), retry_max
         )
+
+    # Tracking: step failed
+    if ctx and ctx.tracker:
+        await ctx.tracker.step_failed(step_id=str(step_id), error_message=str(last_error))
 
     return {
         "step_name": step_name,

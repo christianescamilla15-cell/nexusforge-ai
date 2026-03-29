@@ -8,6 +8,7 @@ from app.llm.provider import LLMResponse
 from app.llm.groq_provider import GroqProvider
 from app.llm.claude_provider import ClaudeProvider
 from app.llm.token_tracker import calculate_cost
+from app.domain.tracking.events import ExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,8 @@ class LLMRouter:
         }
 
     async def chat(self, messages: list[dict], temperature: float = 0.3,
-                   max_tokens: int = 2048) -> LLMResponse:
+                   max_tokens: int = 2048, ctx: ExecutionContext = None,
+                   step_id: str = None) -> LLMResponse:
         """Try providers in order: Groq first, then Claude. Respects circuit breakers."""
         errors = []
 
@@ -66,6 +68,15 @@ class LLMRouter:
             breaker = self._breakers[provider.name]
             if breaker.is_open():
                 logger.info("Skipping %s (circuit open)", provider.name)
+                # Tracking: circuit breaker open event
+                if ctx and ctx.tracker:
+                    await ctx.tracker.agent_event(
+                        run_id=ctx.run_id,
+                        agent_name=provider.name,
+                        event_type="circuit_breaker_open",
+                        step_id=step_id,
+                        message=f"Circuit breaker open for {provider.name}, skipping",
+                    )
                 continue
 
             try:
@@ -80,6 +91,16 @@ class LLMRouter:
                 logger.warning("Provider %s failed: %s", provider.name, exc)
                 breaker.record_error()
                 errors.append((provider.name, exc))
+                # Tracking: fallback to next provider
+                next_providers = [p.name for p in self._providers
+                                  if p.name != provider.name and p.is_available()
+                                  and not self._breakers[p.name].is_open()]
+                if ctx and ctx.tracker and next_providers and step_id:
+                    await ctx.tracker.fallback_recorded(
+                        step_id=step_id,
+                        from_provider=provider.name,
+                        to_provider=next_providers[0],
+                    )
 
         # All providers exhausted
         detail = "; ".join(f"{n}: {e}" for n, e in errors)
