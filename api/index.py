@@ -118,9 +118,20 @@ async def list_runs():
         return {"runs": [], "total": 0}
 
 @app.get("/api/runs/reliability/health")
+@app.get("/api/reliability/health")
 async def reliability_health():
     try:
         from app.metrics.reliability import get_system_health
         return get_system_health()
     except Exception:
         return {"total_runs": 0, "successful_runs": 0, "system_success_rate": 0, "total_agents_tracked": 0, "agents": []}
+
+@app.get("/api/runs/reliability/agents")
+@app.get("/api/reliability/agents")
+async def reliability_agents():
+    try:
+        from app.metrics.reliability import compute_agent_reliability
+        scores = compute_agent_reliability()
+        return {"agents": [vars(s) for s in scores]}
+    except Exception:
+        return {"agents": []}
