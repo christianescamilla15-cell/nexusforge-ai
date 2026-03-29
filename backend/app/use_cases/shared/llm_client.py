@@ -12,7 +12,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 def _get_groq_key():
     """Read key at call time, not import time (important for serverless)."""
-    return os.environ.get("GROQ_API_KEY", "")
+    return os.environ.get("GROQ_API_KEY", "").strip()
 
 
 async def llm_generate(prompt: str, system: str = "", max_tokens: int = 300) -> dict:
