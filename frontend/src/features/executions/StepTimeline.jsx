@@ -21,9 +21,9 @@ function JsonBlock({ data, label }) {
     <div style={{ marginTop: 8 }}>
       <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
       <pre style={{
-        background: '#0A0B0F', borderRadius: 8, padding: 12, fontSize: 12,
-        color: '#A5B4FC', overflow: 'auto', maxHeight: 200, margin: 0,
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: '#F9FAFB', borderRadius: 8, padding: 12, fontSize: 12,
+        color: '#4B5563', overflow: 'auto', maxHeight: 200, margin: 0,
+        border: '1px solid #E5E7EB',
       }}>
         {typeof data === 'string' ? data : JSON.stringify(data, null, 2)}
       </pre>
@@ -41,7 +41,7 @@ export default function StepTimeline({ steps }) {
       {/* Vertical line */}
       <div style={{
         position: 'absolute', left: 9, top: 12, bottom: 12, width: 2,
-        background: 'rgba(255,255,255,0.06)',
+        background: '#E5E7EB',
       }} />
 
       {steps.map((step, idx) => {
@@ -68,20 +68,20 @@ export default function StepTimeline({ steps }) {
               aria-label={`Paso ${step.name || idx + 1}: ${step.status}`}
               onKeyDown={(e) => e.key === 'Enter' && toggle(idx)}
               style={{
-                background: '#161E2E', borderRadius: 10,
-                border: `1px solid ${isFailed ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                background: '#FFFFFF', borderRadius: 10,
+                border: `1px solid ${isFailed ? 'rgba(239,68,68,0.3)' : '#E5E7EB'}`,
                 padding: '14px 18px', cursor: 'pointer', transition: 'border-color 0.15s',
               }}
               onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = isFailed ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.06)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = isFailed ? 'rgba(239,68,68,0.3)' : '#E5E7EB'}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#E5E7EB' }}>{step.name || `Paso ${idx + 1}`}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{step.name || `Paso ${idx + 1}`}</span>
                   {step.agent_type && (
                     <span style={{
                       fontSize: 11, padding: '2px 8px', borderRadius: 6,
-                      background: 'rgba(99,102,241,0.12)', color: '#A5B4FC',
+                      background: 'rgba(99,102,241,0.12)', color: '#6366F1',
                     }}>{step.agent_type}</span>
                   )}
                 </div>
@@ -105,16 +105,16 @@ export default function StepTimeline({ steps }) {
               {isFailed && step.error && (
                 <div style={{
                   marginTop: 10, padding: '8px 12px', borderRadius: 6,
-                  background: 'rgba(239,68,68,0.1)', color: '#FCA5A5', fontSize: 13,
+                  background: 'rgba(239,68,68,0.1)', color: '#DC2626', fontSize: 13,
                 }}>
                   {step.error}
                 </div>
               )}
 
               {isExpanded && (
-                <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
-                  <JsonBlock data={step.input} label="Input" />
-                  <JsonBlock data={step.output} label="Output" />
+                <div style={{ marginTop: 12, borderTop: '1px solid #E5E7EB', paddingTop: 12 }}>
+                  <JsonBlock data={step.input} label="Entrada" />
+                  <JsonBlock data={step.output} label="Salida" />
                 </div>
               )}
             </div>

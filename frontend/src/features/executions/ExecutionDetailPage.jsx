@@ -152,7 +152,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#E5E7EB', margin: 0 }}>{execution.workflow_name}</h1>
+            <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#111827', margin: 0 }}>{execution.workflow_name}</h1>
             <StatusBadge status={execution.status} />
           </div>
           <span style={{ fontSize: 13, color: '#9CA3AF', fontFamily: 'monospace' }}>{execution.run_id}</span>
@@ -168,7 +168,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
           ].map((m) => (
             <div key={m.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4 }}>{m.label}</div>
-              <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: m.color || '#E5E7EB' }}>{m.value}</div>
+              <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: m.color || '#111827' }}>{m.value}</div>
             </div>
           ))}
         </div>
@@ -181,11 +181,11 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
           <span style={{ fontSize: 12, color: '#9CA3AF' }}>{completedSteps}/{totalSteps} {t('steps', lang).toLowerCase()}</span>
         </div>
         <div style={{
-          height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden',
+          height: 6, borderRadius: 3, background: '#E5E7EB', overflow: 'hidden',
         }}>
           <div style={{
             height: '100%', borderRadius: 3, width: `${progress}%`,
-            background: execution.status === 'failed' ? '#EF4444' : 'linear-gradient(90deg, #6366F1, #8B5CF6)',
+            background: execution.status === 'failed' ? '#EF4444' : 'linear-gradient(90deg, #2563EB, #3B82F6)',
             transition: 'width 0.5s ease',
           }} />
         </div>
@@ -193,7 +193,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
 
       {/* Timeline */}
       <div data-tour="step-timeline" style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 16 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 16 }}>
           {t('executionPipeline', lang)}
         </h2>
         <StepTimeline steps={execution.steps || []} />
@@ -201,7 +201,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
 
       {/* Log panel */}
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
           {t('eventLog', lang)}
         </h2>
         <LiveLog events={events} />
@@ -220,7 +220,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
           }}>
             {execution.status === 'completed' ? t('executionCompleted', lang) : t('executionFailed', lang)}
           </h3>
-          <div style={{ display: 'flex', gap: isMobile ? 12 : 24, flexWrap: 'wrap', fontSize: 13, color: '#D1D5DB' }}>
+          <div style={{ display: 'flex', gap: isMobile ? 12 : 24, flexWrap: 'wrap', fontSize: 13, color: '#374151' }}>
             <span>{t('totalTime', lang)}: <strong>{formatDuration(totalDuration)}</strong></span>
             <span>{t('totalCost', lang)}: <strong style={{ color: '#10B981' }}>${execution.total_cost?.toFixed(3)}</strong></span>
             <span>{t('tokensUsed', lang)}: <strong>{execution.total_tokens?.toLocaleString()}</strong></span>
@@ -235,6 +235,6 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
 const backBtnStyle = {
   display: 'inline-flex', alignItems: 'center', gap: 6,
   padding: '6px 12px', borderRadius: 8, border: 'none',
-  background: 'rgba(255,255,255,0.04)', color: '#9CA3AF',
+  background: '#F3F4F6', color: '#9CA3AF',
   fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
 }

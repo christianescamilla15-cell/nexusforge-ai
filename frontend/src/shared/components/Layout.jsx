@@ -39,7 +39,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           onClick={() => setMobileOpen(false)}
           aria-label="Close sidebar overlay"
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
+            position: 'fixed', inset: 0, background: '#F3F4F6',
             zIndex: 40,
           }}
         />

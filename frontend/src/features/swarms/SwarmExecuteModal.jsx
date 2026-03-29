@@ -163,12 +163,12 @@ function SimStep({ agent, status, message, output, borderColor, delay, score }) 
   const isComplete = status === 'completed'
   const isFailed = status === 'failed'
 
-  const leftBorder = isFailed ? '#EF4444' : isComplete ? '#10B981' : isRunning ? '#3B82F6' : 'rgba(255,255,255,0.08)'
+  const leftBorder = isFailed ? '#EF4444' : isComplete ? '#10B981' : isRunning ? '#3B82F6' : '#E5E7EB'
 
   return (
     <div
       style={{
-        background: 'rgba(0,0,0,0.25)',
+        background: '#F3F4F6',
         borderRadius: 8,
         padding: '10px 14px',
         borderLeft: `3px solid ${borderColor || leftBorder}`,
@@ -181,7 +181,7 @@ function SimStep({ agent, status, message, output, borderColor, delay, score }) 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: message || output ? 6 : 0 }}>
         {agent && (
           <>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#E5E7EB' }}>{agent}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{agent}</span>
             <span style={{
               fontSize: 10, padding: '1px 6px', borderRadius: 4,
               background: `${agentInfo.color}22`, color: agentInfo.color, fontWeight: 500,
@@ -201,7 +201,7 @@ function SimStep({ agent, status, message, output, borderColor, delay, score }) 
         <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: output ? 4 : 0 }}>{message}</div>
       )}
       {output && (
-        <div style={{ fontSize: 12, color: '#D1D5DB', fontStyle: 'italic' }}>{output}</div>
+        <div style={{ fontSize: 12, color: '#374151', fontStyle: 'italic' }}>{output}</div>
       )}
     </div>
   )
@@ -802,16 +802,16 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#161E2E', borderRadius: 16, padding: 28,
+          background: '#FFFFFF', borderRadius: 16, padding: 28,
           width: '90%', maxWidth: 660, maxHeight: '88vh', overflowY: 'auto',
-          border: '1px solid rgba(255,255,255,0.08)',
+          border: '1px solid #E5E7EB',
           boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
         }}
       >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#E5E7EB', margin: 0 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: 0 }}>
               {l('executeSwarm')}: {topName}
             </h2>
             <p style={{ fontSize: 13, color: '#9CA3AF', margin: '4px 0 0' }}>
@@ -822,9 +822,9 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
             onClick={onClose}
             aria-label={l('close')}
             style={{
-              background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8,
+              background: '#F3F4F6', border: 'none', borderRadius: 8,
               width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#9CA3AF', cursor: 'pointer', fontSize: 18,
+              color: '#6B7280', cursor: 'pointer', fontSize: 18,
             }}
           >
             x
@@ -833,13 +833,13 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
 
         {/* Agent selection */}
         <div style={{ marginBottom: 18 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: '#E5E7EB', display: 'block', marginBottom: 8 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#111827', display: 'block', marginBottom: 8 }}>
             {l('agents')} ({selectedAgents.length} {l('selected')})
           </label>
           <div style={{
             display: 'flex', flexWrap: 'wrap', gap: 6,
             maxHeight: 140, overflowY: 'auto', padding: 10,
-            background: 'rgba(0,0,0,0.2)', borderRadius: 8,
+            background: '#F3F4F6', borderRadius: 8,
           }}>
             {ALL_AGENTS.map((name) => {
               const sel = selectedAgents.includes(name)
@@ -851,8 +851,8 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
                   aria-pressed={sel}
                   style={{
                     padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                    border: sel ? '1px solid rgba(99,102,241,0.4)' : '1px solid rgba(255,255,255,0.08)',
-                    background: sel ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)',
+                    border: sel ? '1px solid rgba(99,102,241,0.4)' : '1px solid #E5E7EB',
+                    background: sel ? 'rgba(99,102,241,0.15)' : '#F3F4F6',
                     color: sel ? '#818CF8' : '#9CA3AF',
                     cursor: 'pointer', transition: 'all 0.15s',
                   }}
@@ -866,7 +866,7 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
 
         {/* Input data */}
         <div style={{ marginBottom: 18 }}>
-          <label style={{ fontSize: 13, fontWeight: 600, color: '#E5E7EB', display: 'block', marginBottom: 8 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#111827', display: 'block', marginBottom: 8 }}>
             {l('inputData')}
           </label>
           <textarea
@@ -875,13 +875,13 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
             aria-label={l('inputData')}
             rows={5}
             style={{
-              width: '100%', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(0,0,0,0.2)', color: '#E5E7EB', fontSize: 13,
+              width: '100%', padding: 12, borderRadius: 8, border: '1px solid #E5E7EB',
+              background: '#F3F4F6', color: '#111827', fontSize: 13,
               fontFamily: 'monospace', resize: 'vertical', outline: 'none',
               boxSizing: 'border-box',
             }}
             onFocus={(e) => { e.target.style.borderColor = 'rgba(99,102,241,0.4)' }}
-            onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.08)' }}
+            onBlur={(e) => { e.target.style.borderColor = '#E5E7EB' }}
           />
         </div>
 
@@ -893,7 +893,7 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
           style={{
             width: '100%', padding: '11px 0', borderRadius: 8, border: 'none',
             background: executing || selectedAgents.length < 2
-              ? 'rgba(99,102,241,0.2)' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              ? 'rgba(99,102,241,0.2)' : 'linear-gradient(135deg, #2563EB, #3B82F6)',
             color: executing || selectedAgents.length < 2 ? '#6366F1' : '#fff',
             fontSize: 14, fontWeight: 600, cursor: executing || selectedAgents.length < 2 ? 'not-allowed' : 'pointer',
             transition: 'all 0.2s', marginBottom: 16,
@@ -905,7 +905,7 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
         {/* Simulation Result */}
         {simulationRunning && steps.length > 0 && (
           <div style={{
-            background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.06)',
+            background: '#F3F4F6', border: '1px solid #E5E7EB',
             borderRadius: 10, padding: 16, animation: 'fadeInStep 0.3s ease-out',
           }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#9CA3AF', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>

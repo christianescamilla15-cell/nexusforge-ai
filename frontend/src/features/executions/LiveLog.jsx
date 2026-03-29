@@ -28,21 +28,21 @@ export default function LiveLog({ events }) {
 
   return (
     <div style={{
-      background: '#0A0B0F', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)',
+      background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB',
       overflow: 'hidden',
     }}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+        padding: '10px 16px', borderBottom: '1px solid #E5E7EB',
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#E5E7EB' }}>Eventos en Vivo</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Eventos en Vivo</span>
         <button
           onClick={() => setAutoScroll((a) => !a)}
           aria-label={autoScroll ? 'Pausar auto-scroll' : 'Activar auto-scroll'}
           style={{
             padding: '4px 10px', borderRadius: 6, border: 'none', fontSize: 11, fontWeight: 500,
             cursor: 'pointer',
-            background: autoScroll ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.06)',
+            background: autoScroll ? 'rgba(99,102,241,0.15)' : '#E5E7EB',
             color: autoScroll ? '#818CF8' : '#9CA3AF',
           }}
         >
@@ -74,9 +74,9 @@ export default function LiveLog({ events }) {
                 {evt.event_type}
               </span>
               {evt.step_name && (
-                <span style={{ color: '#A5B4FC', flexShrink: 0 }}>[{evt.step_name}]</span>
+                <span style={{ color: '#6366F1', flexShrink: 0 }}>[{evt.step_name}]</span>
               )}
-              <span style={{ color: '#D1D5DB' }}>{evt.detail || evt.message || ''}</span>
+              <span style={{ color: '#374151' }}>{evt.detail || evt.message || ''}</span>
             </div>
           )
         })}

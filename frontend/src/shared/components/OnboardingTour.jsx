@@ -46,7 +46,7 @@ function TourSpotlight({ targetRect, padding = 12 }) {
     }}>
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'rgba(0,0,0,0.4)',
+        background: '#E5E7EB',
         clipPath: `polygon(
           0% 0%, 100% 0%, 100% 100%, 0% 100%,
           0% ${top - padding}px,
@@ -258,7 +258,7 @@ function CompletionModal({ lang, onRestart, onExplore }) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 10000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.3)',
+      background: '#F3F4F6',
       animation: 'tourFadeIn 0.4s ease-out',
       cursor: 'pointer',
     }} onClick={(e) => {
@@ -587,7 +587,7 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
       ) : (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9998,
-          background: 'rgba(0,0,0,0.4)',
+          background: '#E5E7EB',
           pointerEvents: 'none',
         }} />
       )}

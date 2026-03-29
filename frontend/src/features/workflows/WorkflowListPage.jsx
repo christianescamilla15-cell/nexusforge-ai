@@ -62,7 +62,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
         marginBottom: 24, flexWrap: 'wrap', gap: 12,
       }}>
         <div>
-          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB' }}>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827' }}>
             {t('workflows', lang)}
           </h1>
           <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF', marginTop: 4 }}>
@@ -101,7 +101,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
             style={{
               padding: '6px 14px', borderRadius: 6, fontSize: 13,
               border: '1px solid',
-              borderColor: filter === f.key ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)',
+              borderColor: filter === f.key ? 'rgba(99,102,241,0.4)' : '#E5E7EB',
               background: filter === f.key ? 'rgba(99,102,241,0.1)' : 'transparent',
               color: filter === f.key ? '#818CF8' : '#9CA3AF',
               cursor: 'pointer', transition: 'all 0.15s',
@@ -128,8 +128,8 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
         />
       ) : (
         <div data-tour="workflow-table" style={{
-          background: '#161E2E', borderRadius: 12,
-          border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
+          background: '#FFFFFF', borderRadius: 12,
+          border: '1px solid #E5E7EB', overflow: 'hidden',
           overflowX: 'auto',
         }}>
           <DataTable

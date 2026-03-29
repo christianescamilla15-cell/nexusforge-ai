@@ -27,20 +27,20 @@ export default function RunsDashboard() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 24px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-        NexusForge Observability
+        NexusForge Observabilidad
       </h1>
       <p style={{ color: '#4B5563', marginBottom: 32 }}>
-        Workflow execution history, agent timeline, and reliability metrics
+        Historial de ejecuciones, linea de tiempo de agentes y metricas de confiabilidad
       </p>
 
       {/* System Health */}
       {health && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
           {[
-            { label: 'Total Runs', value: health.total_runs },
-            { label: 'Success Rate', value: `${(health.system_success_rate * 100).toFixed(1)}%` },
-            { label: 'Agents Tracked', value: health.total_agents_tracked },
-            { label: 'Failed Runs', value: health.failed_runs },
+            { label: 'Ejecuciones Totales', value: health.total_runs },
+            { label: 'Tasa de Exito', value: `${(health.system_success_rate * 100).toFixed(1)}%` },
+            { label: 'Agentes Rastreados', value: health.total_agents_tracked },
+            { label: 'Ejecuciones Fallidas', value: health.failed_runs },
           ].map((m, i) => (
             <div key={i} style={{
               background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 12, padding: 20,
@@ -56,7 +56,7 @@ export default function RunsDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: selectedRun ? '1fr 1fr' : '1fr', gap: 24 }}>
         {/* Runs Table */}
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Recent Runs</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Ejecuciones Recientes</h2>
           <div style={{ border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
             {runs.map((run, i) => (
               <div key={run.id} onClick={() => selectRun(run.id)}
@@ -82,7 +82,7 @@ export default function RunsDashboard() {
               </div>
             ))}
             {runs.length === 0 && (
-              <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>No runs recorded yet</div>
+              <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>No hay ejecuciones registradas</div>
             )}
           </div>
         </div>
@@ -90,7 +90,7 @@ export default function RunsDashboard() {
         {/* Timeline */}
         {selectedRun && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Timeline</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Linea de Tiempo</h2>
             <div style={{ border: '1px solid #E5E7EB', borderRadius: 12, padding: 20, background: '#FFFFFF', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
               {timeline.map((e, i) => (
                 <div key={i} style={{
@@ -116,7 +116,7 @@ export default function RunsDashboard() {
                 </div>
               ))}
               {timeline.length === 0 && (
-                <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 20 }}>No events</div>
+                <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 20 }}>Sin eventos</div>
               )}
             </div>
           </div>
@@ -126,10 +126,10 @@ export default function RunsDashboard() {
       {/* Agent Reliability */}
       {health?.agents?.length > 0 && (
         <div style={{ marginTop: 40 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Agent Reliability</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Confiabilidad de Agentes</h2>
           <div style={{ border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', padding: '12px 20px', background: '#F9FAFB', fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              <span>Agent</span><span>Executions</span><span>Success Rate</span><span>Avg Latency</span><span>Fallbacks</span>
+              <span>Agente</span><span>Ejecuciones</span><span>Tasa de Exito</span><span>Latencia Prom.</span><span>Fallbacks</span>
             </div>
             {health.agents.map((a, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', padding: '14px 20px', borderTop: '1px solid #F3F4F6', fontSize: 14, color: '#374151' }}>

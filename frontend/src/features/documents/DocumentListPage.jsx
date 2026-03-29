@@ -107,7 +107,7 @@ export default function DocumentListPage({ lang = 'en' }) {
         marginBottom: 24, flexWrap: 'wrap', gap: 12,
       }}>
         <div>
-          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
             {t('documents', lang)}
           </h1>
           <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>
@@ -122,7 +122,7 @@ export default function DocumentListPage({ lang = 'en' }) {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <span style={{
               padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-              background: 'rgba(99,102,241,0.1)', color: '#A5B4FC',
+              background: 'rgba(99,102,241,0.1)', color: '#6366F1',
             }}>
               {searchEngine.getStats().totalChunks} chunks
             </span>
@@ -141,13 +141,13 @@ export default function DocumentListPage({ lang = 'en' }) {
 
       {/* Document Table */}
       <div style={{
-        background: '#161E2E', borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
+        background: '#FFFFFF', borderRadius: 12,
+        border: '1px solid #E5E7EB', overflow: 'hidden',
         overflowX: 'auto', marginBottom: 24,
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 600 : undefined }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
               {tableHeaders.map((h) => (
                 <th key={h} style={{
                   padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#9CA3AF',
@@ -166,14 +166,14 @@ export default function DocumentListPage({ lang = 'en' }) {
               </tr>
             )}
             {docs.map((doc) => (
-              <tr key={doc.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <td style={{ padding: '12px 16px', color: '#E5E7EB', fontSize: 14, fontWeight: 500 }}>
+              <tr key={doc.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                <td style={{ padding: '12px 16px', color: '#111827', fontSize: 14, fontWeight: 500 }}>
                   {doc.title}
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <span style={{
                     fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                    background: 'rgba(99,102,241,0.1)', color: '#A5B4FC', fontWeight: 500,
+                    background: 'rgba(99,102,241,0.1)', color: '#6366F1', fontWeight: 500,
                     textTransform: 'uppercase',
                   }}>{doc.fileType}</span>
                 </td>

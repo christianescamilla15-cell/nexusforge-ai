@@ -118,12 +118,12 @@ export default function DAGVisualization({ steps = [], stepStatuses = {} }) {
             const status = stepStatuses[step.name]
             const statusColor = status === 'completed' ? '#10B981'
               : status === 'running' ? '#6366F1'
-              : status === 'failed' ? '#EF4444' : 'rgba(255,255,255,0.08)'
+              : status === 'failed' ? '#EF4444' : '#E5E7EB'
             return (
               <g key={step.name}>
                 <rect
                   x={pos.x} y={pos.y} width={nodeW} height={nodeH}
-                  rx="8" fill="#161E2E"
+                  rx="8" fill="#FFFFFF"
                   stroke={statusColor} strokeWidth="2"
                 />
                 {/* Type indicator bar */}
@@ -133,7 +133,7 @@ export default function DAGVisualization({ steps = [], stepStatuses = {} }) {
                 />
                 <text
                   x={pos.x + 16} y={pos.y + 24}
-                  fill="#E5E7EB" fontSize="13" fontWeight="500"
+                  fill="#111827" fontSize="13" fontWeight="500"
                   fontFamily="Inter, sans-serif"
                 >
                   {step.name}

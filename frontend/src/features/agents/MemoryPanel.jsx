@@ -50,7 +50,7 @@ export default function MemoryPanel() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
           Sistema de Memoria 3-Tier
         </h2>
         <p style={{ fontSize: 13, color: '#9CA3AF' }}>
@@ -64,7 +64,7 @@ export default function MemoryPanel() {
             <div
               aria-label={`Tier de memoria: ${tier.name}`}
               style={{
-                background: '#161E2E',
+                background: '#FFFFFF',
                 border: `1px solid ${tier.border}`,
                 borderRadius: 12,
                 padding: 20,
@@ -93,8 +93,8 @@ export default function MemoryPanel() {
                   <div style={{ fontSize: 12, color: '#9CA3AF' }}>{tier.desc}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: '#9CA3AF' }}>Storage</div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: '#E5E7EB' }}>{tier.storage}</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF' }}>Almacenamiento</div>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#111827' }}>{tier.storage}</div>
                 </div>
                 <div style={{ textAlign: 'right', marginLeft: 12 }}>
                   <div style={{ fontSize: 11, color: '#9CA3AF' }}>TTL</div>
@@ -104,7 +104,7 @@ export default function MemoryPanel() {
 
               {/* Example data */}
               <div style={{
-                background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 10,
+                background: '#F3F4F6', borderRadius: 8, padding: 10,
                 fontFamily: 'monospace', fontSize: 12,
               }}>
                 {tier.examples.map((ex) => (

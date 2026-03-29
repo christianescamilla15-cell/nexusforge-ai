@@ -70,8 +70,8 @@ export default function HealingPanel() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
-          Self-Healing Dashboard
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+          Panel de Auto-Reparacion
         </h2>
         <p style={{ fontSize: 13, color: '#9CA3AF' }}>
           El sistema detecta y resuelve errores automaticamente con 5 estrategias de recuperacion.
@@ -88,7 +88,7 @@ export default function HealingPanel() {
             key={s.name}
             aria-label={`Estrategia ${s.name}`}
             style={{
-              background: '#161E2E', border: '1px solid rgba(255,255,255,0.06)',
+              background: '#FFFFFF', border: '1px solid #E5E7EB',
               borderRadius: 10, padding: 16, transition: 'all 0.2s',
             }}
             onMouseEnter={(e) => {
@@ -96,7 +96,7 @@ export default function HealingPanel() {
               e.currentTarget.style.boxShadow = `0 0 12px ${s.bg}`
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+              e.currentTarget.style.borderColor = '#E5E7EB'
               e.currentTarget.style.boxShadow = 'none'
             }}
           >
@@ -111,7 +111,7 @@ export default function HealingPanel() {
                 </svg>
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#E5E7EB' }}>{s.name}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.name}</div>
                 <div style={{ fontSize: 11, color: s.color, fontWeight: 500 }}>{s.successRate}% exito</div>
               </div>
             </div>
@@ -119,7 +119,7 @@ export default function HealingPanel() {
               {s.description}
             </p>
             <div style={{ fontSize: 11, color: '#6B7280' }}>
-              Triggers: <span style={{ color: '#9CA3AF' }}>{s.when}</span>
+              Activadores: <span style={{ color: '#9CA3AF' }}>{s.when}</span>
             </div>
           </div>
         ))}
@@ -127,17 +127,17 @@ export default function HealingPanel() {
 
       {/* Error classification */}
       <div style={{
-        background: '#161E2E', borderRadius: 12, padding: 18,
-        border: '1px solid rgba(255,255,255,0.06)', marginBottom: 20,
+        background: '#FFFFFF', borderRadius: 12, padding: 18,
+        border: '1px solid #E5E7EB', marginBottom: 20,
       }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#E5E7EB', marginBottom: 12 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
           Clasificacion de Errores
         </h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {ERROR_MAP.map((e) => (
             <div key={e.error} style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '5px 10px',
+              background: '#F3F4F6', borderRadius: 6, padding: '5px 10px',
             }}>
               <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'monospace' }}>{e.error}</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2" aria-hidden="true">
@@ -151,10 +151,10 @@ export default function HealingPanel() {
 
       {/* Healing log */}
       <div style={{
-        background: '#161E2E', borderRadius: 12, padding: 18,
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: '#FFFFFF', borderRadius: 12, padding: 18,
+        border: '1px solid #E5E7EB',
       }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#E5E7EB', marginBottom: 12 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
           Actividad Reciente de Healing
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -163,14 +163,14 @@ export default function HealingPanel() {
             return (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 8,
+                padding: '8px 12px', background: '#F3F4F6', borderRadius: 8,
                 fontSize: 12,
               }}>
                 <span style={{ color: '#6B7280', fontFamily: 'monospace', minWidth: 65 }}>{log.time}</span>
-                <span style={{ color: '#E5E7EB', fontWeight: 500, minWidth: 110 }}>{log.agent}</span>
+                <span style={{ color: '#111827', fontWeight: 500, minWidth: 110 }}>{log.agent}</span>
                 <span style={{
                   padding: '2px 6px', borderRadius: 4, fontSize: 11, fontFamily: 'monospace',
-                  background: 'rgba(255,255,255,0.05)', color: '#9CA3AF', minWidth: 90,
+                  background: '#F3F4F6', color: '#9CA3AF', minWidth: 90,
                 }}>{log.error}</span>
                 <span style={{
                   padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,

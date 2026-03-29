@@ -10,7 +10,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out', maxWidth: 640 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
         {t('settings', lang)}
       </h1>
       <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 32 }}>
@@ -33,7 +33,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
             aria-label={t('apiBaseUrl', lang)}
             style={inputStyle}
             onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
-            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+            onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
           />
         </div>
 
@@ -46,7 +46,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
             </div>
             <div style={{
               width: 44, height: 24, borderRadius: 12, padding: 2,
-              background: darkMode ? '#6366F1' : 'rgba(255,255,255,0.1)',
+              background: darkMode ? '#6366F1' : '#D1D5DB',
               opacity: 0.5, cursor: 'not-allowed', transition: 'background 0.2s',
             }}>
               <div style={{
@@ -76,7 +76,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
                 style={{
                   padding: '8px 20px', borderRadius: 8, border: 'none', fontSize: 14,
                   fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
-                  background: lang === option.key ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
+                  background: lang === option.key ? 'rgba(99,102,241,0.2)' : '#F3F4F6',
                   color: lang === option.key ? '#818CF8' : '#9CA3AF',
                 }}
               >
@@ -165,13 +165,13 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
 }
 
 const cardStyle = {
-  background: '#161E2E', borderRadius: 12,
-  border: '1px solid rgba(255,255,255,0.06)',
+  background: '#FFFFFF', borderRadius: 12,
+  border: '1px solid #E5E7EB',
   padding: 20,
 }
 
 const labelStyle = {
-  display: 'block', fontSize: 14, fontWeight: 600, color: '#E5E7EB', marginBottom: 2,
+  display: 'block', fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2,
 }
 
 const descStyle = {
@@ -180,7 +180,7 @@ const descStyle = {
 
 const inputStyle = {
   width: '100%', padding: '10px 14px', borderRadius: 8,
-  border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)',
-  color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+  border: '1px solid #E5E7EB', background: '#F3F4F6',
+  color: '#111827', fontSize: 14, outline: 'none', boxSizing: 'border-box',
   fontFamily: 'monospace',
 }

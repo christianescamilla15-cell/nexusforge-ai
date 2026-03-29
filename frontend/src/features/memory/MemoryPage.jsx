@@ -124,7 +124,7 @@ export default function MemoryPage({ lang = 'en' }) {
   const columnStyle = (color, borderColor) => ({
     flex: 1,
     minWidth: isMobile ? '100%' : 300,
-    background: '#161E2E',
+    background: '#FFFFFF',
     border: `1px solid ${borderColor}`,
     borderRadius: 14,
     padding: 18,
@@ -162,7 +162,7 @@ export default function MemoryPage({ lang = 'en' }) {
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
           {t('memorySystem', lang)}
         </h1>
         <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>
@@ -175,8 +175,8 @@ export default function MemoryPage({ lang = 'en' }) {
 
       {/* Input section */}
       <div data-tour="memory-input" style={{
-        background: '#161E2E', borderRadius: 12, padding: 16, marginBottom: 20,
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 20,
+        border: '1px solid #E5E7EB',
         display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
       }}>
         <select
@@ -184,8 +184,8 @@ export default function MemoryPage({ lang = 'en' }) {
           onChange={(e) => setSelectedAgent(e.target.value)}
           aria-label={lang === 'es' ? 'Seleccionar agente' : 'Select agent'}
           style={{
-            padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
-            background: '#0A0B0F', color: '#E5E7EB', fontSize: 13, outline: 'none',
+            padding: '8px 12px', borderRadius: 8, border: '1px solid #D1D5DB',
+            background: '#F9FAFB', color: '#111827', fontSize: 13, outline: 'none',
             minWidth: 150,
           }}
         >
@@ -201,18 +201,18 @@ export default function MemoryPage({ lang = 'en' }) {
           aria-label={t('storeMemory', lang)}
           style={{
             flex: 1, minWidth: 200, padding: '8px 14px', borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.1)', background: '#0A0B0F',
-            color: '#E5E7EB', fontSize: 13, outline: 'none',
+            border: '1px solid #D1D5DB', background: '#F9FAFB',
+            color: '#111827', fontSize: 13, outline: 'none',
           }}
           onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.5)'}
-          onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+          onBlur={(e) => e.target.style.borderColor = '#D1D5DB'}
         />
         <button
           onClick={handleStore}
           aria-label={lang === 'es' ? 'Almacenar memoria' : 'Store memory'}
           style={{
             padding: '8px 20px', borderRadius: 8, border: 'none',
-            background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+            background: 'linear-gradient(135deg, #2563EB, #3B82F6)',
             color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
             transition: 'all 0.2s',
           }}
@@ -225,8 +225,8 @@ export default function MemoryPage({ lang = 'en' }) {
 
       {/* Search section */}
       <div style={{
-        background: '#161E2E', borderRadius: 12, padding: 16, marginBottom: 20,
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 20,
+        border: '1px solid #E5E7EB',
         display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
       }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -240,8 +240,8 @@ export default function MemoryPage({ lang = 'en' }) {
           aria-label={t('searchMemories', lang)}
           style={{
             flex: 1, minWidth: 200, padding: '8px 14px', borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.1)', background: '#0A0B0F',
-            color: '#E5E7EB', fontSize: 13, outline: 'none',
+            border: '1px solid #D1D5DB', background: '#F9FAFB',
+            color: '#111827', fontSize: 13, outline: 'none',
           }}
         />
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: '#9CA3AF' }}>
@@ -254,7 +254,7 @@ export default function MemoryPage({ lang = 'en' }) {
             onKeyDown={(e) => e.key === 'Enter' && setCrossAgent(!crossAgent)}
             style={{
               width: 36, height: 20, borderRadius: 10, position: 'relative', cursor: 'pointer',
-              background: crossAgent ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.1)',
+              background: crossAgent ? 'rgba(99,102,241,0.4)' : '#D1D5DB',
               transition: 'background 0.2s',
             }}
           >
@@ -294,7 +294,7 @@ export default function MemoryPage({ lang = 'en' }) {
               </line>
               <polygon points="70,6 80,12 70,18" fill={flowPulse.we ? '#F59E0B' : '#4B5563'} />
             </svg>
-            <span style={{ fontSize: 9, color: flowPulse.we ? '#F59E0B' : '#6B7280', whiteSpace: 'nowrap' }}>Task summary</span>
+            <span style={{ fontSize: 9, color: flowPulse.we ? '#F59E0B' : '#6B7280', whiteSpace: 'nowrap' }}>Resumen de tarea</span>
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
             <span style={{
@@ -315,7 +315,7 @@ export default function MemoryPage({ lang = 'en' }) {
               </line>
               <polygon points="70,6 80,12 70,18" fill={flowPulse.es ? '#10B981' : '#4B5563'} />
             </svg>
-            <span style={{ fontSize: 9, color: flowPulse.es ? '#10B981' : '#6B7280', whiteSpace: 'nowrap' }}>Embed + persist</span>
+            <span style={{ fontSize: 9, color: flowPulse.es ? '#10B981' : '#6B7280', whiteSpace: 'nowrap' }}>Embeber + persistir</span>
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
             <span style={{
@@ -344,7 +344,7 @@ export default function MemoryPage({ lang = 'en' }) {
               <line x1="196" y1="12" x2="12" y2="12" stroke={flowPulse.sw ? 'url(#arrow-sw)' : '#4B5563'} strokeWidth={flowPulse.sw ? 2.5 : 1.5} strokeDasharray={flowPulse.sw ? 'none' : '4 3'} />
               <polygon points="12,6 2,12 12,18" fill={flowPulse.sw ? '#3B82F6' : '#4B5563'} />
             </svg>
-            <span style={{ fontSize: 9, color: flowPulse.sw ? '#3B82F6' : '#6B7280', whiteSpace: 'nowrap' }}>Recall similar</span>
+            <span style={{ fontSize: 9, color: flowPulse.sw ? '#3B82F6' : '#6B7280', whiteSpace: 'nowrap' }}>Recuperar similar</span>
           </div>
         </div>
       )}
@@ -381,10 +381,10 @@ export default function MemoryPage({ lang = 'en' }) {
                   animatingToEpisodic === item.id
                 )}
               >
-                <div style={{ color: '#E5E7EB', marginBottom: 4, lineHeight: 1.4 }}>{item.text}</div>
+                <div style={{ color: '#111827', marginBottom: 4, lineHeight: 1.4 }}>{item.text}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: '#6B7280', fontSize: 10 }}>{item.agent} | {timeAgo(item.ts)}</span>
-                  <span style={badgeStyle('rgba(59,130,246,0.2)', '#60A5FA')}>Active</span>
+                  <span style={badgeStyle('rgba(59,130,246,0.2)', '#60A5FA')}>Activo</span>
                 </div>
               </div>
             ))}
@@ -429,7 +429,7 @@ export default function MemoryPage({ lang = 'en' }) {
                   } : {}),
                 }}
               >
-                <div style={{ color: '#E5E7EB', marginBottom: 4, lineHeight: 1.4 }}>{item.text}</div>
+                <div style={{ color: '#111827', marginBottom: 4, lineHeight: 1.4 }}>{item.text}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{ color: '#6B7280', fontSize: 10 }}>{item.agent}</span>
                   <span style={{
@@ -440,7 +440,7 @@ export default function MemoryPage({ lang = 'en' }) {
                 {/* TTL bar */}
                 <div style={{ marginTop: 4 }}>
                   <div style={{
-                    width: '100%', height: 3, background: 'rgba(255,255,255,0.05)',
+                    width: '100%', height: 3, background: '#F3F4F6',
                     borderRadius: 2, overflow: 'hidden',
                   }}>
                     <div style={{
@@ -499,7 +499,7 @@ export default function MemoryPage({ lang = 'en' }) {
                   ...(item.highlighted ? { boxShadow: '0 0 12px rgba(16,185,129,0.2)' } : {}),
                 }}
               >
-                <div style={{ color: '#E5E7EB', marginBottom: 4, lineHeight: 1.4 }}>{item.text}</div>
+                <div style={{ color: '#111827', marginBottom: 4, lineHeight: 1.4 }}>{item.text}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{ color: '#6B7280', fontSize: 10 }}>{item.agent}</span>
                   {item.highlighted && item.matchScore && (
@@ -507,7 +507,7 @@ export default function MemoryPage({ lang = 'en' }) {
                       Match: {item.matchScore}
                     </span>
                   )}
-                  <span style={badgeStyle('rgba(16,185,129,0.15)', '#34D399')}>512d vector</span>
+                  <span style={badgeStyle('rgba(16,185,129,0.15)', '#34D399')}>vector 512d</span>
                 </div>
                 {/* Vector heatmap */}
                 <div style={{ display: 'flex', gap: 1, marginTop: 4, height: 12 }}>

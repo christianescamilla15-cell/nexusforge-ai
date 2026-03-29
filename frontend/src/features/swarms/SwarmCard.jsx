@@ -150,8 +150,8 @@ export default function SwarmCard({ topology, onExecute }) {
     <div
       aria-label={`Topologia ${name}`}
       style={{
-        background: '#161E2E',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
         borderRadius: 12,
         padding: 20,
         transition: 'all 0.2s ease',
@@ -162,7 +162,7 @@ export default function SwarmCard({ topology, onExecute }) {
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = 'none'
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+        e.currentTarget.style.borderColor = '#E5E7EB'
       }}
     >
       {/* Header */}
@@ -175,11 +175,11 @@ export default function SwarmCard({ topology, onExecute }) {
           {name[0]}
         </div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB' }}>{name}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{name}</div>
           <span style={{
             fontSize: 11, padding: '1px 7px', borderRadius: 6,
             background: data.bg, color: data.color, fontWeight: 500,
-          }}>topology</span>
+          }}>topologia</span>
         </div>
       </div>
 
@@ -190,7 +190,7 @@ export default function SwarmCard({ topology, onExecute }) {
 
       {/* Diagram */}
       <div style={{
-        background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '12px 8px',
+        background: '#F3F4F6', borderRadius: 8, padding: '12px 8px',
         display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14,
         minHeight: 70,
       }}>
@@ -208,7 +208,7 @@ export default function SwarmCard({ topology, onExecute }) {
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = data.color
-          e.currentTarget.style.color = '#0A0B0F'
+          e.currentTarget.style.color = '#FFFFFF'
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = data.bg

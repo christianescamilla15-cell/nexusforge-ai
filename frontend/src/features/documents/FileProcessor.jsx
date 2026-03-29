@@ -152,8 +152,8 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
 
   return (
     <div style={{
-      background: '#161E2E', borderRadius: 12,
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF', borderRadius: 12,
+      border: '1px solid #E5E7EB',
       padding: 24, marginBottom: 24,
     }}>
       {/* Drag & Drop Zone */}
@@ -168,12 +168,12 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
           onClick={() => fileInputRef.current?.click()}
           onKeyDown={(e) => { if (e.key === 'Enter') fileInputRef.current?.click() }}
           style={{
-            border: `2px dashed ${dragOver ? '#6366F1' : 'rgba(255,255,255,0.12)'}`,
+            border: `2px dashed ${dragOver ? '#6366F1' : '#D1D5DB'}`,
             borderRadius: 12,
             padding: '40px 24px',
             textAlign: 'center',
             cursor: 'pointer',
-            background: dragOver ? 'rgba(99,102,241,0.06)' : 'rgba(255,255,255,0.02)',
+            background: dragOver ? 'rgba(99,102,241,0.06)' : '#F3F4F6',
             transition: 'all 0.2s',
           }}
         >
@@ -182,7 +182,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <p style={{ fontSize: 15, color: dragOver ? '#A5B4FC' : '#9CA3AF', marginBottom: 6 }}>
+          <p style={{ fontSize: 15, color: dragOver ? '#6366F1' : '#9CA3AF', marginBottom: 6 }}>
             {t('dragDropHere', lang)}
           </p>
           <p style={{ fontSize: 12, color: '#6B7280' }}>
@@ -202,7 +202,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
       {(processing || pipelineComplete) && fileInfo && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', margin: 0 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: 0 }}>
               {pipelineComplete ? (t('processingComplete', lang)) : (lang === 'es' ? 'Procesando...' : 'Processing...')}
             </h3>
             {pipelineComplete && (
@@ -211,7 +211,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                 aria-label={lang === 'es' ? 'Subir otro archivo' : 'Upload another file'}
                 style={{
                   padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(99,102,241,0.3)',
-                  background: 'transparent', color: '#A5B4FC', fontSize: 13, cursor: 'pointer',
+                  background: 'transparent', color: '#6366F1', fontSize: 13, cursor: 'pointer',
                 }}
               >
                 {lang === 'es' ? '+ Subir otro' : '+ Upload another'}
@@ -224,7 +224,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
             {/* Connecting line */}
             <div style={{
               position: 'absolute', left: 11, top: 12, bottom: 12, width: 2,
-              background: 'rgba(255,255,255,0.06)',
+              background: '#E5E7EB',
             }} />
 
             {STAGES.map((stage, idx) => {
@@ -238,7 +238,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                     width: 22, height: 22, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11,
-                    background: isCompleted ? '#10B981' : isActive ? '#6366F1' : 'rgba(255,255,255,0.08)',
+                    background: isCompleted ? '#10B981' : isActive ? '#6366F1' : '#E5E7EB',
                     boxShadow: isActive ? '0 0 12px rgba(99,102,241,0.5)' : 'none',
                     animation: isActive ? 'pulse 1.5s infinite' : 'none',
                     transition: 'all 0.3s',
@@ -257,7 +257,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{
                         fontSize: 13, fontWeight: 600,
-                        color: isCompleted ? '#10B981' : isActive ? '#A5B4FC' : '#6B7280',
+                        color: isCompleted ? '#10B981' : isActive ? '#6366F1' : '#6B7280',
                       }}>
                         {isCompleted ? labels[stage.key].done + ' \u2713' : isActive ? labels[stage.key].active : labels[stage.key].done}
                       </span>
@@ -272,10 +272,10 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                           <span>{formatBytes(fileInfo.size)}</span>
                         </div>
                         {isActive && (
-                          <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: '#E5E7EB', overflow: 'hidden' }}>
                             <div style={{
                               height: '100%', borderRadius: 2,
-                              background: 'linear-gradient(90deg, #6366F1, #8B5CF6)',
+                              background: 'linear-gradient(90deg, #2563EB, #3B82F6)',
                               animation: 'progressFill 0.5s ease-out forwards',
                             }} />
                           </div>
@@ -289,7 +289,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                           fontSize: 11, color: '#9CA3AF', margin: '0 0 4px',
                           fontFamily: 'monospace', lineHeight: 1.5,
                           maxHeight: 60, overflow: 'hidden',
-                          background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 4,
+                          background: '#F3F4F6', padding: 8, borderRadius: 4,
                         }}>
                           {extractedText.slice(0, 200)}{extractedText.length > 200 ? '...' : ''}
                         </p>
@@ -308,13 +308,13 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 120, overflow: 'hidden' }}>
                           {chunks.slice(0, Math.min(visibleChunks, 8)).map((chunk, ci) => (
                             <div key={ci} style={{
-                              background: 'rgba(0,0,0,0.4)', borderRadius: 4, padding: '4px 8px',
+                              background: '#E5E7EB', borderRadius: 4, padding: '4px 8px',
                               fontSize: 10, fontFamily: 'monospace', color: '#9CA3AF',
-                              border: '1px solid rgba(255,255,255,0.06)',
+                              border: '1px solid #E5E7EB',
                               maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               animation: 'fadeIn 0.2s ease-out',
                             }}>
-                              <span style={{ color: '#A5B4FC', marginRight: 4 }}>#{ci}</span>
+                              <span style={{ color: '#6366F1', marginRight: 4 }}>#{ci}</span>
                               {chunk.text.slice(0, 40)}...
                               <span style={{ color: '#6B7280', marginLeft: 4 }}>{chunk.text.length}c</span>
                             </div>
@@ -336,7 +336,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 100, overflow: 'hidden' }}>
                           {chunks.slice(0, Math.min(embeddedChunks, 6)).map((_, ci) => (
                             <div key={ci} style={{ display: 'flex', alignItems: 'center', gap: 8, animation: 'fadeIn 0.2s ease-out' }}>
-                              <span style={{ fontSize: 10, color: '#A5B4FC', fontFamily: 'monospace', minWidth: 24 }}>#{ci}</span>
+                              <span style={{ fontSize: 10, color: '#6366F1', fontFamily: 'monospace', minWidth: 24 }}>#{ci}</span>
                               <div style={{ flex: 1 }}><MiniHeatmap /></div>
                               <span style={{ fontSize: 10, color: '#10B981' }}>{'\u2713'}</span>
                             </div>
@@ -346,7 +346,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                               <span style={{ fontSize: 10, color: '#6B7280', fontFamily: 'monospace', minWidth: 24 }}>#{embeddedChunks}</span>
                               <div style={{
                                 flex: 1, height: 8, borderRadius: 2,
-                                background: 'linear-gradient(90deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3))',
+                                background: 'linear-gradient(90deg, rgba(37,99,235,0.3), rgba(59,130,246,0.3))',
                                 animation: 'shimmer 1s infinite',
                               }} />
                             </div>
@@ -361,7 +361,7 @@ export default function FileProcessor({ lang = 'en', onDocumentAdded }) {
                     {stage.key === 'index' && isActive && (
                       <div style={{ marginTop: 8 }}>
                         <div style={{
-                          fontSize: 11, color: '#A5B4FC',
+                          fontSize: 11, color: '#6366F1',
                           animation: 'shimmer 1s infinite',
                         }}>
                           {lang === 'es' ? 'Almacenando en pgvector...' : 'Storing in pgvector...'}

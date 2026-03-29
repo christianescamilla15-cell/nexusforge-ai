@@ -35,8 +35,8 @@ const TEMPLATES = [
 
 const inputStyle = {
   width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 14,
-  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
-  color: '#E5E7EB', outline: 'none',
+  border: '1px solid #D1D5DB', background: '#F3F4F6',
+  color: '#111827', outline: 'none',
 }
 
 const labelStyle = {
@@ -129,7 +129,7 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
             aria-label="Nombre del workflow"
             style={inputStyle}
             onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
-            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            onBlur={(e) => e.target.style.borderColor = '#D1D5DB'}
           />
         </div>
 
@@ -143,7 +143,7 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
             rows={3}
             style={{ ...inputStyle, resize: 'vertical' }}
             onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
-            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            onBlur={(e) => e.target.style.borderColor = '#D1D5DB'}
           />
         </div>
 
@@ -155,7 +155,7 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
             style={{ ...inputStyle, cursor: 'pointer' }}
           >
             {TEMPLATES.map((t) => (
-              <option key={t.name} value={t.name} style={{ background: '#161E2E' }}>
+              <option key={t.name} value={t.name} style={{ background: '#FFFFFF' }}>
                 {t.name}
               </option>
             ))}
@@ -190,7 +190,7 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
               resize: 'vertical',
             }}
             onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
-            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            onBlur={(e) => e.target.style.borderColor = '#D1D5DB'}
           />
           {validationMsg && (
             <div style={{
@@ -220,7 +220,7 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
             aria-label="Cancelar"
             style={{
               padding: '10px 20px', borderRadius: 8, fontSize: 14,
-              border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+              border: '1px solid #D1D5DB', background: 'transparent',
               color: '#9CA3AF', cursor: 'pointer',
             }}
           >

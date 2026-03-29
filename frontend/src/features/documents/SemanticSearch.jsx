@@ -16,7 +16,7 @@ function HighlightedText({ text }) {
       {parts.map((part, i) =>
         i % 2 === 1 ? (
           <mark key={i} style={{
-            background: 'rgba(245,158,11,0.25)', color: '#FCD34D',
+            background: 'rgba(245,158,11,0.25)', color: '#B45309',
             fontWeight: 700, borderRadius: 2, padding: '0 2px',
           }}>{part}</mark>
         ) : (
@@ -71,11 +71,11 @@ export default function SemanticSearch({ lang = 'en', refreshKey = 0 }) {
 
   return (
     <div style={{
-      background: '#161E2E', borderRadius: 12,
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF', borderRadius: 12,
+      border: '1px solid #E5E7EB',
       padding: 24, marginBottom: 24,
     }}>
-      <h2 style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB', marginBottom: 4 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 4 }}>
         {t('semanticSearch', lang)} (RAG)
       </h2>
       <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
@@ -93,11 +93,11 @@ export default function SemanticSearch({ lang = 'en', refreshKey = 0 }) {
           aria-label={t('semanticSearch', lang)}
           style={{
             flex: 1, padding: '10px 14px', borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)',
-            color: '#E5E7EB', fontSize: 14, outline: 'none',
+            border: '1px solid #E5E7EB', background: '#F3F4F6',
+            color: '#111827', fontSize: 14, outline: 'none',
           }}
           onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
-          onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+          onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
         />
         <button
           type="submit"
@@ -105,7 +105,7 @@ export default function SemanticSearch({ lang = 'en', refreshKey = 0 }) {
           aria-label={t('search', lang)}
           style={{
             padding: '10px 20px', borderRadius: 8, border: 'none',
-            background: !query.trim() ? 'rgba(99,102,241,0.3)' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+            background: !query.trim() ? 'rgba(99,102,241,0.3)' : 'linear-gradient(135deg, #2563EB, #3B82F6)',
             color: '#fff', fontSize: 14, fontWeight: 600,
             cursor: !query.trim() ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
           }}
@@ -146,27 +146,27 @@ export default function SemanticSearch({ lang = 'en', refreshKey = 0 }) {
             const color = scoreColor(r.similarity)
             return (
               <div key={idx} style={{
-                background: '#0A0B0F', borderRadius: 10, padding: 16,
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: '#F9FAFB', borderRadius: 10, padding: 16,
+                border: '1px solid #E5E7EB',
                 animation: 'fadeIn 0.2s ease-out',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#E5E7EB' }}>{r.docTitle}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{r.docTitle}</span>
                     <span style={{
                       fontSize: 10, padding: '2px 6px', borderRadius: 4,
-                      background: 'rgba(99,102,241,0.1)', color: '#A5B4FC',
+                      background: 'rgba(99,102,241,0.1)', color: '#6366F1',
                     }}>
-                      Chunk #{r.chunkIndex}
+                      Fragmento #{r.chunkIndex}
                     </span>
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 700, color }}>{r.similarity}%</span>
                 </div>
-                <p style={{ fontSize: 13, color: '#D1D5DB', lineHeight: 1.6, margin: '0 0 10px' }}>
+                <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: '0 0 10px' }}>
                   <HighlightedText text={r.highlight} />
                 </p>
                 <div style={{
-                  height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden',
+                  height: 4, borderRadius: 2, background: '#E5E7EB', overflow: 'hidden',
                 }}>
                   <div style={{
                     height: '100%', width: `${r.similarity}%`, borderRadius: 2,
@@ -178,7 +178,7 @@ export default function SemanticSearch({ lang = 'en', refreshKey = 0 }) {
                     {r.matchedTerms.map((term, ti) => (
                       <span key={ti} style={{
                         fontSize: 10, padding: '1px 6px', borderRadius: 4,
-                        background: 'rgba(245,158,11,0.1)', color: '#FCD34D',
+                        background: 'rgba(245,158,11,0.1)', color: '#B45309',
                       }}>
                         {term}
                       </span>

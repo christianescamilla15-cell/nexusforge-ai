@@ -391,7 +391,7 @@ export default function ChatAssistant({ lang = 'en' }) {
                     <div style={{
                       fontSize: 11, color: '#9CA3AF', marginTop: 4, paddingLeft: 4,
                     }}>
-                      Source: {msg.sources.join(', ')}
+                      Fuente: {msg.sources.join(', ')}
                     </div>
                   )}
                 </div>

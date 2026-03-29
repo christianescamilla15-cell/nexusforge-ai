@@ -145,11 +145,11 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 36, height: 36, borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.08)', background: 'transparent',
+            border: '1px solid #E5E7EB', background: 'transparent',
             color: '#9CA3AF', cursor: 'pointer', flexShrink: 0,
           }}
           onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -157,7 +157,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
           </svg>
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 700, color: '#E5E7EB' }}>{wf.name}</h1>
+          <h1 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 700, color: '#111827' }}>{wf.name}</h1>
           <p style={{ fontSize: 14, color: '#9CA3AF', marginTop: 2 }}>{wf.description}</p>
         </div>
         <div style={{
@@ -169,8 +169,8 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
             aria-label={t('edit', lang)}
             style={{
               padding: '10px 18px', borderRadius: 8, fontSize: 14,
-              border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
-              color: '#E5E7EB', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+              border: '1px solid #D1D5DB', background: 'transparent',
+              color: '#111827', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
               flex: isMobile ? 1 : undefined, justifyContent: 'center',
             }}
           >
@@ -223,15 +223,15 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
           { label: t('steps', lang), value: wf.dag_definition?.steps?.length || 0 },
         ].map((info) => (
           <div key={info.label} style={{
-            background: '#161E2E', borderRadius: 10, padding: '14px 18px',
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: '#FFFFFF', borderRadius: 10, padding: '14px 18px',
+            border: '1px solid #E5E7EB',
             minWidth: isMobile ? 'calc(50% - 6px)' : 140,
             flex: isMobile ? '1 1 calc(50% - 6px)' : undefined,
           }}>
             <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {info.label}
             </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>
               {info.value}
             </div>
           </div>
@@ -240,14 +240,14 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
 
       {/* DAG Visualization */}
       <div style={{
-        background: '#161E2E', borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.06)', marginBottom: 24,
+        background: '#FFFFFF', borderRadius: 12,
+        border: '1px solid #E5E7EB', marginBottom: 24,
         overflow: 'hidden',
       }}>
         <div style={{
-          padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '16px 20px', borderBottom: '1px solid #E5E7EB',
         }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB' }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>
             {t('executionGraph', lang)}
           </h3>
         </div>
@@ -256,14 +256,14 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
 
       {/* Run history */}
       <div style={{
-        background: '#161E2E', borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
+        background: '#FFFFFF', borderRadius: 12,
+        border: '1px solid #E5E7EB', overflow: 'hidden',
         overflowX: 'auto',
       }}>
         <div style={{
-          padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '16px 20px', borderBottom: '1px solid #E5E7EB',
         }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB' }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>
             {t('executionHistory', lang)}
           </h3>
         </div>

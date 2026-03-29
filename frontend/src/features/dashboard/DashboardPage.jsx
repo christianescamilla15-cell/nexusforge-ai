@@ -104,7 +104,7 @@ export default function DashboardPage({ lang = 'en' }) {
             border: '1px solid rgba(37,99,235,0.15)',
             fontWeight: 500,
           }}>
-            No data yet
+            Sin datos aun
           </span>
         )}
       </div>
@@ -119,22 +119,22 @@ export default function DashboardPage({ lang = 'en' }) {
         <KPICard
           icon={<KPIIcon type="runs" />}
           value={kpis.totalRuns}
-          label="Total Runs"
+          label="Ejecuciones Totales"
         />
         <KPICard
           icon={<KPIIcon type="workflows" />}
           value={kpis.successRate}
-          label="Success Rate"
+          label="Tasa de Exito"
         />
         <KPICard
           icon={<KPIIcon type="agents" />}
           value={kpis.agentsTracked}
-          label="Agents Tracked"
+          label="Agentes Rastreados"
         />
         <KPICard
           icon={<KPIIcon type="docs" />}
           value={kpis.failedRuns}
-          label="Failed Runs"
+          label="Ejecuciones Fallidas"
         />
       </div>
 

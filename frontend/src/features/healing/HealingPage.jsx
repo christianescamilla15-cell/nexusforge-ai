@@ -178,7 +178,7 @@ export default function HealingPage({ lang = 'en' }) {
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
           {t('selfHealing', lang)}
         </h1>
         <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>
@@ -194,15 +194,15 @@ export default function HealingPage({ lang = 'en' }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Failure simulator */}
           <div data-tour="healing-simulator" style={{
-            background: '#161E2E', borderRadius: 14, padding: 20,
-            border: `1px solid ${simPhase ? phaseColor(simPhase) + '44' : 'rgba(255,255,255,0.06)'}`,
+            background: '#FFFFFF', borderRadius: 14, padding: 20,
+            border: `1px solid ${simPhase ? phaseColor(simPhase) + '44' : '#E5E7EB'}`,
             marginBottom: 16, transition: 'border-color 0.3s',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
-              <span style={{ fontSize: 16, fontWeight: 600, color: '#E5E7EB' }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>
                 {lang === 'es' ? 'Simulador de Fallos' : 'Failure Simulator'}
               </span>
             </div>
@@ -214,8 +214,8 @@ export default function HealingPage({ lang = 'en' }) {
                 disabled={simPhase !== null}
                 aria-label={t('errorType', lang)}
                 style={{
-                  padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
-                  background: '#0A0B0F', color: '#E5E7EB', fontSize: 13, outline: 'none',
+                  padding: '10px 14px', borderRadius: 8, border: '1px solid #D1D5DB',
+                  background: '#F9FAFB', color: '#111827', fontSize: 13, outline: 'none',
                   minWidth: 220, opacity: simPhase ? 0.5 : 1,
                 }}
               >
@@ -260,7 +260,7 @@ export default function HealingPage({ lang = 'en' }) {
                     </span>
                     <span style={badgeStyle('rgba(239,68,68,0.2)', '#EF4444')}>FAILED</span>
                   </div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#FCA5A5', padding: '6px 10px', background: 'rgba(0,0,0,0.3)', borderRadius: 6 }}>
+                  <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#DC2626', padding: '6px 10px', background: '#F3F4F6', borderRadius: 6 }}>
                     {errorDef.error}
                   </div>
                 </div>
@@ -282,8 +282,8 @@ export default function HealingPage({ lang = 'en' }) {
                       </span>
                       <span style={badgeStyle('rgba(245,158,11,0.2)', '#FBBF24')}>{t('detection', lang)}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: '#FDE68A', fontFamily: 'monospace' }}>
-                      Type: <span style={{ color: '#E5E7EB' }}>{selectedError}</span>
+                    <div style={{ fontSize: 12, color: '#92400E', fontFamily: 'monospace' }}>
+                      Type: <span style={{ color: '#111827' }}>{selectedError}</span>
                       {' | '}Severity: <span style={{ color: errorDef.severity === 'high' ? '#EF4444' : errorDef.severity === 'medium' ? '#F59E0B' : '#10B981' }}>{errorDef.severity}</span>
                       {' | '}Recoverable: <span style={{ color: errorDef.recoverable ? '#10B981' : '#EF4444' }}>{errorDef.recoverable ? 'yes' : 'no'}</span>
                     </div>
@@ -308,8 +308,8 @@ export default function HealingPage({ lang = 'en' }) {
                         return (
                           <div key={s.key} style={{
                             padding: '8px 14px', borderRadius: 8,
-                            background: isSelected ? s.bg : 'rgba(255,255,255,0.02)',
-                            border: `1px solid ${isSelected ? s.color + '66' : 'rgba(255,255,255,0.06)'}`,
+                            background: isSelected ? s.bg : '#F3F4F6',
+                            border: `1px solid ${isSelected ? s.color + '66' : '#E5E7EB'}`,
                             transition: 'all 0.3s',
                             ...(isSelected && simPhase === 'strategy' ? { boxShadow: `0 0 16px ${s.bg}` } : {}),
                           }}>
@@ -348,7 +348,7 @@ export default function HealingPage({ lang = 'en' }) {
                       {strategyDef.execution[lang].map((step, i) => (
                         <div key={i} style={{
                           fontSize: 12, fontFamily: 'monospace', padding: '4px 10px',
-                          background: i <= execStep ? 'rgba(0,0,0,0.3)' : 'transparent',
+                          background: i <= execStep ? '#F3F4F6' : 'transparent',
                           borderRadius: 4, transition: 'all 0.3s',
                           color: i <= execStep ? (i === strategyDef.execution[lang].length - 1 ? '#10B981' : '#E5E7EB') : '#374151',
                           borderLeft: i <= execStep ? `2px solid ${strategyDef.color}` : '2px solid transparent',
@@ -376,7 +376,7 @@ export default function HealingPage({ lang = 'en' }) {
                       </span>
                     </div>
                     <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 6 }}>
-                      {t('healingTime', lang)}: <span style={{ color: '#E5E7EB', fontWeight: 500 }}>{(2 + Math.random() * 4).toFixed(1)}s</span>
+                      {t('healingTime', lang)}: <span style={{ color: '#111827', fontWeight: 500 }}>{(2 + Math.random() * 4).toFixed(1)}s</span>
                       {' | '}{lang === 'es' ? 'Estrategia' : 'Strategy'}: <span style={{ color: strategyDef.color, fontWeight: 500 }}>{strategyDef.name}</span>
                       {errorDef.strategy === 'retry' && (
                         <>{' | '}{lang === 'es' ? 'Proveedor cambiado' : 'Provider switched'}: <span style={{ color: '#818CF8' }}>Groq → Claude</span></>
@@ -391,7 +391,7 @@ export default function HealingPage({ lang = 'en' }) {
             {!simPhase && (
               <div style={{
                 textAlign: 'center', padding: '30px 20px', color: '#4B5563',
-                border: '1px dashed rgba(255,255,255,0.06)', borderRadius: 10,
+                border: '1px dashed #E5E7EB', borderRadius: 10,
               }}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 8px' }} aria-hidden="true">
                   <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -405,10 +405,10 @@ export default function HealingPage({ lang = 'en' }) {
 
           {/* Healing History */}
           <div style={{
-            background: '#161E2E', borderRadius: 14, padding: 20,
-            border: '1px solid rgba(255,255,255,0.06)', marginBottom: 16,
+            background: '#FFFFFF', borderRadius: 14, padding: 20,
+            border: '1px solid #E5E7EB', marginBottom: 16,
           }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB', marginBottom: 12 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
               {t('healingHistory', lang)}
             </h3>
             {history.length === 0 ? (
@@ -429,7 +429,7 @@ export default function HealingPage({ lang = 'en' }) {
                       ].map((h, i) => (
                         <th key={i} style={{
                           textAlign: 'left', padding: '8px 10px', color: '#6B7280', fontWeight: 500,
-                          borderBottom: '1px solid rgba(255,255,255,0.06)',
+                          borderBottom: '1px solid #E5E7EB',
                         }}>{h}</th>
                       ))}
                     </tr>
@@ -438,10 +438,10 @@ export default function HealingPage({ lang = 'en' }) {
                     {history.slice(0, 10).map((h, i) => {
                       const strat = STRATEGIES.find(s => s.key === h.strategy)
                       return (
-                        <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
                           <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: '#9CA3AF' }}>{h.time}</td>
                           <td style={{ padding: '8px 10px' }}>
-                            <span style={badgeStyle('rgba(255,255,255,0.05)', '#9CA3AF')}>{t(ERROR_TYPES.find(e => e.key === h.errorType)?.label || h.errorType, lang)}</span>
+                            <span style={badgeStyle('#F3F4F6', '#9CA3AF')}>{t(ERROR_TYPES.find(e => e.key === h.errorType)?.label || h.errorType, lang)}</span>
                           </td>
                           <td style={{ padding: '8px 10px' }}>
                             <span style={badgeStyle(strat?.bg || 'transparent', strat?.color || '#9CA3AF')}>{strat?.name || h.strategy}</span>
@@ -468,8 +468,8 @@ export default function HealingPage({ lang = 'en' }) {
 
           {/* Strategy Reference (collapsible) */}
           <div style={{
-            background: '#161E2E', borderRadius: 14,
-            border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
+            background: '#FFFFFF', borderRadius: 14,
+            border: '1px solid #E5E7EB', overflow: 'hidden',
           }}>
             <button
               onClick={() => setShowStrategies(!showStrategies)}
@@ -477,7 +477,7 @@ export default function HealingPage({ lang = 'en' }) {
               style={{
                 width: '100%', padding: '14px 20px', border: 'none', background: 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                color: '#E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                color: '#111827', fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >
               <span>{lang === 'es' ? 'Referencia de Estrategias' : 'Strategy Reference'}</span>
@@ -490,7 +490,7 @@ export default function HealingPage({ lang = 'en' }) {
               <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {STRATEGIES.map(s => (
                   <div key={s.key} aria-label={`Strategy: ${s.name}`} style={{
-                    background: '#0A0B0F', borderRadius: 10, padding: 16,
+                    background: '#F9FAFB', borderRadius: 10, padding: 16,
                     border: `1px solid ${s.color}22`,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -503,7 +503,7 @@ export default function HealingPage({ lang = 'en' }) {
                         </svg>
                       </div>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#E5E7EB' }}>{s.name}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.name}</div>
                         <div style={{ fontSize: 11, color: s.color }}>{s.successRate}% {t('successRate', lang)}</div>
                       </div>
                     </div>
@@ -528,24 +528,24 @@ export default function HealingPage({ lang = 'en' }) {
         }}>
           {/* Total sims */}
           <div style={{
-            background: '#161E2E', borderRadius: 12, padding: 16,
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: '#FFFFFF', borderRadius: 12, padding: 16,
+            border: '1px solid #E5E7EB',
           }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>
               {lang === 'es' ? 'Simulaciones' : 'Total Simulations'}
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#E5E7EB' }}>{totalSims}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#111827' }}>{totalSims}</div>
           </div>
 
           {/* Success rate */}
           <div style={{
-            background: '#161E2E', borderRadius: 12, padding: 16,
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: '#FFFFFF', borderRadius: 12, padding: 16,
+            border: '1px solid #E5E7EB',
           }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{t('successRate', lang)}</div>
             <div style={{ fontSize: 28, fontWeight: 700, color: '#10B981' }}>{successPct}%</div>
             <div style={{
-              width: '100%', height: 4, background: 'rgba(255,255,255,0.05)',
+              width: '100%', height: 4, background: '#F3F4F6',
               borderRadius: 2, marginTop: 6, overflow: 'hidden',
             }}>
               <div style={{
@@ -558,8 +558,8 @@ export default function HealingPage({ lang = 'en' }) {
 
           {/* Most common error */}
           <div style={{
-            background: '#161E2E', borderRadius: 12, padding: 16,
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: '#FFFFFF', borderRadius: 12, padding: 16,
+            border: '1px solid #E5E7EB',
           }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>
               {lang === 'es' ? 'Error mas comun' : 'Most Common Error'}
@@ -574,8 +574,8 @@ export default function HealingPage({ lang = 'en' }) {
 
           {/* Fastest healing */}
           <div style={{
-            background: '#161E2E', borderRadius: 12, padding: 16,
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: '#FFFFFF', borderRadius: 12, padding: 16,
+            border: '1px solid #E5E7EB',
           }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>
               {lang === 'es' ? 'Reparacion mas rapida' : 'Fastest Healing'}
@@ -585,8 +585,8 @@ export default function HealingPage({ lang = 'en' }) {
 
           {/* Strategy distribution */}
           <div style={{
-            background: '#161E2E', borderRadius: 12, padding: 16,
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: '#FFFFFF', borderRadius: 12, padding: 16,
+            border: '1px solid #E5E7EB',
           }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 10 }}>
               {lang === 'es' ? 'Uso de estrategias' : 'Strategy Usage'}
@@ -601,7 +601,7 @@ export default function HealingPage({ lang = 'en' }) {
                     <span style={{ color: '#6B7280' }}>{count} ({pct}%)</span>
                   </div>
                   <div style={{
-                    width: '100%', height: 4, background: 'rgba(255,255,255,0.05)',
+                    width: '100%', height: 4, background: '#F3F4F6',
                     borderRadius: 2, overflow: 'hidden',
                   }}>
                     <div style={{

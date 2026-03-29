@@ -60,7 +60,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
         marginBottom: 24, flexWrap: 'wrap', gap: 8,
       }}>
         <div>
-          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
             {t('executions', lang)}
           </h1>
           <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>
@@ -80,7 +80,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
             style={{
               padding: '6px 14px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 500,
               cursor: 'pointer', transition: 'all 0.15s',
-              background: filter === f.key ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
+              background: filter === f.key ? 'rgba(99,102,241,0.2)' : '#F3F4F6',
               color: filter === f.key ? '#818CF8' : '#9CA3AF',
             }}
           >
@@ -91,12 +91,12 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
 
       {/* Table */}
       <div data-tour="execution-table" style={{
-        background: '#161E2E', borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)',
+        background: '#FFFFFF', borderRadius: 12, border: '1px solid #E5E7EB',
         overflow: 'hidden', overflowX: 'auto',
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 600 : undefined }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
               {tableHeaders.map((h) => (
                 <th key={h} style={{
                   padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#9CA3AF',
@@ -119,15 +119,15 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
                 key={exec.run_id}
                 onClick={() => onSelectExecution && onSelectExecution(exec.run_id)}
                 style={{
-                  borderBottom: '1px solid rgba(255,255,255,0.04)',
+                  borderBottom: '1px solid #F3F4F6',
                   cursor: 'pointer', transition: 'background 0.15s',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 aria-label={`${t('executions', lang)} ${exec.run_id}`}
               >
                 <td style={{ padding: '12px 16px' }}><StatusBadge status={exec.status} /></td>
-                <td style={{ padding: '12px 16px', color: '#E5E7EB', fontSize: 14, fontWeight: 500 }}>{exec.workflow_name}</td>
+                <td style={{ padding: '12px 16px', color: '#111827', fontSize: 14, fontWeight: 500 }}>{exec.workflow_name}</td>
                 <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13, whiteSpace: 'nowrap' }}>{formatDate(exec.started_at, lang)}</td>
                 <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13 }}>{formatDuration(exec.duration_ms)}</td>
                 <td style={{ padding: '12px 16px', color: '#10B981', fontSize: 13, fontWeight: 500 }}>${exec.total_cost?.toFixed(3) || '0.000'}</td>

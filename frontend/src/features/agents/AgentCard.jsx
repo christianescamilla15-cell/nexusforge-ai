@@ -56,19 +56,19 @@ export default function AgentCard({ agent, selected, onClick }) {
       onKeyDown={(e) => e.key === 'Enter' && onClick?.(agent)}
       aria-label={`Agente ${agent.name}`}
       style={{
-        background: '#161E2E',
-        border: `1px solid ${selected ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.06)'}`,
+        background: '#FFFFFF',
+        border: `1px solid ${selected ? 'rgba(37,99,235,0.4)' : '#E5E7EB'}`,
         borderRadius: 12, padding: 20, cursor: 'pointer',
         transition: 'all 0.2s ease',
         boxShadow: selected ? `0 0 20px ${tc.glow}` : 'none',
       }}
       onMouseEnter={(e) => {
         if (!selected) e.currentTarget.style.boxShadow = `0 0 16px ${tc.glow}`
-        e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'
+        e.currentTarget.style.borderColor = 'rgba(37,99,235,0.3)'
       }}
       onMouseLeave={(e) => {
         if (!selected) e.currentTarget.style.boxShadow = 'none'
-        e.currentTarget.style.borderColor = selected ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.06)'
+        e.currentTarget.style.borderColor = selected ? 'rgba(37,99,235,0.4)' : '#E5E7EB'
       }}
     >
       {/* Icon */}
@@ -84,7 +84,7 @@ export default function AgentCard({ agent, selected, onClick }) {
 
       {/* Name + type */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB' }}>{agent.name}</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{agent.name}</span>
         <span style={{
           fontSize: 11, padding: '2px 8px', borderRadius: 6,
           background: tc.bg, color: tc.color, fontWeight: 500,
@@ -115,7 +115,7 @@ export default function AgentCard({ agent, selected, onClick }) {
             {agent.tools.slice(0, 3).map((tool) => (
               <span key={tool} style={{
                 fontSize: 10, padding: '2px 6px', borderRadius: 4,
-                background: 'rgba(255,255,255,0.05)', color: '#9CA3AF',
+                background: '#F3F4F6', color: '#6B7280',
               }}>{tool}</span>
             ))}
             {agent.tools.length > 3 && (

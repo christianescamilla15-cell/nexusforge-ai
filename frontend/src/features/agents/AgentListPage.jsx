@@ -176,7 +176,7 @@ export default function AgentListPage({ lang = 'en' }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 4 }}>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
           {t('agents', lang)}
         </h1>
         <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>

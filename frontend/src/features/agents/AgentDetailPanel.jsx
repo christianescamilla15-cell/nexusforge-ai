@@ -16,15 +16,15 @@ export default function AgentDetailPanel({ agent, onClose }) {
 
   return (
     <div style={{
-      background: '#161E2E', borderRadius: 12,
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF', borderRadius: 12,
+      border: '1px solid #E5E7EB',
       padding: 24, animation: 'fadeIn 0.2s ease-out',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#E5E7EB', margin: 0 }}>{agent.name}</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 }}>{agent.name}</h2>
             <span style={{
               fontSize: 11, padding: '3px 10px', borderRadius: 6,
               background: `${typeColor}20`, color: typeColor, fontWeight: 600,
@@ -44,7 +44,7 @@ export default function AgentDetailPanel({ agent, onClose }) {
           onClick={onClose}
           aria-label="Cerrar panel de detalle"
           style={{
-            background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 8,
+            background: '#F3F4F6', border: 'none', borderRadius: 8,
             width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', color: '#9CA3AF',
           }}
@@ -56,7 +56,7 @@ export default function AgentDetailPanel({ agent, onClose }) {
       {/* Description */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 6 }}>Descripcion</div>
-        <p style={{ fontSize: 14, color: '#D1D5DB', lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
+        <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
       </div>
 
       {/* Tools */}
@@ -67,7 +67,7 @@ export default function AgentDetailPanel({ agent, onClose }) {
             {agent.tools.map((tool) => (
               <span key={tool} style={{
                 fontSize: 12, padding: '4px 10px', borderRadius: 6,
-                background: 'rgba(99,102,241,0.1)', color: '#A5B4FC', fontWeight: 500,
+                background: 'rgba(99,102,241,0.1)', color: '#6366F1', fontWeight: 500,
               }}>{tool}</span>
             ))}
           </div>
@@ -77,11 +77,11 @@ export default function AgentDetailPanel({ agent, onClose }) {
       {/* System prompt */}
       {agent.system_prompt && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>System Prompt</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>Prompt del Sistema</div>
           <pre style={{
-            background: '#0A0B0F', borderRadius: 8, padding: 14, fontSize: 12,
-            color: '#D1D5DB', overflow: 'auto', maxHeight: 200, margin: 0,
-            border: '1px solid rgba(255,255,255,0.06)', whiteSpace: 'pre-wrap',
+            background: '#F9FAFB', borderRadius: 8, padding: 14, fontSize: 12,
+            color: '#374151', overflow: 'auto', maxHeight: 200, margin: 0,
+            border: '1px solid #E5E7EB', whiteSpace: 'pre-wrap',
           }}>
             {agent.system_prompt}
           </pre>
@@ -93,9 +93,9 @@ export default function AgentDetailPanel({ agent, onClose }) {
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>Configuracion</div>
           <pre style={{
-            background: '#0A0B0F', borderRadius: 8, padding: 14, fontSize: 12,
-            color: '#A5B4FC', overflow: 'auto', maxHeight: 200, margin: 0,
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: '#F9FAFB', borderRadius: 8, padding: 14, fontSize: 12,
+            color: '#4B5563', overflow: 'auto', maxHeight: 200, margin: 0,
+            border: '1px solid #E5E7EB',
           }}>
             {JSON.stringify(agent.config, null, 2)}
           </pre>
@@ -113,11 +113,11 @@ export default function AgentDetailPanel({ agent, onClose }) {
               { label: 'Exito', value: agent.stats.success_rate != null ? `${(agent.stats.success_rate * 100).toFixed(0)}%` : '--', color: '#10B981' },
             ].map((s) => (
               <div key={s.label} style={{
-                background: '#0A0B0F', borderRadius: 8, padding: 12, textAlign: 'center',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: '#F9FAFB', borderRadius: 8, padding: 12, textAlign: 'center',
+                border: '1px solid #E5E7EB',
               }}>
                 <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: s.color || '#E5E7EB' }}>{s.value}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: s.color || '#111827' }}>{s.value}</div>
               </div>
             ))}
           </div>
