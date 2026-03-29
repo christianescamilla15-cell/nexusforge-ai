@@ -15,10 +15,10 @@ const DEMO_EXECUTION = {
   total_cost: 0.032,
   total_tokens: 4520,
   steps: [
-    { name: 'Cargar Documento', agent_type: 'loader', status: 'completed', duration_ms: 1200, tokens: 0, cost: 0, input: { file: 'contrato.pdf' }, output: { pages: 12, text_length: 14500 } },
-    { name: 'Clasificar Tipo', agent_type: 'classifier', status: 'completed', duration_ms: 3400, tokens: 1820, cost: 0.012, input: { text: '(documento completo)' }, output: { type: 'legal_contract', confidence: 0.94 } },
-    { name: 'Extraer Entidades', agent_type: 'extractor', status: 'completed', duration_ms: 5100, tokens: 2200, cost: 0.015, input: { text: '(documento completo)', type: 'legal_contract' }, output: { entities: ['Empresa A', 'Empresa B'], dates: ['2026-01-15', '2027-01-15'] } },
-    { name: 'Guardar Resultado', agent_type: 'storage', status: 'completed', duration_ms: 800, tokens: 500, cost: 0.005, input: { doc_id: 'doc-123' }, output: { stored: true, index_id: 'idx-456' } },
+    { name: 'Cargar Documento', agent_type: 'loader', status: 'completed', duration_ms: 1200, tokens: 0, tokens_in: 0, tokens_out: 0, cost: 0, model: null, provider: 'local', retries: 0, fallback_used: false, input: { file: 'contrato.pdf', format: 'application/pdf' }, output: { pages: 12, text_length: 14500, encoding: 'utf-8' } },
+    { name: 'Clasificar Tipo', agent_type: 'classifier', status: 'completed', duration_ms: 3400, tokens: 1820, tokens_in: 1540, tokens_out: 280, cost: 0.012, model: 'llama-3.3-70b', provider: 'Groq', retries: 0, fallback_used: false, input: { text: '(documento completo — 14,500 chars)', prompt_template: 'classify_document_v2' }, output: { type: 'legal_contract', confidence: 0.94, sub_type: 'service_agreement', language: 'es' } },
+    { name: 'Extraer Entidades', agent_type: 'extractor', status: 'completed', duration_ms: 5100, tokens: 2200, tokens_in: 1800, tokens_out: 400, cost: 0.015, model: 'claude-sonnet-4-20250514', provider: 'Anthropic', retries: 1, fallback_used: true, fallback_provider: 'Anthropic (from Groq)', input: { text: '(documento completo)', type: 'legal_contract', extraction_schema: 'entities_v3' }, output: { entities: ['Empresa A', 'Empresa B'], dates: ['2026-01-15', '2027-01-15'], amounts: ['$45,000 USD'], clauses: 12 } },
+    { name: 'Guardar Resultado', agent_type: 'storage', status: 'completed', duration_ms: 800, tokens: 500, tokens_in: 480, tokens_out: 20, cost: 0.005, model: null, provider: 'PostgreSQL', retries: 0, fallback_used: false, input: { doc_id: 'doc-123', index_target: 'pgvector' }, output: { stored: true, index_id: 'idx-456', vector_dims: 1536, chunks_indexed: 24 } },
   ],
 }
 

@@ -14,6 +14,8 @@ export const translations = {
     'cost-metrics': 'Cost Metrics',
     timeline: 'Timeline',
 
+    evaluations: 'Evaluations',
+
     // Dashboard
     totalWorkflows: 'Total Workflows',
     activeRuns: 'Active Runs',
@@ -291,6 +293,8 @@ export const translations = {
     playground: 'Playground',
     'cost-metrics': 'Metricas de Costos',
     timeline: 'Timeline',
+
+    evaluations: 'Evaluaciones',
 
     // Dashboard
     totalWorkflows: 'Total Flujos',

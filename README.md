@@ -237,6 +237,23 @@ Provider routing enables resilience and reduces dependency on a single API.
 
 ---
 
+## Platform Capabilities
+
+### Use Cases
+- **Enterprise Operations Assistant** — 8-agent business workflow (scheduling, contracts, expenses, onboarding)
+- **Document Intelligence** — 7-agent document processing (classification, extraction, OCR, multilingual)
+- **Portfolio Copilot** — 6-agent portfolio Q&A (architecture explanation, project comparison, recommendations)
+
+### Infrastructure
+- Execution Timeline (LangSmith-style traces with step inspector)
+- Workflow Playground (interactive execution with real-time streaming)
+- Cost + Token Dashboard (per-agent, per-model cost tracking)
+- Evaluation Harness (16 scenarios across 3 use cases, quality + latency + fallback metrics)
+- Self-Healing (5 recovery strategies: Retry, Skip, Repair, Escalate, Fallback)
+- Demo Mode (full UI functionality without backend connection)
+
+---
+
 ## Current Limitations
 
 This project is experimental and still evolving.
