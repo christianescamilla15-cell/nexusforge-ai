@@ -1,0 +1,44 @@
+[
+  {
+    "id": "DOC-001",
+    "filename": "contrato_soporte_premium.txt",
+    "type": "contract",
+    "language": "es",
+    "content": "CONTRATO DE SOPORTE PREMIUM\n\nEntre: TechCorp México S.A. de C.V. (Proveedor)\nY: Grupo Industrial Monterrey S.A. (Cliente)\n\nFecha de inicio: 1 de enero de 2026\nFecha de fin: 31 de diciembre de 2026\nValor: $45,000 USD anuales\n\nAlcance del servicio:\n- Soporte técnico 24/7 con tiempo de respuesta de 4 horas\n- Account manager dedicado\n- 3 sesiones de configuración incluidas\n- Acceso prioritario a nuevas funcionalidades\n- SLA: 99.9% de disponibilidad\n\nCláusulas principales:\n1. Renovación automática con 30 días de aviso\n2. Penalización por incumplimiento de SLA: 5% del valor mensual\n3. Confidencialidad de datos por 5 años\n4. Jurisdicción: Ciudad de México"
+  },
+  {
+    "id": "DOC-002",
+    "filename": "standard_support_contract.txt",
+    "type": "contract",
+    "language": "en",
+    "content": "STANDARD SUPPORT CONTRACT\n\nBetween: TechCorp Inc. (Provider)\nAnd: GlobalRetail Ltd. (Client)\n\nStart date: March 1, 2026\nEnd date: February 28, 2027\nValue: $18,000 USD annually\n\nService scope:\n- Business hours support (Mon-Fri, 9am-6pm)\n- Email and chat support with 24-hour response time\n- Monthly status reports\n- Quarterly review meetings\n\nKey clauses:\n1. 60-day cancellation notice required\n2. No SLA guarantees for standard tier\n3. Data retention: 3 years\n4. Jurisdiction: Delaware, USA"
+  },
+  {
+    "id": "DOC-003",
+    "filename": "politica_onboarding.txt",
+    "type": "policy",
+    "language": "es",
+    "content": "POLÍTICA DE ONBOARDING\n\nVigencia: 1 de enero de 2026\nAlcance: Todos los clientes nuevos\n\nRequisitos de elegibilidad:\n- Plan Professional o Enterprise: onboarding gratuito\n- Plan Basic: costo adicional de $500 USD\n- Incluye 3 sesiones de configuración de 1 hora cada una\n\nProceso:\n1. Asignación de especialista de onboarding (24 horas)\n2. Sesión de descubrimiento y planificación\n3. Configuración técnica del ambiente\n4. Capacitación del equipo del cliente\n5. Verificación y cierre del onboarding\n\nExcepciones:\n- Clientes enterprise con más de 100 usuarios: onboarding extendido\n- Migraciones desde competidores: sesiones adicionales sin costo\n\nResponsable: Departamento de Customer Success"
+  },
+  {
+    "id": "DOC-004",
+    "filename": "invoice_2026_001.txt",
+    "type": "invoice",
+    "language": "es",
+    "content": "FACTURA #2026-001\n\nEmisor: TechCorp México S.A. de C.V.\nRFC: TCM201015ABC\n\nReceptor: Grupo Industrial Monterrey S.A.\nRFC: GIM950320XYZ\n\nFecha: 15 de marzo de 2026\n\nConcepto | Cantidad | Precio Unitario | Total\nLicencia Enterprise (anual) | 1 | $35,000 USD | $35,000 USD\nSoporte Premium (Q1) | 1 | $11,250 USD | $11,250 USD\nCapacitación adicional | 2 | $1,500 USD | $3,000 USD\n\nSubtotal: $49,250 USD\nIVA (16%): $7,880 USD\nTotal: $57,130 USD\n\nMétodo de pago: Transferencia bancaria\nVencimiento: 15 de abril de 2026"
+  },
+  {
+    "id": "DOC-005",
+    "filename": "resume_developer.txt",
+    "type": "resume",
+    "language": "es",
+    "content": "CURRÍCULUM VITAE\n\nNombre: Ana Sofía Ramírez López\nEmail: ana.ramirez@email.com\nTeléfono: +52 55 1234 5678\nUbicación: CDMX, México\n\nExperiencia:\n- Senior AI Engineer en DataTech (2024-presente)\n  Desarrollo de pipelines de NLP y sistemas multi-agente\n- Backend Developer en CloudSoft (2022-2024)\n  APIs REST con FastAPI, microservicios con Docker\n- Junior Developer en StartupMX (2020-2022)\n  Desarrollo web con React y Node.js\n\nEducación:\n- Ingeniería en Computación, UNAM (2016-2020)\n- Maestría en IA, ITESM (2020-2022)\n\nHabilidades: Python, FastAPI, React, Docker, PostgreSQL, LangChain, Claude API\nIdiomas: Español (nativo), Inglés (C1)"
+  },
+  {
+    "id": "DOC-006",
+    "filename": "malformed_document.txt",
+    "type": "unknown",
+    "language": "es",
+    "content": "asdfghjkl\n\nEsto no es un documento válido.\nNo tiene estructura reconocible.\nSolo texto aleatorio sin propósito claro.\n\n12345 $$$ ???"
+  }
+]

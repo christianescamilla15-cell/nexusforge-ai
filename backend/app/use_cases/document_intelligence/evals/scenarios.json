@@ -1,0 +1,8 @@
+[
+  {"name": "contract_extraction_es", "doc_id": "DOC-001", "expected_type": "contract", "expected_fields_min": 3, "language": "es"},
+  {"name": "contract_extraction_en", "doc_id": "DOC-002", "expected_type": "contract", "expected_fields_min": 3, "language": "en"},
+  {"name": "policy_extraction", "doc_id": "DOC-003", "expected_type": "policy", "expected_fields_min": 2, "language": "es"},
+  {"name": "invoice_extraction", "doc_id": "DOC-004", "expected_type": "invoice", "expected_fields_min": 2, "language": "es"},
+  {"name": "resume_classification", "doc_id": "DOC-005", "expected_type": "resume", "expected_fields_min": 2, "language": "es"},
+  {"name": "malformed_document", "doc_id": "DOC-006", "expected_type": "unknown", "expected_fields_min": 0, "language": "es"}
+]
