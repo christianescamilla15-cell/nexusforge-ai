@@ -3,7 +3,7 @@ import { t } from '../../shared/i18n/translations'
 
 export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
   const [apiUrl, setApiUrl] = useState(
-    () => (typeof window !== 'undefined' && import.meta.env.VITE_API_URL) || 'http://localhost:8000/api'
+    () => (typeof window !== 'undefined' && import.meta.env.VITE_API_URL) || ''
   )
   const [darkMode] = useState(true)
   const [tourResetDone, setTourResetDone] = useState(false)
@@ -30,11 +30,17 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
             type="text"
             value={apiUrl}
             onChange={(e) => setApiUrl(e.target.value)}
+            placeholder={lang === 'es' ? 'Dejar vacio para modo demo' : 'Leave blank for demo mode'}
             aria-label={t('apiBaseUrl', lang)}
             style={inputStyle}
             onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
             onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
           />
+          <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 8, lineHeight: 1.5 }}>
+            {lang === 'es'
+              ? 'Local: http://localhost:8000/api | Produccion: URL del backend desplegado | Vacio: modo demo'
+              : 'Local: http://localhost:8000/api | Production: deployed backend URL | Blank: demo mode'}
+          </p>
         </div>
 
         {/* Theme */}

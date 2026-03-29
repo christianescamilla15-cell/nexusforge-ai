@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: nexusforge-api
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nexusforge-db
+          property: connectionURI
+      - key: REDIS_URL
+        value: ""
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+databases:
+  - name: nexusforge-db
+    plan: free
+    databaseName: nexusforge
+    postgresMajorVersion: "16"

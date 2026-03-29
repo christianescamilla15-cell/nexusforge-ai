@@ -1,6 +1,5 @@
 import { useState } from 'react'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { fetchAPI, DEMO_ENTERPRISE_RESULT } from '../../services/api'
 
 const TEXTS = {
   es: {
@@ -162,6 +161,7 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
   const [loading, setLoading] = useState(false)
   const [response, setResponse] = useState(null)
   const [error, setError] = useState(null)
+  const [isDemo, setIsDemo] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -170,27 +170,21 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
     setLoading(true)
     setError(null)
     setResponse(null)
+    setIsDemo(false)
 
-    try {
-      const res = await fetch(`${API_BASE}/api/enterprise-ops/process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: message.trim(),
-          customer_id: customerId.trim() || null,
-          language,
-          priority,
-        }),
-      })
+    const result = await fetchAPI('/enterprise-ops/process', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: message.trim(),
+        customer_id: customerId.trim() || null,
+        language,
+        priority,
+      }),
+    })
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      setResponse(data)
-    } catch (err) {
-      setError(txt.errorText)
-    } finally {
-      setLoading(false)
-    }
+    setResponse(result.data)
+    setIsDemo(result.isDemo)
+    setLoading(false)
   }
 
   const fillSample = (sample) => {
@@ -415,9 +409,22 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
         <div>
           {response ? (
             <div style={cardStyle}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 20 }}>
-                {txt.responseTitle}
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>
+                  {txt.responseTitle}
+                </h2>
+                {isDemo && (
+                  <span style={{
+                    padding: '3px 10px', borderRadius: 6, fontSize: 11,
+                    background: 'rgba(245,158,11,0.08)', color: '#D97706',
+                    border: '1px solid rgba(245,158,11,0.2)',
+                    fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5,
+                  }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#D97706' }} />
+                    {currentLang === 'es' ? 'Modo Demo' : 'Demo Mode'}
+                  </span>
+                )}
+              </div>
 
               {/* Status + Intent */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>

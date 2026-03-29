@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
+import { fetchAPI } from '../../services/api'
 import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
@@ -35,6 +36,7 @@ export default function DashboardPage({ lang = 'en' }) {
   const [runs, setRuns] = useState([])
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isDemo, setIsDemo] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -45,11 +47,12 @@ export default function DashboardPage({ lang = 'en' }) {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/runs').then(r => r.json()),
-      fetch('/api/runs/reliability/health').then(r => r.json()),
-    ]).then(([runsData, healthData]) => {
-      setRuns(runsData.runs || [])
-      setHealth(healthData)
+      fetchAPI('/runs'),
+      fetchAPI('/runs/reliability/health'),
+    ]).then(([runsResult, healthResult]) => {
+      setRuns(runsResult.data.runs || [])
+      setHealth(healthResult.data)
+      setIsDemo(runsResult.isDemo || healthResult.isDemo)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -97,14 +100,25 @@ export default function DashboardPage({ lang = 'en' }) {
             {t('dashboardSubtitle', lang)}
           </p>
         </div>
-        {!hasData && (
+        {isDemo && (
+          <span style={{
+            padding: '4px 12px', borderRadius: 6, fontSize: 12,
+            background: 'rgba(245,158,11,0.08)', color: '#D97706',
+            border: '1px solid rgba(245,158,11,0.2)',
+            fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D97706' }} />
+            {lang === 'es' ? 'Modo Demo' : 'Demo Mode'}
+          </span>
+        )}
+        {!hasData && !isDemo && (
           <span style={{
             padding: '4px 12px', borderRadius: 6, fontSize: 12,
             background: 'rgba(37,99,235,0.06)', color: '#2563EB',
             border: '1px solid rgba(37,99,235,0.15)',
             fontWeight: 500,
           }}>
-            Sin datos aún
+            {lang === 'es' ? 'Sin datos aun' : 'No data yet'}
           </span>
         )}
       </div>
