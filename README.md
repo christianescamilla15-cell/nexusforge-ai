@@ -37,41 +37,51 @@ NexusForge explores how to design AI workflows that are **observable, resilient,
 
 ---
 
-## System Architecture (Simplified)
+## System Architecture
 
 ```text
-Client / UI
-      ↓
-FastAPI Gateway
-      ↓
-Orchestrator Engine
-      ↓
-Agent Swarm
-      ↓
-Shared Memory Layer
-      ↓
-PostgreSQL + Redis
+                            ┌──────────────────────┐
+                            │   Web UI / CLI       │
+                            └──────────┬───────────┘
+                                       │
+                                       ▼
+                            ┌──────────────────────┐
+                            │   FastAPI Gateway    │
+                            │  REST / WebSocket    │
+                            └──────────┬───────────┘
+                                       │
+                                       ▼
+                            ┌──────────────────────┐
+                            │  Orchestrator Engine │
+                            │ DAG / State Machine  │
+                            └──────────┬───────────┘
+                                       │
+             ┌─────────────────────────┼─────────────────────────┐
+             │                         │                         │
+             ▼                         ▼                         ▼
+  ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+  │ Agent Swarm      │      │ Memory Layer     │      │ LLM Router       │
+  │ 22 agents        │      │ working/episodic │      │ primary/fallback │
+  │ topology engine  │      │ semantic memory  │      │ circuit breaker  │
+  └─────────┬────────┘      └─────────┬────────┘      └─────────┬────────┘
+            │                         │                         │
+            └──────────────┬──────────┴──────────┬─────────────┘
+                           │                     │
+                           ▼                     ▼
+                 ┌──────────────────┐   ┌──────────────────┐
+                 │ PostgreSQL       │   │ Redis            │
+                 │ pgvector         │   │ events/cache     │
+                 │ run history      │   │ pub/sub          │
+                 └──────────────────┘   └──────────────────┘
 ```
 
-Full architecture diagram:
+NexusForge is structured around five core layers:
 
-```text
-Web UI / CLI
-      ↓
-FastAPI Gateway
-      ↓
-DAG Executor + State Machine
-      ↓
-Agent Orchestrator
-      ↓
-Swarm Topologies
-      ↓
-Memory Layer (working / episodic / semantic)
-      ↓
-LLM Router + Circuit Breaker
-      ↓
-PostgreSQL / pgvector + Redis
-```
+- **API Layer** — FastAPI gateway with REST + WebSocket endpoints
+- **Orchestration Layer** — DAG execution, state machine, retry policies, checkpoint/resume
+- **Agent Execution Layer** — 22 agents across 6 swarm topologies
+- **Memory & Retrieval Layer** — 3-tier memory (working/episodic/semantic) + pgvector RAG
+- **Observability & Evaluation Layer** — run history, metrics, timeline, evaluation harness
 
 ---
 
