@@ -9,7 +9,7 @@ export default function EmptyState({ icon, title, description, actionLabel, onAc
           {icon}
         </div>
       )}
-      <h3 style={{ fontSize: 18, fontWeight: 600, color: '#E5E7EB', marginBottom: 8 }}>
+      <h3 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 8 }}>
         {title}
       </h3>
       {description && (
@@ -23,11 +23,11 @@ export default function EmptyState({ icon, title, description, actionLabel, onAc
           aria-label={actionLabel}
           style={{
             padding: '10px 20px', borderRadius: 8, border: 'none',
-            background: '#6366F1', color: '#fff', fontSize: 14, fontWeight: 500,
-            transition: 'background 0.2s',
+            background: '#2563EB', color: '#fff', fontSize: 14, fontWeight: 500,
+            transition: 'background 0.2s', cursor: 'pointer',
           }}
-          onMouseEnter={(e) => e.target.style.background = '#5558E6'}
-          onMouseLeave={(e) => e.target.style.background = '#6366F1'}
+          onMouseEnter={(e) => e.target.style.background = '#1D4ED8'}
+          onMouseLeave={(e) => e.target.style.background = '#2563EB'}
         >
           {actionLabel}
         </button>

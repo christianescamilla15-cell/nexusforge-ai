@@ -30,14 +30,14 @@ export default function KPICard({ icon, value, label, trend }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: '#161E2E',
+        background: '#FFFFFF',
         borderRadius: 12,
         padding: '24px 20px',
         border: hovered
-          ? '1px solid rgba(99,102,241,0.3)'
-          : '1px solid rgba(255,255,255,0.06)',
+          ? '1px solid rgba(37,99,235,0.3)'
+          : '1px solid #E5E7EB',
         transition: 'border-color 0.2s, box-shadow 0.2s',
-        boxShadow: hovered ? '0 0 20px rgba(99,102,241,0.08)' : 'none',
+        boxShadow: hovered ? '0 4px 12px rgba(0,0,0,0.06)' : '0 1px 2px rgba(0,0,0,0.04)',
         flex: '1 1 220px',
         minWidth: 200,
         animation: 'fadeIn 0.3s ease-out',
@@ -46,23 +46,23 @@ export default function KPICard({ icon, value, label, trend }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{
           width: 40, height: 40, borderRadius: 10,
-          background: 'rgba(99,102,241,0.1)',
+          background: 'rgba(37,99,235,0.06)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#818CF8',
+          color: '#2563EB',
         }}>
           {icon}
         </div>
         {trend !== undefined && (
           <span style={{
             fontSize: 12, fontWeight: 500,
-            color: trend >= 0 ? '#10B981' : '#EF4444',
+            color: trend >= 0 ? '#059669' : '#DC2626',
           }}>
             {trend >= 0 ? '+' : ''}{trend}%
           </span>
         )}
       </div>
       <div style={{
-        fontSize: 28, fontWeight: 700, color: '#E5E7EB',
+        fontSize: 28, fontWeight: 700, color: '#111827',
         marginBottom: 4, animation: 'countUp 0.4s ease-out',
       }}>
         <AnimatedValue value={value} />

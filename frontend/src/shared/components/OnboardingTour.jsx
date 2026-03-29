@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { t } from '../i18n/translations'
 
-// ─── Tour Steps ──────────────────────────────────────────────────────────────
+// --- Tour Steps ---
 const TOUR_STEPS = [
   { id: 'welcome', page: null, target: null, action: null, wait: 0 },
   { id: 'dashboard', page: 'dashboard', target: '[data-tour="dashboard-kpis"]', action: null, wait: 1200 },
   { id: 'workflows', page: 'workflows', target: '[data-tour="workflow-table"]', action: 'clickFirstWorkflowRow', wait: 1000 },
   { id: 'executions', page: 'executions', target: '[data-tour="execution-table"]', action: 'clickFirstExecutionRow', wait: 1000 },
-  // execution-detail removed — can't navigate without real workflow selection
   { id: 'agents', page: 'agents', target: '[data-tour="agent-grid"]', action: 'clickFirstAgent', wait: 1000 },
   { id: 'swarms', page: 'swarms', target: '[data-tour="swarm-grid"]', action: null, wait: 500 },
   { id: 'memory', page: 'memory', target: '[data-tour="memory-input"]', action: 'storeMemory', wait: 4000 },
@@ -17,7 +16,7 @@ const TOUR_STEPS = [
   { id: 'final', page: 'dashboard', target: null, action: 'scrollTop', wait: 500 },
 ]
 
-// ─── Helper: type into a React-controlled input ─────────────────────────────
+// --- Helper: type into a React-controlled input ---
 function typeIntoInput(selector, text) {
   const el = document.querySelector(selector)
   if (!el) return false
@@ -26,7 +25,6 @@ function typeIntoInput(selector, text) {
     nativeSetter.call(el, text)
     el.dispatchEvent(new Event('input', { bubbles: true }))
   }
-  // Also fire change for some React versions
   el.dispatchEvent(new Event('change', { bubbles: true }))
   return true
 }
@@ -38,7 +36,7 @@ function clickElement(selector) {
   return true
 }
 
-// ─── Spotlight Overlay ───────────────────────────────────────────────────────
+// --- Spotlight Overlay ---
 function TourSpotlight({ targetRect, padding = 12 }) {
   if (!targetRect) return null
   const { top, left, width, height } = targetRect
@@ -46,10 +44,9 @@ function TourSpotlight({ targetRect, padding = 12 }) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9998, pointerEvents: 'none',
     }}>
-      {/* Dark overlay with cutout */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'rgba(0,0,0,0.7)',
+        background: 'rgba(0,0,0,0.4)',
         clipPath: `polygon(
           0% 0%, 100% 0%, 100% 100%, 0% 100%,
           0% ${top - padding}px,
@@ -60,12 +57,11 @@ function TourSpotlight({ targetRect, padding = 12 }) {
           0% ${top - padding}px
         )`,
       }} />
-      {/* Spotlight border (pulsing) */}
       <div style={{
         position: 'absolute',
         top: top - padding, left: left - padding,
         width: width + padding * 2, height: height + padding * 2,
-        border: '2px solid rgba(99,102,241,0.6)',
+        border: '2px solid rgba(37,99,235,0.5)',
         borderRadius: 12,
         animation: 'tourPulse 2s ease-in-out infinite',
         pointerEvents: 'none',
@@ -74,7 +70,7 @@ function TourSpotlight({ targetRect, padding = 12 }) {
   )
 }
 
-// ─── Tooltip ─────────────────────────────────────────────────────────────────
+// --- Tooltip ---
 function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunning, onNext, onPrev, onSkip }) {
   const stepTitles = {
     welcome: 'tourStepWelcome',
@@ -105,17 +101,16 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
     final: 'tourStepFinalDesc',
   }
 
-  // Position below or to the right of target
   let tooltipStyle = {
     position: 'fixed',
     zIndex: 9999,
-    background: '#1A1F2E',
-    border: '1px solid rgba(99,102,241,0.4)',
+    background: '#FFFFFF',
+    border: '1px solid #E5E7EB',
     borderRadius: 14,
     padding: '20px 22px',
     width: 360,
     maxWidth: 'calc(100vw - 32px)',
-    boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.15)',
+    boxShadow: '0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px rgba(37,99,235,0.08)',
     animation: 'tourTooltipIn 0.3s ease-out',
     pointerEvents: 'auto',
   }
@@ -140,7 +135,6 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
       }
     }
   } else {
-    // Center on screen (welcome / final)
     tooltipStyle.top = '50%'
     tooltipStyle.left = '50%'
     tooltipStyle.transform = 'translate(-50%, -50%)'
@@ -153,7 +147,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
         padding: '3px 10px', borderRadius: 12,
-        background: 'rgba(99,102,241,0.15)', color: '#A5B4FC',
+        background: 'rgba(37,99,235,0.06)', color: '#2563EB',
         fontSize: 11, fontWeight: 600, marginBottom: 10,
       }}>
         {stepIndex + 1} / {totalSteps}
@@ -161,7 +155,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
 
       {/* Title */}
       <h3 style={{
-        fontSize: 18, fontWeight: 700, color: '#E5E7EB',
+        fontSize: 18, fontWeight: 700, color: '#111827',
         marginBottom: 6, lineHeight: 1.3,
       }}>
         {t(stepTitles[step.id], lang)}
@@ -169,7 +163,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
 
       {/* Description */}
       <p style={{
-        fontSize: 14, color: '#9CA3AF', lineHeight: 1.5,
+        fontSize: 14, color: '#4B5563', lineHeight: 1.5,
         marginBottom: 16,
       }}>
         {t(stepDescs[step.id], lang)}
@@ -180,15 +174,15 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 12px', borderRadius: 8, marginBottom: 14,
-          background: 'rgba(99,102,241,0.1)',
-          border: '1px solid rgba(99,102,241,0.2)',
+          background: 'rgba(37,99,235,0.04)',
+          border: '1px solid rgba(37,99,235,0.12)',
         }}>
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
-            background: '#6366F1',
+            background: '#2563EB',
             animation: 'tourActionPulse 1s ease-in-out infinite',
           }} />
-          <span style={{ fontSize: 12, color: '#A5B4FC', fontWeight: 500 }}>
+          <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 500 }}>
             {t('watchingDemo', lang)}
           </span>
         </div>
@@ -201,7 +195,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
         {TOUR_STEPS.map((_, i) => (
           <div key={i} style={{
             width: i === stepIndex ? 20 : 6, height: 6, borderRadius: 3,
-            background: i < stepIndex ? '#6366F1' : i === stepIndex ? '#818CF8' : 'rgba(255,255,255,0.1)',
+            background: i < stepIndex ? '#2563EB' : i === stepIndex ? '#60A5FA' : '#E5E7EB',
             transition: 'all 0.3s',
           }} />
         ))}
@@ -214,8 +208,8 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
             onClick={onPrev}
             style={{
               padding: '8px 16px', borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'transparent', color: '#9CA3AF',
+              border: '1px solid #E5E7EB',
+              background: '#FFFFFF', color: '#4B5563',
               fontSize: 13, fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.15s',
             }}
@@ -231,7 +225,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
             onClick={onSkip}
             style={{
               padding: '8px 16px', borderRadius: 8, border: 'none',
-              background: 'transparent', color: '#6B7280',
+              background: 'transparent', color: '#9CA3AF',
               fontSize: 12, cursor: 'pointer',
               transition: 'all 0.15s',
             }}
@@ -245,7 +239,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
             onClick={onNext}
             style={{
               padding: '8px 20px', borderRadius: 8, border: 'none',
-              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              background: '#2563EB',
               color: '#fff', fontSize: 13, fontWeight: 600,
               cursor: 'pointer', transition: 'all 0.15s',
             }}
@@ -258,13 +252,13 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
   )
 }
 
-// ─── Completion Modal ────────────────────────────────────────────────────────
+// --- Completion Modal ---
 function CompletionModal({ lang, onRestart, onExplore }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 10000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.8)',
+      background: 'rgba(0,0,0,0.3)',
       animation: 'tourFadeIn 0.4s ease-out',
       cursor: 'pointer',
     }} onClick={(e) => {
@@ -272,31 +266,31 @@ function CompletionModal({ lang, onRestart, onExplore }) {
       onExplore();
     }}>
       <div data-tour-completion style={{
-        background: '#1A1F2E',
-        border: '1px solid rgba(99,102,241,0.4)',
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
         borderRadius: 20, padding: '36px 40px',
         maxWidth: 460, width: '90%',
         textAlign: 'center',
         animation: 'tourScaleIn 0.4s ease-out',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.12)',
       }}>
         {/* Success icon */}
         <div style={{
           width: 64, height: 64, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+          background: '#2563EB',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 20px',
-          boxShadow: '0 0 30px rgba(99,102,241,0.3)',
+          boxShadow: '0 0 30px rgba(37,99,235,0.2)',
         }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
 
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: '#E5E7EB', marginBottom: 8 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
           {t('tourComplete', lang)}
         </h2>
-        <p style={{ fontSize: 14, color: '#9CA3AF', lineHeight: 1.6, marginBottom: 24 }}>
+        <p style={{ fontSize: 14, color: '#4B5563', lineHeight: 1.6, marginBottom: 24 }}>
           {t('tourCompleteDesc', lang)}
         </p>
 
@@ -306,13 +300,13 @@ function CompletionModal({ lang, onRestart, onExplore }) {
           marginBottom: 28, flexWrap: 'wrap',
         }}>
           {[
-            { value: '10', label: t('pagesVisited', lang), color: '#6366F1' },
-            { value: '5', label: t('demosPlayed', lang), color: '#10B981' },
-            { value: '22', label: t('featuresExplored', lang), color: '#F59E0B' },
+            { value: '10', label: t('pagesVisited', lang), color: '#2563EB' },
+            { value: '5', label: t('demosPlayed', lang), color: '#059669' },
+            { value: '22', label: t('featuresExplored', lang), color: '#D97706' },
           ].map((s) => (
             <div key={s.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -323,8 +317,8 @@ function CompletionModal({ lang, onRestart, onExplore }) {
             onClick={onRestart}
             style={{
               padding: '10px 24px', borderRadius: 10,
-              border: '1px solid rgba(99,102,241,0.3)',
-              background: 'transparent', color: '#A5B4FC',
+              border: '1px solid #E5E7EB',
+              background: '#FFFFFF', color: '#2563EB',
               fontSize: 14, fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.15s',
             }}
@@ -335,7 +329,7 @@ function CompletionModal({ lang, onRestart, onExplore }) {
             onClick={onExplore}
             style={{
               padding: '10px 28px', borderRadius: 10, border: 'none',
-              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              background: '#2563EB',
               color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
               transition: 'all 0.15s',
             }}
@@ -348,7 +342,7 @@ function CompletionModal({ lang, onRestart, onExplore }) {
   )
 }
 
-// ─── Main OnboardingTour Component ───────────────────────────────────────────
+// --- Main OnboardingTour Component ---
 export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete, onSelectWorkflow, onSelectExecution }) {
   const [stepIndex, setStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState(null)
@@ -367,14 +361,12 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
     return id
   }, [])
 
-  // Cleanup
   useEffect(() => {
     return () => clearAllTimeouts()
   }, [clearAllTimeouts])
 
   const currentStep = TOUR_STEPS[stepIndex]
 
-  // Measure target element
   const measureTarget = useCallback(() => {
     if (!currentStep?.target) {
       setTargetRect(null)
@@ -384,10 +376,8 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
     if (el) {
       const rect = el.getBoundingClientRect()
       setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
-      // Scroll into view if needed
       if (rect.top < 0 || rect.bottom > window.innerHeight) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        // Re-measure after scroll
         addTimeout(() => {
           const r2 = el.getBoundingClientRect()
           setTargetRect({ top: r2.top, left: r2.left, width: r2.width, height: r2.height })
@@ -398,7 +388,6 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
     }
   }, [currentStep, addTimeout])
 
-  // Navigate to page and measure on step change
   useEffect(() => {
     if (!currentStep) return
     clearAllTimeouts()
@@ -407,36 +396,24 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
       onNavigate(currentStep.page)
     }
 
-    // Wait for page render, then measure
     const delay = currentStep.page ? 400 : 100
     addTimeout(() => measureTarget(), delay)
   }, [stepIndex, currentStep, onNavigate, measureTarget, clearAllTimeouts, addTimeout])
 
-  // Re-measure on resize
   useEffect(() => {
     const handler = () => measureTarget()
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
   }, [measureTarget])
 
-  // Execute step action
   const executeAction = useCallback(() => {
     if (!currentStep?.action) return
 
     setActionRunning(true)
 
     switch (currentStep.action) {
-      case 'clickFirstWorkflowRow': {
-        // Skip the click action — just show the table and auto-advance
-        addTimeout(() => setActionRunning(false), 800)
-        break
-      }
-
-      case 'clickFirstExecutionRow': {
-        addTimeout(() => setActionRunning(false), 800)
-        break
-      }
-
+      case 'clickFirstWorkflowRow':
+      case 'clickFirstExecutionRow':
       case 'clickFirstAgent': {
         addTimeout(() => setActionRunning(false), 800)
         break
@@ -444,14 +421,12 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
 
       case 'storeMemory': {
         addTimeout(() => {
-          // Find the text input inside memory-input section
           const input = document.querySelector('[data-tour="memory-input"] input[type="text"]')
           if (input) {
             typeIntoInput('[data-tour="memory-input"] input[type="text"]', 'Classify financial report')
           }
         }, 500)
         addTimeout(() => {
-          // Click the Store button
           const btns = document.querySelectorAll('[data-tour="memory-input"] button')
           for (const btn of btns) {
             if (btn.textContent.includes('Store') || btn.textContent.includes('Almacenar')) {
@@ -469,7 +444,6 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
 
       case 'simulateFailure': {
         addTimeout(() => {
-          // Find and click the "Simulate Failure" button
           const btns = document.querySelectorAll('[data-tour="healing-simulator"] button')
           for (const btn of btns) {
             const text = btn.textContent || ''
@@ -488,7 +462,6 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
 
       case 'searchDocs': {
         addTimeout(() => {
-          // Find the search input inside semantic-search section
           const input = document.querySelector('[data-tour="semantic-search"] input[type="text"]')
           if (input) {
             typeIntoInput('[data-tour="semantic-search"] input[type="text"]', 'NexusForge architecture')
@@ -503,12 +476,10 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
 
       case 'openChat': {
         addTimeout(() => {
-          // Click the chat button
           const chatBtn = document.querySelector('[data-tour="chat-button"]')
           if (chatBtn) chatBtn.click()
         }, 300)
         addTimeout(() => {
-          // Type into chat input
           const chatInput = document.querySelector('.nf-chat-panel input[type="text"]')
           if (chatInput) {
             const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
@@ -520,7 +491,6 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
           }
         }, 800)
         addTimeout(() => {
-          // Click send button
           const sendBtn = document.querySelector('.nf-chat-panel button[type="submit"]')
           if (sendBtn) sendBtn.click()
         }, 1200)
@@ -550,15 +520,12 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
   const handleNext = useCallback(() => {
     if (actionRunning) return
 
-    // If current step has an action and it hasn't been executed yet, execute it first
     if (currentStep?.action && !actionRunning) {
       executeAction()
-      // After the action completes, auto-advance
       addTimeout(() => {
         if (stepIndex < TOUR_STEPS.length - 1) {
           goToStep(stepIndex + 1)
         } else {
-          // Tour complete
           window.scrollTo({ top: 0, behavior: 'smooth' })
           onNavigate('dashboard')
           setShowCompletion(true)
@@ -615,18 +582,16 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
     <>
       <style>{tourKeyframes}</style>
 
-      {/* Dark overlay with spotlight cutout OR full overlay for welcome/final */}
       {currentStep?.target && targetRect ? (
         <TourSpotlight targetRect={targetRect} />
       ) : (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9998,
-          background: 'rgba(0,0,0,0.75)',
+          background: 'rgba(0,0,0,0.4)',
           pointerEvents: 'none',
         }} />
       )}
 
-      {/* Clickable overlay — tap anywhere to advance */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 9998,
         pointerEvents: actionRunning ? 'none' : 'auto',
@@ -652,11 +617,11 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
   )
 }
 
-// ─── Keyframes ───────────────────────────────────────────────────────────────
+// --- Keyframes ---
 const tourKeyframes = `
 @keyframes tourPulse {
-  0%, 100% { border-color: rgba(99,102,241,0.6); box-shadow: 0 0 0 0 rgba(99,102,241,0.2); }
-  50% { border-color: rgba(99,102,241,0.9); box-shadow: 0 0 20px 4px rgba(99,102,241,0.15); }
+  0%, 100% { border-color: rgba(37,99,235,0.5); box-shadow: 0 0 0 0 rgba(37,99,235,0.15); }
+  50% { border-color: rgba(37,99,235,0.8); box-shadow: 0 0 20px 4px rgba(37,99,235,0.1); }
 }
 @keyframes tourTooltipIn {
   from { opacity: 0; transform: translateY(10px); }

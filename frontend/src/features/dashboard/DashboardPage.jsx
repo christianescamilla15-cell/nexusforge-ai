@@ -4,7 +4,7 @@ import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
 
-// Demo data — always used (demo-first, no backend required)
+// Demo data -- always used (demo-first, no backend required)
 const DEMO_KPIS = { workflows: 12, activeRuns: 3, agentsOnline: 22, documents: 47 }
 const DEMO_RUNS = [
   { id: 1, status: 'completed', workflow: 'Analisis de Documentos', started: 'Hace 5 min', duration: '2m 14s', cost: '0.23', steps: 4 },
@@ -19,11 +19,11 @@ const DEMO_RUNS = [
   { id: 10, status: 'completed', workflow: 'Validacion de Datos', started: 'Hace 7h', duration: '2m 01s', cost: '0.28', steps: 4 },
 ]
 const DEMO_AGENTS = [
-  { name: 'Orchestrator', count: 142, color: '#6366F1', colorEnd: '#8B5CF6' },
-  { name: 'Classifier', count: 98, color: '#10B981', colorEnd: '#34D399' },
-  { name: 'Summarizer', count: 87, color: '#F59E0B', colorEnd: '#FBBF24' },
-  { name: 'Extractor', count: 65, color: '#EF4444', colorEnd: '#F87171' },
-  { name: 'Validator', count: 43, color: '#06B6D4', colorEnd: '#22D3EE' },
+  { name: 'Orchestrator', count: 142, color: '#2563EB', colorEnd: '#60A5FA' },
+  { name: 'Classifier', count: 98, color: '#059669', colorEnd: '#34D399' },
+  { name: 'Summarizer', count: 87, color: '#D97706', colorEnd: '#FBBF24' },
+  { name: 'Extractor', count: 65, color: '#DC2626', colorEnd: '#F87171' },
+  { name: 'Validator', count: 43, color: '#0891B2', colorEnd: '#22D3EE' },
 ]
 
 function KPIIcon({ type }) {
@@ -42,7 +42,6 @@ function KPIIcon({ type }) {
 }
 
 export default function DashboardPage({ lang = 'en' }) {
-  // Always start with demo data — API is optional enhancement
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -69,7 +68,7 @@ export default function DashboardPage({ lang = 'en' }) {
         marginBottom: 24, flexWrap: 'wrap', gap: 8,
       }}>
         <div>
-          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#E5E7EB' }}>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827' }}>
             {t('dashboard', lang)}
           </h1>
           <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF', marginTop: 4 }}>
@@ -78,8 +77,9 @@ export default function DashboardPage({ lang = 'en' }) {
         </div>
         <span style={{
           padding: '4px 12px', borderRadius: 6, fontSize: 12,
-          background: 'rgba(99,102,241,0.1)', color: '#818CF8',
-          border: '1px solid rgba(99,102,241,0.2)',
+          background: 'rgba(37,99,235,0.06)', color: '#2563EB',
+          border: '1px solid rgba(37,99,235,0.15)',
+          fontWeight: 500,
         }}>
           Demo Mode
         </span>
@@ -136,20 +136,21 @@ export default function DashboardPage({ lang = 'en' }) {
 
           {/* Cost overview */}
           <div style={{
-            background: '#161E2E', borderRadius: 12,
-            border: '1px solid rgba(255,255,255,0.06)', padding: 20,
+            background: '#FFFFFF', borderRadius: 12,
+            border: '1px solid #E5E7EB', padding: 20,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
           }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 16 }}>
               {t('costOverview', lang)}
             </h3>
             {costItems.map((item) => (
               <div key={item.label} style={{
                 display: 'flex', justifyContent: 'space-between',
                 padding: '10px 0',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                borderBottom: '1px solid #F3F4F6',
               }}>
                 <span style={{ fontSize: 13, color: '#9CA3AF' }}>{item.label}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#E5E7EB' }}>{item.value}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{item.value}</span>
               </div>
             ))}
           </div>

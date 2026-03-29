@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
+import Onboarding from './shared/components/Onboarding'
 import { useLanguage } from './shared/hooks/useLanguage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import WorkflowListPage from './features/workflows/WorkflowListPage'
@@ -21,6 +22,9 @@ export default function App() {
   const [selectedExecution, setSelectedExecution] = useState(null)
   const { lang, setLang, toggle: toggleLang } = useLanguage()
   const [showTour, setShowTour] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try { return !localStorage.getItem('nxf-onboarding-done') } catch { return true }
+  })
 
   const navigate = (page) => {
     setCurrentPage(page)
@@ -51,7 +55,20 @@ export default function App() {
 
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage lang={lang} />
+        return (
+          <>
+            {showOnboarding && (
+              <Onboarding
+                lang={lang}
+                onDismiss={() => {
+                  setShowOnboarding(false)
+                  try { localStorage.setItem('nxf-onboarding-done', '1') } catch { /* */ }
+                }}
+              />
+            )}
+            <DashboardPage lang={lang} />
+          </>
+        )
       case 'workflows':
         return (
           <WorkflowListPage
@@ -83,7 +100,9 @@ export default function App() {
             setLang={setLang}
             onResetTour={() => {
               try { localStorage.removeItem('nxf-tour-done') } catch { /* */ }
+              try { localStorage.removeItem('nxf-onboarding-done') } catch { /* */ }
               setShowTour(true)
+              setShowOnboarding(true)
             }}
           />
         )

@@ -26,27 +26,27 @@ export default function Modal({ open, onClose, title, children, width = 560 }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+        background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)',
         animation: 'fadeIn 0.15s ease-out',
       }}
     >
       <div style={{
-        background: '#161E2E', borderRadius: 12, width: '90%', maxWidth: width,
+        background: '#FFFFFF', borderRadius: 12, width: '90%', maxWidth: width,
         maxHeight: '85vh', overflow: 'auto',
-        border: '1px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
+        border: '1px solid #E5E7EB',
+        boxShadow: '0 24px 48px rgba(0,0,0,0.12)',
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '20px 24px', borderBottom: '1px solid #E5E7EB',
         }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#E5E7EB' }}>{title}</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827' }}>{title}</h2>
           <button
             onClick={onClose}
             aria-label="Cerrar modal"
             style={{
               background: 'none', border: 'none', color: '#9CA3AF',
-              fontSize: 20, padding: 4, lineHeight: 1,
+              fontSize: 20, padding: 4, lineHeight: 1, cursor: 'pointer',
             }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

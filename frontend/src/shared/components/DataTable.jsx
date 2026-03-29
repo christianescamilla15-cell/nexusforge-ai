@@ -1,15 +1,15 @@
 import { useState, useMemo } from 'react'
 
 const cellStyle = {
-  padding: '12px 16px', fontSize: 13, borderBottom: '1px solid rgba(255,255,255,0.04)',
-  textAlign: 'left', whiteSpace: 'nowrap',
+  padding: '12px 16px', fontSize: 13, borderBottom: '1px solid #F3F4F6',
+  textAlign: 'left', whiteSpace: 'nowrap', color: '#374151',
 }
 
 const headerStyle = {
   ...cellStyle,
   color: '#9CA3AF', fontWeight: 500, fontSize: 12, textTransform: 'uppercase',
   letterSpacing: '0.05em', cursor: 'pointer', userSelect: 'none',
-  background: 'rgba(255,255,255,0.02)',
+  background: '#F9FAFB',
 }
 
 export default function DataTable({ columns, data = [], pageSize = 0, onRowClick }) {
@@ -74,8 +74,8 @@ export default function DataTable({ columns, data = [], pageSize = 0, onRowClick
                 cursor: onRowClick ? 'pointer' : 'default',
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99,102,241,0.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#FFFFFF'}
             >
               {columns.map((col) => (
                 <td key={col.key} style={cellStyle}>
@@ -96,9 +96,9 @@ export default function DataTable({ columns, data = [], pageSize = 0, onRowClick
             onClick={() => setPage((p) => p - 1)}
             aria-label="Pagina anterior"
             style={{
-              padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)',
-              background: 'transparent', color: '#E5E7EB', fontSize: 13,
-              opacity: page === 0 ? 0.3 : 1,
+              padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
+              background: '#FFFFFF', color: '#374151', fontSize: 13,
+              opacity: page === 0 ? 0.3 : 1, cursor: page === 0 ? 'default' : 'pointer',
             }}
           >
             Anterior
@@ -109,9 +109,10 @@ export default function DataTable({ columns, data = [], pageSize = 0, onRowClick
             onClick={() => setPage((p) => p + 1)}
             aria-label="Pagina siguiente"
             style={{
-              padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)',
-              background: 'transparent', color: '#E5E7EB', fontSize: 13,
+              padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
+              background: '#FFFFFF', color: '#374151', fontSize: 13,
               opacity: page >= totalPages - 1 ? 0.3 : 1,
+              cursor: page >= totalPages - 1 ? 'default' : 'pointer',
             }}
           >
             Siguiente

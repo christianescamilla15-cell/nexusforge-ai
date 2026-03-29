@@ -2,13 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { generateResponse } from './chatEngine'
 
 const QUICK_ACTIONS = [
-  // Row 1
-  { label: 'What is NexusForge?', labelEs: '¿Qué es NexusForge?' },
-  { label: 'How does it work?', labelEs: '¿Cómo funciona?' },
+  { label: 'What is NexusForge?', labelEs: 'Que es NexusForge?' },
+  { label: 'How does it work?', labelEs: 'Como funciona?' },
   { label: 'Agents', labelEs: 'Agentes' },
-  { label: 'Topologies', labelEs: 'Topologías' },
-  // Row 2
-  { label: 'Self-Healing', labelEs: 'Auto-Reparación' },
+  { label: 'Topologies', labelEs: 'Topologias' },
+  { label: 'Self-Healing', labelEs: 'Auto-Reparacion' },
   { label: 'RAG Pipeline', labelEs: 'Pipeline RAG' },
   { label: 'Architecture', labelEs: 'Arquitectura' },
   { label: 'Help', labelEs: 'Ayuda completa' },
@@ -22,7 +20,6 @@ function formatMessage(text) {
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]
 
-    // Process bold **text**
     const parts = []
     let remaining = line
     let keyIdx = 0
@@ -41,14 +38,13 @@ function formatMessage(text) {
         parts.push(remaining.slice(0, boldStart))
       }
       parts.push(
-        <strong key={`b-${i}-${keyIdx++}`} style={{ color: '#C7D2FE', fontWeight: 600 }}>
+        <strong key={`b-${i}-${keyIdx++}`} style={{ color: '#111827', fontWeight: 600 }}>
           {remaining.slice(boldStart + 2, boldEnd)}
         </strong>
       )
       remaining = remaining.slice(boldEnd + 2)
     }
 
-    // Process inline code `text`
     const processed = []
     for (const part of parts) {
       if (typeof part !== 'string') {
@@ -70,8 +66,8 @@ function formatMessage(text) {
         if (codeStart > 0) processed.push(rest.slice(0, codeStart))
         processed.push(
           <code key={`c-${i}-${keyIdx++}`} style={{
-            background: 'rgba(99,102,241,0.15)', padding: '1px 5px',
-            borderRadius: 3, fontSize: 13, fontFamily: 'monospace', color: '#A5B4FC',
+            background: 'rgba(37,99,235,0.06)', padding: '1px 5px',
+            borderRadius: 3, fontSize: 13, fontFamily: 'monospace', color: '#2563EB',
           }}>
             {rest.slice(codeStart + 1, codeEnd)}
           </code>
@@ -85,8 +81,8 @@ function formatMessage(text) {
     } else {
       elements.push(
         <div key={`line-${i}`} style={{
-          marginBottom: line.match(/^(\d+\.|•|-)/) ? 4 : 2,
-          paddingLeft: line.match(/^(\d+\.|•|-)/) ? 8 : 0,
+          marginBottom: line.match(/^(\d+\.|-)/) ? 4 : 2,
+          paddingLeft: line.match(/^(\d+\.|-)/) ? 8 : 0,
         }}>
           {processed}
         </div>
@@ -104,7 +100,7 @@ function TypingIndicator() {
     }}>
       {[0, 1, 2].map((i) => (
         <div key={i} style={{
-          width: 7, height: 7, borderRadius: '50%', background: '#6366F1',
+          width: 7, height: 7, borderRadius: '50%', background: '#2563EB',
           animation: `chatTypingBounce 1.2s ease-in-out ${i * 0.2}s infinite`,
         }} />
       ))}
@@ -135,7 +131,6 @@ export default function ChatAssistant({ lang = 'en' }) {
     }
   }, [open])
 
-  // Welcome message on first open
   useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([{
@@ -156,7 +151,6 @@ export default function ChatAssistant({ lang = 'en' }) {
     setInput('')
     setTyping(true)
 
-    // Simulate "thinking" delay
     setTimeout(() => {
       const response = generateResponse(text, lang)
       const assistantMsg = {
@@ -191,22 +185,20 @@ export default function ChatAssistant({ lang = 'en' }) {
     if (!open) setHasUnread(false)
   }
 
-  // Get the last assistant message's followups
   const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
   const followups = lastAssistant?.suggestedFollowups || []
   const showQuickActions = messages.length <= 1
 
   return (
     <>
-      {/* Global keyframes */}
       <style>{`
         @keyframes chatTypingBounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
           30% { transform: translateY(-6px); opacity: 1; }
         }
         @keyframes chatPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.5); }
-          50% { box-shadow: 0 0 0 10px rgba(99,102,241,0); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.4); }
+          50% { box-shadow: 0 0 0 10px rgba(37,99,235,0); }
         }
         @keyframes chatSlideUp {
           from { opacity: 0; transform: translateY(20px); }
@@ -241,7 +233,7 @@ export default function ChatAssistant({ lang = 'en' }) {
             width: 60,
             height: 60,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+            background: '#2563EB',
             border: 'none',
             cursor: 'pointer',
             display: 'flex',
@@ -250,25 +242,23 @@ export default function ChatAssistant({ lang = 'en' }) {
             zIndex: 1000,
             animation: 'chatPulse 2.5s ease-in-out infinite',
             transition: 'transform 0.2s ease',
-            boxShadow: '0 4px 20px rgba(99,102,241,0.4)',
+            boxShadow: '0 4px 20px rgba(37,99,235,0.3)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)' }}
           onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
         >
-          {/* Chat icon */}
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
           </svg>
 
-          {/* Unread badge */}
           {hasUnread && (
             <span style={{
               position: 'absolute', top: -2, right: -2,
               width: 18, height: 18, borderRadius: '50%',
-              background: '#EF4444', color: '#fff',
+              background: '#DC2626', color: '#fff',
               fontSize: 11, fontWeight: 700,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '2px solid #0A0B0F',
+              border: '2px solid #FFFFFF',
             }}>
               1
             </span>
@@ -288,15 +278,15 @@ export default function ChatAssistant({ lang = 'en' }) {
             right: 24,
             width: 400,
             height: 600,
-            background: '#0F1117',
+            background: '#FFFFFF',
             borderRadius: 16,
-            border: '1px solid rgba(99,102,241,0.3)',
+            border: '1px solid #E5E7EB',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
             zIndex: 1000,
             animation: 'chatSlideUp 0.3s ease-out',
-            boxShadow: '0 12px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.15)',
+            boxShadow: '0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px rgba(37,99,235,0.05)',
           }}
         >
           {/* Header */}
@@ -305,14 +295,14 @@ export default function ChatAssistant({ lang = 'en' }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '14px 16px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            background: 'linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%)',
+            borderBottom: '1px solid #E5E7EB',
+            background: '#FAFBFC',
             flexShrink: 0,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                background: '#2563EB',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -322,10 +312,10 @@ export default function ChatAssistant({ lang = 'en' }) {
                 </svg>
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: '#E5E7EB' }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>
                   NexusForge Assistant
                 </div>
-                <div style={{ fontSize: 11, color: '#6B7280' }}>
+                <div style={{ fontSize: 11, color: '#9CA3AF' }}>
                   {lang === 'es' ? 'Siempre disponible' : 'Always available'}
                 </div>
               </div>
@@ -339,7 +329,7 @@ export default function ChatAssistant({ lang = 'en' }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'color 0.15s',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#E5E7EB' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#111827' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = '#9CA3AF' }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -352,12 +342,13 @@ export default function ChatAssistant({ lang = 'en' }) {
           <div style={{
             flex: 1, overflowY: 'auto', padding: '12px 12px 4px',
             display: 'flex', flexDirection: 'column', gap: 8,
+            background: '#F9FAFB',
           }}>
             {messages.map((msg) => {
               if (msg.role === 'system') {
                 return (
                   <div key={msg.id} style={{
-                    textAlign: 'center', fontSize: 12, color: '#6B7280',
+                    textAlign: 'center', fontSize: 12, color: '#9CA3AF',
                     padding: '8px 0', animation: 'chatFadeIn 0.3s ease',
                   }}>
                     {msg.text}
@@ -372,7 +363,7 @@ export default function ChatAssistant({ lang = 'en' }) {
                     animation: 'chatFadeIn 0.2s ease',
                   }}>
                     <div style={{
-                      background: '#6366F1', color: '#fff',
+                      background: '#2563EB', color: '#fff',
                       padding: '10px 14px', borderRadius: '14px 14px 4px 14px',
                       fontSize: 14, lineHeight: 1.5,
                     }}>
@@ -382,23 +373,23 @@ export default function ChatAssistant({ lang = 'en' }) {
                 )
               }
 
-              // Assistant message
               return (
                 <div key={msg.id} style={{
                   alignSelf: 'flex-start', maxWidth: '90%',
                   animation: 'chatFadeIn 0.3s ease',
                 }}>
                   <div style={{
-                    background: '#161E2E', color: '#D1D5DB',
+                    background: '#FFFFFF', color: '#374151',
                     padding: '12px 14px', borderRadius: '14px 14px 14px 4px',
                     fontSize: 14, lineHeight: 1.6,
-                    border: '1px solid rgba(255,255,255,0.04)',
+                    border: '1px solid #E5E7EB',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                   }}>
                     {formatMessage(msg.text)}
                   </div>
                   {msg.sources && msg.sources.length > 0 && (
                     <div style={{
-                      fontSize: 11, color: '#4B5563', marginTop: 4, paddingLeft: 4,
+                      fontSize: 11, color: '#9CA3AF', marginTop: 4, paddingLeft: 4,
                     }}>
                       Source: {msg.sources.join(', ')}
                     </div>
@@ -410,9 +401,9 @@ export default function ChatAssistant({ lang = 'en' }) {
             {typing && (
               <div style={{
                 alignSelf: 'flex-start',
-                background: '#161E2E',
+                background: '#FFFFFF',
                 borderRadius: '14px 14px 14px 4px',
-                border: '1px solid rgba(255,255,255,0.04)',
+                border: '1px solid #E5E7EB',
               }}>
                 <TypingIndicator />
               </div>
@@ -425,6 +416,7 @@ export default function ChatAssistant({ lang = 'en' }) {
           {!typing && followups.length > 0 && !showQuickActions && (
             <div style={{
               padding: '4px 12px 4px', display: 'flex', flexWrap: 'wrap', gap: 6,
+              background: '#FFFFFF',
             }}>
               {followups.map((f) => (
                 <button
@@ -433,19 +425,19 @@ export default function ChatAssistant({ lang = 'en' }) {
                   aria-label={f}
                   style={{
                     padding: '5px 10px', borderRadius: 12,
-                    border: '1px solid rgba(99,102,241,0.25)',
-                    background: 'rgba(99,102,241,0.08)',
-                    color: '#A5B4FC', fontSize: 12,
+                    border: '1px solid rgba(37,99,235,0.2)',
+                    background: 'rgba(37,99,235,0.04)',
+                    color: '#2563EB', fontSize: 12,
                     cursor: 'pointer', transition: 'all 0.15s',
                     whiteSpace: 'nowrap',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(99,102,241,0.18)'
-                    e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'
+                    e.currentTarget.style.background = 'rgba(37,99,235,0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(37,99,235,0.35)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(99,102,241,0.08)'
-                    e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'
+                    e.currentTarget.style.background = 'rgba(37,99,235,0.04)'
+                    e.currentTarget.style.borderColor = 'rgba(37,99,235,0.2)'
                   }}
                 >
                   {f}
@@ -454,10 +446,11 @@ export default function ChatAssistant({ lang = 'en' }) {
             </div>
           )}
 
-          {/* Quick action chips (shown when chat first opens) */}
+          {/* Quick action chips */}
           {showQuickActions && !typing && (
             <div style={{
               padding: '4px 12px 4px', display: 'flex', flexWrap: 'wrap', gap: 6,
+              background: '#FFFFFF',
             }}>
               {QUICK_ACTIONS.map((action) => (
                 <button
@@ -466,19 +459,19 @@ export default function ChatAssistant({ lang = 'en' }) {
                   aria-label={lang === 'es' ? action.labelEs : action.label}
                   style={{
                     padding: '5px 10px', borderRadius: 12,
-                    border: '1px solid rgba(99,102,241,0.25)',
-                    background: 'rgba(99,102,241,0.08)',
-                    color: '#A5B4FC', fontSize: 12,
+                    border: '1px solid rgba(37,99,235,0.2)',
+                    background: 'rgba(37,99,235,0.04)',
+                    color: '#2563EB', fontSize: 12,
                     cursor: 'pointer', transition: 'all 0.15s',
                     whiteSpace: 'nowrap',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(99,102,241,0.18)'
-                    e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'
+                    e.currentTarget.style.background = 'rgba(37,99,235,0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(37,99,235,0.35)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(99,102,241,0.08)'
-                    e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'
+                    e.currentTarget.style.background = 'rgba(37,99,235,0.04)'
+                    e.currentTarget.style.borderColor = 'rgba(37,99,235,0.2)'
                   }}
                 >
                   {lang === 'es' ? action.labelEs : action.label}
@@ -492,8 +485,9 @@ export default function ChatAssistant({ lang = 'en' }) {
             onSubmit={handleSubmit}
             style={{
               padding: '10px 12px 12px',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
+              borderTop: '1px solid #E5E7EB',
               display: 'flex', gap: 8, flexShrink: 0,
+              background: '#FFFFFF',
             }}
           >
             <input
@@ -501,18 +495,18 @@ export default function ChatAssistant({ lang = 'en' }) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={lang === 'es' ? 'Pregúntame sobre NexusForge...' : 'Ask about NexusForge...'}
+              placeholder={lang === 'es' ? 'Preguntame sobre NexusForge...' : 'Ask about NexusForge...'}
               aria-label={lang === 'es' ? 'Escribir mensaje' : 'Type a message'}
               disabled={typing}
               style={{
                 flex: 1, padding: '10px 14px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.03)',
-                color: '#E5E7EB', fontSize: 14, outline: 'none',
+                border: '1px solid #E5E7EB',
+                background: '#F9FAFB',
+                color: '#111827', fontSize: 14, outline: 'none',
                 transition: 'border-color 0.15s',
               }}
-              onFocus={(e) => { e.target.style.borderColor = 'rgba(99,102,241,0.4)' }}
-              onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.08)' }}
+              onFocus={(e) => { e.target.style.borderColor = '#2563EB' }}
+              onBlur={(e) => { e.target.style.borderColor = '#E5E7EB' }}
             />
             <button
               type="submit"
@@ -522,9 +516,9 @@ export default function ChatAssistant({ lang = 'en' }) {
                 width: 40, height: 40, borderRadius: 10,
                 border: 'none',
                 background: input.trim() && !typing
-                  ? 'linear-gradient(135deg, #6366F1, #8B5CF6)'
-                  : 'rgba(255,255,255,0.05)',
-                color: input.trim() && !typing ? '#fff' : '#4B5563',
+                  ? '#2563EB'
+                  : '#F3F4F6',
+                color: input.trim() && !typing ? '#fff' : '#9CA3AF',
                 cursor: input.trim() && !typing ? 'pointer' : 'default',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.15s', flexShrink: 0,

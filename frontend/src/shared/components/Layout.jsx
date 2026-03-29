@@ -32,14 +32,14 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
   const w = isMobile ? sidebarWidth : (collapsed ? collapsedWidth : sidebarWidth)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB' }}>
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
           aria-label="Close sidebar overlay"
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
             zIndex: 40,
           }}
         />
@@ -55,8 +55,8 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           position: 'fixed',
           top: 0,
           left: isMobile ? (mobileOpen ? 0 : -sidebarWidth) : 0,
-          background: '#0F1117',
-          borderRight: '1px solid rgba(255,255,255,0.06)',
+          background: '#FFFFFF',
+          borderRight: '1px solid #E5E7EB',
           display: 'flex',
           flexDirection: 'column',
           transition: isMobile ? 'left 0.3s ease' : 'width 0.2s ease',
@@ -67,18 +67,18 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         {/* Logo */}
         <div style={{
           height: topBarHeight, display: 'flex', alignItems: 'center',
-          padding: '0 16px', gap: 10, borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '0 16px', gap: 10, borderBottom: '1px solid #E5E7EB',
           flexShrink: 0,
         }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+            width: 32, height: 32, borderRadius: 8, background: '#2563EB',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0,
           }}>
             NF
           </div>
           {(!collapsed || isMobile) && (
-            <span style={{ fontWeight: 700, fontSize: 16, color: '#E5E7EB', whiteSpace: 'nowrap' }}>
+            <span style={{ fontWeight: 700, fontSize: 16, color: '#111827', whiteSpace: 'nowrap' }}>
               NexusForge
             </span>
           )}
@@ -100,14 +100,14 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
                   padding: showLabel ? '10px 12px' : '10px 0',
                   justifyContent: showLabel ? 'flex-start' : 'center',
                   borderRadius: 8, border: 'none', width: '100%',
-                  background: active ? 'rgba(99,102,241,0.12)' : 'transparent',
-                  color: active ? '#818CF8' : '#9CA3AF',
-                  fontSize: 14, fontWeight: active ? 500 : 400,
+                  background: active ? 'rgba(37,99,235,0.08)' : 'transparent',
+                  color: active ? '#2563EB' : '#4B5563',
+                  fontSize: 14, fontWeight: active ? 600 : 400,
                   transition: 'all 0.15s', cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
                 onMouseEnter={(e) => {
-                  if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                  if (!active) e.currentTarget.style.background = '#F3F4F6'
                 }}
                 onMouseLeave={(e) => {
                   if (!active) e.currentTarget.style.background = 'transparent'
@@ -124,10 +124,10 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           })}
         </nav>
 
-        {/* Collapse toggle — hidden on mobile */}
+        {/* Collapse toggle -- hidden on mobile */}
         {!isMobile && (
           <div style={{
-            padding: 8, borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0,
+            padding: 8, borderTop: '1px solid #E5E7EB', flexShrink: 0,
           }}>
             <button
               onClick={() => setCollapsed((c) => !c)}
@@ -138,7 +138,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
                 background: 'transparent', color: '#9CA3AF', cursor: 'pointer',
                 transition: 'color 0.15s',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#E5E7EB'}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#111827'}
               onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -162,8 +162,8 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         <header style={{
           height: topBarHeight, display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', padding: isMobile ? '0 12px' : '0 24px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          background: '#0A0B0F', position: 'sticky', top: 0, zIndex: 30,
+          borderBottom: '1px solid #E5E7EB',
+          background: '#FFFFFF', position: 'sticky', top: 0, zIndex: 30,
           gap: 8,
         }}>
           {/* Mobile toggle */}
@@ -173,7 +173,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               aria-label="Open menu"
               style={{
                 background: 'none', border: 'none',
-                color: '#9CA3AF', padding: 4, flexShrink: 0,
+                color: '#4B5563', padding: 4, flexShrink: 0,
               }}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -183,7 +183,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
             </button>
           )}
 
-          {/* Search — hidden on very small screens */}
+          {/* Search -- hidden on very small screens */}
           <div className="nxf-search" style={{
             position: 'relative', maxWidth: 400, flex: 1,
             display: isMobile ? 'none' : 'block',
@@ -200,11 +200,12 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               aria-label={t('search', lang)}
               style={{
                 width: '100%', padding: '8px 12px 8px 36px', borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)',
-                color: '#E5E7EB', fontSize: 14, outline: 'none',
+                border: '1px solid #E5E7EB', background: '#F9FAFB',
+                color: '#111827', fontSize: 14, outline: 'none',
+                transition: 'border-color 0.15s',
               }}
-              onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
-              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+              onFocus={(e) => e.target.style.borderColor = '#2563EB'}
+              onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
             />
           </div>
 
@@ -213,7 +214,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
             {/* Language toggle */}
             <div style={{
               display: 'flex', borderRadius: 6, overflow: 'hidden',
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: '1px solid #E5E7EB',
             }}>
               {['en', 'es'].map((code) => (
                 <button
@@ -223,8 +224,8 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
                   style={{
                     padding: '5px 10px', border: 'none', fontSize: 12, fontWeight: 600,
                     cursor: 'pointer', transition: 'all 0.15s',
-                    background: lang === code ? 'rgba(99,102,241,0.2)' : 'transparent',
-                    color: lang === code ? '#818CF8' : '#6B7280',
+                    background: lang === code ? 'rgba(37,99,235,0.08)' : '#FFFFFF',
+                    color: lang === code ? '#2563EB' : '#9CA3AF',
                   }}
                 >
                   {code.toUpperCase()}
@@ -235,7 +236,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
             {/* User avatar */}
             <div style={{
               width: 34, height: 34, borderRadius: '50%',
-              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              background: '#2563EB',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 600, fontSize: 13, color: '#fff', flexShrink: 0,
             }}

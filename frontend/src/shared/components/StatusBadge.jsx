@@ -1,9 +1,9 @@
 const STATUS_STYLES = {
-  pending: { bg: 'rgba(156,163,175,0.15)', color: '#9CA3AF', label: 'Pendiente' },
-  running: { bg: 'rgba(99,102,241,0.15)', color: '#818CF8', label: 'Ejecutando', animation: 'pulse 1.5s infinite' },
-  completed: { bg: 'rgba(16,185,129,0.15)', color: '#10B981', label: 'Completado' },
-  failed: { bg: 'rgba(239,68,68,0.15)', color: '#EF4444', label: 'Fallido' },
-  cancelled: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B', label: 'Cancelado' },
+  pending: { bg: 'rgba(156,163,175,0.1)', color: '#9CA3AF', label: 'Pendiente' },
+  running: { bg: 'rgba(37,99,235,0.08)', color: '#2563EB', label: 'Ejecutando', animation: 'pulse 1.5s infinite' },
+  completed: { bg: 'rgba(5,150,105,0.08)', color: '#059669', label: 'Completado' },
+  failed: { bg: 'rgba(220,38,38,0.08)', color: '#DC2626', label: 'Fallido' },
+  cancelled: { bg: 'rgba(217,119,6,0.08)', color: '#D97706', label: 'Cancelado' },
 }
 
 export default function StatusBadge({ status }) {

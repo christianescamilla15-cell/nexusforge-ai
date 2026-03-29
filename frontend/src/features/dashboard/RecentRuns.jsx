@@ -13,14 +13,15 @@ const columns = [
 export default function RecentRuns({ runs }) {
   return (
     <div style={{
-      background: '#161E2E', borderRadius: 12,
-      border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
+      background: '#FFFFFF', borderRadius: 12,
+      border: '1px solid #E5E7EB', overflow: 'hidden',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
     }}>
       <div style={{
-        padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+        padding: '16px 20px', borderBottom: '1px solid #E5E7EB',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <h3 style={{ fontSize: 15, fontWeight: 600, color: '#E5E7EB' }}>Ejecuciones Recientes</h3>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Ejecuciones Recientes</h3>
         <span style={{ fontSize: 12, color: '#9CA3AF' }}>{runs.length} resultados</span>
       </div>
       <DataTable columns={columns} data={runs} />
