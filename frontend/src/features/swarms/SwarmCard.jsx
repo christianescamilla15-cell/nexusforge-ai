@@ -118,7 +118,7 @@ const TOPOLOGY_DATA = {
     color: '#60A5FA',
     bg: 'rgba(96,165,250,0.12)',
     glow: 'rgba(96,165,250,0.25)',
-    description: 'La topologia cambia dinamicamente segun los resultados. Se adapta al contexto en tiempo real.',
+    description: 'La topologia cambia dinámicamente según los resultados. Se adapta al contexto en tiempo real.',
     diagram: (color) => (
       <svg width="180" height="60" viewBox="0 0 180 60" fill="none" aria-hidden="true">
         <circle cx={25} cy={30} r={10} stroke={color} strokeWidth="1.5" fill="none" />
@@ -148,7 +148,7 @@ export default function SwarmCard({ topology, onExecute }) {
 
   return (
     <div
-      aria-label={`Topologia ${name}`}
+      aria-label={`Topología ${name}`}
       style={{
         background: '#FFFFFF',
         border: '1px solid #E5E7EB',
@@ -179,7 +179,7 @@ export default function SwarmCard({ topology, onExecute }) {
           <span style={{
             fontSize: 11, padding: '1px 7px', borderRadius: 6,
             background: data.bg, color: data.color, fontWeight: 500,
-          }}>topologia</span>
+          }}>topología</span>
         </div>
       </div>
 

@@ -55,7 +55,7 @@ export default function AgentDetailPanel({ agent, onClose }) {
 
       {/* Description */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 6 }}>Descripcion</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 6 }}>Descripción</div>
         <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, margin: 0 }}>{agent.description}</p>
       </div>
 
@@ -91,7 +91,7 @@ export default function AgentDetailPanel({ agent, onClose }) {
       {/* Configuration */}
       {agent.config && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>Configuracion</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>Configuración</div>
           <pre style={{
             background: '#F9FAFB', borderRadius: 8, padding: 14, fontSize: 12,
             color: '#4B5563', overflow: 'auto', maxHeight: 200, margin: 0,
@@ -105,12 +105,12 @@ export default function AgentDetailPanel({ agent, onClose }) {
       {/* Execution stats */}
       {agent.stats && (
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 10 }}>Estadisticas</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 10 }}>Estadísticas</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             {[
               { label: 'Ejecuciones', value: agent.stats.total_runs?.toLocaleString() || '0' },
-              { label: 'Duracion Prom.', value: agent.stats.avg_duration ? `${(agent.stats.avg_duration / 1000).toFixed(1)}s` : '--' },
-              { label: 'Exito', value: agent.stats.success_rate != null ? `${(agent.stats.success_rate * 100).toFixed(0)}%` : '--', color: '#10B981' },
+              { label: 'Duración Prom.', value: agent.stats.avg_duration ? `${(agent.stats.avg_duration / 1000).toFixed(1)}s` : '--' },
+              { label: 'Éxito', value: agent.stats.success_rate != null ? `${(agent.stats.success_rate * 100).toFixed(0)}%` : '--', color: '#10B981' },
             ].map((s) => (
               <div key={s.label} style={{
                 background: '#F9FAFB', borderRadius: 8, padding: 12, textAlign: 'center',

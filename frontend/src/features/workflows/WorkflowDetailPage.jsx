@@ -6,8 +6,8 @@ import DAGVisualization from './DAGVisualization'
 
 const DEMO_WORKFLOWS = {
   'wf-1': {
-    id: 'wf-1', name: 'Analisis de Documentos',
-    description: 'Pipeline completo para ingerir, clasificar, resumir y validar documentos automaticamente con agentes IA.',
+    id: 'wf-1', name: 'Análisis de Documentos',
+    description: 'Pipeline completo para ingerir, clasificar, resumir y validar documentos automáticamente con agentes IA.',
     status: 'active', version: 'v1.3', created_at: '2026-03-20T10:30:00Z', updated_at: '2026-03-25T14:15:00Z',
     dag_definition: { steps: [
       { name: 'ingest', type: 'extractor', depends_on: [] },
@@ -17,8 +17,8 @@ const DEMO_WORKFLOWS = {
     ]},
   },
   'wf-2': {
-    id: 'wf-2', name: 'Clasificacion de Datos',
-    description: 'Pipeline de clasificacion con procesamiento paralelo y fusion de resultados.',
+    id: 'wf-2', name: 'Clasificación de Datos',
+    description: 'Pipeline de clasificación con procesamiento paralelo y fusión de resultados.',
     status: 'active', version: 'v2.1', created_at: '2026-03-18T09:00:00Z', updated_at: '2026-03-24T11:00:00Z',
     dag_definition: { steps: [
       { name: 'load_data', type: 'extractor', depends_on: [] },
@@ -31,7 +31,7 @@ const DEMO_WORKFLOWS = {
   },
   'wf-3': {
     id: 'wf-3', name: 'Resumen Ejecutivo',
-    description: 'Genera resumenes ejecutivos de documentos largos con puntos clave.',
+    description: 'Genera resúmenes ejecutivos de documentos largos con puntos clave.',
     status: 'draft', version: 'v1.0', created_at: '2026-03-22T14:00:00Z', updated_at: '2026-03-22T14:00:00Z',
     dag_definition: { steps: [
       { name: 'extract', type: 'extractor', depends_on: [] },
@@ -39,7 +39,7 @@ const DEMO_WORKFLOWS = {
     ]},
   },
   'wf-4': {
-    id: 'wf-4', name: 'Extraccion de Entidades',
+    id: 'wf-4', name: 'Extracción de Entidades',
     description: 'Extrae personas, organizaciones, fechas y montos de documentos.',
     status: 'paused', version: 'v1.1', created_at: '2026-03-15T08:30:00Z', updated_at: '2026-03-20T16:00:00Z',
     dag_definition: { steps: [
@@ -50,7 +50,7 @@ const DEMO_WORKFLOWS = {
   },
   'wf-5': {
     id: 'wf-5', name: 'Pipeline RAG',
-    description: 'Indexa documentos con embeddings y permite busqueda semantica.',
+    description: 'Indexa documentos con embeddings y permite búsqueda semántica.',
     status: 'active', version: 'v3.0', created_at: '2026-03-10T10:00:00Z', updated_at: '2026-03-25T09:00:00Z',
     dag_definition: { steps: [
       { name: 'upload', type: 'extractor', depends_on: [] },
@@ -61,8 +61,8 @@ const DEMO_WORKFLOWS = {
     ]},
   },
   'wf-6': {
-    id: 'wf-6', name: 'Traduccion Masiva',
-    description: 'Traduce documentos a multiples idiomas con verificacion de calidad.',
+    id: 'wf-6', name: 'Traducción Masiva',
+    description: 'Traduce documentos a múltiples idiomas con verificación de calidad.',
     status: 'archived', version: 'v1.2', created_at: '2026-02-28T12:00:00Z', updated_at: '2026-03-10T15:00:00Z',
     dag_definition: { steps: [
       { name: 'extract', type: 'extractor', depends_on: [] },

@@ -69,13 +69,13 @@ export default function DocumentUpload({ onClose, onUploaded }) {
       <form onSubmit={handleSubmit}>
         {/* Title */}
         <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Titulo</label>
+          <label style={labelStyle}>Título</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Nombre del documento..."
-            aria-label="Titulo del documento"
+            aria-label="Título del documento"
             required
             style={inputStyle}
             onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
@@ -92,7 +92,7 @@ export default function DocumentUpload({ onClose, onUploaded }) {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Pega el contenido del documento aqui..."
+            placeholder="Pega el contenido del documento aquí..."
             aria-label="Contenido del documento"
             required
             rows={10}
@@ -115,7 +115,7 @@ export default function DocumentUpload({ onClose, onUploaded }) {
           <div style={{ flex: 1, minWidth: 140 }}>
             <label style={labelStyle}>Idioma</label>
             <select value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="Idioma del documento" style={inputStyle}>
-              <option value="es">Espanol</option>
+              <option value="es">Español</option>
               <option value="en">English</option>
             </select>
           </div>

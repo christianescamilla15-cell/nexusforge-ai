@@ -94,7 +94,7 @@ export default function DataTable({ columns, data = [], pageSize = 0, onRowClick
           <button
             disabled={page === 0}
             onClick={() => setPage((p) => p - 1)}
-            aria-label="Pagina anterior"
+            aria-label="Página anterior"
             style={{
               padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
               background: '#FFFFFF', color: '#374151', fontSize: 13,
@@ -107,7 +107,7 @@ export default function DataTable({ columns, data = [], pageSize = 0, onRowClick
           <button
             disabled={page >= totalPages - 1}
             onClick={() => setPage((p) => p + 1)}
-            aria-label="Pagina siguiente"
+            aria-label="Página siguiente"
             style={{
               padding: '4px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
               background: '#FFFFFF', color: '#374151', fontSize: 13,

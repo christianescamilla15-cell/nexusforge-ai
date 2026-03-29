@@ -80,7 +80,7 @@ export default function SemanticSearch({ lang = 'en', refreshKey = 0 }) {
       </h2>
       <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
         {lang === 'es'
-          ? 'Busca en los documentos indexados usando coincidencia de terminos'
+          ? 'Busca en los documentos indexados usando coincidencia de términos'
           : 'Search indexed documents using term matching'}
       </p>
 

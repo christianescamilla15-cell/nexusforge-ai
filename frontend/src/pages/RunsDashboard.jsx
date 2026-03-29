@@ -30,7 +30,7 @@ export default function RunsDashboard() {
         NexusForge Observabilidad
       </h1>
       <p style={{ color: '#4B5563', marginBottom: 32 }}>
-        Historial de ejecuciones, linea de tiempo de agentes y metricas de confiabilidad
+        Historial de ejecuciones, línea de tiempo de agentes y métricas de confiabilidad
       </p>
 
       {/* System Health */}
@@ -38,7 +38,7 @@ export default function RunsDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
           {[
             { label: 'Ejecuciones Totales', value: health.total_runs },
-            { label: 'Tasa de Exito', value: `${(health.system_success_rate * 100).toFixed(1)}%` },
+            { label: 'Tasa de Éxito', value: `${(health.system_success_rate * 100).toFixed(1)}%` },
             { label: 'Agentes Rastreados', value: health.total_agents_tracked },
             { label: 'Ejecuciones Fallidas', value: health.failed_runs },
           ].map((m, i) => (
@@ -90,7 +90,7 @@ export default function RunsDashboard() {
         {/* Timeline */}
         {selectedRun && (
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Linea de Tiempo</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Línea de Tiempo</h2>
             <div style={{ border: '1px solid #E5E7EB', borderRadius: 12, padding: 20, background: '#FFFFFF', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
               {timeline.map((e, i) => (
                 <div key={i} style={{
@@ -129,7 +129,7 @@ export default function RunsDashboard() {
           <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Confiabilidad de Agentes</h2>
           <div style={{ border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', padding: '12px 20px', background: '#F9FAFB', fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              <span>Agente</span><span>Ejecuciones</span><span>Tasa de Exito</span><span>Latencia Prom.</span><span>Fallbacks</span>
+              <span>Agente</span><span>Ejecuciones</span><span>Tasa de Éxito</span><span>Latencia Prom.</span><span>Fallbacks</span>
             </div>
             {health.agents.map((a, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', padding: '14px 20px', borderTop: '1px solid #F3F4F6', fontSize: 14, color: '#374151' }}>

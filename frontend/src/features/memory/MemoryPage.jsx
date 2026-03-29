@@ -15,18 +15,18 @@ const INITIAL_WORKING = [
 ]
 
 const INITIAL_EPISODIC = [
-  { id: 'e1', text: 'Run-2024-Q4: clasificacion exitosa de 342 docs', agent: 'DocClassifier', type: 'success', ttlPct: 87 },
+  { id: 'e1', text: 'Run-2024-Q4: clasificación exitosa de 342 docs', agent: 'DocClassifier', type: 'success', ttlPct: 87 },
   { id: 'e2', text: 'Timeout en paso 2 resuelto con retry', agent: 'EntityExtractor', type: 'error_resolved', ttlPct: 72 },
-  { id: 'e3', text: 'Patron detectado: contratos > 20pp necesitan chunking', agent: 'SummaryAgent', type: 'pattern', ttlPct: 65 },
-  { id: 'e4', text: 'Rendimiento promedio: 0.94 en ultimas 127 ejecuciones', agent: 'FlowRouter', type: 'metric', ttlPct: 54 },
+  { id: 'e3', text: 'Patrón detectado: contratos > 20pp necesitan chunking', agent: 'SummaryAgent', type: 'pattern', ttlPct: 65 },
+  { id: 'e4', text: 'Rendimiento promedio: 0.94 en últimas 127 ejecuciones', agent: 'FlowRouter', type: 'metric', ttlPct: 54 },
   { id: 'e5', text: 'Agente escalado a claude-opus por complejidad', agent: 'ContentGen', type: 'escalation', ttlPct: 41 },
 ]
 
 const INITIAL_SEMANTIC = [
-  { id: 's1', text: 'Documentos legales tienen patron de entidades: partes, fechas, clausulas', agent: 'DocClassifier', sim: 0.94, vector: [0.8, 0.3, 0.6, 0.9, 0.2, 0.7, 0.4, 0.85] },
-  { id: 's2', text: 'Contratos financieros requieren extraccion de montos con 2 decimales', agent: 'EntityExtractor', sim: 0.91, vector: [0.5, 0.9, 0.3, 0.7, 0.8, 0.2, 0.6, 0.45] },
-  { id: 's3', text: 'Resumenes optimos: 3-5 bullet points para docs < 10pp', agent: 'SummaryAgent', sim: 0.88, vector: [0.7, 0.4, 0.8, 0.5, 0.3, 0.9, 0.55, 0.6] },
-  { id: 's4', text: 'Regla: priorizar velocidad sobre precision en clasificacion inicial', agent: 'FlowRouter', sim: 0.85, vector: [0.3, 0.7, 0.5, 0.4, 0.9, 0.6, 0.8, 0.35] },
+  { id: 's1', text: 'Documentos legales tienen patrón de entidades: partes, fechas, clausulas', agent: 'DocClassifier', sim: 0.94, vector: [0.8, 0.3, 0.6, 0.9, 0.2, 0.7, 0.4, 0.85] },
+  { id: 's2', text: 'Contratos financieros requieren extracción de montos con 2 decimales', agent: 'EntityExtractor', sim: 0.91, vector: [0.5, 0.9, 0.3, 0.7, 0.8, 0.2, 0.6, 0.45] },
+  { id: 's3', text: 'Resúmenes óptimos: 3-5 bullet points para docs < 10pp', agent: 'SummaryAgent', sim: 0.88, vector: [0.7, 0.4, 0.8, 0.5, 0.3, 0.9, 0.55, 0.6] },
+  { id: 's4', text: 'Regla: priorizar velocidad sobre precisión en clasificación inicial', agent: 'FlowRouter', sim: 0.85, vector: [0.3, 0.7, 0.5, 0.4, 0.9, 0.6, 0.8, 0.35] },
   { id: 's5', text: 'Schema JSON v3: campos obligatorios [id, type, confidence, entities]', agent: 'DataValidator', sim: 0.82, vector: [0.6, 0.5, 0.9, 0.3, 0.4, 0.8, 0.7, 0.5] },
 ]
 
@@ -167,7 +167,7 @@ export default function MemoryPage({ lang = 'en' }) {
         </h1>
         <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>
           {lang === 'es'
-            ? 'Sistema de memoria de 3 niveles. Escribe algo para ver como fluye entre Working, Episodic y Semantic.'
+            ? 'Sistema de memoria de 3 niveles. Escribe algo para ver cómo fluye entre Working, Episodic y Semantic.'
             : '3-tier memory system. Type something to watch it flow through Working, Episodic, and Semantic memory.'
           }
         </p>
@@ -367,7 +367,7 @@ export default function MemoryPage({ lang = 'en' }) {
             <span style={badgeStyle('rgba(59,130,246,0.15)', '#60A5FA')}>{t('inProcess', lang)}</span>
           </div>
           <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 6 }}>
-            {lang === 'es' ? 'Se reinicia al terminar la ejecucion' : 'Resets on execution end'} | Max 5
+            {lang === 'es' ? 'Se reinicia al terminar la ejecución' : 'Resets on execution end'} | Max 5
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
@@ -390,7 +390,7 @@ export default function MemoryPage({ lang = 'en' }) {
             ))}
             {working.length === 0 && (
               <div style={{ color: '#4B5563', fontSize: 12, textAlign: 'center', padding: 20 }}>
-                {lang === 'es' ? 'Vacio — escribe algo arriba' : 'Empty — type something above'}
+                {lang === 'es' ? 'Vacío — escribe algo arriba' : 'Empty — type something above'}
               </div>
             )}
           </div>
@@ -482,7 +482,7 @@ export default function MemoryPage({ lang = 'en' }) {
             <span style={badgeStyle('rgba(16,185,129,0.15)', '#34D399')}>{t('permanent', lang)}</span>
           </div>
           <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 6 }}>
-            pgvector | {lang === 'es' ? 'Busqueda por similaridad' : 'Similarity search'}
+            pgvector | {lang === 'es' ? 'Búsqueda por similaridad' : 'Similarity search'}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>

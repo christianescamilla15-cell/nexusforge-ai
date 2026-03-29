@@ -12,14 +12,14 @@ export function generateResponse(message, lang = 'en') {
   // 1. Greetings
   if (/^(hola|hello|hi|hey|buenos|buenas|good morning|good afternoon|que tal|saludos|greetings)/.test(lower)) {
     const greeting = lang === 'es'
-      ? '**Hola! Soy el asistente de NexusForge AI.** Puedo explicarte sobre:\n\n**Inicio:** Que es NexusForge, como funciona, casos de uso\n**Agentes:** 22 agentes IA especializados\n**Topologias:** 6 patrones de colaboracion multi-agente\n**Memoria:** Sistema de 3 niveles (trabajo, episodica, semantica)\n**Auto-Reparacion:** 5 estrategias de recuperacion automatica\n**Tecnico:** RAG Pipeline, LLM Router, infraestructura, SDK, CLI\n\nPreguntame lo que quieras!'
+      ? '**Hola! Soy el asistente de NexusForge AI.** Puedo explicarte sobre:\n\n**Inicio:** Que es NexusForge, como funciona, casos de uso\n**Agentes:** 22 agentes IA especializados\n**Topologias:** 6 patrones de colaboracion multi-agente\n**Memoria:** Sistema de 3 niveles (trabajo, episódica, semántica)\n**Auto-Reparación:** 5 estrategias de recuperación automática\n**Técnico:** RAG Pipeline, LLM Router, infraestructura, SDK, CLI\n\n¡Pregúntame lo que quieras!'
       : '**Hi! I\'m the NexusForge AI assistant.** I can explain:\n\n**Getting Started:** What is NexusForge, how it works, use cases\n**Agents:** 22 specialized AI agents\n**Topologies:** 6 multi-agent collaboration patterns\n**Memory:** 3-tier system (working, episodic, semantic)\n**Self-Healing:** 5 automatic recovery strategies\n**Technical:** RAG Pipeline, LLM Router, infrastructure, SDK, CLI\n\nAsk me anything!'
     return {
       text: greeting,
       topic: 'greeting',
       confidence: 1,
       suggestedFollowups: lang === 'es'
-        ? ['Que es NexusForge?', 'Como funciona?', 'Explica los agentes', 'Topologias']
+        ? ['¿Qué es NexusForge?', '¿Cómo funciona?', 'Explica los agentes', 'Topologías']
         : ['What is NexusForge?', 'How does it work?', 'Explain the agents', 'Topologies']
     }
   }
@@ -32,7 +32,7 @@ export function generateResponse(message, lang = 'en') {
       topic: 'help',
       confidence: 1,
       suggestedFollowups: lang === 'es'
-        ? ['Que es NexusForge?', 'Agentes', 'Topologias', 'Arquitectura']
+        ? ['¿Qué es NexusForge?', 'Agentes', 'Topologías', 'Arquitectura']
         : ['What is NexusForge?', 'Agents', 'Topologies', 'Architecture']
     }
   }
@@ -68,14 +68,14 @@ export function generateResponse(message, lang = 'en') {
 
   // 4. Intelligent fallback with categorized suggestions
   const fallback = lang === 'es'
-    ? 'No encontre un tema exacto para esa pregunta. Prueba con alguno de estos:\n\n**Populares:** "Que es NexusForge?" | "Agentes" | "Topologias"\n**Tecnico:** "RAG Pipeline" | "LLM Router" | "Self-Healing"\n**Detalle:** "Classifier" | "Debate topology" | "Memoria semantica"\n**General:** "Ayuda" para ver todos los temas disponibles\n\nIntenta ser mas especifico o usa palabras clave!'
+    ? 'No encontre un tema exacto para esa pregunta. Prueba con alguno de estos:\n\n**Populares:** "Que es NexusForge?" | "Agentes" | "Topologias"\n**Tecnico:** "RAG Pipeline" | "LLM Router" | "Self-Healing"\n**Detalle:** "Classifier" | "Debate topology" | "Memoria semántica"\n**General:** "Ayuda" para ver todos los temas disponibles\n\nIntenta ser más específico o usa palabras clave!'
     : 'I couldn\'t find an exact topic for that question. Try one of these:\n\n**Popular:** "What is NexusForge?" | "Agents" | "Topologies"\n**Technical:** "RAG Pipeline" | "LLM Router" | "Self-Healing"\n**Detailed:** "Classifier" | "Debate topology" | "Semantic memory"\n**General:** "Help" to see all available topics\n\nTry being more specific or use keywords!'
   return {
     text: fallback,
     topic: 'fallback',
     confidence: 0.2,
     suggestedFollowups: lang === 'es'
-      ? ['Que es NexusForge?', 'Ayuda completa', 'Agentes', 'Topologias']
+      ? ['¿Qué es NexusForge?', 'Ayuda completa', 'Agentes', 'Topologías']
       : ['What is NexusForge?', 'Full help', 'Agents', 'Topologies']
   }
 }
@@ -155,19 +155,19 @@ function getContextualFollowups(topicKey, lang) {
   }
 
   const topicLabels = {
-    what_is_nexusforge: { en: 'What is NexusForge?', es: 'Que es NexusForge?' },
-    how_it_works: { en: 'How does it work?', es: 'Como funciona?' },
+    what_is_nexusforge: { en: 'What is NexusForge?', es: '¿Qué es NexusForge?' },
+    how_it_works: { en: 'How does it work?', es: '¿Cómo funciona?' },
     use_cases: { en: 'Use cases', es: 'Casos de uso' },
-    getting_started: { en: 'Getting started', es: 'Como empezar' },
+    getting_started: { en: 'Getting started', es: 'Cómo empezar' },
     agents_overview: { en: 'All 22 agents', es: 'Los 22 agentes' },
     classifier_agent: { en: 'Classifier agent', es: 'Agente Clasificador' },
     extractor_agent: { en: 'Extractor agent', es: 'Agente Extractor' },
     summarizer_agent: { en: 'Summarizer agent', es: 'Agente Resumidor' },
     analyzer_agent: { en: 'Analyzer agent', es: 'Agente Analizador' },
     validator_agent: { en: 'Validator agent', es: 'Agente Validador' },
-    repair_agent: { en: 'Repair agent', es: 'Agente Reparacion' },
+    repair_agent: { en: 'Repair agent', es: 'Agente Reparación' },
     planner_agent: { en: 'Planner agent', es: 'Agente Planificador' },
-    critic_agent: { en: 'Critic agent', es: 'Agente Critico' },
+    critic_agent: { en: 'Critic agent', es: 'Agente Crítico' },
     normalizer_agent: { en: 'Normalizer agent', es: 'Agente Normalizador' },
     enricher_agent: { en: 'Enricher agent', es: 'Agente Enriquecedor' },
     researcher_agent: { en: 'Researcher agent', es: 'Agente Investigador' },
@@ -186,21 +186,21 @@ function getContextualFollowups(topicKey, lang) {
     create_workflow: { en: 'Create workflow', es: 'Crear workflow' },
     workflow_execution: { en: 'Run workflow', es: 'Ejecutar workflow' },
     checkpointing: { en: 'Checkpointing', es: 'Checkpointing' },
-    swarms_intro: { en: 'Swarm topologies', es: 'Topologias de enjambre' },
-    topology_sequential: { en: 'Sequential topology', es: 'Topologia Secuencial' },
-    topology_parallel: { en: 'Parallel topology', es: 'Topologia Paralela' },
-    topology_hierarchical: { en: 'Hierarchical topology', es: 'Topologia Jerarquica' },
-    topology_debate: { en: 'Debate topology', es: 'Topologia Debate' },
-    topology_consensus: { en: 'Consensus topology', es: 'Topologia Consenso' },
-    topology_adaptive: { en: 'Adaptive topology', es: 'Topologia Adaptiva' },
+    swarms_intro: { en: 'Swarm topologies', es: 'Topologías de enjambre' },
+    topology_sequential: { en: 'Sequential topology', es: 'Topología Secuencial' },
+    topology_parallel: { en: 'Parallel topology', es: 'Topología Paralela' },
+    topology_hierarchical: { en: 'Hierarchical topology', es: 'Topología Jerárquica' },
+    topology_debate: { en: 'Debate topology', es: 'Topología Debate' },
+    topology_consensus: { en: 'Consensus topology', es: 'Topología Consenso' },
+    topology_adaptive: { en: 'Adaptive topology', es: 'Topología Adaptiva' },
     memory_overview: { en: 'Memory system', es: 'Sistema de memoria' },
     working_memory: { en: 'Working memory', es: 'Memoria de trabajo' },
-    episodic_memory: { en: 'Episodic memory', es: 'Memoria episodica' },
-    semantic_memory: { en: 'Semantic memory', es: 'Memoria semantica' },
-    healing_overview: { en: 'Self-healing', es: 'Auto-reparacion' },
+    episodic_memory: { en: 'Episodic memory', es: 'Memoria episódica' },
+    semantic_memory: { en: 'Semantic memory', es: 'Memoria semántica' },
+    healing_overview: { en: 'Self-healing', es: 'Auto-reparación' },
     error_detection: { en: 'Error types', es: 'Tipos de error' },
     healing_strategies: { en: '5 recovery strategies', es: '5 estrategias' },
-    healing_example: { en: 'Healing example', es: 'Ejemplo de reparacion' },
+    healing_example: { en: 'Healing example', es: 'Ejemplo de reparación' },
     llm_router: { en: 'LLM Router', es: 'Router LLM' },
     rag_pipeline: { en: 'RAG Pipeline', es: 'Pipeline RAG' },
     cost_tracking: { en: 'Cost tracking', es: 'Seguimiento de costos' },
@@ -213,8 +213,8 @@ function getContextualFollowups(topicKey, lang) {
     security: { en: 'Security', es: 'Seguridad' },
     comparison: { en: 'vs LangChain/CrewAI', es: 'vs LangChain/CrewAI' },
     about_creator: { en: 'About the creator', es: 'Sobre el creador' },
-    tech_stack: { en: 'Tech stack', es: 'Stack tecnologico' },
-    project_stats: { en: 'Project stats', es: 'Estadisticas del proyecto' },
+    tech_stack: { en: 'Tech stack', es: 'Stack tecnológico' },
+    project_stats: { en: 'Project stats', es: 'Estadísticas del proyecto' },
     help: { en: 'Full help', es: 'Ayuda completa' },
   }
 

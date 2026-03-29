@@ -3,7 +3,7 @@ const STRATEGIES = [
     name: 'Retry',
     color: '#6366F1',
     bg: 'rgba(99,102,241,0.12)',
-    description: 'Reintenta la operacion con backoff exponencial. Efectivo para errores transitorios de red.',
+    description: 'Reintenta la operación con backoff exponencial. Efectivo para errores transitorios de red.',
     when: 'network_error, timeout, rate_limit',
     successRate: 94,
     icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
@@ -12,7 +12,7 @@ const STRATEGIES = [
     name: 'Skip',
     color: '#F59E0B',
     bg: 'rgba(245,158,11,0.12)',
-    description: 'Omite el paso fallido y continua con el siguiente. Para pasos no criticos del pipeline.',
+    description: 'Omite el paso fallido y continua con el siguiente. Para pasos no críticos del pipeline.',
     when: 'optional_step, non_critical_error',
     successRate: 100,
     icon: 'M13 5l7 7-7 7M5 5l7 7-7 7',
@@ -30,7 +30,7 @@ const STRATEGIES = [
     name: 'Escalate',
     color: '#EC4899',
     bg: 'rgba(236,72,153,0.12)',
-    description: 'Escala a un agente mas capaz (modelo superior) cuando el actual no puede resolver.',
+    description: 'Escala a un agente más capaz (modelo superior) cuando el actual no puede resolver.',
     when: 'complexity_exceeded, confidence_low',
     successRate: 91,
     icon: 'M5 10l7-7m0 0l7 7m-7-7v18',
@@ -59,7 +59,7 @@ const ERROR_MAP = [
 
 const HEALING_LOG = [
   { time: '14:32:01', agent: 'EntityExtractor', error: 'timeout', strategy: 'Retry', result: 'Resuelto en intento 2' },
-  { time: '14:28:45', agent: 'DataValidator', error: 'data_quality', strategy: 'Repair', result: 'JSON reparado automaticamente' },
+  { time: '14:28:45', agent: 'DataValidator', error: 'data_quality', strategy: 'Repair', result: 'JSON reparado automáticamente' },
   { time: '14:25:12', agent: 'SummaryAgent', error: 'rate_limit', strategy: 'Retry', result: 'Resuelto tras backoff 3s' },
   { time: '14:21:33', agent: 'ContentGen', error: 'complexity_exceeded', strategy: 'Escalate', result: 'Escalado a claude-opus-4' },
   { time: '14:18:07', agent: 'FlowRouter', error: 'optional_step', strategy: 'Skip', result: 'Paso de logging omitido' },
@@ -71,10 +71,10 @@ export default function HealingPanel() {
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
-          Panel de Auto-Reparacion
+          Panel de Auto-Reparación
         </h2>
         <p style={{ fontSize: 13, color: '#9CA3AF' }}>
-          El sistema detecta y resuelve errores automaticamente con 5 estrategias de recuperacion.
+          El sistema detecta y resuelve errores automáticamente con 5 estrategias de recuperación.
         </p>
       </div>
 
@@ -112,7 +112,7 @@ export default function HealingPanel() {
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: s.color, fontWeight: 500 }}>{s.successRate}% exito</div>
+                <div style={{ fontSize: 11, color: s.color, fontWeight: 500 }}>{s.successRate}% éxito</div>
               </div>
             </div>
             <p style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.5, margin: '0 0 8px' }}>
@@ -131,7 +131,7 @@ export default function HealingPanel() {
         border: '1px solid #E5E7EB', marginBottom: 20,
       }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
-          Clasificacion de Errores
+          Clasificación de Errores
         </h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {ERROR_MAP.map((e) => (

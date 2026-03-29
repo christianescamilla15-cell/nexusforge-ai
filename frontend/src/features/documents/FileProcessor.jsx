@@ -36,7 +36,7 @@ const stageLabels = {
   },
   es: {
     upload: { active: 'Subiendo...', done: 'Subido' },
-    extract: { active: 'Extrayendo texto...', done: 'Extraido' },
+    extract: { active: 'Extrayendo texto...', done: 'Extraído' },
     chunk: { active: 'Fragmentando...', done: 'Fragmentado' },
     embed: { active: 'Generando embeddings...', done: 'Vectorizado' },
     index: { active: 'Indexando...', done: 'Indexado' },

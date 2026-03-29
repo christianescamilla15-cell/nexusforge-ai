@@ -4,7 +4,7 @@ import StatusBadge from '../../shared/components/StatusBadge'
 const columns = [
   { key: 'status', label: 'Estado', render: (v) => <StatusBadge status={v} /> },
   { key: 'workflow_name', label: 'Flujo de Trabajo' },
-  { key: 'id', label: 'ID Ejecucion', render: (v) => typeof v === 'string' ? v.slice(0, 8) : v },
+  { key: 'id', label: 'ID Ejecución', render: (v) => typeof v === 'string' ? v.slice(0, 8) : v },
   { key: 'total_latency_ms', label: 'Latencia', render: (v) => v ? `${v}ms` : '--' },
 ]
 

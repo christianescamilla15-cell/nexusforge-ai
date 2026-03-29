@@ -12,7 +12,7 @@ const TIERS = [
       { key: 'step_index', value: '3' },
       { key: 'temp_context', value: '{ tokens: 1247 }' },
     ],
-    desc: 'Datos temporales de la ejecucion actual. Se elimina al completar la tarea.',
+    desc: 'Datos temporales de la ejecución actual. Se elimina al completar la tarea.',
   },
   {
     name: 'Episodic Memory',
@@ -42,7 +42,7 @@ const TIERS = [
       { key: 'entity_graph', value: '{ nodes: 342, edges: 891 }' },
       { key: 'domain_rules', value: '{ rules: 28, version: 3 }' },
     ],
-    desc: 'Conocimiento permanente con embeddings. Busqueda semantica por similaridad.',
+    desc: 'Conocimiento permanente con embeddings. Búsqueda semántica por similaridad.',
   },
 ]
 

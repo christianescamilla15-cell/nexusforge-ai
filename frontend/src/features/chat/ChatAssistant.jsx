@@ -2,11 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { generateResponse } from './chatEngine'
 
 const QUICK_ACTIONS = [
-  { label: 'What is NexusForge?', labelEs: 'Que es NexusForge?' },
-  { label: 'How does it work?', labelEs: 'Como funciona?' },
+  { label: 'What is NexusForge?', labelEs: '¿Qué es NexusForge?' },
+  { label: 'How does it work?', labelEs: '¿Cómo funciona?' },
   { label: 'Agents', labelEs: 'Agentes' },
-  { label: 'Topologies', labelEs: 'Topologias' },
-  { label: 'Self-Healing', labelEs: 'Auto-Reparacion' },
+  { label: 'Topologies', labelEs: 'Topologías' },
+  { label: 'Self-Healing', labelEs: 'Auto-Reparación' },
   { label: 'RAG Pipeline', labelEs: 'Pipeline RAG' },
   { label: 'Architecture', labelEs: 'Arquitectura' },
   { label: 'Help', labelEs: 'Ayuda completa' },
@@ -495,7 +495,7 @@ export default function ChatAssistant({ lang = 'en' }) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={lang === 'es' ? 'Preguntame sobre NexusForge...' : 'Ask about NexusForge...'}
+              placeholder={lang === 'es' ? 'Pregúntame sobre NexusForge...' : 'Ask about NexusForge...'}
               aria-label={lang === 'es' ? 'Escribir mensaje' : 'Type a message'}
               disabled={typing}
               style={{

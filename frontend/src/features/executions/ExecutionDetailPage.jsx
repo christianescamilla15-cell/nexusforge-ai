@@ -24,7 +24,7 @@ const DEMO_EXECUTION = {
 
 const DEMO_EVENTS = [
   { timestamp: '2026-03-26T09:12:00Z', event_type: 'step_started', step_name: 'Cargar Documento', detail: 'Iniciando carga de contrato.pdf' },
-  { timestamp: '2026-03-26T09:12:01Z', event_type: 'step_completed', step_name: 'Cargar Documento', detail: '12 paginas procesadas' },
+  { timestamp: '2026-03-26T09:12:01Z', event_type: 'step_completed', step_name: 'Cargar Documento', detail: '12 páginas procesadas' },
   { timestamp: '2026-03-26T09:12:02Z', event_type: 'step_started', step_name: 'Clasificar Tipo', detail: 'Enviando a agente classifier' },
   { timestamp: '2026-03-26T09:12:05Z', event_type: 'step_completed', step_name: 'Clasificar Tipo', detail: 'legal_contract (94%)' },
   { timestamp: '2026-03-26T09:12:06Z', event_type: 'step_started', step_name: 'Extraer Entidades', detail: 'Ejecutando extractor' },

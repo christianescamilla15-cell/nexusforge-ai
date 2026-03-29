@@ -104,7 +104,7 @@ export default function DashboardPage({ lang = 'en' }) {
             border: '1px solid rgba(37,99,235,0.15)',
             fontWeight: 500,
           }}>
-            Sin datos aun
+            Sin datos aún
           </span>
         )}
       </div>
@@ -124,7 +124,7 @@ export default function DashboardPage({ lang = 'en' }) {
         <KPICard
           icon={<KPIIcon type="workflows" />}
           value={kpis.successRate}
-          label="Tasa de Exito"
+          label="Tasa de Éxito"
         />
         <KPICard
           icon={<KPIIcon type="agents" />}

@@ -20,19 +20,19 @@ const STRATEGIES = [
     successRate: 94,
     execution: {
       en: ['Retrying with Claude (fallback)...', 'attempt 1/2', 'Response received in 2.1s', 'Success!'],
-      es: ['Reintentando con Claude (fallback)...', 'intento 1/2', 'Respuesta recibida en 2.1s', 'Exito!'],
+      es: ['Reintentando con Claude (fallback)...', 'intento 1/2', 'Respuesta recibida en 2.1s', 'Éxito!'],
     },
   },
   {
     key: 'skip', name: 'SkipStrategy', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',
     icon: 'M13 5l7 7-7 7M5 5l7 7-7 7',
-    desc: { en: 'Skips the failed step and continues the pipeline. For non-critical steps only.', es: 'Omite el paso fallido y continua el pipeline. Solo para pasos no criticos.' },
+    desc: { en: 'Skips the failed step and continues the pipeline. For non-critical steps only.', es: 'Omite el paso fallido y continua el pipeline. Solo para pasos no críticos.' },
     when: { en: 'Optional steps, non-critical enrichment', es: 'Pasos opcionales, enriquecimiento no critico' },
     example: { en: 'Logging step failed → Skip and continue', es: 'Paso de logging fallo → Omitir y continuar' },
     successRate: 100,
     execution: {
       en: ['Step marked as optional...', 'Skipping to next step', 'Pipeline continues', 'Success!'],
-      es: ['Paso marcado como opcional...', 'Omitiendo al siguiente paso', 'Pipeline continua', 'Exito!'],
+      es: ['Paso marcado como opcional...', 'Omitiendo al siguiente paso', 'Pipeline continua', 'Éxito!'],
     },
   },
   {
@@ -44,31 +44,31 @@ const STRATEGIES = [
     successRate: 87,
     execution: {
       en: ['RepairAgent analyzing...', 'Diagnosis: malformed JSON at pos 847', 'Fix: re-prompt with strict JSON schema', 'Success!'],
-      es: ['RepairAgent analizando...', 'Diagnostico: JSON malformado en pos 847', 'Fix: re-prompt con schema JSON estricto', 'Exito!'],
+      es: ['RepairAgent analizando...', 'Diagnóstico: JSON malformado en pos 847', 'Fix: re-prompt con schema JSON estricto', 'Éxito!'],
     },
   },
   {
     key: 'escalate', name: 'EscalateStrategy', color: '#EC4899', bg: 'rgba(236,72,153,0.12)',
     icon: 'M5 10l7-7m0 0l7 7m-7-7v18',
-    desc: { en: 'Escalates to human review when automated recovery is not possible.', es: 'Escala a revision humana cuando la recuperacion automatica no es posible.' },
+    desc: { en: 'Escalates to human review when automated recovery is not possible.', es: 'Escala a revision humana cuando la recuperación automática no es posible.' },
     when: { en: 'Auth failures, unrecoverable errors, compliance flags', es: 'Fallos de auth, errores irrecuperables, alertas de compliance' },
-    example: { en: 'Expired API key → Marked for human review', es: 'API key expirada → Marcado para revision humana' },
+    example: { en: 'Expired API key → Marked for human review', es: 'API key expirada → Marcado para revisión humana' },
     successRate: 91,
     execution: {
       en: ['Error classified as non-recoverable', 'Marking for human review...', 'Added to review queue (#847)', 'Escalated'],
-      es: ['Error clasificado como no recuperable', 'Marcando para revision humana...', 'Agregado a cola de revision (#847)', 'Escalado'],
+      es: ['Error clasificado como no recuperable', 'Marcando para revisión humana...', 'Agregado a cola de revisión (#847)', 'Escalado'],
     },
   },
   {
     key: 'fallback', name: 'FallbackStrategy', color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)',
     icon: 'M9 17V7m0 10l-3-3m3 3l3-3M15 7v10m0-10l3 3m-3-3l-3 3',
     desc: { en: 'Activates a predefined fallback route using cached results from previous runs.', es: 'Activa una ruta alternativa predefinida usando resultados cacheados de ejecuciones previas.' },
-    when: { en: 'Max retries exceeded, critical failures, unknown errors', es: 'Max reintentos excedidos, fallos criticos, errores desconocidos' },
+    when: { en: 'Max retries exceeded, critical failures, unknown errors', es: 'Max reintentos excedidos, fallos críticos, errores desconocidos' },
     example: { en: 'Unknown error → Load cached result from run-abc', es: 'Error desconocido → Cargar resultado cacheado de run-abc' },
     successRate: 96,
     execution: {
       en: ['Loading cached result from run-2024-Q4...', 'Cache hit: 98.2% confidence match', 'Cached result applied to pipeline', 'Success!'],
-      es: ['Cargando resultado cacheado de run-2024-Q4...', 'Cache hit: 98.2% coincidencia de confianza', 'Resultado cacheado aplicado al pipeline', 'Exito!'],
+      es: ['Cargando resultado cacheado de run-2024-Q4...', 'Cache hit: 98.2% coincidencia de confianza', 'Resultado cacheado aplicado al pipeline', 'Éxito!'],
     },
   },
 ]
@@ -183,7 +183,7 @@ export default function HealingPage({ lang = 'en' }) {
         </h1>
         <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF' }}>
           {lang === 'es'
-            ? 'Simula fallos y observa como el sistema de auto-reparacion detecta, clasifica y resuelve errores automaticamente.'
+            ? 'Simula fallos y observa como el sistema de auto-reparacion detecta, clasifica y resuelve errores automáticamente.'
             : 'Simulate failures and watch the self-healing system detect, classify, and resolve errors automatically.'
           }
         </p>
@@ -562,7 +562,7 @@ export default function HealingPage({ lang = 'en' }) {
             border: '1px solid #E5E7EB',
           }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>
-              {lang === 'es' ? 'Error mas comun' : 'Most Common Error'}
+              {lang === 'es' ? 'Error más común' : 'Most Common Error'}
             </div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#EF4444' }}>
               {mostCommonError ? t(ERROR_TYPES.find(e => e.key === mostCommonError[0])?.label || mostCommonError[0], lang) : '-'}
@@ -578,7 +578,7 @@ export default function HealingPage({ lang = 'en' }) {
             border: '1px solid #E5E7EB',
           }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>
-              {lang === 'es' ? 'Reparacion mas rapida' : 'Fastest Healing'}
+              {lang === 'es' ? 'Reparación más rápida' : 'Fastest Healing'}
             </div>
             <div style={{ fontSize: 28, fontWeight: 700, color: '#6366F1' }}>{fastestTime}s</div>
           </div>
