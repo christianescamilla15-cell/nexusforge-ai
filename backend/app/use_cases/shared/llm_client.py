@@ -6,13 +6,18 @@ import os
 import time
 import httpx
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
+def _get_groq_key():
+    """Read key at call time, not import time (important for serverless)."""
+    return os.environ.get("GROQ_API_KEY", "")
+
+
 async def llm_generate(prompt: str, system: str = "", max_tokens: int = 300) -> dict:
     """Call Groq LLM if available, return usage metadata."""
+    GROQ_API_KEY = _get_groq_key()
     if not GROQ_API_KEY:
         return {
             "text": None,
