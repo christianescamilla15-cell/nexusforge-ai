@@ -130,25 +130,27 @@ export default function PlaygroundPage({ lang = 'en' }) {
     setStatus('idle')
   }
 
+  const [error, setError] = useState(null)
+
   const handleRun = async () => {
     setStatus('running')
     setResult(null)
     setTimeline(null)
     setIsDemo(false)
+    setError(null)
 
-    try {
-      const { data, isDemo: demo } = await api.post(`/${selectedWorkflow}/run`, { input })
-      setResult(data)
-      setIsDemo(demo)
-      setTimeline(DEMO_TIMELINES[selectedWorkflow] || [])
-      setStatus('completed')
-    } catch {
-      // Fallback to demo
-      setResult(DEMO_RESPONSES[selectedWorkflow])
-      setIsDemo(true)
-      setTimeline(DEMO_TIMELINES[selectedWorkflow] || [])
-      setStatus('completed')
+    const { data, isDemo: demo, error: apiError } = await api.post(`/${selectedWorkflow}/run`, { input })
+
+    if (apiError) {
+      setError(apiError)
+      setStatus('failed')
+      return
     }
+
+    setResult(data)
+    setIsDemo(demo)
+    setTimeline(demo ? (DEMO_TIMELINES[selectedWorkflow] || []) : (data?.timeline || DEMO_TIMELINES[selectedWorkflow] || []))
+    setStatus('completed')
   }
 
   const samples = SAMPLES[selectedWorkflow] || []
@@ -295,6 +297,21 @@ export default function PlaygroundPage({ lang = 'en' }) {
             )}
           </div>
 
+          {/* Error banner */}
+          {error && (
+            <div style={{
+              padding: '14px 18px', borderRadius: 10, marginBottom: 16,
+              background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
+              color: '#991B1B', fontSize: 14, lineHeight: 1.6,
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+            }}>
+              <span style={{ flexShrink: 0, fontSize: 16 }}>{'\u274C'}</span>
+              <div>
+                <strong>Error:</strong> {error}
+              </div>
+            </div>
+          )}
+
           {/* Response */}
           <div style={{
             background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20,
@@ -314,7 +331,7 @@ export default function PlaygroundPage({ lang = 'en' }) {
               </pre>
             ) : (
               <div style={{ color: '#9CA3AF', fontSize: 14, fontStyle: 'italic', padding: 20, textAlign: 'center' }}>
-                {tl('noResult', lang)}
+                {error ? '' : tl('noResult', lang)}
               </div>
             )}
           </div>

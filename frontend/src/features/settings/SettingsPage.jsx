@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { t } from '../../shared/i18n/translations'
-import { getMode, setMode, getApiUrl, setApiUrl as persistApiUrl } from '../../services/api'
+import { getMode, setMode, getApiUrl, setApiUrl as persistApiUrl, checkBackendHealth } from '../../services/api'
 
 export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
   const [currentMode, setCurrentMode] = useState(() => getMode())
@@ -12,6 +12,8 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
   })
   const [darkMode] = useState(true)
   const [tourResetDone, setTourResetDone] = useState(false)
+  const [backendStatus, setBackendStatus] = useState(null)
+  const [testing, setTesting] = useState(false)
 
   const handleModeChange = (mode) => {
     setCurrentMode(mode)
@@ -23,6 +25,14 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
   const handleApiUrlChange = (value) => {
     setApiUrl(value)
     persistApiUrl(value)
+    setBackendStatus(null) // reset status when URL changes
+  }
+
+  const testConnection = async () => {
+    setTesting(true)
+    const health = await checkBackendHealth()
+    setBackendStatus(health)
+    setTesting(false)
   }
 
   return (
@@ -178,45 +188,120 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
           </div>
         </div>
 
-        {/* API Status */}
-        <div style={cardStyle}>
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>{t('apiStatus', lang)}</label>
+        {/* Diagnostics */}
+        <div style={{
+          ...cardStyle,
+          border: '1px solid rgba(99,102,241,0.3)',
+          background: 'rgba(99,102,241,0.02)',
+        }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ ...labelStyle, fontSize: 16 }}>
+              {lang === 'es' ? 'Diagnosticos' : 'Diagnostics'}
+            </label>
             <p style={descStyle}>
-              {currentMode === 'demo'
-                ? (lang === 'es'
-                    ? 'Modo demo — no se requiere backend.'
-                    : 'Demo mode — no backend required.')
-                : (lang === 'es'
-                    ? 'Modo real — conectado al backend API.'
-                    : 'Real mode — connected to backend API.')}
+              {lang === 'es'
+                ? 'Estado actual de la conexion y configuracion.'
+                : 'Current connection status and configuration.'}
             </p>
           </div>
-          <div style={{
-            padding: '12px 16px', borderRadius: 8,
-            background: currentMode === 'demo'
-              ? 'rgba(245,158,11,0.08)'
-              : 'rgba(16,185,129,0.08)',
-            border: `1px solid ${currentMode === 'demo'
-              ? 'rgba(245,158,11,0.2)'
-              : 'rgba(16,185,129,0.2)'}`,
-            color: currentMode === 'demo' ? '#D97706' : '#10B981',
-            fontSize: 13,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: currentMode === 'demo' ? '#F59E0B' : '#10B981',
-              flexShrink: 0,
-            }} />
-            {currentMode === 'demo'
-              ? (lang === 'es'
-                  ? 'Demo Mode — todos los datos son de ejemplo'
-                  : 'Demo Mode — all data is simulated')
-              : (lang === 'es'
-                  ? 'Real Mode — datos del backend en vivo'
-                  : 'Real Mode — live backend data')}
+
+          {/* Status rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            {/* Current mode */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+              <span style={{ color: '#6B7280' }}>
+                {lang === 'es' ? 'Modo actual' : 'Current mode'}
+              </span>
+              <span style={{
+                padding: '2px 10px', borderRadius: 6, fontWeight: 600,
+                background: currentMode === 'demo' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
+                color: currentMode === 'demo' ? '#D97706' : '#059669',
+              }}>
+                {currentMode === 'demo' ? 'Demo' : 'Real'}
+              </span>
+            </div>
+
+            {/* API URL */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+              <span style={{ color: '#6B7280' }}>
+                {lang === 'es' ? 'URL del API' : 'API URL'}
+              </span>
+              <span style={{
+                fontFamily: 'monospace', fontSize: 12,
+                color: apiUrl ? '#374151' : '#9CA3AF',
+                maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {apiUrl || (lang === 'es' ? 'No configurada' : 'Not configured')}
+              </span>
+            </div>
+
+            {/* Backend status */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+              <span style={{ color: '#6B7280' }}>
+                {lang === 'es' ? 'Estado del backend' : 'Backend status'}
+              </span>
+              {backendStatus ? (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '2px 10px', borderRadius: 6, fontWeight: 600, fontSize: 12,
+                  background: backendStatus.status === 'connected' ? 'rgba(16,185,129,0.1)'
+                    : backendStatus.status === 'no_url' ? 'rgba(156,163,175,0.15)'
+                    : 'rgba(220,38,38,0.1)',
+                  color: backendStatus.status === 'connected' ? '#059669'
+                    : backendStatus.status === 'no_url' ? '#6B7280'
+                    : '#DC2626',
+                }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: backendStatus.status === 'connected' ? '#10B981'
+                      : backendStatus.status === 'no_url' ? '#9CA3AF'
+                      : '#DC2626',
+                  }} />
+                  {backendStatus.status === 'connected'
+                    ? (lang === 'es' ? 'Conectado' : 'Connected')
+                    : backendStatus.status === 'no_url'
+                      ? (lang === 'es' ? 'Sin URL' : 'No URL')
+                      : (lang === 'es' ? 'No disponible' : 'Unreachable')}
+                </span>
+              ) : (
+                <span style={{ color: '#9CA3AF', fontSize: 12 }}>
+                  {lang === 'es' ? 'No verificado' : 'Not tested'}
+                </span>
+              )}
+            </div>
+
+            {/* Error message */}
+            {backendStatus && backendStatus.status !== 'connected' && (
+              <div style={{
+                padding: '8px 12px', borderRadius: 6, fontSize: 12,
+                background: backendStatus.status === 'no_url' ? 'rgba(156,163,175,0.08)' : 'rgba(220,38,38,0.06)',
+                border: `1px solid ${backendStatus.status === 'no_url' ? 'rgba(156,163,175,0.2)' : 'rgba(220,38,38,0.2)'}`,
+                color: backendStatus.status === 'no_url' ? '#6B7280' : '#991B1B',
+                lineHeight: 1.5,
+              }}>
+                {backendStatus.message}
+              </div>
+            )}
           </div>
+
+          {/* Test Connection button */}
+          <button
+            onClick={testConnection}
+            disabled={testing}
+            style={{
+              padding: '10px 24px', borderRadius: 8,
+              border: '1px solid rgba(99,102,241,0.3)',
+              background: testing ? '#F3F4F6' : 'transparent',
+              color: testing ? '#9CA3AF' : '#818CF8',
+              fontSize: 14, fontWeight: 500,
+              cursor: testing ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {testing
+              ? (lang === 'es' ? 'Probando...' : 'Testing...')
+              : (lang === 'es' ? 'Probar conexion' : 'Test Connection')}
+          </button>
         </div>
 
         {/* Reset Tour */}

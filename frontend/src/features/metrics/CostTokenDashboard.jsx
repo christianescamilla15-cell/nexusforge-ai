@@ -93,37 +93,56 @@ export default function CostTokenDashboard({ lang = 'en' }) {
   const [agents, setAgents] = useState(DEMO_AGENTS)
   const [isDemo, setIsDemo] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     async function load() {
-      try {
-        const { data, isDemo: demo } = await fetchAPI('/reliability/health')
-        if (!demo && data.agents) {
-          setAgents(data.agents.map(a => ({
-            agent: a.agent,
-            executions: a.executions || 0,
-            avg_latency_ms: a.avg_latency_ms || 0,
-            tokens: a.tokens || 0,
-            retries: a.retries || 0,
-            fallbacks: a.fallbacks || 0,
-          })))
-          setIsDemo(false)
-        }
-        const runsRes = await fetchAPI('/runs')
-        if (!runsRes.isDemo && runsRes.data?.runs) {
-          setRuns(runsRes.data.runs.map(r => ({
-            id: r.id,
-            workflow: r.workflow_name,
-            duration_ms: r.latency_ms,
-            tokens: r.tokens || Math.round(r.latency_ms * 0.5),
-            cost: r.cost || (r.latency_ms * 0.5 * 0.000003),
-            status: r.status,
-          })))
-          setIsDemo(false)
-        }
-      } catch {
-        // keep demo data
+      const healthRes = await fetchAPI('/reliability/health')
+
+      // Handle errors in Real mode — do NOT silently fall back to demo data
+      if (healthRes.error) {
+        setError(healthRes.error)
+        setIsDemo(false)
+        setRuns([])
+        setAgents([])
+        setLoading(false)
+        return
       }
+
+      const { data, isDemo: demo } = healthRes
+      if (!demo && data?.agents) {
+        setAgents(data.agents.map(a => ({
+          agent: a.agent,
+          executions: a.executions || 0,
+          avg_latency_ms: a.avg_latency_ms || 0,
+          tokens: a.tokens || 0,
+          retries: a.retries || 0,
+          fallbacks: a.fallbacks || 0,
+        })))
+        setIsDemo(false)
+      }
+
+      const runsRes = await fetchAPI('/runs')
+      if (runsRes.error) {
+        setError(runsRes.error)
+        setIsDemo(false)
+        setRuns([])
+        setLoading(false)
+        return
+      }
+      if (!runsRes.isDemo && runsRes.data?.runs) {
+        setRuns(runsRes.data.runs.map(r => ({
+          id: r.id,
+          workflow: r.workflow_name,
+          duration_ms: r.latency_ms,
+          tokens: r.tokens || Math.round(r.latency_ms * 0.5),
+          cost: r.cost || (r.latency_ms * 0.5 * 0.000003),
+          status: r.status,
+        })))
+        setIsDemo(false)
+      }
+
+      if (demo) setIsDemo(true)
       setLoading(false)
     }
     load()
@@ -185,6 +204,21 @@ export default function CostTokenDashboard({ lang = 'en' }) {
           {tl('subtitle', lang)}
         </p>
       </div>
+
+      {/* Error banner for Real mode failures */}
+      {error && (
+        <div style={{
+          padding: '14px 18px', borderRadius: 10, marginBottom: 20,
+          background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
+          color: '#991B1B', fontSize: 14, lineHeight: 1.6,
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+        }}>
+          <span style={{ flexShrink: 0, fontSize: 16 }}>{'\u274C'}</span>
+          <div>
+            <strong>Error:</strong> {error}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div style={{

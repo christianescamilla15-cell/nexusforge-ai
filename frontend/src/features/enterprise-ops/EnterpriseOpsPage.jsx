@@ -182,6 +182,12 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
       }),
     })
 
+    if (result.error) {
+      setError(result.error)
+      setLoading(false)
+      return
+    }
+
     setResponse(result.data)
     setIsDemo(result.isDemo)
     setLoading(false)
@@ -407,6 +413,22 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
 
         {/* Right: Response */}
         <div>
+          {error && (
+            <div style={{
+              ...cardStyle, marginBottom: 16,
+              background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.2)',
+            }}>
+              <div style={{
+                color: '#991B1B', fontSize: 14, lineHeight: 1.6,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <span style={{ flexShrink: 0, fontSize: 16 }}>{'\u274C'}</span>
+                <div>
+                  <strong>Error:</strong> {error}
+                </div>
+              </div>
+            </div>
+          )}
           {response ? (
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>

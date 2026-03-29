@@ -1,10 +1,8 @@
 // ---------------------------------------------------------------------------
 // NexusForge API Service — dual-mode: real backend or demo data.
 // Mode is controlled via localStorage ('demo' or 'real').
-// Exports `fetchAPI`, `api`, `getMode`, `setMode`, `isDemoMode`.
+// STRICT: Real mode NEVER falls back to demo data.
 // ---------------------------------------------------------------------------
-
-const DEFAULT_API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 // ── Mode helpers ────────────────────────────────────────────────────────────
 
@@ -14,23 +12,40 @@ export function getMode() {
   return localStorage.getItem('nexusforge_mode') || 'demo'
 }
 
-/** Persist mode to localStorage. */
+/** Persist mode to localStorage and notify listeners. */
 export function setMode(mode) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('nexusforge_mode', mode)
+    window.dispatchEvent(new Event('nexusforge-mode-change'))
   }
 }
 
-/** Return the user-configured API URL (only relevant in real mode). */
+/** Return the user-configured API URL (only relevant in real mode). Empty string = not configured. */
 export function getApiUrl() {
-  if (typeof window === 'undefined') return DEFAULT_API_BASE
-  return localStorage.getItem('nexusforge_api_url') || DEFAULT_API_BASE
+  if (typeof window === 'undefined') return ''
+  return localStorage.getItem('nexusforge_api_url') || ''
 }
 
 /** Persist API URL to localStorage. */
 export function setApiUrl(url) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('nexusforge_api_url', url)
+  }
+}
+
+// ── Health check ────────────────────────────────────────────────────────────
+
+/** Check if the configured backend is reachable. */
+export async function checkBackendHealth() {
+  const apiUrl = getApiUrl()
+  if (!apiUrl) return { status: 'no_url', message: 'No API URL configured' }
+
+  try {
+    const response = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(3000) })
+    if (response.ok) return { status: 'connected', message: 'Backend is reachable' }
+    return { status: 'error', message: `HTTP ${response.status}` }
+  } catch (e) {
+    return { status: 'unreachable', message: e.message }
   }
 }
 
@@ -44,41 +59,51 @@ export function isDemoMode() {
 }
 
 /**
- * Generic fetcher.
+ * Generic fetcher — STRICT mode behavior.
  * - Demo mode: returns demo data immediately (no network request).
- * - Real mode: tries the backend; on failure returns error (no fallback).
+ * - Real mode: calls backend. On failure returns { data: null, error: "..." }.
+ *   NEVER falls back to demo data.
  */
 export async function fetchAPI(endpoint, options = {}) {
   const mode = getMode()
 
-  // Demo mode — return demo data immediately, no fetch attempt
+  // DEMO MODE: always return demo data, never call backend
   if (mode === 'demo') {
     _isDemoMode = true
-    return { data: getDemoData(endpoint, options), isDemo: true }
+    return { data: getDemoData(endpoint, options), isDemo: true, error: null }
   }
 
-  // Real mode — try backend
-  try {
-    const apiUrl = getApiUrl()
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
+  // REAL MODE: call backend, NEVER fall back to demo
+  const apiUrl = getApiUrl()
+  if (!apiUrl) {
+    _isDemoMode = false
+    return {
+      data: null, isDemo: false,
+      error: 'No API URL configured. Go to Settings to set the backend URL.',
+    }
+  }
 
+  try {
     const res = await fetch(`${apiUrl}${endpoint}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...options.headers },
-      signal: controller.signal,
+      signal: AbortSignal.timeout(10000),
     })
 
-    clearTimeout(timeoutId)
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) {
+      _isDemoMode = false
+      return { data: null, isDemo: false, error: `Backend error: HTTP ${res.status}` }
+    }
 
     _isDemoMode = false
-    return { data: await res.json(), isDemo: false }
+    return { data: await res.json(), isDemo: false, error: null }
   } catch (err) {
-    // Real mode but backend failed — return error, do NOT fall back to demo
+    // STRICT: do NOT return demo data. Return error.
     _isDemoMode = false
-    return { data: null, isDemo: false, error: err.message }
+    return {
+      data: null, isDemo: false,
+      error: `Backend unreachable: ${err.message}. Check Settings or switch to Demo mode.`,
+    }
   }
 }
 

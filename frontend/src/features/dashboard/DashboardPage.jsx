@@ -37,6 +37,7 @@ export default function DashboardPage({ lang = 'en' }) {
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isDemo, setIsDemo] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -50,7 +51,13 @@ export default function DashboardPage({ lang = 'en' }) {
       fetchAPI('/runs'),
       fetchAPI('/runs/reliability/health'),
     ]).then(([runsResult, healthResult]) => {
-      setRuns(runsResult.data.runs || [])
+      // Check for errors in Real mode
+      if (runsResult.error || healthResult.error) {
+        setError(runsResult.error || healthResult.error)
+        setLoading(false)
+        return
+      }
+      setRuns(runsResult.data?.runs || [])
       setHealth(healthResult.data)
       setIsDemo(runsResult.isDemo || healthResult.isDemo)
       setLoading(false)
@@ -111,7 +118,7 @@ export default function DashboardPage({ lang = 'en' }) {
             {lang === 'es' ? 'Modo Demo' : 'Demo Mode'}
           </span>
         )}
-        {!hasData && !isDemo && (
+        {!hasData && !isDemo && !error && (
           <span style={{
             padding: '4px 12px', borderRadius: 6, fontSize: 12,
             background: 'rgba(37,99,235,0.06)', color: '#2563EB',
@@ -122,6 +129,21 @@ export default function DashboardPage({ lang = 'en' }) {
           </span>
         )}
       </div>
+
+      {/* Error banner for Real mode failures */}
+      {error && (
+        <div style={{
+          padding: '14px 18px', borderRadius: 10, marginBottom: 20,
+          background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
+          color: '#991B1B', fontSize: 14, lineHeight: 1.6,
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+        }}>
+          <span style={{ flexShrink: 0, fontSize: 16 }}>{'\u274C'}</span>
+          <div>
+            <strong>Error:</strong> {error}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="nxf-kpi-grid" data-tour="dashboard-kpis" style={{

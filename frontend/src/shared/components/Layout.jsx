@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { t } from '../i18n/translations'
-import { getMode } from '../../services/api'
+import { getMode, getApiUrl } from '../../services/api'
 
 const NAV_ITEMS = [
   { key: 'dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
@@ -226,24 +226,32 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           {/* Right side: mode indicator + lang toggle + avatar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {/* Mode indicator */}
-            <div
-              aria-label={mode === 'real' ? 'Real mode' : 'Demo mode'}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '4px 10px', borderRadius: 6,
-                fontSize: 12, fontWeight: 600,
-                background: mode === 'real' ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)',
-                color: mode === 'real' ? '#059669' : '#D97706',
-                border: `1px solid ${mode === 'real' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`,
-              }}
-            >
-              <span style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: mode === 'real' ? '#10B981' : '#F59E0B',
-                flexShrink: 0,
-              }} />
-              {mode === 'real' ? 'Real' : 'Demo'}
-            </div>
+            {(() => {
+              const noUrl = mode === 'real' && !getApiUrl()
+              const badgeColor = noUrl ? '#DC2626' : mode === 'real' ? '#059669' : '#D97706'
+              const badgeBg = noUrl ? 'rgba(220,38,38,0.08)' : mode === 'real' ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)'
+              const badgeBorder = noUrl ? 'rgba(220,38,38,0.2)' : mode === 'real' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'
+              const dotColor = noUrl ? '#DC2626' : mode === 'real' ? '#10B981' : '#F59E0B'
+              const label = noUrl ? 'Real (no URL)' : mode === 'real' ? 'Real' : 'Demo'
+              return (
+                <div
+                  aria-label={label}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '4px 10px', borderRadius: 6,
+                    fontSize: 12, fontWeight: 600,
+                    background: badgeBg, color: badgeColor,
+                    border: `1px solid ${badgeBorder}`,
+                  }}
+                >
+                  <span style={{
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: dotColor, flexShrink: 0,
+                  }} />
+                  {label}
+                </div>
+              )
+            })()}
 
             {/* Language toggle */}
             <div style={{
