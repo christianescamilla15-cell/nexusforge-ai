@@ -12,8 +12,8 @@ export function generateResponse(message, lang = 'en') {
   // 1. Greetings
   if (/^(hola|hello|hi|hey|buenos|buenas|good morning|good afternoon|que tal|saludos|greetings)/.test(lower)) {
     const greeting = lang === 'es'
-      ? '**Hola! Soy el asistente de NexusForge AI.** Puedo explicarte sobre:\n\n**Inicio:** Que es NexusForge, como funciona, casos de uso\n**Agentes:** 22 agentes IA especializados\n**Topologias:** 6 patrones de colaboracion multi-agente\n**Memoria:** Sistema de 3 niveles (trabajo, episódica, semántica)\n**Auto-Reparación:** 5 estrategias de recuperación automática\n**Técnico:** RAG Pipeline, LLM Router, infraestructura, SDK, CLI\n\n¡Pregúntame lo que quieras!'
-      : '**Hi! I\'m the NexusForge AI assistant.** I can explain:\n\n**Getting Started:** What is NexusForge, how it works, use cases\n**Agents:** 22 specialized AI agents\n**Topologies:** 6 multi-agent collaboration patterns\n**Memory:** 3-tier system (working, episodic, semantic)\n**Self-Healing:** 5 automatic recovery strategies\n**Technical:** RAG Pipeline, LLM Router, infrastructure, SDK, CLI\n\nAsk me anything!'
+      ? '**¡Hola! Soy el asistente de NexusForge AI.** Puedo explicarte sobre:\n\n**Inicio:** Qué es NexusForge, cómo funciona, casos de uso\n**Agentes:** 22 agentes IA especializados\n**Topologías:** 6 patrones de colaboración multi-agente\n**Memoria:** Sistema de 3 niveles (trabajo, episódica, semántica)\n**Auto-Reparación:** 5 estrategias de recuperación automática\n**Casos Reales:** Operaciones Empresariales, Inteligencia Documental, Copiloto de Portafolio\n**Plataforma:** Playground, Timeline, Evaluación, Dashboard de Costos, Modo Demo/Real\n**Técnico:** RAG Pipeline, LLM Router, infraestructura, SDK, CLI\n\n¡Pregúntame lo que quieras!'
+      : '**Hi! I\'m the NexusForge AI assistant.** I can explain:\n\n**Getting Started:** What is NexusForge, how it works, use cases\n**Agents:** 22 specialized AI agents\n**Topologies:** 6 multi-agent collaboration patterns\n**Memory:** 3-tier system (working, episodic, semantic)\n**Self-Healing:** 5 automatic recovery strategies\n**Real Use Cases:** Enterprise Operations, Document Intelligence, Portfolio Copilot\n**Platform:** Playground, Timeline, Evaluation, Cost Dashboard, Demo/Real Mode\n**Technical:** RAG Pipeline, LLM Router, infrastructure, SDK, CLI\n\nAsk me anything!'
     return {
       text: greeting,
       topic: 'greeting',
@@ -152,6 +152,16 @@ function getContextualFollowups(topicKey, lang) {
     tech_stack: ['infrastructure', 'project_stats', 'architecture_decisions'],
     project_stats: ['tech_stack', 'about_creator', 'testing'],
     help: ['what_is_nexusforge', 'agents_overview', 'swarms_intro'],
+    // Real Use Cases
+    enterprise_ops: ['document_intelligence', 'portfolio_copilot', 'execution_timeline'],
+    document_intelligence: ['enterprise_ops', 'portfolio_copilot', 'workflow_playground'],
+    portfolio_copilot: ['enterprise_ops', 'document_intelligence', 'evaluation_harness'],
+    // Platform Features
+    execution_timeline: ['workflow_playground', 'cost_dashboard', 'enterprise_ops'],
+    workflow_playground: ['execution_timeline', 'evaluation_harness', 'demo_real_mode'],
+    cost_dashboard: ['execution_timeline', 'evaluation_harness', 'llm_router'],
+    evaluation_harness: ['workflow_playground', 'cost_dashboard', 'enterprise_ops'],
+    demo_real_mode: ['workflow_playground', 'execution_timeline', 'getting_started'],
   }
 
   const topicLabels = {
@@ -216,6 +226,16 @@ function getContextualFollowups(topicKey, lang) {
     tech_stack: { en: 'Tech stack', es: 'Stack tecnológico' },
     project_stats: { en: 'Project stats', es: 'Estadísticas del proyecto' },
     help: { en: 'Full help', es: 'Ayuda completa' },
+    // Real Use Cases
+    enterprise_ops: { en: 'Operations Assistant', es: 'Asistente de Operaciones' },
+    document_intelligence: { en: 'Document Intelligence', es: 'Inteligencia Documental' },
+    portfolio_copilot: { en: 'Portfolio Copilot', es: 'Copiloto de Portafolio' },
+    // Platform Features
+    execution_timeline: { en: 'Execution Timeline', es: 'Timeline de Ejecución' },
+    workflow_playground: { en: 'Workflow Playground', es: 'Playground de Workflows' },
+    cost_dashboard: { en: 'Cost Dashboard', es: 'Dashboard de Costos' },
+    evaluation_harness: { en: 'Evaluation Harness', es: 'Harness de Evaluación' },
+    demo_real_mode: { en: 'Demo/Real Mode', es: 'Modo Demo/Real' },
   }
 
   const keys = followupMap[topicKey] || ['what_is_nexusforge', 'agents_overview', 'swarms_intro']
