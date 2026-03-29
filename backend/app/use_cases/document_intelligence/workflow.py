@@ -55,7 +55,8 @@ async def run_document_intelligence_workflow(request: DocumentIntelligenceInput)
         agents_used.append("ValidationAgent")
         is_valid = validation["schema_valid"]
         errors = validation["errors"]
-        actions.append(f"validation: {'valid' if is_valid else f'{validation[\"error_count\"]} errors'}")
+        error_count = validation.get("error_count", 0)
+        actions.append(f"validation: {'valid' if is_valid else str(error_count) + ' errors'}")
 
         # Step 5: Summary
         s5 = collector.start_step(tracked_id, "SummaryAgent", 4)

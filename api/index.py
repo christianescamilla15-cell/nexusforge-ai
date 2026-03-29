@@ -38,14 +38,18 @@ class OpsRequest(BaseModel):
 
 @app.post("/api/enterprise-ops/process")
 async def enterprise_ops(request: OpsRequest):
+    from datetime import datetime
     try:
         from app.use_cases.enterprise_ops.workflow import run_enterprise_ops_workflow
         from app.use_cases.enterprise_ops.schemas import OperationsRequest
         req = OperationsRequest(**request.model_dump())
         result = await run_enterprise_ops_workflow(req)
-        return result.model_dump()
+        data = result.model_dump()
+        data["source"] = "backend"
+        data["server_time"] = datetime.utcnow().isoformat()
+        return data
     except Exception as e:
-        return {"status": "error", "error": str(e), "run_id": "serverless"}
+        return {"status": "error", "error": str(e), "run_id": "serverless", "source": "backend"}
 
 @app.get("/api/enterprise-ops/health")
 async def enterprise_ops_health():
@@ -64,14 +68,18 @@ class DocRequest(BaseModel):
 
 @app.post("/api/document-intelligence/run")
 async def document_intelligence(request: DocRequest):
+    from datetime import datetime
     try:
         from app.use_cases.document_intelligence.workflow import run_document_intelligence_workflow
         from app.use_cases.document_intelligence.schemas import DocumentIntelligenceInput
         req = DocumentIntelligenceInput(**request.model_dump())
         result = await run_document_intelligence_workflow(req)
-        return result.model_dump()
+        data = result.model_dump()
+        data["source"] = "backend"
+        data["server_time"] = datetime.utcnow().isoformat()
+        return data
     except Exception as e:
-        return {"status": "error", "error": str(e), "run_id": "serverless"}
+        return {"status": "error", "error": str(e), "run_id": "serverless", "source": "backend"}
 
 @app.get("/api/document-intelligence/examples")
 async def doc_examples():
@@ -90,14 +98,18 @@ class CopilotRequest(BaseModel):
 
 @app.post("/api/portfolio-copilot/run")
 async def portfolio_copilot(request: CopilotRequest):
+    from datetime import datetime
     try:
         from app.use_cases.portfolio_copilot.workflow import run_portfolio_copilot_workflow
         from app.use_cases.portfolio_copilot.schemas import PortfolioCopilotInput
         req = PortfolioCopilotInput(**request.model_dump())
         result = await run_portfolio_copilot_workflow(req)
-        return result.model_dump()
+        data = result.model_dump()
+        data["source"] = "backend"
+        data["server_time"] = datetime.utcnow().isoformat()
+        return data
     except Exception as e:
-        return {"status": "error", "error": str(e), "run_id": "serverless"}
+        return {"status": "error", "error": str(e), "run_id": "serverless", "source": "backend"}
 
 @app.get("/api/portfolio-copilot/examples")
 async def copilot_examples():
