@@ -237,9 +237,9 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
         <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 16 }}>
           {txt.pipelineTitle}
         </h2>
-        <div style={{
+        <div className="nxf-pipeline-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(240px, 100%), 1fr))',
           gap: 12,
         }}>
           {txt.pipelineSteps.map((step, i) => (
@@ -269,7 +269,7 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
         </div>
       </div>
 
-      <div style={{
+      <div className="nxf-two-col-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.2fr)',
         gap: 24,
@@ -557,7 +557,7 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
               )}
 
               {/* Metadata row */}
-              <div style={{
+              <div className="nxf-metadata-grid" style={{
                 display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8,
                 marginBottom: 16,
               }}>

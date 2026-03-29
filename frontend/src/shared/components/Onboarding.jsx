@@ -142,7 +142,7 @@ export default function Onboarding({ lang = 'es', onDismiss }) {
   return (
     <div style={{ padding: '0 0 32px', animation: 'fadeIn 0.4s ease-out' }}>
       {/* Hero */}
-      <div style={{
+      <div className="nxf-onboarding-hero" style={{
         textAlign: 'center', padding: '48px 24px 40px', marginBottom: 32,
         background: '#FFFFFF', borderRadius: 16, border: '1px solid #E5E7EB',
         boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
@@ -176,7 +176,7 @@ export default function Onboarding({ lang = 'es', onDismiss }) {
 
       {/* Step Cards */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
         gap: 16, marginBottom: 24,
       }}>
         {steps.map((step, i) => (

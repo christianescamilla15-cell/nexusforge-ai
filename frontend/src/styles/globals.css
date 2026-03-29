@@ -69,21 +69,40 @@ input, textarea, select { font-family: inherit; }
 
 /* ===== Responsive Design ===== */
 
+/* Mobile bottom nav — hidden by default, shown via media query */
+.nxf-mobile-bottom-nav {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .nxf-sidebar {
     position: fixed !important;
   }
 
+  /* Main content adjustments */
+  .nxf-main-content {
+    margin-left: 0 !important;
+    padding-bottom: 72px !important; /* space for bottom nav */
+  }
+
+  /* Show mobile bottom nav */
+  .nxf-mobile-bottom-nav {
+    display: flex !important;
+  }
+
+  /* Tables scroll horizontally */
   table {
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
   }
 
   thead, tbody, tr {
     min-width: 600px;
   }
 
+  /* Modals nearly fullscreen */
   [role="dialog"] > div,
   .modal-content {
     width: 95% !important;
@@ -98,6 +117,62 @@ input, textarea, select { font-family: inherit; }
 
   button {
     min-height: 40px;
+  }
+
+  /* Typography scaling */
+  h1 { font-size: 22px !important; }
+  h2 { font-size: 18px !important; }
+
+  /* Chat floating panel — compact bottom sheet */
+  .nf-chat-panel {
+    width: calc(100vw - 32px) !important;
+    max-height: 60vh !important;
+    bottom: 80px !important;
+    right: 16px !important;
+    left: 16px !important;
+  }
+
+  /* Chat floating button above bottom nav */
+  .nf-chat-fab {
+    bottom: 80px !important;
+  }
+
+  /* Onboarding hero compact */
+  .nxf-onboarding-hero {
+    padding: 24px 16px !important;
+  }
+
+  /* Two-column grids stack on mobile */
+  .nxf-two-col-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Pipeline steps scroll horizontally */
+  .nxf-pipeline-grid {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 12px !important;
+    padding-bottom: 8px;
+  }
+  .nxf-pipeline-grid > * {
+    min-width: 220px;
+    flex-shrink: 0;
+  }
+
+  /* Enterprise ops metadata grid */
+  .nxf-metadata-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Playground metrics */
+  .nxf-metrics-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* Reduce section padding */
+  .nxf-section-padded {
+    padding: 16px !important;
   }
 
   ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -127,6 +202,16 @@ input, textarea, select { font-family: inherit; }
   }
 
   .nxf-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Playground metrics stack to 1 column on very small screens */
+  .nxf-metrics-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Enterprise ops metadata 1 column */
+  .nxf-metadata-grid {
     grid-template-columns: 1fr !important;
   }
 }

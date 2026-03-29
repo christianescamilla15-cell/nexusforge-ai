@@ -46,6 +46,14 @@ body {
   box-sizing: border-box;
 }
 
+@media (max-width: 768px) {
+  #root {
+    width: 100%;
+    border-inline: none;
+    text-align: left;
+  }
+}
+
 h1,
 h2 {
   font-family: var(--heading);

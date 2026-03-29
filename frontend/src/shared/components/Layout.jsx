@@ -166,7 +166,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
       </aside>
 
       {/* Main content */}
-      <div style={{
+      <div className="nxf-main-content" style={{
         marginLeft: isMobile ? 0 : w,
         flex: 1,
         transition: 'margin-left 0.2s ease',
@@ -297,6 +297,50 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           {children}
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <nav className="nxf-mobile-bottom-nav" style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: '#FFFFFF',
+        borderTop: '1px solid #E5E7EB',
+        padding: '6px 0 env(safe-area-inset-bottom, 6px)',
+        zIndex: 100,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
+      }}>
+        {[
+          { key: 'dashboard', label: t('dashboard', lang), icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
+          { key: 'playground', label: t('playground', lang), icon: 'M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z' },
+          { key: 'enterprise-ops', label: 'Ops', icon: 'M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21' },
+          { key: 'settings', label: t('settings', lang), icon: 'M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93s.844.126 1.197-.094l.758-.474a1.12 1.12 0 011.37.15l.773.773a1.12 1.12 0 01.15 1.37l-.474.758c-.22.353-.254.804-.094 1.197.16.396.506.71.93.78l.894.15c.542.09.94.56.94 1.109v1.094c0 .55-.398 1.02-.94 1.11l-.894.149c-.424.07-.764.384-.93.78s-.126.844.094 1.197l.474.758a1.12 1.12 0 01-.15 1.37l-.773.773a1.12 1.12 0 01-1.37.15l-.758-.474c-.353-.22-.804-.254-1.197-.094-.396.16-.71.506-.78.93l-.15.894c-.09.542-.56.94-1.109.94h-1.094c-.55 0-1.02-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93s-.844-.126-1.197.094l-.757.474a1.12 1.12 0 01-1.37-.15l-.774-.773a1.12 1.12 0 01-.15-1.37l.474-.758c.22-.353.254-.804.094-1.197a2.25 2.25 0 00-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.764-.384.93-.78s.126-.844-.094-1.197l-.474-.758a1.12 1.12 0 01.15-1.37l.773-.774a1.12 1.12 0 011.37-.15l.758.474c.353.22.804.254 1.197.094.396-.16.71-.506.78-.93l.15-.894zM15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+        ].map((item) => {
+          const active = currentPage === item.key
+          return (
+            <button
+              key={item.key}
+              onClick={() => { onNavigate(item.key); setMobileOpen(false) }}
+              aria-label={item.label}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                background: 'none', border: 'none', padding: '4px 12px',
+                color: active ? '#2563EB' : '#9CA3AF',
+                fontSize: 10, fontWeight: active ? 600 : 400,
+                cursor: 'pointer', minHeight: 'auto',
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d={item.icon} />
+              </svg>
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
     </div>
   )
 }

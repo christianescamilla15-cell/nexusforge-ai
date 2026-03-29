@@ -148,8 +148,8 @@ export default function DashboardPage({ lang = 'en' }) {
       {/* KPI Cards */}
       <div className="nxf-kpi-grid" data-tour="dashboard-kpis" style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-        gap: isMobile ? 10 : 16,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
+        gap: 16,
         marginBottom: 24,
       }}>
         <KPICard
@@ -175,9 +175,9 @@ export default function DashboardPage({ lang = 'en' }) {
       </div>
 
       {/* Main content grid */}
-      <div style={{
+      <div className="nxf-two-col-grid" style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 380px',
+        gridTemplateColumns: '1fr 380px',
         gap: 16,
         alignItems: 'start',
       }}>

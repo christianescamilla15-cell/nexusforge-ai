@@ -35,7 +35,7 @@ export default function RunsDashboard() {
 
       {/* System Health */}
       {health && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+        <div className="nxf-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: 16, marginBottom: 32 }}>
           {[
             { label: 'Ejecuciones Totales', value: health.total_runs },
             { label: 'Tasa de Éxito', value: `${(health.system_success_rate * 100).toFixed(1)}%` },
@@ -53,7 +53,7 @@ export default function RunsDashboard() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedRun ? '1fr 1fr' : '1fr', gap: 24 }}>
+      <div className="nxf-two-col-grid" style={{ display: 'grid', gridTemplateColumns: selectedRun ? '1fr 1fr' : '1fr', gap: 24 }}>
         {/* Runs Table */}
         <div>
           <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Ejecuciones Recientes</h2>

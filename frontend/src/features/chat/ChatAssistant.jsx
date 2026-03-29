@@ -214,13 +214,25 @@ export default function ChatAssistant({ lang = 'en' }) {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-        @media (max-width: 767px) {
+        @media (max-width: 768px) {
           .nf-chat-panel {
-            width: 100vw !important;
-            height: 100vh !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            border-radius: 0 !important;
+            width: calc(100vw - 32px) !important;
+            max-height: 60vh !important;
+            height: 60vh !important;
+            bottom: 80px !important;
+            right: 16px !important;
+            left: 16px !important;
+            border-radius: 16px 16px 12px 12px !important;
+          }
+          .nf-chat-fab {
+            bottom: 80px !important;
+            right: 16px !important;
+            width: 52px !important;
+            height: 52px !important;
+          }
+          .nf-chat-panel .nf-chat-chips {
+            max-height: 80px;
+            overflow-y: auto;
           }
         }
       `}</style>
@@ -228,6 +240,7 @@ export default function ChatAssistant({ lang = 'en' }) {
       {/* Floating button */}
       {!open && (
         <button
+          className="nf-chat-fab"
           data-tour="chat-button"
           onClick={toggleOpen}
           aria-label="AI Assistant"
@@ -420,7 +433,7 @@ export default function ChatAssistant({ lang = 'en' }) {
 
           {/* Suggested followups */}
           {!typing && followups.length > 0 && !showQuickActions && (
-            <div style={{
+            <div className="nf-chat-chips" style={{
               padding: '4px 12px 4px', display: 'flex', flexWrap: 'wrap', gap: 6,
               background: '#FFFFFF',
             }}>
@@ -454,7 +467,7 @@ export default function ChatAssistant({ lang = 'en' }) {
 
           {/* Quick action chips */}
           {showQuickActions && !typing && (
-            <div style={{
+            <div className="nf-chat-chips" style={{
               padding: '4px 12px 4px', display: 'flex', flexWrap: 'wrap', gap: 6,
               background: '#FFFFFF',
             }}>

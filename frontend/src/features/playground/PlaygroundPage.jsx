@@ -171,7 +171,7 @@ export default function PlaygroundPage({ lang = 'en' }) {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: 24, alignItems: 'start' }}>
+      <div className="nxf-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: 24, alignItems: 'start' }}>
         {/* Left Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Workflow selector */}
@@ -365,7 +365,7 @@ export default function PlaygroundPage({ lang = 'en' }) {
 
           {/* Metrics */}
           {result && (
-            <div style={{
+            <div className="nxf-metrics-grid" style={{
               display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12,
             }}>
               {[

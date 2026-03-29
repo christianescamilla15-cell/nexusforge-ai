@@ -152,7 +152,7 @@ export default function ExecutionTimelineViewer({ lang = 'en', timeline, runMeta
       {/* Timeline Steps */}
       <div style={{
         background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-        overflow: 'hidden',
+        overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch',
       }}>
         {/* Header row */}
         <div style={{
@@ -292,7 +292,7 @@ export default function ExecutionTimelineViewer({ lang = 'en', timeline, runMeta
 
       {/* Summary Footer */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginTop: 24,
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(140px, 100%), 1fr))', gap: 16, marginTop: 24,
       }}>
         {[
           { label: tl('totalSteps', lang), value: steps.length, color: '#2563EB' },
