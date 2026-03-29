@@ -1,184 +1,187 @@
 # NexusForge AI
 
-Enterprise multi-agent orchestration platform for building resilient AI workflows.
+Enterprise multi-agent orchestration platform for building resilient, observable, and evaluable AI workflows.
 
-NexusForge AI is an experimental platform designed to coordinate specialized AI agents across complex workflows using orchestration, shared memory, and failure recovery mechanisms.
+NexusForge coordinates 22 specialized AI agents across complex workflows using DAG execution, shared memory, self-healing recovery, and persistent observability. Three real business use cases demonstrate the platform's capabilities end-to-end.
 
-The goal is to explore how AI systems can behave more like reliable software platforms rather than isolated LLM calls.
+**Live Demo:** [frontend-silk-three-66.vercel.app](https://frontend-silk-three-66.vercel.app)
 
 ---
 
 ## Why This Project Exists
 
-Most AI applications break in production because orchestration, memory, retries, and observability are treated as afterthoughts.
-
-Typical problems include:
-
-- brittle agent chains
-- context loss between steps
-- provider failures
-- lack of monitoring
-- unpredictable execution paths
-
-NexusForge explores how to design AI workflows that are **observable, resilient, and modular**.
+Most AI applications break in production because orchestration, memory, retries, and observability are treated as afterthoughts. NexusForge explores how to design AI workflows that are **observable, resilient, and modular** — behaving more like reliable software platforms than isolated LLM calls.
 
 ---
 
-## Core Capabilities
-
-- Multi-agent orchestration
-- DAG-based workflow execution
-- Swarm agent topologies
-- Self-healing execution strategies
-- Shared vector memory
-- Retrieval-augmented pipelines (RAG)
-- Multi-provider LLM routing
-- Observability and execution streaming
-
----
-
-## System Architecture
+## Platform Overview
 
 ```text
-                            ┌──────────────────────┐
-                            │   Web UI / CLI       │
-                            └──────────┬───────────┘
-                                       │
-                                       ▼
-                            ┌──────────────────────┐
-                            │   FastAPI Gateway    │
-                            │  REST / WebSocket    │
-                            └──────────┬───────────┘
-                                       │
-                                       ▼
-                            ┌──────────────────────┐
-                            │  Orchestrator Engine │
-                            │ DAG / State Machine  │
-                            └──────────┬───────────┘
-                                       │
-             ┌─────────────────────────┼─────────────────────────┐
-             │                         │                         │
-             ▼                         ▼                         ▼
-  ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
-  │ Agent Swarm      │      │ Memory Layer     │      │ LLM Router       │
-  │ 22 agents        │      │ working/episodic │      │ primary/fallback │
-  │ topology engine  │      │ semantic memory  │      │ circuit breaker  │
-  └─────────┬────────┘      └─────────┬────────┘      └─────────┬────────┘
-            │                         │                         │
-            └──────────────┬──────────┴──────────┬─────────────┘
-                           │                     │
-                           ▼                     ▼
-                 ┌──────────────────┐   ┌──────────────────┐
-                 │ PostgreSQL       │   │ Redis            │
-                 │ pgvector         │   │ events/cache     │
-                 │ run history      │   │ pub/sub          │
-                 └──────────────────┘   └──────────────────┘
+┌───────────────────────────────────────────────────────┐
+│                    CLIENT LAYER                       │
+│          Dashboard · Playground · Timeline · CLI      │
+└───────────────────────────┬───────────────────────────┘
+                            │
+┌───────────────────────────┴───────────────────────────┐
+│                     API LAYER                         │
+│            FastAPI Gateway + WebSockets               │
+└───────────────────────────┬───────────────────────────┘
+                            │
+┌───────────────────────────┴───────────────────────────┐
+│                ORCHESTRATION LAYER                     │
+│    DAG Executor · State Machine · Retry · Checkpoint  │
+└──────┬────────────────────┬──────────────────┬────────┘
+       │                    │                  │
+┌──────┴──────┐  ┌──────────┴────────┐  ┌─────┴───────┐
+│ AGENT SWARM │  │ MEMORY + RAG      │  │ LLM ROUTER  │
+│ 22 agents   │  │ 3-tier + pgvector │  │ Groq/Claude │
+│ 6 topologies│  │ working/episodic  │  │ circuit     │
+│             │  │ semantic          │  │ breaker     │
+└──────┬──────┘  └──────────┬────────┘  └─────┬───────┘
+       │                    │                  │
+       └────────────────────┼──────────────────┘
+                            │
+┌───────────────────────────┴───────────────────────────┐
+│              PostgreSQL + Redis                        │
+│    workflow_runs · steps · events · checkpoints       │
+└───────────────────────────────────────────────────────┘
+                            │
+┌───────────────────────────┴───────────────────────────┐
+│           OBSERVABILITY + EVALUATION                   │
+│  Timeline · Traces · Metrics · Cost · 16 Scenarios    │
+└───────────────────────────────────────────────────────┘
 ```
 
-NexusForge is structured around five core layers:
+---
 
-- **API Layer** — FastAPI gateway with REST + WebSocket endpoints
-- **Orchestration Layer** — DAG execution, state machine, retry policies, checkpoint/resume
-- **Agent Execution Layer** — 22 agents across 6 swarm topologies
-- **Memory & Retrieval Layer** — 3-tier memory (working/episodic/semantic) + pgvector RAG
-- **Observability & Evaluation Layer** — run history, metrics, timeline, evaluation harness
+## Real Use Cases
+
+### Enterprise Operations Assistant — 8 Agents
+Processes customer requests end-to-end: intent classification, CRM lookup, document retrieval, meeting scheduling, CRM updates, team notifications, and supervisor validation.
+
+| Agent | Role |
+|-------|------|
+| IntakeAgent | Validates and normalizes requests |
+| IntentClassifierAgent | Classifies intent (6 categories) |
+| CustomerContextAgent | Retrieves CRM customer data |
+| DocumentRAGAgent | Searches knowledge base for policies |
+| SchedulerAgent | Handles meeting rescheduling |
+| CRMUpdateAgent | Logs interaction to CRM |
+| NotificationAgent | Sends internal notifications |
+| SupervisorAgent | Generates final response |
+
+**API:** `POST /api/enterprise-ops/process`
+
+### Document Intelligence — 7 Agents
+Processes business documents into structured, validated outputs: contracts, policies, invoices, resumes, and reports.
+
+| Agent | Role |
+|-------|------|
+| DocumentIngestionAgent | Receives and normalizes documents |
+| DocumentClassifierAgent | Classifies document type |
+| SchemaExtractionAgent | Extracts structured fields |
+| ValidationAgent | Validates against business rules |
+| SummaryAgent | Generates bilingual summary |
+| StorageAgent | Persists to knowledge base |
+| SupervisorAgent | Quality review + human escalation |
+
+**API:** `POST /api/document-intelligence/run`
+
+### Portfolio Intelligence Copilot — 6 Agents
+Answers questions about portfolio projects, skills, and experience using retrieval and multi-step reasoning.
+
+| Agent | Role |
+|-------|------|
+| RouterAgent | Classifies question type |
+| PortfolioRAGAgent | Retrieves relevant projects |
+| ProjectComparisonAgent | Compares projects technically |
+| SkillsMapperAgent | Maps skills across portfolio |
+| ResponseFormatterAgent | Formats structured answer |
+| SupervisorAgent | Validates response quality |
+
+**API:** `POST /api/portfolio-copilot/run`
 
 ---
 
-## Agent Topologies
+## Core Infrastructure
 
-NexusForge experiments with multiple coordination models.
+### Workflow Engine
+- DAG execution with Kahn's algorithm
+- 6 swarm topologies (sequential, parallel, hierarchical, debate, consensus, adaptive)
+- Checkpoint/resume for long-running workflows
+- Step-level retry policies
 
-Examples:
+### Memory Architecture
+- **Working Memory** — in-process, sub-millisecond
+- **Episodic Memory** — Redis, 30-day TTL, learns from past runs
+- **Semantic Memory** — pgvector, permanent, 512d vectors
 
-- Sequential chain
-- Parallel agents
-- Reviewer loops
-- Debate agents
-- Swarm orchestration
-- Hybrid DAG workflows
+### LLM Router
+- Groq (Llama 3.3 70B) primary, Claude fallback
+- Circuit breaker pattern for automatic failover
+- Token + cost tracking per request
 
-These topologies allow different strategies depending on task complexity.
+### Reliability Layer
+5 self-healing strategies wired into the engine:
+1. Retry with exponential backoff
+2. Skip with default output
+3. Repair via RepairAgent
+4. Escalate to human review
+5. Fallback from cache
 
----
+### Observability
+- **Execution Timeline** — LangSmith-style step-by-step traces
+- **Step Inspector** — input/output/tokens/latency/provider per step
+- **Cost Dashboard** — token usage, cost in USD, per-agent breakdown
+- **Persistent storage** — PostgreSQL-backed workflow_runs, steps, events, checkpoints
 
-## Memory Architecture
-
-The platform implements a **three-tier memory model**.
-
-### Working Memory
-Short-term execution context shared across agents.
-
-### Episodic Memory
-Execution history and checkpoints.
-
-### Semantic Memory
-Vector database storage using **pgvector** for retrieval.
-
----
-
-## Failure Recovery
-
-AI workflows often fail due to:
-
-- tool failures
-- provider outages
-- invalid responses
-- context overflow
-
-NexusForge introduces several resilience strategies:
-
-- Retry policies
-- Fallback LLM providers
-- Circuit breakers
-- Checkpoint / resume
-- Agent re-routing
+### Evaluation Harness
+- 16 scenarios across 3 suites
+- Quality scoring (0-100), latency metrics, success rates
+- Retry/fallback counting, run comparisons
 
 ---
 
-## Observability
+## Frontend Dashboard
 
-The system exposes execution signals through:
+14 pages covering the full platform:
 
-- WebSocket streaming
-- Redis pub/sub events
-- Execution state tracking
-- Cost / token monitoring
+| Page | Description |
+|------|-------------|
+| Dashboard | System health, KPIs, recent runs |
+| Workflows | Workflow list and management |
+| Agents | 22 registered agents with config |
+| Executions | Run history with status filtering |
+| Memory | 3-tier memory visualization |
+| Documents | Document management + semantic search |
+| Swarms | 6 topology visualizations |
+| Healing | Self-healing simulation + strategies |
+| Playground | Interactive workflow execution |
+| Timeline | LangSmith-style execution traces |
+| Cost Metrics | Token + cost dashboard |
+| Evaluations | 16 scenarios + results + comparisons |
+| Enterprise Ops | Operations Assistant UI |
+| Settings | Demo/Real mode toggle + API config |
 
-This enables real-time monitoring of agent workflows.
+**Bilingual:** Full ES/EN support with language toggle.
+**Demo Mode:** Works without backend using realistic demo data.
 
 ---
 
-## Technology Stack
+## Tech Stack
 
-**Core:**
-Python · FastAPI · PostgreSQL · pgvector · Redis · Docker
-
-**AI Integration:**
-Groq · Claude · LLM APIs
-
-**Infrastructure:**
-Docker · WebSockets · Async orchestration
-
----
-
-## Repository Structure
-
-```
-backend/
-  agents/         → agent implementations
-  orchestrator/   → workflow execution engine
-  memory/         → shared memory layers
-  rag/            → indexing and retrieval
-  providers/      → LLM routing and fallbacks
-  tests/          → system validation
-
-cli/              → command line interface
-
-frontend/         → monitoring dashboard
-
-docs/             → architecture documentation
-```
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.12, FastAPI, Pydantic v2 |
+| Database | PostgreSQL + pgvector |
+| Cache | Redis |
+| Embeddings | Voyage AI (512d) |
+| LLM | Groq (Llama 3.3 70B), Claude |
+| Frontend | React 18 + Vite |
+| Infra | Docker, Docker Compose |
+| Deploy | Vercel (frontend), Render-ready (backend) |
+| Monitoring | WebSocket streaming |
+| Testing | pytest (62+ tests) |
 
 ---
 
@@ -186,10 +189,16 @@ docs/             → architecture documentation
 
 | Metric | Value |
 |--------|-------|
-| Agents implemented | 22 |
-| Swarm topologies tested | 6 |
-| Test cases | 247 |
-| Architecture modules | orchestration, memory, routing, recovery |
+| AI Agents | 22 platform + 21 use-case agents |
+| Swarm Topologies | 6 |
+| Memory Tiers | 3 |
+| Self-healing Strategies | 5 |
+| Real Use Cases | 3 |
+| Evaluation Scenarios | 16 |
+| Tests | 62+ |
+| API Routers | 16 |
+| Frontend Pages | 14 |
+| SQLAlchemy Models | 8 |
 
 ---
 
@@ -198,84 +207,44 @@ docs/             → architecture documentation
 ```bash
 git clone https://github.com/christianescamilla15-cell/nexusforge-ai
 cd nexusforge-ai
-cp .env.example .env
+
+# Backend
+cp backend/.env.example backend/.env
 docker compose up --build
+
+# Frontend
+cd frontend
+npm install
+npm run dev
 ```
 
-Once running, you can access:
-- API endpoints
-- CLI interface
-- Monitoring dashboard
-
----
-
-## Demo Scenarios
-
-Suggested demo flows:
-
-### 1. Agent workflow execution
-Run a simple multi-agent pipeline.
-
-### 2. Swarm orchestration
-Trigger parallel agent execution.
-
-### 3. Failure recovery
-Simulate provider failure and observe fallback routing.
+**Entry points:**
+- API: `http://localhost:8000/docs`
+- Dashboard: `http://localhost:5173`
+- CLI: `python -m cli`
 
 ---
 
 ## Engineering Decisions
 
 ### Why DAG execution instead of linear chains?
-Complex AI workflows require branching, validation, retries, and checkpoints. DAG execution provides flexibility for non-linear workflows.
+Complex workflows need branching, validation, retries, and checkpoints. DAG execution supports non-linear coordination.
 
-### Why external memory instead of prompt-only context?
-Keeping memory external reduces context window limitations and enables shared state across agents.
+### Why external memory instead of long prompts?
+Agents stay stateless. Shared context lives in a 3-tier system — fast (Redis), persistent (PostgreSQL), semantic (pgvector).
 
 ### Why multiple LLM providers?
-Provider routing enables resilience and reduces dependency on a single API.
+Circuit breaker + failover between Groq and Claude reduces single-provider dependency.
 
 ---
 
-## Platform Capabilities
+## Documentation
 
-### Use Cases
-- **Enterprise Operations Assistant** — 8-agent business workflow (scheduling, contracts, expenses, onboarding)
-- **Document Intelligence** — 7-agent document processing (classification, extraction, OCR, multilingual)
-- **Portfolio Copilot** — 6-agent portfolio Q&A (architecture explanation, project comparison, recommendations)
-
-### Infrastructure
-- Execution Timeline (LangSmith-style traces with step inspector)
-- Workflow Playground (interactive execution with real-time streaming)
-- Cost + Token Dashboard (per-agent, per-model cost tracking)
-- Evaluation Harness (16 scenarios across 3 use cases, quality + latency + fallback metrics)
-- Self-Healing (5 recovery strategies: Retry, Skip, Repair, Escalate, Fallback)
-- Demo Mode (full UI functionality without backend connection)
-
----
-
-## Current Limitations
-
-This project is experimental and still evolving.
-
-Known limitations include:
-
-- Limited benchmarking data
-- Evaluation harness still in progress
-- Observability dashboards under development
-- Plugin ecosystem early stage
-
----
-
-## Future Work
-
-Planned improvements:
-
-- [ ] Evaluation framework for agent workflows
-- [ ] Latency benchmarking
-- [ ] Advanced observability dashboards
-- [ ] Plugin marketplace for agents
-- [ ] Improved cost monitoring
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — Full system architecture
+- [design-decisions.md](docs/design-decisions.md) — 5 key architectural decisions
+- [failure-recovery.md](docs/failure-recovery.md) — Layered recovery strategy
+- [architecture-diagram.md](docs/architecture-diagram.md) — Enterprise-grade diagrams
+- [IMPLEMENTATION_AUDIT.md](docs/IMPLEMENTATION_AUDIT.md) — Honest implementation audit
 
 ---
 
@@ -283,9 +252,11 @@ Planned improvements:
 
 Part of a broader AI systems portfolio:
 
-- [MindScrolling](https://github.com/christianescamilla15-cell/MindScrolling) — AI-powered mobile product
-- [Ad Analytics Pipeline](https://github.com/christianescamilla15-cell/ad-analytics-pipeline) — Marketing analytics platform
-- [HRScout](https://github.com/christianescamilla15-cell/hr-scout-llm) — AI candidate screening workflow
+- [MindScrolling](https://github.com/christianescamilla15-cell/MindScrolling) — AI-powered mobile product (Play Store)
+- [FinanceAI Dashboard](https://github.com/christianescamilla15-cell/finance-ai-dashboard) — Financial analytics platform
+- [Ad Analytics Pipeline](https://github.com/christianescamilla15-cell/ad-analytics-pipeline) — Marketing ETL platform
+- [HRScout](https://github.com/christianescamilla15-cell/hr-scout-llm) — AI candidate screening
+- [Playwright Automation](https://github.com/christianescamilla15-cell/playwright-automation) — Browser automation suite
 
 **Portfolio:** [ch65-portfolio.vercel.app](https://ch65-portfolio.vercel.app)
 
@@ -295,6 +266,6 @@ Part of a broader AI systems portfolio:
 
 **Christian Hernandez** — AI Systems Engineer
 
-Focused on multi-agent orchestration, AI product engineering, LLM pipelines, and data & analytics systems.
+Multi-agent orchestration, LLM pipelines, AI product engineering, and data & analytics systems.
 
 [GitHub](https://github.com/christianescamilla15-cell) · [Portfolio](https://ch65-portfolio.vercel.app) · [LinkedIn](https://linkedin.com/in/christianescamilla15-cell)
