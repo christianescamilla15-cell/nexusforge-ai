@@ -15,6 +15,7 @@ import HealingPage from './features/healing/HealingPage'
 import DocumentListPage from './features/documents/DocumentListPage'
 import SettingsPage from './features/settings/SettingsPage'
 import ChatAssistant from './features/chat/ChatAssistant'
+import EnterpriseOpsPage from './features/enterprise-ops/EnterpriseOpsPage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -93,6 +94,8 @@ export default function App() {
         return <HealingPage lang={lang} />
       case 'documents':
         return <DocumentListPage lang={lang} />
+      case 'enterprise-ops':
+        return <EnterpriseOpsPage lang={lang} />
       case 'settings':
         return (
           <SettingsPage

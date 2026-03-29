@@ -9,6 +9,7 @@ export const translations = {
     documents: 'Documents',
     settings: 'Settings',
     chat: 'AI Assistant',
+    'enterprise-ops': 'Enterprise Ops',
 
     // Dashboard
     totalWorkflows: 'Total Workflows',
@@ -283,6 +284,7 @@ export const translations = {
     documents: 'Documentos',
     settings: 'Configuración',
     chat: 'Asistente IA',
+    'enterprise-ops': 'Ops Empresariales',
 
     // Dashboard
     totalWorkflows: 'Total Flujos',

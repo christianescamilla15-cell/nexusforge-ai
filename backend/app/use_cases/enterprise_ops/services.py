@@ -5,15 +5,15 @@ from pathlib import Path
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 def load_customers():
-    with open(FIXTURES_DIR / "customers.json") as f:
+    with open(FIXTURES_DIR / "customers.json", encoding="utf-8") as f:
         return json.load(f)
 
 def load_policies():
-    with open(FIXTURES_DIR / "policies.json") as f:
+    with open(FIXTURES_DIR / "policies.json", encoding="utf-8") as f:
         return json.load(f)
 
 def load_calendar():
-    with open(FIXTURES_DIR / "calendar.json") as f:
+    with open(FIXTURES_DIR / "calendar.json", encoding="utf-8") as f:
         return json.load(f)
 
 def find_customer(customer_id: str) -> dict | None:

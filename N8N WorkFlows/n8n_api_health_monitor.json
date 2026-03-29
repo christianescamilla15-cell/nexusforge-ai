@@ -1,0 +1,94 @@
+{
+  "name": "API Health Monitor + Auto-Diagnose",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "minutes", "minutesInterval": 5}]}
+      },
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "id": "schedule-trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://mindscrolling.onrender.com/health",
+        "options": {"timeout": 10000}
+      },
+      "name": "Check API Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "id": "health-check"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true},
+          "conditions": [
+            {
+              "leftValue": "={{ $json.statusCode || 200 }}",
+              "rightValue": 200,
+              "operator": {"type": "number", "operation": "equals"}
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "API OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 0],
+      "id": "if-ok"
+    },
+    {
+      "parameters": {
+        "url": "https://mindscrolling.onrender.com/api/quotes/feed",
+        "options": {"timeout": 10000},
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "x-device-id", "value": "health-check-monitor"}]}
+      },
+      "name": "Check Feed Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -120],
+      "id": "check-feed"
+    },
+    {
+      "parameters": {
+        "modelId": {"__rl": true, "value": "llama3.1:8b", "mode": "list", "cachedResultName": "llama3.1:8b"},
+        "messages": {"values": [{"content": "=La API de MindScrolling (https://mindscrolling.onrender.com) esta caida o respondiendo con error.\n\nStatus code: {{ $json.statusCode }}\nError: {{ $json.error || 'No response' }}\n\nEl backend es Fastify + Supabase PostgreSQL desplegado en Render.\n\nDa un diagnostico rapido:\n1. Causa probable\n2. Pasos para investigar\n3. Solucion inmediata sugerida"}]},
+        "options": {}
+      },
+      "name": "AI Diagnostica Error",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [660, 120],
+      "id": "ai-diagnose",
+      "credentials": {"ollamaApi": {"id": "B3DJY1FgdiJW8LaF", "name": "Ollama account"}}
+    },
+    {
+      "parameters": {
+        "sendTo": "christianescamilla15@gmail.com",
+        "subject": "=ALERTA: MindScrolling API CAIDA",
+        "emailType": "text",
+        "message": "=La API de MindScrolling no responde.\n\nDiagnostico AI:\n{{ $json.content }}\n\nRevisa: https://dashboard.render.com\nSupabase: https://supabase.com/dashboard",
+        "options": {}
+      },
+      "name": "Alerta Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [880, 120],
+      "id": "alert-email",
+      "credentials": {"gmailOAuth2": {"id": "AxXoTW1JPu65iByD", "name": "Gmail account"}}
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {"main": [[{"node": "Check API Health", "type": "main", "index": 0}]]},
+    "Check API Health": {"main": [[{"node": "API OK?", "type": "main", "index": 0}]]},
+    "API OK?": {"main": [[{"node": "Check Feed Endpoint", "type": "main", "index": 0}], [{"node": "AI Diagnostica Error", "type": "main", "index": 0}]]},
+    "AI Diagnostica Error": {"main": [[{"node": "Alerta Email", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}

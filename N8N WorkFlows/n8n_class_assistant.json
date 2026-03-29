@@ -1,0 +1,178 @@
+{
+  "name": "Class Activity Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "event": "fileCreated"
+      },
+      "id": "drive-trigger",
+      "name": "Drive - Nuevo Archivo",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "fileName": "={{ $json.name }}"
+        },
+        "binaryPropertyName": "data"
+      },
+      "id": "drive-download",
+      "name": "Descargar Archivo",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "command": "={{ \n// Crear carpeta con fecha y nombre del archivo\nconst date = new Date().toISOString().slice(0,10);\nconst fileName = $('Drive - Nuevo Archivo').item.json.name.replace(/\\.[^/.]+$/, '');\nconst folderName = `${date}_${fileName}`.replace(/[^a-zA-Z0-9_-]/g, '_');\nconst basePath = `C:/Users/Chris/Desktop/Actividades/${folderName}`;\n\nreturn `mkdir -p \"${basePath}\" && echo \"${basePath}\"`;\n}}"
+      },
+      "id": "create-folder",
+      "name": "Crear Carpeta Local",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "command": "={{ \nconst basePath = $json.stdout.trim();\nconst fileName = $('Drive - Nuevo Archivo').item.json.name;\nreturn `cp /tmp/n8n_download \"${basePath}/${fileName}\"`;\n}}"
+      },
+      "id": "save-file",
+      "name": "Guardar Archivo",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "messages": {
+          "values": [
+            {
+              "content": "=Analiza el siguiente documento de una actividad escolar. Extrae:\n\n1. TITULO de la actividad\n2. INSTRUCCIONES paso a paso\n3. ENTREGABLES (que hay que entregar)\n4. FECHA LIMITE si se menciona\n5. HERRAMIENTAS necesarias (lenguaje de programacion, software, etc)\n\nDocumento: {{ $('Drive - Nuevo Archivo').item.json.name }}\nContenido: {{ $json.data }}\n\nResponde en formato estructurado y claro."
+            }
+          ]
+        },
+        "simplify": true
+      },
+      "id": "ollama-analyze",
+      "name": "Ollama Analiza Instrucciones",
+      "type": "@n8n/n8n-nodes-langchain.ollamaChat",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "command": "={{ \nconst basePath = $('Crear Carpeta Local').item.json.stdout.trim();\nconst analysis = $json.message.content.replace(/'/g, \"'\\''\");\n\n// Guardar analisis en archivo\nreturn `echo '${analysis}' > \"${basePath}/INSTRUCCIONES_AI.md\" && code \"${basePath}\"`;\n}}"
+      },
+      "id": "open-vscode",
+      "name": "Abrir VS Code + Claude Code",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "christianescamilla15@gmail.com",
+        "subject": "=Nueva actividad: {{ $('Drive - Nuevo Archivo').item.json.name }}",
+        "emailType": "text",
+        "message": "=Se detecto una nueva actividad en Drive.\n\n{{ $('Ollama Analiza Instrucciones').item.json.message.content }}\n\nLa carpeta ya fue creada y VS Code esta abierto.\nRevisa tu escritorio en la carpeta Actividades."
+      },
+      "id": "gmail-notify",
+      "name": "Notificar por Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1750, 300]
+    }
+  ],
+  "connections": {
+    "Drive - Nuevo Archivo": {
+      "main": [
+        [
+          {
+            "node": "Descargar Archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Archivo": {
+      "main": [
+        [
+          {
+            "node": "Crear Carpeta Local",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Carpeta Local": {
+      "main": [
+        [
+          {
+            "node": "Guardar Archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Archivo": {
+      "main": [
+        [
+          {
+            "node": "Ollama Analiza Instrucciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Analiza Instrucciones": {
+      "main": [
+        [
+          {
+            "node": "Abrir VS Code + Claude Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abrir VS Code + Claude Code": {
+      "main": [
+        [
+          {
+            "node": "Notificar por Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

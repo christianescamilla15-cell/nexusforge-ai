@@ -33,6 +33,11 @@ const STEPS = {
       description: 'Ejecuta escenarios de evaluación para medir el rendimiento de agentes. Rastrea tasas de éxito, latencia promedio, conteo de fallbacks y costo por ejecución en toda tu flota de agentes.',
     },
     {
+      icon: 'OPS',
+      title: 'Caso de Uso: Asistente de Operaciones Empresariales',
+      description: '8 agentes especializados procesan solicitudes de clientes: clasificación de intención, consulta de documentos, reprogramación de citas, actualización de CRM y generación de respuestas. Un caso real ejecutándose sobre el motor NexusForge.',
+    },
+    {
       icon: 'GO',
       title: 'Cómo Empezar',
       description: 'Explora el Dashboard para ver el estado del sistema. Usa Workflows para construir pipelines. Monitorea Ejecuciones en tiempo real. El Asistente IA está siempre disponible para responder preguntas.',
@@ -68,6 +73,11 @@ const STEPS = {
       icon: 'EVL',
       title: 'Evaluation: Measure What Matters',
       description: 'Run evaluation scenarios to benchmark agent performance. Track success rates, average latency, fallback counts, and cost per execution across your entire agent fleet.',
+    },
+    {
+      icon: 'OPS',
+      title: 'Use Case: Enterprise Operations Assistant',
+      description: '8 specialized agents process customer requests: intent classification, document lookup, meeting rescheduling, CRM updates, and response generation. A real use case running on the NexusForge engine.',
     },
     {
       icon: 'GO',
