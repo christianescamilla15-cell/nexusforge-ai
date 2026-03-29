@@ -12,14 +12,28 @@ from app.observability.tracing import get_tracer
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    get_tracer()  # Initialize OpenTelemetry tracing
-    await get_db_pool()
-    await get_redis()
+    # Startup — graceful: don't crash if DB/Redis unavailable
+    try:
+        get_tracer()
+    except Exception:
+        print("Warning: OpenTelemetry tracing not available")
+    try:
+        await get_db_pool()
+        print("PostgreSQL connected")
+    except Exception as e:
+        print(f"Warning: PostgreSQL not available: {e}")
+    try:
+        await get_redis()
+        print("Redis connected")
+    except Exception as e:
+        print(f"Warning: Redis not available: {e}")
     yield
     # Shutdown
-    await close_connections()
-    await close_mongo()
+    try:
+        await close_connections()
+        await close_mongo()
+    except Exception:
+        pass
 
 app = FastAPI(
     title=settings.app_name,
