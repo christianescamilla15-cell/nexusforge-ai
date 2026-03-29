@@ -240,7 +240,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {[
-              { key: 'es', label: 'Espanol' },
+              { key: 'es', label: 'Español' },
               { key: 'en', label: 'English' },
             ].map((option) => (
               <button
@@ -268,11 +268,11 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
         }}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ ...labelStyle, fontSize: 16 }}>
-              {lang === 'es' ? 'Diagnosticos' : 'Diagnostics'}
+              {lang === 'es' ? 'Diagnósticos' : 'Diagnostics'}
             </label>
             <p style={descStyle}>
               {lang === 'es'
-                ? 'Estado actual de la conexion y configuracion.'
+                ? 'Estado actual de la conexión y configuración.'
                 : 'Current connection status and configuration.'}
             </p>
           </div>
@@ -403,7 +403,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
           >
             {testing
               ? (lang === 'es' ? 'Probando...' : 'Testing...')
-              : (lang === 'es' ? 'Probar conexion' : 'Test Connection')}
+              : (lang === 'es' ? 'Probar conexión' : 'Test Connection')}
           </button>
         </div>
 

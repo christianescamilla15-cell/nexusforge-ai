@@ -6,10 +6,20 @@
 
 // ── Mode helpers ────────────────────────────────────────────────────────────
 
-/** Return the current mode: 'demo' or 'real'. */
+/** Return the current mode: 'demo' or 'real'.
+ *  If mode is 'real' but no API URL exists, auto-revert to 'demo'. */
 export function getMode() {
   if (typeof window === 'undefined') return 'demo'
-  return localStorage.getItem('nexusforge_mode') || 'demo'
+  const saved = localStorage.getItem('nexusforge_mode') || 'demo'
+  // Safety: if real mode but no URL configured, revert to demo
+  if (saved === 'real') {
+    const url = localStorage.getItem('nexusforge_api_url') || import.meta.env.VITE_API_URL || ''
+    if (!url) {
+      localStorage.setItem('nexusforge_mode', 'demo')
+      return 'demo'
+    }
+  }
+  return saved
 }
 
 /** Persist mode to localStorage and notify listeners. */
