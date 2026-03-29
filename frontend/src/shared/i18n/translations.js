@@ -10,6 +10,9 @@ export const translations = {
     settings: 'Settings',
     chat: 'AI Assistant',
     'enterprise-ops': 'Enterprise Ops',
+    playground: 'Playground',
+    'cost-metrics': 'Cost Metrics',
+    timeline: 'Timeline',
 
     // Dashboard
     totalWorkflows: 'Total Workflows',
@@ -285,6 +288,9 @@ export const translations = {
     settings: 'Configuración',
     chat: 'Asistente IA',
     'enterprise-ops': 'Ops Empresariales',
+    playground: 'Playground',
+    'cost-metrics': 'Metricas de Costos',
+    timeline: 'Timeline',
 
     // Dashboard
     totalWorkflows: 'Total Flujos',

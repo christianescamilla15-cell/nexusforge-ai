@@ -16,6 +16,9 @@ import DocumentListPage from './features/documents/DocumentListPage'
 import SettingsPage from './features/settings/SettingsPage'
 import ChatAssistant from './features/chat/ChatAssistant'
 import EnterpriseOpsPage from './features/enterprise-ops/EnterpriseOpsPage'
+import PlaygroundPage from './features/playground/PlaygroundPage'
+import CostTokenDashboard from './features/metrics/CostTokenDashboard'
+import ExecutionTimelineViewer from './features/executions/ExecutionTimelineViewer'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -96,6 +99,12 @@ export default function App() {
         return <DocumentListPage lang={lang} />
       case 'enterprise-ops':
         return <EnterpriseOpsPage lang={lang} />
+      case 'playground':
+        return <PlaygroundPage lang={lang} />
+      case 'cost-metrics':
+        return <CostTokenDashboard lang={lang} />
+      case 'timeline':
+        return <ExecutionTimelineViewer lang={lang} />
       case 'settings':
         return (
           <SettingsPage
