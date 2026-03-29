@@ -79,6 +79,13 @@ async def run_document_intelligence_workflow(request: DocumentIntelligenceInput)
         agents_used.append("SupervisorAgent")
         actions.append(f"supervisor: {supervisor['approval']}")
 
+        # Propagate LLM usage from supervisor
+        total_tokens = supervisor.get("total_tokens", 0)
+        total_cost = supervisor.get("cost_usd", 0.0)
+        provider_used = supervisor.get("provider", "none")
+        model_used = supervisor.get("model", "none")
+        llm_used = supervisor.get("llm_used", False)
+
         collector.end_run(tracked_id)
 
         return DocumentIntelligenceFinalOutput(
@@ -90,6 +97,13 @@ async def run_document_intelligence_workflow(request: DocumentIntelligenceInput)
             agents_used=agents_used, actions_taken=actions,
             processing_time_ms=round((time.time() - start_time) * 1000, 1),
             audit_summary=supervisor["audit_summary"],
+            provider=provider_used,
+            model=model_used,
+            total_tokens=total_tokens,
+            tokens_input=supervisor.get("tokens_input", 0),
+            tokens_output=supervisor.get("tokens_output", 0),
+            cost_usd=total_cost,
+            llm_used=llm_used,
         )
     except Exception as e:
         collector.end_run(tracked_id, status="failed")

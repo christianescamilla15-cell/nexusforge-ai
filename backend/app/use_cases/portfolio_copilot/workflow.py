@@ -52,6 +52,13 @@ async def run_portfolio_copilot_workflow(request: PortfolioCopilotInput) -> Port
         agents_used.append("SupervisorAgent")
         actions.append(f"supervisor: {'review' if r6['requires_human_review'] else 'approved'}")
 
+        # Propagate LLM usage from supervisor
+        total_tokens = r6.get("total_tokens", 0)
+        total_cost = r6.get("cost_usd", 0.0)
+        provider_used = r6.get("provider", "none")
+        model_used = r6.get("model", "none")
+        llm_used = r6.get("llm_used", False)
+
         collector.end_run(tid)
 
         return PortfolioCopilotFinalOutput(
@@ -65,6 +72,13 @@ async def run_portfolio_copilot_workflow(request: PortfolioCopilotInput) -> Port
             agents_used=agents_used, actions_taken=actions,
             processing_time_ms=round((time.time() - start) * 1000, 1),
             audit_summary=r6["audit_summary"],
+            provider=provider_used,
+            model=model_used,
+            total_tokens=total_tokens,
+            tokens_input=r6.get("tokens_input", 0),
+            tokens_output=r6.get("tokens_output", 0),
+            cost_usd=total_cost,
+            llm_used=llm_used,
         )
     except Exception as e:
         collector.end_run(tid, status="failed")

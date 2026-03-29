@@ -72,10 +72,41 @@ async def response_formatter_agent(q_type: str, question: str, rag_results: list
     return {"status": "success", "final_answer": answer, "recommended_project": recommended, "supporting_projects": supporting, "related_skills": related, "latency_ms": round((time.time() - start) * 1000, 1)}
 
 async def supervisor_agent(q_type: str, answer: str, projects_found: int, lang: str = "es") -> dict:
+    from ..shared.llm_client import llm_generate
+
     start = time.time()
     requires_review = projects_found == 0 or q_type == "general"
-    audit = {
-        "es": f"Consulta tipo '{q_type}' procesada. {projects_found} proyectos relevantes encontrados. {'Requiere revisión.' if requires_review else 'Respuesta generada automáticamente.'}",
-        "en": f"Query type '{q_type}' processed. {projects_found} relevant projects found. {'Requires review.' if requires_review else 'Response auto-generated.'}",
+
+    # Try LLM-enhanced audit summary
+    lang_label = "Spanish" if lang == "es" else "English"
+    prompt = (
+        f"Generate a brief audit summary for a portfolio query. "
+        f"Query type: '{q_type}', Projects found: {projects_found}, "
+        f"Requires review: {requires_review}. "
+        f"Language: {lang_label}. Keep it to 1-2 sentences."
+    )
+    llm = await llm_generate(prompt, system="You are a portfolio intelligence auditor. Be concise.")
+
+    if llm["llm_used"] and llm["text"]:
+        audit_text = llm["text"]
+    else:
+        # Fallback to rule-based audit
+        audit = {
+            "es": f"Consulta tipo '{q_type}' procesada. {projects_found} proyectos relevantes encontrados. {'Requiere revision.' if requires_review else 'Respuesta generada automaticamente.'}",
+            "en": f"Query type '{q_type}' processed. {projects_found} relevant projects found. {'Requires review.' if requires_review else 'Response auto-generated.'}",
+        }
+        audit_text = audit[lang]
+
+    return {
+        "status": "success",
+        "requires_human_review": requires_review,
+        "audit_summary": audit_text,
+        "latency_ms": round((time.time() - start) * 1000, 1),
+        "provider": llm.get("provider", "none"),
+        "model": llm.get("model", "none"),
+        "tokens_input": llm.get("tokens_input", 0),
+        "tokens_output": llm.get("tokens_output", 0),
+        "total_tokens": llm.get("total_tokens", 0),
+        "cost_usd": llm.get("cost_usd", 0.0),
+        "llm_used": llm.get("llm_used", False),
     }
-    return {"status": "success", "requires_human_review": requires_review, "audit_summary": audit[lang], "latency_ms": round((time.time() - start) * 1000, 1)}

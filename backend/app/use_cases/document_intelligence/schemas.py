@@ -51,3 +51,11 @@ class DocumentIntelligenceFinalOutput(BaseModel):
     actions_taken: List[str] = []
     processing_time_ms: Optional[float] = None
     audit_summary: str = ""
+    # LLM usage metadata
+    provider: str = "none"
+    model: str = "none"
+    total_tokens: int = 0
+    tokens_input: int = 0
+    tokens_output: int = 0
+    cost_usd: float = 0.0
+    llm_used: bool = False

@@ -7,6 +7,8 @@ const T = {
     subtitle: 'Monitor resource consumption, costs, and reliability across all runs.',
     totalTokens: 'Total Tokens',
     totalCost: 'Total Cost (USD)',
+    noLlm: 'No LLM usage — agents using rule-based logic (set GROQ_API_KEY to enable)',
+    provider: 'Provider',
     avgLatency: 'Avg Latency',
     retryCount: 'Total Retries',
     fallbackCount: 'Total Fallbacks',
@@ -34,6 +36,8 @@ const T = {
     subtitle: 'Monitorea consumo de recursos, costos y confiabilidad en todas las ejecuciones.',
     totalTokens: 'Tokens Totales',
     totalCost: 'Costo Total (USD)',
+    noLlm: 'Sin uso de LLM — agentes usando logica basada en reglas (configura GROQ_API_KEY para activar)',
+    provider: 'Proveedor',
     avgLatency: 'Latencia Prom.',
     retryCount: 'Total Reintentos',
     fallbackCount: 'Total Fallbacks',
@@ -94,6 +98,7 @@ export default function CostTokenDashboard({ lang = 'en' }) {
   const [isDemo, setIsDemo] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [providerStatus, setProviderStatus] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -143,6 +148,12 @@ export default function CostTokenDashboard({ lang = 'en' }) {
           }
         }))
         setIsDemo(false)
+      }
+
+      // Fetch provider status
+      const provRes = await fetchAPI('/providers/status')
+      if (!provRes.error && provRes.data) {
+        setProviderStatus(provRes.data)
       }
 
       if (demo) setIsDemo(true)
@@ -238,6 +249,31 @@ export default function CostTokenDashboard({ lang = 'en' }) {
           </div>
         ))}
       </div>
+
+      {/* No LLM info banner */}
+      {!isDemo && totalTokens === 0 && providerStatus && providerStatus.active_provider === 'none' && (
+        <div style={{
+          padding: '14px 18px', borderRadius: 10, marginBottom: 20,
+          background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.2)',
+          color: '#1E40AF', fontSize: 14, lineHeight: 1.6,
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+        }}>
+          <span style={{ flexShrink: 0, fontSize: 16 }}>{'\u2139\uFE0F'}</span>
+          <div>{tl('noLlm', lang)}</div>
+        </div>
+      )}
+
+      {/* Active provider badge */}
+      {providerStatus && providerStatus.active_provider !== 'none' && (
+        <div style={{
+          padding: '10px 16px', borderRadius: 10, marginBottom: 20,
+          background: 'rgba(5,150,105,0.06)', border: '1px solid rgba(5,150,105,0.2)',
+          color: '#065F46', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#059669', display: 'inline-block' }} />
+          <span><strong>{tl('provider', lang)}:</strong> {providerStatus.active_provider} ({providerStatus[providerStatus.active_provider]?.model || 'unknown'})</span>
+        </div>
+      )}
 
       {/* Per-Run Table */}
       <div style={{

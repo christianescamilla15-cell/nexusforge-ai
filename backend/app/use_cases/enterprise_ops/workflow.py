@@ -100,6 +100,13 @@ async def run_enterprise_ops_workflow(request: OperationsRequest) -> OperationsR
         collector.end_step(step8)
         agents_used.append("SupervisorAgent")
 
+        # Propagate LLM usage from supervisor
+        total_tokens = supervisor_result.get("total_tokens", 0)
+        total_cost = supervisor_result.get("cost_usd", 0.0)
+        provider_used = supervisor_result.get("provider", "none")
+        model_used = supervisor_result.get("model", "none")
+        llm_used = supervisor_result.get("llm_used", False)
+
         # Complete tracking
         collector.end_run(tracked_run_id)
 
@@ -117,6 +124,13 @@ async def run_enterprise_ops_workflow(request: OperationsRequest) -> OperationsR
             notification_sent=notification_sent,
             processing_time_ms=processing_time,
             agents_used=agents_used,
+            provider=provider_used,
+            model=model_used,
+            total_tokens=total_tokens,
+            tokens_input=supervisor_result.get("tokens_input", 0),
+            tokens_output=supervisor_result.get("tokens_output", 0),
+            cost_usd=total_cost,
+            llm_used=llm_used,
         )
 
     except Exception as e:

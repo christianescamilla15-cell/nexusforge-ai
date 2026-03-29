@@ -124,44 +124,61 @@ async def notification_agent(customer_name: str | None, intent: str, actions: li
 
 async def supervisor_agent(intent: str, customer_name: str | None, actions: list, documents: list, lang: str = "es") -> dict:
     """Reviews all agent outputs and generates the final response."""
+    from ..shared.llm_client import llm_generate
+
     start = time.time()
 
-    responses = {
-        "reschedule_meeting": {
-            "es": f"Hola {customer_name or 'estimado cliente'}, su reunión ha sido reprogramada exitosamente. Le enviaremos una confirmación por correo.",
-            "en": f"Hello {customer_name or 'dear customer'}, your meeting has been successfully rescheduled. We will send you a confirmation email.",
-        },
-        "verify_contract": {
-            "es": f"Hola {customer_name or 'estimado cliente'}, hemos verificado su contrato. {'La información de su cobertura ha sido enviada a su correo.' if documents else 'No encontramos documentos relacionados.'}",
-            "en": f"Hello {customer_name or 'dear customer'}, we have verified your contract. {'Your coverage information has been sent to your email.' if documents else 'No related documents found.'}",
-        },
-        "check_onboarding": {
-            "es": f"Hola {customer_name or 'estimado cliente'}, hemos verificado su elegibilidad para onboarding. Un especialista se pondrá en contacto en las próximas 24 horas.",
-            "en": f"Hello {customer_name or 'dear customer'}, we have verified your onboarding eligibility. A specialist will contact you within 24 hours.",
-        },
-        "consult_policy": {
-            "es": f"Hola {customer_name or 'estimado cliente'}, aquí está la información que solicitó sobre nuestras políticas.",
-            "en": f"Hello {customer_name or 'dear customer'}, here is the information you requested about our policies.",
-        },
-        "update_crm": {
-            "es": f"Hola {customer_name or 'estimado cliente'}, su información ha sido actualizada exitosamente en nuestro sistema.",
-            "en": f"Hello {customer_name or 'dear customer'}, your information has been successfully updated in our system.",
-        },
-    }
+    # Try LLM-enhanced response
+    lang_label = "Spanish" if lang == "es" else "English"
+    doc_titles = [d.get("title", "Document") for d in documents] if documents else []
+    prompt = (
+        f"Generate a professional customer response for intent '{intent}' "
+        f"for customer '{customer_name or 'unknown'}'. "
+        f"Actions taken: {actions}. "
+        f"Documents referenced: {doc_titles}. "
+        f"Language: {lang_label}. Keep it concise (2-3 sentences)."
+    )
+    llm = await llm_generate(prompt, system="You are a professional customer service assistant. Respond directly to the customer.")
 
-    default = {
-        "es": f"Hola {customer_name or 'estimado cliente'}, hemos procesado su solicitud. Un agente se comunicará con usted pronto.",
-        "en": f"Hello {customer_name or 'dear customer'}, we have processed your request. An agent will contact you shortly.",
-    }
+    if llm["llm_used"] and llm["text"]:
+        response_text = llm["text"]
+    else:
+        # Fallback to rule-based response
+        responses = {
+            "reschedule_meeting": {
+                "es": f"Hola {customer_name or 'estimado cliente'}, su reunión ha sido reprogramada exitosamente. Le enviaremos una confirmación por correo.",
+                "en": f"Hello {customer_name or 'dear customer'}, your meeting has been successfully rescheduled. We will send you a confirmation email.",
+            },
+            "verify_contract": {
+                "es": f"Hola {customer_name or 'estimado cliente'}, hemos verificado su contrato. {'La información de su cobertura ha sido enviada a su correo.' if documents else 'No encontramos documentos relacionados.'}",
+                "en": f"Hello {customer_name or 'dear customer'}, we have verified your contract. {'Your coverage information has been sent to your email.' if documents else 'No related documents found.'}",
+            },
+            "check_onboarding": {
+                "es": f"Hola {customer_name or 'estimado cliente'}, hemos verificado su elegibilidad para onboarding. Un especialista se pondrá en contacto en las próximas 24 horas.",
+                "en": f"Hello {customer_name or 'dear customer'}, we have verified your onboarding eligibility. A specialist will contact you within 24 hours.",
+            },
+            "consult_policy": {
+                "es": f"Hola {customer_name or 'estimado cliente'}, aquí está la información que solicitó sobre nuestras políticas.",
+                "en": f"Hello {customer_name or 'dear customer'}, here is the information you requested about our policies.",
+            },
+            "update_crm": {
+                "es": f"Hola {customer_name or 'estimado cliente'}, su información ha sido actualizada exitosamente en nuestro sistema.",
+                "en": f"Hello {customer_name or 'dear customer'}, your information has been successfully updated in our system.",
+            },
+        }
 
-    response_text = responses.get(intent, default).get(lang, default["en"])
+        default = {
+            "es": f"Hola {customer_name or 'estimado cliente'}, hemos procesado su solicitud. Un agente se comunicará con usted pronto.",
+            "en": f"Hello {customer_name or 'dear customer'}, we have processed your request. An agent will contact you shortly.",
+        }
 
-    if documents:
-        doc_titles = [d.get("title", "Documento") for d in documents]
-        if lang == "es":
-            response_text += f"\n\nDocumentos consultados: {', '.join(doc_titles)}"
-        else:
-            response_text += f"\n\nDocuments consulted: {', '.join(doc_titles)}"
+        response_text = responses.get(intent, default).get(lang, default["en"])
+
+        if documents:
+            if lang == "es":
+                response_text += f"\n\nDocumentos consultados: {', '.join(doc_titles)}"
+            else:
+                response_text += f"\n\nDocuments consulted: {', '.join(doc_titles)}"
 
     return {
         "status": "success",
@@ -171,4 +188,11 @@ async def supervisor_agent(intent: str, customer_name: str | None, actions: list
         "documents_referenced": len(documents),
         "quality_score": 0.95,
         "latency_ms": round((time.time() - start) * 1000, 1),
+        "provider": llm.get("provider", "none"),
+        "model": llm.get("model", "none"),
+        "tokens_input": llm.get("tokens_input", 0),
+        "tokens_output": llm.get("tokens_output", 0),
+        "total_tokens": llm.get("total_tokens", 0),
+        "cost_usd": llm.get("cost_usd", 0.0),
+        "llm_used": llm.get("llm_used", False),
     }

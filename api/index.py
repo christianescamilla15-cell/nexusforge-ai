@@ -119,6 +119,25 @@ async def copilot_examples():
     except Exception as e:
         return {"questions": [], "error": str(e)}
 
+# ── Provider Status ──
+@app.get("/api/providers/status")
+async def providers_status():
+    import os
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    return {
+        "groq": {"configured": bool(groq_key), "model": "llama-3.3-70b-versatile"},
+        "claude": {"configured": bool(anthropic_key), "model": "claude-sonnet-4-20250514"},
+        "openai": {"configured": bool(openai_key), "model": "gpt-4o"},
+        "active_provider": (
+            "groq" if groq_key
+            else "claude" if anthropic_key
+            else "openai" if openai_key
+            else "none"
+        ),
+    }
+
 # ── Runs (in-memory) ──
 @app.get("/api/runs")
 async def list_runs():

@@ -51,12 +51,43 @@ async def storage_agent(run_id: str, doc_type: str, fields: dict, summary: str, 
 
 
 async def supervisor_agent(doc_type: str, fields: dict, is_valid: bool, errors: list, summary: str, confidence: float, lang: str = "es") -> dict:
+    from ..shared.llm_client import llm_generate
+
     start = time.time()
     requires_review = (not is_valid) or (confidence < 0.7) or (doc_type == "unknown") or (len(errors) > 2)
 
-    audit = {
-        "es": f"Documento tipo '{doc_type}' procesado. {'Válido' if is_valid else 'Con errores'}. {len(fields)} campos extraídos. Confianza: {confidence:.0%}. {'Requiere revisión humana.' if requires_review else 'Aprobado automáticamente.'}",
-        "en": f"Document type '{doc_type}' processed. {'Valid' if is_valid else 'Has errors'}. {len(fields)} fields extracted. Confidence: {confidence:.0%}. {'Requires human review.' if requires_review else 'Auto-approved.'}",
-    }
+    # Try LLM-enhanced audit summary
+    lang_label = "Spanish" if lang == "es" else "English"
+    prompt = (
+        f"Generate a brief audit summary for a processed document. "
+        f"Type: '{doc_type}', Valid: {is_valid}, Fields extracted: {len(fields)}, "
+        f"Errors: {len(errors)}, Confidence: {confidence:.0%}, "
+        f"Requires review: {requires_review}. "
+        f"Language: {lang_label}. Keep it to 1-2 sentences."
+    )
+    llm = await llm_generate(prompt, system="You are a document processing auditor. Be concise and professional.")
 
-    return {"status": "success", "requires_human_review": requires_review, "audit_summary": audit[lang], "approval": "auto" if not requires_review else "pending_review", "latency_ms": round((time.time() - start) * 1000, 1)}
+    if llm["llm_used"] and llm["text"]:
+        audit_text = llm["text"]
+    else:
+        # Fallback to rule-based audit
+        audit = {
+            "es": f"Documento tipo '{doc_type}' procesado. {'Valido' if is_valid else 'Con errores'}. {len(fields)} campos extraidos. Confianza: {confidence:.0%}. {'Requiere revision humana.' if requires_review else 'Aprobado automaticamente.'}",
+            "en": f"Document type '{doc_type}' processed. {'Valid' if is_valid else 'Has errors'}. {len(fields)} fields extracted. Confidence: {confidence:.0%}. {'Requires human review.' if requires_review else 'Auto-approved.'}",
+        }
+        audit_text = audit[lang]
+
+    return {
+        "status": "success",
+        "requires_human_review": requires_review,
+        "audit_summary": audit_text,
+        "approval": "auto" if not requires_review else "pending_review",
+        "latency_ms": round((time.time() - start) * 1000, 1),
+        "provider": llm.get("provider", "none"),
+        "model": llm.get("model", "none"),
+        "tokens_input": llm.get("tokens_input", 0),
+        "tokens_output": llm.get("tokens_output", 0),
+        "total_tokens": llm.get("total_tokens", 0),
+        "cost_usd": llm.get("cost_usd", 0.0),
+        "llm_used": llm.get("llm_used", False),
+    }
