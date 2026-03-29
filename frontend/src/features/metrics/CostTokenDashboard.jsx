@@ -131,14 +131,17 @@ export default function CostTokenDashboard({ lang = 'en' }) {
         return
       }
       if (!runsRes.isDemo && runsRes.data?.runs) {
-        setRuns(runsRes.data.runs.map(r => ({
-          id: r.id,
-          workflow: r.workflow_name,
-          duration_ms: r.latency_ms,
-          tokens: r.tokens || Math.round(r.latency_ms * 0.5),
-          cost: r.cost || (r.latency_ms * 0.5 * 0.000003),
-          status: r.status,
-        })))
+        setRuns(runsRes.data.runs.map(r => {
+          const latency = r.total_latency_ms || r.latency_ms || 0
+          return {
+            id: r.id,
+            workflow: r.workflow_name,
+            duration_ms: latency,
+            tokens: r.total_tokens || r.tokens || 0,
+            cost: r.total_cost || r.cost || 0,
+            status: r.status,
+          }
+        }))
         setIsDemo(false)
       }
 
@@ -148,13 +151,13 @@ export default function CostTokenDashboard({ lang = 'en' }) {
     load()
   }, [])
 
-  const totalTokens = runs.reduce((s, r) => s + r.tokens, 0)
-  const totalCost = runs.reduce((s, r) => s + r.cost, 0)
-  const avgLatency = Math.round(runs.reduce((s, r) => s + r.duration_ms, 0) / runs.length)
-  const totalRetries = agents.reduce((s, a) => s + a.retries, 0)
-  const totalFallbacks = agents.reduce((s, a) => s + a.fallbacks, 0)
+  const totalTokens = runs.reduce((s, r) => s + (r.tokens || 0), 0)
+  const totalCost = runs.reduce((s, r) => s + (r.cost || 0), 0)
+  const avgLatency = runs.length > 0 ? Math.round(runs.reduce((s, r) => s + (r.duration_ms || 0), 0) / runs.length) : 0
+  const totalRetries = agents.reduce((s, a) => s + (a.retries || 0), 0)
+  const totalFallbacks = agents.reduce((s, a) => s + (a.fallbacks || 0), 0)
   const successCount = runs.filter(r => r.status === 'completed').length
-  const successRate = ((successCount / runs.length) * 100).toFixed(1)
+  const successRate = runs.length > 0 ? ((successCount / runs.length) * 100).toFixed(1) : '0.0'
 
   const kpis = [
     { label: tl('totalTokens', lang), value: totalTokens.toLocaleString(), color: '#2563EB' },
