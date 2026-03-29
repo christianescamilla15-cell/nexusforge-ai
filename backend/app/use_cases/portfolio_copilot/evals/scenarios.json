@@ -1,0 +1,8 @@
+[
+  {"name": "best_for_orchestration", "question": "Which project best demonstrates multi-agent orchestration?", "language": "en", "expected_type": "best_project", "expected_project": "NexusForge AI"},
+  {"name": "best_for_observability", "question": "¿Qué proyecto muestra mejor fallback y observabilidad?", "language": "es", "expected_type": "best_project", "expected_project": "NexusForge AI"},
+  {"name": "compare_projects", "question": "Compare NexusForge and MindScrolling technically", "language": "en", "expected_type": "comparison"},
+  {"name": "skills_mapping", "question": "¿Qué habilidades se demuestran en el portafolio?", "language": "es", "expected_type": "skills_mapping"},
+  {"name": "backend_recruiter", "question": "Which experience fits backend AI systems work?", "language": "en", "expected_type": "skills_mapping"},
+  {"name": "product_oriented", "question": "¿Cuál es el proyecto más orientado a producto?", "language": "es", "expected_type": "best_project", "expected_project": "MindScrolling"}
+]

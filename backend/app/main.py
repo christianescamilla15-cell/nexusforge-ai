@@ -7,6 +7,7 @@ from app.db.mongo_client import close_mongo
 from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth, metrics, workflow_runs, executions_db, evaluation
 from app.routes.enterprise_ops import router as enterprise_ops_router
 from app.routes.document_intelligence import router as doc_intel_router
+from app.routes.portfolio_copilot import router as portfolio_copilot_router
 from app.observability.tracing import get_tracer
 
 @asynccontextmanager
@@ -50,3 +51,4 @@ app.include_router(executions_db.router, prefix="/api", tags=["executions-db"])
 app.include_router(evaluation.router, prefix="/api", tags=["evaluation"])
 app.include_router(enterprise_ops_router, prefix="/api")
 app.include_router(doc_intel_router, prefix="/api")
+app.include_router(portfolio_copilot_router, prefix="/api")

@@ -1,0 +1,10 @@
+[
+  {"id": "Q1", "question_es": "¿Cuál proyecto demuestra mejor la orquestación multi-agente?", "question_en": "Which project best demonstrates multi-agent orchestration?", "type": "best_project", "expected_project": "nexusforge-ai"},
+  {"id": "Q2", "question_es": "¿Qué proyecto muestra mejor fallback y observabilidad?", "question_en": "What project shows fallback and observability best?", "type": "best_project", "expected_project": "nexusforge-ai"},
+  {"id": "Q3", "question_es": "¿Qué experiencia se alinea mejor con trabajo en sistemas backend de IA?", "question_en": "Which experience best fits backend AI systems work?", "type": "skills_mapping", "expected_skills": ["Python", "FastAPI", "multi-agent", "RAG"]},
+  {"id": "Q4", "question_es": "Compara NexusForge y MindScrolling técnicamente.", "question_en": "Compare NexusForge and MindScrolling technically.", "type": "comparison", "expected_projects": ["nexusforge-ai", "mindscrolling"]},
+  {"id": "Q5", "question_es": "¿Qué habilidades se demuestran en todo el portafolio?", "question_en": "What skills are demonstrated across the portfolio?", "type": "skills_mapping"},
+  {"id": "Q6", "question_es": "¿Cuál es el proyecto más orientado a producto?", "question_en": "Which is the most product-oriented project?", "type": "best_project", "expected_project": "mindscrolling"},
+  {"id": "Q7", "question_es": "¿Qué proyecto tiene mejor cobertura de testing?", "question_en": "Which project has the best testing coverage?", "type": "best_project", "expected_project": "nexusforge-ai"},
+  {"id": "Q8", "question_es": "¿Cómo se aplica RAG en el portafolio?", "question_en": "How is RAG applied in the portfolio?", "type": "technical_deep_dive"}
+]

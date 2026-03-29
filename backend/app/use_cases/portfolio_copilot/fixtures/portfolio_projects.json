@@ -1,0 +1,86 @@
+[
+  {
+    "id": "nexusforge-ai",
+    "name": "NexusForge AI",
+    "type": "AI Orchestration Platform",
+    "description_es": "Plataforma de orquestación multi-agente con 22 agentes, 6 topologías de enjambre, memoria de 3 niveles, auto-reparación, RAG con pgvector, y observabilidad persistente.",
+    "description_en": "Multi-agent orchestration platform with 22 agents, 6 swarm topologies, 3-tier memory, self-healing, RAG with pgvector, and persistent observability.",
+    "stack": ["Python", "FastAPI", "PostgreSQL", "pgvector", "Redis", "Docker", "Terraform", "React"],
+    "metrics": {"agents": 22, "topologies": 6, "tests": 247, "memory_tiers": 3},
+    "strengths": ["multi-agent orchestration", "DAG execution", "self-healing", "observability", "evaluation harness", "provider fallback", "circuit breaker"],
+    "demo": "https://frontend-silk-three-66.vercel.app",
+    "github": "https://github.com/christianescamilla15-cell/nexusforge-ai"
+  },
+  {
+    "id": "mindscrolling",
+    "name": "MindScrolling",
+    "type": "AI Mobile Product",
+    "description_es": "App móvil anti doom-scrolling con recomendación adaptativa usando pgvector (similitud coseno + EMA). Publicada en Google Play con 13K+ citas y scoring conductual.",
+    "description_en": "Anti doom-scrolling mobile app with adaptive recommendation using pgvector (cosine similarity + EMA). Published on Google Play with 13K+ quotes and behavioral scoring.",
+    "stack": ["Flutter", "Fastify", "Supabase", "pgvector", "Dart"],
+    "metrics": {"quotes": 13000, "ci_cd_pipelines": 14, "platforms": "Android/iOS"},
+    "strengths": ["AI product", "recommendation system", "mobile UX", "behavioral AI", "pgvector", "Play Store published"],
+    "demo": "https://github.com/christianescamilla15-cell/MindScrolling/releases",
+    "github": "https://github.com/christianescamilla15-cell/MindScrolling"
+  },
+  {
+    "id": "finance-ai-dashboard",
+    "name": "FinanceAI Dashboard",
+    "type": "AI Analytics Platform",
+    "description_es": "Plataforma de analítica financiera con detección de anomalías (z-score), forecasting con regresión lineal, y chatbot IA con 5 tools de Claude.",
+    "description_en": "Financial analytics platform with anomaly detection (z-score), forecasting with linear regression, and AI chatbot with 5 Claude tools.",
+    "stack": ["React", "Python", "Claude API", "Recharts"],
+    "metrics": {"tests": 104, "categories": 7, "tools": 5},
+    "strengths": ["anomaly detection", "ML forecasting", "AI chatbot", "data visualization", "financial analytics"],
+    "demo": "https://finance-ai-dashboard-omega.vercel.app",
+    "github": "https://github.com/christianescamilla15-cell/finance-ai-dashboard"
+  },
+  {
+    "id": "hr-scout-llm",
+    "name": "HRScout LLM",
+    "type": "AI Screening System",
+    "description_es": "Screening de candidatos con pipeline de 4 agentes IA, Claude Tool Use con 5 herramientas, scoring 0-100 y radar chart.",
+    "description_en": "Candidate screening with 4-agent pipeline, Claude Tool Use with 5 tools, 0-100 scoring and radar chart.",
+    "stack": ["React", "Claude API", "FastAPI"],
+    "metrics": {"tests": 103, "agents": 4, "scoring_range": "0-100"},
+    "strengths": ["multi-agent pipeline", "Claude Tool Use", "scoring system", "HR tech"],
+    "demo": "https://hr-scout-llm.vercel.app",
+    "github": "https://github.com/christianescamilla15-cell/hr-scout-llm"
+  },
+  {
+    "id": "ad-analytics-pipeline",
+    "name": "Ad Analytics Pipeline",
+    "type": "Data Engineering Platform",
+    "description_es": "Pipeline ETL unificado para Meta Ads + Google Ads + GA4 con OCR de facturas, detección de anomalías y dashboard de analytics.",
+    "description_en": "Unified ETL pipeline for Meta Ads + Google Ads + GA4 with invoice OCR, anomaly detection, and analytics dashboard.",
+    "stack": ["Python", "FastAPI", "React", "Meta API", "Google API", "Docker"],
+    "metrics": {"tests": 124, "platforms": 3, "endpoints": 28},
+    "strengths": ["ETL pipeline", "multi-platform integration", "anomaly detection", "data engineering"],
+    "demo": "https://ad-analytics-pipeline.vercel.app",
+    "github": "https://github.com/christianescamilla15-cell/ad-analytics-pipeline"
+  },
+  {
+    "id": "playwright-automation",
+    "name": "Playwright Automation",
+    "type": "Automation System",
+    "description_es": "Suite de automatización con 3 scrapers reales, scheduler SQLite, CLI y tests E2E. Zero mocks — todos los scrapers ejecutan contra sitios reales.",
+    "description_en": "Automation suite with 3 real scrapers, SQLite scheduler, CLI, and E2E tests. Zero mocks — all scrapers run against real websites.",
+    "stack": ["Python", "Playwright", "SQLite", "pytest", "Docker"],
+    "metrics": {"tests": 54, "scrapers": 3, "mocks": 0},
+    "strengths": ["browser automation", "real scraping", "E2E testing", "zero mocks", "production automation"],
+    "demo": null,
+    "github": "https://github.com/christianescamilla15-cell/playwright-automation"
+  },
+  {
+    "id": "ai-document-pipeline",
+    "name": "AI Document Pipeline",
+    "type": "Document Intelligence",
+    "description_es": "Pipeline de inteligencia documental con 4 agentes CrewAI y 2 servidores MCP (Filesystem + SQLite).",
+    "description_en": "Document intelligence pipeline with 4 CrewAI agents and 2 MCP servers (Filesystem + SQLite).",
+    "stack": ["Python", "CrewAI", "MCP", "FastAPI", "Docker"],
+    "metrics": {"tests": 44, "agents": 4, "mcp_servers": 2},
+    "strengths": ["CrewAI", "MCP servers", "document processing", "multi-agent"],
+    "demo": "https://ai-document-pipeline.vercel.app",
+    "github": "https://github.com/christianescamilla15-cell/ai-document-pipeline"
+  }
+]
