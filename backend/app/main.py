@@ -5,6 +5,7 @@ from app.config import settings
 from app.db.client import get_db_pool, get_redis, close_connections
 from app.db.mongo_client import close_mongo
 from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth, metrics, workflow_runs, executions_db, evaluation
+from app.routes.enterprise_ops import router as enterprise_ops_router
 from app.observability.tracing import get_tracer
 
 @asynccontextmanager
@@ -46,3 +47,4 @@ app.include_router(metrics.router, prefix="/api", tags=["metrics"])
 app.include_router(workflow_runs.router, prefix="/api", tags=["workflow-runs"])
 app.include_router(executions_db.router, prefix="/api", tags=["executions-db"])
 app.include_router(evaluation.router, prefix="/api", tags=["evaluation"])
+app.include_router(enterprise_ops_router, prefix="/api")

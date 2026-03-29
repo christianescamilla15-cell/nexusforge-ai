@@ -1,0 +1,7 @@
+[
+  {"id": "CUST-001", "name": "María González", "email": "maria@empresa.mx", "plan": "Enterprise", "contract_status": "active", "renewal_date": "2026-12-15", "account_manager": "Carlos Ruiz", "notes": "Cliente VIP, 3 años de antigüedad"},
+  {"id": "CUST-002", "name": "Roberto Hernández", "email": "roberto@startup.io", "plan": "Professional", "contract_status": "active", "renewal_date": "2026-08-01", "account_manager": "Ana López", "notes": "Interesado en upgrade a Enterprise"},
+  {"id": "CUST-003", "name": "Laura Martínez", "email": "laura@corp.com", "plan": "Basic", "contract_status": "expiring", "renewal_date": "2026-04-30", "account_manager": "Carlos Ruiz", "notes": "Pendiente renovación"},
+  {"id": "CUST-004", "name": "James Wilson", "email": "james@global.co", "plan": "Enterprise", "contract_status": "active", "renewal_date": "2027-01-15", "account_manager": "Ana López", "notes": "English-speaking client, multi-region deployment"},
+  {"id": "CUST-005", "name": "Sofia Chen", "email": "sofia@tech.dev", "plan": "Professional", "contract_status": "trial", "renewal_date": "2026-05-15", "account_manager": "Carlos Ruiz", "notes": "Trial period, evaluating for team of 50"}
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "reschedule_meeting_es",
+    "input": {"message": "Necesito reprogramar mi reunión del viernes", "customer_id": "CUST-001", "language": "es"},
+    "expected_intent": "reschedule_meeting",
+    "expected_agents_min": 7
+  },
+  {
+    "name": "verify_contract_en",
+    "input": {"message": "Can you check my support coverage?", "customer_id": "CUST-004", "language": "en"},
+    "expected_intent": "verify_contract",
+    "expected_agents_min": 6
+  },
+  {
+    "name": "check_onboarding_es",
+    "input": {"message": "¿Soy elegible para onboarding gratuito?", "customer_id": "CUST-005", "language": "es"},
+    "expected_intent": "check_onboarding",
+    "expected_agents_min": 6
+  },
+  {
+    "name": "no_customer_general",
+    "input": {"message": "What are your policies?", "language": "en"},
+    "expected_intent": "consult_policy",
+    "expected_agents_min": 5
+  }
+]
