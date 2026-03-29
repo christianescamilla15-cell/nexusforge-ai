@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { getMode, setMode, getApiUrl, setApiUrl as persistApiUrl, checkBackendHealth, getApiUrlSource } from '../../services/api'
 
-export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
+export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme = 'light', setTheme }) {
   const [currentMode, setCurrentMode] = useState(() => getMode())
   const [apiUrl, setApiUrl] = useState(() => getApiUrl())
-  const [darkMode] = useState(true)
+  const isDark = theme === 'dark'
   const [tourResetDone, setTourResetDone] = useState(false)
   const [backendStatus, setBackendStatus] = useState(null)
   const [testing, setTesting] = useState(false)
@@ -212,23 +212,38 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
         </div>
 
         {/* Theme */}
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <label style={labelStyle}>{t('theme', lang)}</label>
-              <p style={descStyle}>{t('themeDesc', lang)}</p>
-            </div>
-            <div style={{
-              width: 44, height: 24, borderRadius: 12, padding: 2,
-              background: darkMode ? '#6366F1' : '#D1D5DB',
-              opacity: 0.5, cursor: 'not-allowed', transition: 'background 0.2s',
-            }}>
-              <div style={{
-                width: 20, height: 20, borderRadius: '50%', background: '#fff',
-                transform: darkMode ? 'translateX(20px)' : 'translateX(0)',
-                transition: 'transform 0.2s',
-              }} />
-            </div>
+        <div style={isDark ? cardStyleDark : cardStyle}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={isDark ? labelStyleDark : labelStyle}>{t('theme', lang)}</label>
+            <p style={descStyle}>{t('themeDesc', lang)}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setTheme && setTheme('light')}
+              style={{
+                padding: '8px 20px', borderRadius: 8,
+                background: !isDark ? '#2563EB' : 'transparent',
+                color: !isDark ? '#fff' : '#6B7280',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
+                cursor: 'pointer', fontSize: 14, fontWeight: 500,
+                transition: 'all 0.15s',
+              }}
+            >
+              {lang === 'es' ? 'Claro' : 'Light'}
+            </button>
+            <button
+              onClick={() => setTheme && setTheme('dark')}
+              style={{
+                padding: '8px 20px', borderRadius: 8,
+                background: isDark ? '#6366F1' : 'transparent',
+                color: isDark ? '#fff' : '#6B7280',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
+                cursor: 'pointer', fontSize: 14, fontWeight: 500,
+                transition: 'all 0.15s',
+              }}
+            >
+              {lang === 'es' ? 'Oscuro' : 'Dark'}
+            </button>
           </div>
         </div>
 
@@ -464,8 +479,18 @@ const cardStyle = {
   padding: 20,
 }
 
+const cardStyleDark = {
+  background: '#1E1F33', borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  padding: 20,
+}
+
 const labelStyle = {
   display: 'block', fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2,
+}
+
+const labelStyleDark = {
+  display: 'block', fontSize: 14, fontWeight: 600, color: '#E5E7EB', marginBottom: 2,
 }
 
 const descStyle = {

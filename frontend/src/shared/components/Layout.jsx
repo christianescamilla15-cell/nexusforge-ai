@@ -23,7 +23,8 @@ const sidebarWidth = 240
 const collapsedWidth = 64
 const topBarHeight = 56
 
-export default function Layout({ currentPage, onNavigate, children, lang, toggleLang }) {
+export default function Layout({ currentPage, onNavigate, children, lang, toggleLang, theme = 'light', setTheme }) {
+  const isDark = theme === 'dark'
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -46,14 +47,14 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
   const w = isMobile ? sidebarWidth : (collapsed ? collapsedWidth : sidebarWidth)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: isDark ? '#0F1117' : '#F9FAFB' }}>
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
           aria-label="Close sidebar overlay"
           style={{
-            position: 'fixed', inset: 0, background: '#F3F4F6',
+            position: 'fixed', inset: 0, background: isDark ? 'rgba(0,0,0,0.6)' : '#F3F4F6',
             zIndex: 40,
           }}
         />
@@ -69,8 +70,8 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           position: 'fixed',
           top: 0,
           left: isMobile ? (mobileOpen ? 0 : -sidebarWidth) : 0,
-          background: '#FFFFFF',
-          borderRight: '1px solid #E5E7EB',
+          background: isDark ? '#0F1117' : '#FFFFFF',
+          borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
           display: 'flex',
           flexDirection: 'column',
           transition: isMobile ? 'left 0.3s ease' : 'width 0.2s ease',
@@ -81,18 +82,18 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         {/* Logo */}
         <div style={{
           height: topBarHeight, display: 'flex', alignItems: 'center',
-          padding: '0 16px', gap: 10, borderBottom: '1px solid #E5E7EB',
+          padding: '0 16px', gap: 10, borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
           flexShrink: 0,
         }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, background: '#2563EB',
+            width: 32, height: 32, borderRadius: 8, background: isDark ? '#6366F1' : '#2563EB',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0,
           }}>
             NF
           </div>
           {(!collapsed || isMobile) && (
-            <span style={{ fontWeight: 700, fontSize: 16, color: '#111827', whiteSpace: 'nowrap' }}>
+            <span style={{ fontWeight: 700, fontSize: 16, color: isDark ? '#E5E7EB' : '#111827', whiteSpace: 'nowrap' }}>
               NexusForge
             </span>
           )}
@@ -114,14 +115,14 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
                   padding: showLabel ? '10px 12px' : '10px 0',
                   justifyContent: showLabel ? 'flex-start' : 'center',
                   borderRadius: 8, border: 'none', width: '100%',
-                  background: active ? 'rgba(37,99,235,0.08)' : 'transparent',
-                  color: active ? '#2563EB' : '#4B5563',
+                  background: active ? (isDark ? 'rgba(99,102,241,0.15)' : 'rgba(37,99,235,0.08)') : 'transparent',
+                  color: active ? (isDark ? '#818CF8' : '#2563EB') : (isDark ? '#9CA3AF' : '#4B5563'),
                   fontSize: 14, fontWeight: active ? 600 : 400,
                   transition: 'all 0.15s', cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
                 onMouseEnter={(e) => {
-                  if (!active) e.currentTarget.style.background = '#F3F4F6'
+                  if (!active) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6'
                 }}
                 onMouseLeave={(e) => {
                   if (!active) e.currentTarget.style.background = 'transparent'
@@ -141,7 +142,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         {/* Collapse toggle -- hidden on mobile */}
         {!isMobile && (
           <div style={{
-            padding: 8, borderTop: '1px solid #E5E7EB', flexShrink: 0,
+            padding: 8, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`, flexShrink: 0,
           }}>
             <button
               onClick={() => setCollapsed((c) => !c)}
@@ -152,7 +153,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
                 background: 'transparent', color: '#9CA3AF', cursor: 'pointer',
                 transition: 'color 0.15s',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#111827'}
+              onMouseEnter={(e) => e.currentTarget.style.color = isDark ? '#E5E7EB' : '#111827'}
               onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -176,8 +177,8 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         <header style={{
           height: topBarHeight, display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', padding: isMobile ? '0 12px' : '0 24px',
-          borderBottom: '1px solid #E5E7EB',
-          background: '#FFFFFF', position: 'sticky', top: 0, zIndex: 30,
+          borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
+          background: isDark ? '#0F1117' : '#FFFFFF', position: 'sticky', top: 0, zIndex: 30,
           gap: 8,
         }}>
           {/* Mobile toggle */}
@@ -187,7 +188,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               aria-label="Open menu"
               style={{
                 background: 'none', border: 'none',
-                color: '#4B5563', padding: 4, flexShrink: 0,
+                color: isDark ? '#9CA3AF' : '#4B5563', padding: 4, flexShrink: 0,
               }}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -214,12 +215,12 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               aria-label={t('search', lang)}
               style={{
                 width: '100%', padding: '8px 12px 8px 36px', borderRadius: 8,
-                border: '1px solid #E5E7EB', background: '#F9FAFB',
-                color: '#111827', fontSize: 14, outline: 'none',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'}`, background: isDark ? '#1A1B2E' : '#F9FAFB',
+                color: isDark ? '#E5E7EB' : '#111827', fontSize: 14, outline: 'none',
                 transition: 'border-color 0.15s',
               }}
-              onFocus={(e) => e.target.style.borderColor = '#2563EB'}
-              onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+              onFocus={(e) => e.target.style.borderColor = isDark ? '#6366F1' : '#2563EB'}
+              onBlur={(e) => e.target.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'}
             />
           </div>
 
@@ -253,10 +254,24 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               )
             })()}
 
+            {/* Theme toggle */}
+            <button
+              onClick={() => setTheme && setTheme(isDark ? 'light' : 'dark')}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 18, padding: 4, lineHeight: 1,
+                color: isDark ? '#F59E0B' : '#6B7280',
+              }}
+            >
+              {isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+            </button>
+
             {/* Language toggle */}
             <div style={{
               display: 'flex', borderRadius: 6, overflow: 'hidden',
-              border: '1px solid #E5E7EB',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
             }}>
               {['en', 'es'].map((code) => (
                 <button
@@ -266,8 +281,8 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
                   style={{
                     padding: '5px 10px', border: 'none', fontSize: 12, fontWeight: 600,
                     cursor: 'pointer', transition: 'all 0.15s',
-                    background: lang === code ? 'rgba(37,99,235,0.08)' : '#FFFFFF',
-                    color: lang === code ? '#2563EB' : '#9CA3AF',
+                    background: lang === code ? (isDark ? 'rgba(99,102,241,0.15)' : 'rgba(37,99,235,0.08)') : (isDark ? '#1A1B2E' : '#FFFFFF'),
+                    color: lang === code ? (isDark ? '#818CF8' : '#2563EB') : '#9CA3AF',
                   }}
                 >
                   {code.toUpperCase()}
@@ -304,13 +319,13 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         bottom: 0,
         left: 0,
         right: 0,
-        background: '#FFFFFF',
-        borderTop: '1px solid #E5E7EB',
+        background: isDark ? '#0F1117' : '#FFFFFF',
+        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
         padding: '6px 0 env(safe-area-inset-bottom, 6px)',
         zIndex: 100,
         justifyContent: 'space-around',
         alignItems: 'center',
-        boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
+        boxShadow: isDark ? '0 -2px 8px rgba(0,0,0,0.3)' : '0 -2px 8px rgba(0,0,0,0.04)',
       }}>
         {[
           { key: 'dashboard', label: t('dashboard', lang), icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
@@ -327,7 +342,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                 background: 'none', border: 'none', padding: '4px 12px',
-                color: active ? '#2563EB' : '#9CA3AF',
+                color: active ? (isDark ? '#818CF8' : '#2563EB') : '#9CA3AF',
                 fontSize: 10, fontWeight: active ? 600 : 400,
                 cursor: 'pointer', minHeight: 'auto',
               }}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
 import Onboarding from './shared/components/Onboarding'
@@ -26,10 +26,16 @@ export default function App() {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null)
   const [selectedExecution, setSelectedExecution] = useState(null)
   const { lang, setLang, toggle: toggleLang } = useLanguage()
+  const [theme, setTheme] = useState(() => localStorage.getItem('nexusforge_theme') || 'light')
   const [showTour, setShowTour] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(() => {
     try { return !localStorage.getItem('nxf-onboarding-done') } catch { return true }
   })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('nexusforge_theme', theme)
+  }, [theme])
 
   const navigate = (page) => {
     setCurrentPage(page)
@@ -113,6 +119,8 @@ export default function App() {
           <SettingsPage
             lang={lang}
             setLang={setLang}
+            theme={theme}
+            setTheme={setTheme}
             onResetTour={() => {
               try { localStorage.removeItem('nxf-tour-done') } catch { /* */ }
               try { localStorage.removeItem('nxf-onboarding-done') } catch { /* */ }
@@ -128,7 +136,7 @@ export default function App() {
 
   return (
     <>
-      <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang}>
+      <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme}>
         {renderPage()}
       </Layout>
       {showTour && (
