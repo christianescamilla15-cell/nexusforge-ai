@@ -1,25 +1,44 @@
 import { useState } from 'react'
 import { t } from '../../shared/i18n/translations'
-import { getMode, setMode, getApiUrl, setApiUrl as persistApiUrl, checkBackendHealth } from '../../services/api'
+import { getMode, setMode, getApiUrl, setApiUrl as persistApiUrl, checkBackendHealth, getApiUrlSource } from '../../services/api'
 
 export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
   const [currentMode, setCurrentMode] = useState(() => getMode())
-  const [apiUrl, setApiUrl] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('nexusforge_api_url') || ''
-    }
-    return ''
-  })
+  const [apiUrl, setApiUrl] = useState(() => getApiUrl())
   const [darkMode] = useState(true)
   const [tourResetDone, setTourResetDone] = useState(false)
   const [backendStatus, setBackendStatus] = useState(null)
   const [testing, setTesting] = useState(false)
+  const [showUrlPrompt, setShowUrlPrompt] = useState(false)
+  const [pendingUrl, setPendingUrl] = useState('http://localhost:8000/api')
 
   const handleModeChange = (mode) => {
+    if (mode === 'real') {
+      const currentUrl = getApiUrl()
+      if (!currentUrl) {
+        setShowUrlPrompt(true)
+        return
+      }
+    }
     setCurrentMode(mode)
     setMode(mode)
-    // Force re-render of components that read mode
     window.dispatchEvent(new Event('nexusforge-mode-change'))
+  }
+
+  const handleConfirmRealMode = () => {
+    if (!pendingUrl.trim()) return
+    persistApiUrl(pendingUrl.trim())
+    setApiUrl(pendingUrl.trim())
+    setCurrentMode('real')
+    setMode('real')
+    setShowUrlPrompt(false)
+    setBackendStatus(null)
+    window.dispatchEvent(new Event('nexusforge-mode-change'))
+  }
+
+  const handleCancelRealMode = () => {
+    setShowUrlPrompt(false)
+    setPendingUrl('http://localhost:8000/api')
   }
 
   const handleApiUrlChange = (value) => {
@@ -113,6 +132,59 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
                   ? 'Real: Se conecta al backend API. Requiere servidor activo.'
                   : 'Real: Connects to backend API. Requires running server.')}
           </div>
+
+          {/* URL Prompt — appears when switching to Real without a URL */}
+          {showUrlPrompt && (
+            <div style={{
+              marginTop: 16, padding: 16, borderRadius: 10,
+              background: 'rgba(220,38,38,0.04)',
+              border: '1px solid rgba(220,38,38,0.2)',
+            }}>
+              <label style={{ ...labelStyle, fontSize: 14, color: '#991B1B', marginBottom: 8 }}>
+                {lang === 'es'
+                  ? 'Para modo Real, ingresa la URL de tu backend FastAPI'
+                  : 'To use Real mode, enter your FastAPI backend URL'}
+              </label>
+              <input
+                type="text"
+                value={pendingUrl}
+                onChange={(e) => setPendingUrl(e.target.value)}
+                placeholder="http://localhost:8000/api"
+                aria-label="API URL for Real mode"
+                autoFocus
+                style={{ ...inputStyle, marginBottom: 12 }}
+                onFocus={(e) => e.target.style.borderColor = 'rgba(16,185,129,0.4)'}
+                onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmRealMode() }}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleConfirmRealMode}
+                  disabled={!pendingUrl.trim()}
+                  style={{
+                    padding: '8px 18px', borderRadius: 8, border: 'none',
+                    background: pendingUrl.trim() ? '#059669' : '#D1D5DB',
+                    color: '#fff', fontSize: 13, fontWeight: 600,
+                    cursor: pendingUrl.trim() ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {lang === 'es' ? 'Guardar y activar modo Real' : 'Save & activate Real mode'}
+                </button>
+                <button
+                  onClick={handleCancelRealMode}
+                  style={{
+                    padding: '8px 18px', borderRadius: 8,
+                    border: '1px solid #E5E7EB', background: '#fff',
+                    color: '#6B7280', fontSize: 13, fontWeight: 500,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >
+                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* API URL — only visible in Real mode */}
           {currentMode === 'real' && (
@@ -234,6 +306,37 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
                 {apiUrl || (lang === 'es' ? 'No configurada' : 'Not configured')}
               </span>
             </div>
+
+            {/* URL Source */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+              <span style={{ color: '#6B7280' }}>
+                {lang === 'es' ? 'Origen de URL' : 'URL source'}
+              </span>
+              <span style={{
+                fontSize: 12, fontWeight: 500,
+                color: getApiUrlSource() === 'none' ? '#9CA3AF' : '#374151',
+              }}>
+                {getApiUrlSource() === 'localStorage'
+                  ? (lang === 'es' ? 'Configuracion local' : 'localStorage')
+                  : getApiUrlSource() === 'env'
+                    ? (lang === 'es' ? 'Variable de entorno' : 'env variable')
+                    : (lang === 'es' ? 'No configurado' : 'not configured')}
+              </span>
+            </div>
+
+            {/* Warning when Real mode but no URL */}
+            {currentMode === 'real' && !apiUrl && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 8, fontSize: 13,
+                background: 'rgba(220,38,38,0.06)',
+                border: '1px solid rgba(220,38,38,0.2)',
+                color: '#991B1B', lineHeight: 1.5, fontWeight: 500,
+              }}>
+                {lang === 'es'
+                  ? 'Configura una URL para usar el modo Real'
+                  : 'Configure a URL to use Real mode'}
+              </div>
+            )}
 
             {/* Backend status */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>

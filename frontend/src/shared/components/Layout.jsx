@@ -292,7 +292,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         {/* Page content */}
         <main style={{
           padding: isMobile ? 12 : 24,
-          minHeight: `calc(100vh - ${topBarHeight}px)`,
+          minHeight: isMobile ? 'auto' : `calc(100vh - ${topBarHeight}px)`,
         }}>
           {children}
         </main>

@@ -48,9 +48,18 @@ body {
 
 @media (max-width: 768px) {
   #root {
-    width: 100%;
+    width: 100% !important;
     border-inline: none;
     text-align: left;
+    min-height: auto !important;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  main, .main-content, [role="main"] {
+    min-height: auto !important;
   }
 }
 

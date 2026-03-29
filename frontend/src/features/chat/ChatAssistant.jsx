@@ -137,6 +137,26 @@ export default function ChatAssistant({ lang = 'en' }) {
     }
   }, [open])
 
+  // Handle mobile keyboard resizing
+  useEffect(() => {
+    if (!window.visualViewport) return
+    const handleResize = () => {
+      const panel = document.querySelector('.nf-chat-panel')
+      if (panel && window.innerWidth <= 768) {
+        const keyboardHeight = window.innerHeight - window.visualViewport.height
+        if (keyboardHeight > 100) {
+          panel.style.bottom = `${keyboardHeight + 60}px`
+          panel.style.maxHeight = '40vh'
+        } else {
+          panel.style.bottom = '60px'
+          panel.style.maxHeight = '50vh'
+        }
+      }
+    }
+    window.visualViewport.addEventListener('resize', handleResize)
+    return () => window.visualViewport.removeEventListener('resize', handleResize)
+  }, [])
+
   useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([{
@@ -216,23 +236,39 @@ export default function ChatAssistant({ lang = 'en' }) {
         }
         @media (max-width: 768px) {
           .nf-chat-panel {
-            width: calc(100vw - 32px) !important;
-            max-height: 60vh !important;
-            height: 60vh !important;
-            bottom: 80px !important;
-            right: 16px !important;
-            left: 16px !important;
-            border-radius: 16px 16px 12px 12px !important;
+            position: fixed !important;
+            bottom: 60px !important;
+            left: 8px !important;
+            right: 8px !important;
+            top: auto !important;
+            width: auto !important;
+            max-height: 50vh !important;
+            height: auto !important;
+            border-radius: 16px 16px 0 0 !important;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1) !important;
+          }
+          .nf-chat-messages {
+            max-height: 35vh !important;
+            overflow-y: auto !important;
+          }
+          .nf-chat-input {
+            position: sticky !important;
+            bottom: 0 !important;
+            background: #fff !important;
+          }
+          .nf-chat-panel .nf-chat-chips button {
+            font-size: 12px !important;
+            padding: 4px 10px !important;
+          }
+          .nf-chat-panel .nf-chat-chips {
+            max-height: 70px;
+            overflow-y: auto;
           }
           .nf-chat-fab {
-            bottom: 80px !important;
+            bottom: 70px !important;
             right: 16px !important;
             width: 52px !important;
             height: 52px !important;
-          }
-          .nf-chat-panel .nf-chat-chips {
-            max-height: 80px;
-            overflow-y: auto;
           }
         }
       `}</style>
@@ -358,7 +394,7 @@ export default function ChatAssistant({ lang = 'en' }) {
           </div>
 
           {/* Messages */}
-          <div style={{
+          <div className="nf-chat-messages" style={{
             flex: 1, overflowY: 'auto', padding: '12px 12px 4px',
             display: 'flex', flexDirection: 'column', gap: 8,
             background: '#F9FAFB',
@@ -501,6 +537,7 @@ export default function ChatAssistant({ lang = 'en' }) {
 
           {/* Input area */}
           <form
+            className="nf-chat-input"
             onSubmit={handleSubmit}
             style={{
               padding: '10px 12px 12px',

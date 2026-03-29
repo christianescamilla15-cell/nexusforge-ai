@@ -23,7 +23,17 @@ export function setMode(mode) {
 /** Return the user-configured API URL (only relevant in real mode). Empty string = not configured. */
 export function getApiUrl() {
   if (typeof window === 'undefined') return ''
-  return localStorage.getItem('nexusforge_api_url') || ''
+  return localStorage.getItem('nexusforge_api_url')
+    || import.meta.env.VITE_API_URL
+    || ''
+}
+
+/** Return the source of the current API URL for diagnostics. */
+export function getApiUrlSource() {
+  if (typeof window === 'undefined') return 'none'
+  if (localStorage.getItem('nexusforge_api_url')) return 'localStorage'
+  if (import.meta.env.VITE_API_URL) return 'env'
+  return 'none'
 }
 
 /** Persist API URL to localStorage. */
