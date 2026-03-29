@@ -4,26 +4,15 @@ import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
 
-// Demo data -- always used (demo-first, no backend required)
-const DEMO_KPIS = { workflows: 12, activeRuns: 3, agentsOnline: 22, documents: 47 }
-const DEMO_RUNS = [
-  { id: 1, status: 'completed', workflow: 'Analisis de Documentos', started: 'Hace 5 min', duration: '2m 14s', cost: '0.23', steps: 4 },
-  { id: 2, status: 'running', workflow: 'Clasificacion de Datos', started: 'Hace 12 min', duration: '8m 02s', cost: '0.67', steps: 6 },
-  { id: 3, status: 'completed', workflow: 'Resumen Ejecutivo', started: 'Hace 1h', duration: '45s', cost: '0.08', steps: 2 },
-  { id: 4, status: 'failed', workflow: 'Extraccion de Entidades', started: 'Hace 2h', duration: '1m 33s', cost: '0.15', steps: 3 },
-  { id: 5, status: 'completed', workflow: 'Pipeline RAG', started: 'Hace 3h', duration: '3m 50s', cost: '0.41', steps: 5 },
-  { id: 6, status: 'cancelled', workflow: 'Traduccion Masiva', started: 'Hace 4h', duration: '12s', cost: '0.02', steps: 1 },
-  { id: 7, status: 'completed', workflow: 'Generacion de Reportes', started: 'Hace 5h', duration: '1m 22s', cost: '0.19', steps: 3 },
-  { id: 8, status: 'completed', workflow: 'Analisis de Sentimiento', started: 'Hace 6h', duration: '55s', cost: '0.11', steps: 2 },
-  { id: 9, status: 'pending', workflow: 'Indexacion de Docs', started: 'Hace 6h', duration: '-', cost: '0.00', steps: 0 },
-  { id: 10, status: 'completed', workflow: 'Validacion de Datos', started: 'Hace 7h', duration: '2m 01s', cost: '0.28', steps: 4 },
-]
-const DEMO_AGENTS = [
-  { name: 'Orchestrator', count: 142, color: '#2563EB', colorEnd: '#60A5FA' },
-  { name: 'Classifier', count: 98, color: '#059669', colorEnd: '#34D399' },
-  { name: 'Summarizer', count: 87, color: '#D97706', colorEnd: '#FBBF24' },
-  { name: 'Extractor', count: 65, color: '#DC2626', colorEnd: '#F87171' },
-  { name: 'Validator', count: 43, color: '#0891B2', colorEnd: '#22D3EE' },
+// Color palette for agent activity bars
+const AGENT_COLORS = [
+  { color: '#2563EB', colorEnd: '#60A5FA' },
+  { color: '#059669', colorEnd: '#34D399' },
+  { color: '#D97706', colorEnd: '#FBBF24' },
+  { color: '#DC2626', colorEnd: '#F87171' },
+  { color: '#0891B2', colorEnd: '#22D3EE' },
+  { color: '#7C3AED', colorEnd: '#A78BFA' },
+  { color: '#DB2777', colorEnd: '#F472B6' },
 ]
 
 function KPIIcon({ type }) {
@@ -43,6 +32,9 @@ function KPIIcon({ type }) {
 
 export default function DashboardPage({ lang = 'en' }) {
   const [isMobile, setIsMobile] = useState(false)
+  const [runs, setRuns] = useState([])
+  const [health, setHealth] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -51,15 +43,45 @@ export default function DashboardPage({ lang = 'en' }) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const kpis = DEMO_KPIS
-  const recentRuns = DEMO_RUNS
-  const agents = DEMO_AGENTS
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/runs').then(r => r.json()),
+      fetch('/api/runs/reliability/health').then(r => r.json()),
+    ]).then(([runsData, healthData]) => {
+      setRuns(runsData.runs || [])
+      setHealth(healthData)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
 
-  const costItems = [
-    { label: t('today', lang), value: '$2.14' },
-    { label: t('thisWeek', lang), value: '$18.73' },
-    { label: t('thisMonth', lang), value: '$64.50' },
-  ]
+  // Map health data to KPI values
+  const kpis = health
+    ? {
+        totalRuns: health.total_runs ?? 0,
+        successRate: health.system_success_rate != null
+          ? `${(health.system_success_rate * 100).toFixed(1)}%`
+          : '—',
+        agentsTracked: health.total_agents_tracked ?? 0,
+        failedRuns: health.failed_runs ?? 0,
+      }
+    : { totalRuns: 0, successRate: '—', agentsTracked: 0, failedRuns: 0 }
+
+  // Map health.agents to the shape AgentActivity expects
+  const agents = (health?.agents || []).map((a, i) => ({
+    name: a.agent,
+    count: a.executions,
+    ...AGENT_COLORS[i % AGENT_COLORS.length],
+  }))
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+        <span style={{ fontSize: 14, color: '#9CA3AF' }}>Loading dashboard...</span>
+      </div>
+    )
+  }
+
+  const hasData = runs.length > 0 || health
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -75,14 +97,16 @@ export default function DashboardPage({ lang = 'en' }) {
             {t('dashboardSubtitle', lang)}
           </p>
         </div>
-        <span style={{
-          padding: '4px 12px', borderRadius: 6, fontSize: 12,
-          background: 'rgba(37,99,235,0.06)', color: '#2563EB',
-          border: '1px solid rgba(37,99,235,0.15)',
-          fontWeight: 500,
-        }}>
-          Demo Mode
-        </span>
+        {!hasData && (
+          <span style={{
+            padding: '4px 12px', borderRadius: 6, fontSize: 12,
+            background: 'rgba(37,99,235,0.06)', color: '#2563EB',
+            border: '1px solid rgba(37,99,235,0.15)',
+            fontWeight: 500,
+          }}>
+            No data yet
+          </span>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -93,28 +117,24 @@ export default function DashboardPage({ lang = 'en' }) {
         marginBottom: 24,
       }}>
         <KPICard
-          icon={<KPIIcon type="workflows" />}
-          value={kpis.workflows}
-          label={t('totalWorkflows', lang)}
-          trend={12}
+          icon={<KPIIcon type="runs" />}
+          value={kpis.totalRuns}
+          label="Total Runs"
         />
         <KPICard
-          icon={<KPIIcon type="runs" />}
-          value={kpis.activeRuns}
-          label={t('activeRuns', lang)}
-          trend={-5}
+          icon={<KPIIcon type="workflows" />}
+          value={kpis.successRate}
+          label="Success Rate"
         />
         <KPICard
           icon={<KPIIcon type="agents" />}
-          value={kpis.agentsOnline}
-          label={t('agentsOnline', lang)}
-          trend={0}
+          value={kpis.agentsTracked}
+          label="Agents Tracked"
         />
         <KPICard
           icon={<KPIIcon type="docs" />}
-          value={kpis.documents}
-          label={t('docsIndexed', lang)}
-          trend={23}
+          value={kpis.failedRuns}
+          label="Failed Runs"
         />
       </div>
 
@@ -127,33 +147,12 @@ export default function DashboardPage({ lang = 'en' }) {
       }}>
         {/* Recent runs */}
         <div style={{ overflowX: 'auto' }}>
-          <RecentRuns runs={recentRuns} />
+          <RecentRuns runs={runs} />
         </div>
 
         {/* Right sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <AgentActivity agents={agents} />
-
-          {/* Cost overview */}
-          <div style={{
-            background: '#FFFFFF', borderRadius: 12,
-            border: '1px solid #E5E7EB', padding: 20,
-            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-          }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 16 }}>
-              {t('costOverview', lang)}
-            </h3>
-            {costItems.map((item) => (
-              <div key={item.label} style={{
-                display: 'flex', justifyContent: 'space-between',
-                padding: '10px 0',
-                borderBottom: '1px solid #F3F4F6',
-              }}>
-                <span style={{ fontSize: 13, color: '#9CA3AF' }}>{item.label}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{item.value}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>

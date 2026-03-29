@@ -8,7 +8,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 
 from app.db.client import get_db_pool
+from app.domain.tracking.events import ExecutionContext
 from app.engine.executor import execute_workflow
+from app.infrastructure.tracking.metrics_collector_tracker import MetricsCollectorTracker
+from app.infrastructure.tracking.safe_tracker import SafeExecutionTracker
 from app.models.execution import ExecutionTrigger, ExecutionResponse, StepExecutionResponse
 from app.models.workflow import DAGDefinition
 from app.websocket.manager import manager
@@ -25,7 +28,7 @@ async def trigger_execution(body: ExecutionTrigger):
         async with pool.acquire() as conn:
             # Verify workflow exists
             wf = await conn.fetchrow(
-                "SELECT id, dag_definition FROM workflows WHERE id = $1 AND status = 'active'",
+                "SELECT id, name, dag_definition FROM workflows WHERE id = $1 AND status = 'active'",
                 body.workflow_id,
             )
             if not wf:
@@ -49,7 +52,16 @@ async def trigger_execution(body: ExecutionTrigger):
             dag_data = json.loads(dag_data)
         dag = DAGDefinition(**dag_data)
 
-        asyncio.create_task(execute_workflow(body.workflow_id, run_id, dag, body.input_data))
+        # Build execution context with MetricsCollector tracker so dashboard
+        # API routes (/api/runs/*) serve live execution data.
+        tracker = SafeExecutionTracker(MetricsCollectorTracker())
+        ctx = ExecutionContext(
+            run_id=str(run_id),
+            workflow_name=wf["name"] if wf["name"] else str(body.workflow_id),
+            tracker=tracker,
+        )
+
+        asyncio.create_task(execute_workflow(body.workflow_id, run_id, dag, body.input_data, ctx=ctx))
 
         return {
             "run_id": str(run_id),

@@ -2,12 +2,10 @@ import DataTable from '../../shared/components/DataTable'
 import StatusBadge from '../../shared/components/StatusBadge'
 
 const columns = [
-  { key: 'status', label: 'Estado', render: (v) => <StatusBadge status={v} /> },
-  { key: 'workflow', label: 'Workflow' },
-  { key: 'started', label: 'Inicio' },
-  { key: 'duration', label: 'Duracion' },
-  { key: 'cost', label: 'Costo', render: (v) => `$${v}` },
-  { key: 'steps', label: 'Pasos' },
+  { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v} /> },
+  { key: 'workflow_name', label: 'Workflow' },
+  { key: 'id', label: 'Run ID', render: (v) => typeof v === 'string' ? v.slice(0, 8) : v },
+  { key: 'total_latency_ms', label: 'Latency', render: (v) => v ? `${v}ms` : '--' },
 ]
 
 export default function RecentRuns({ runs }) {
@@ -24,7 +22,13 @@ export default function RecentRuns({ runs }) {
         <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Ejecuciones Recientes</h3>
         <span style={{ fontSize: 12, color: '#9CA3AF' }}>{runs.length} resultados</span>
       </div>
-      <DataTable columns={columns} data={runs} />
+      {runs.length === 0 ? (
+        <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+          No runs recorded yet
+        </div>
+      ) : (
+        <DataTable columns={columns} data={runs} />
+      )}
     </div>
   )
 }

@@ -8,32 +8,38 @@ export default function AgentActivity({ agents }) {
       boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
     }}>
       <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 20 }}>
-        Actividad de Agentes
+        Agent Activity
       </h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {agents.map((agent) => (
-          <div key={agent.name}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', marginBottom: 6,
-              fontSize: 13,
-            }}>
-              <span style={{ color: '#111827', fontWeight: 500 }}>{agent.name}</span>
-              <span style={{ color: '#9CA3AF' }}>{agent.count} ejecuciones</span>
-            </div>
-            <div style={{
-              height: 8, borderRadius: 4,
-              background: '#F3F4F6', overflow: 'hidden',
-            }}>
+      {agents.length === 0 ? (
+        <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 14, padding: 20 }}>
+          No agent data yet
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {agents.map((agent) => (
+            <div key={agent.name}>
               <div style={{
-                height: '100%', borderRadius: 4,
-                width: `${(agent.count / max) * 100}%`,
-                background: `linear-gradient(90deg, ${agent.color || '#2563EB'}, ${agent.colorEnd || '#60A5FA'})`,
-                transition: 'width 0.6s ease-out',
-              }} />
+                display: 'flex', justifyContent: 'space-between', marginBottom: 6,
+                fontSize: 13,
+              }}>
+                <span style={{ color: '#111827', fontWeight: 500 }}>{agent.name}</span>
+                <span style={{ color: '#9CA3AF' }}>{agent.count} executions</span>
+              </div>
+              <div style={{
+                height: 8, borderRadius: 4,
+                background: '#F3F4F6', overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%', borderRadius: 4,
+                  width: `${(agent.count / max) * 100}%`,
+                  background: `linear-gradient(90deg, ${agent.color || '#2563EB'}, ${agent.colorEnd || '#60A5FA'})`,
+                  transition: 'width 0.6s ease-out',
+                }} />
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
