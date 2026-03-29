@@ -139,7 +139,21 @@ export default function PlaygroundPage({ lang = 'en' }) {
     setIsDemo(false)
     setError(null)
 
-    const { data, isDemo: demo, error: apiError } = await api.post(`/${selectedWorkflow}/run`, { input })
+    // Build the correct payload for each workflow
+    let endpoint = ''
+    let payload = {}
+    if (selectedWorkflow === 'enterprise-ops') {
+      endpoint = '/enterprise-ops/process'
+      payload = { message: input, customer_id: 'CUST-001', language: lang === 'en' ? 'en' : 'es' }
+    } else if (selectedWorkflow === 'document-intelligence') {
+      endpoint = '/document-intelligence/run'
+      payload = { content: input, language: lang === 'en' ? 'en' : 'es' }
+    } else if (selectedWorkflow === 'portfolio-copilot') {
+      endpoint = '/portfolio-copilot/run'
+      payload = { question: input, language: lang === 'en' ? 'en' : 'es' }
+    }
+
+    const { data, isDemo: demo, error: apiError } = await api.post(endpoint, payload)
 
     if (apiError) {
       setError(apiError)

@@ -7,19 +7,10 @@
 // ── Mode helpers ────────────────────────────────────────────────────────────
 
 /** Return the current mode: 'demo' or 'real'.
- *  If mode is 'real' but no API URL exists, auto-revert to 'demo'. */
+ *  Default is 'real' since the serverless backend is always available. */
 export function getMode() {
-  if (typeof window === 'undefined') return 'demo'
-  const saved = localStorage.getItem('nexusforge_mode') || 'demo'
-  // Safety: if real mode but no URL configured, revert to demo
-  if (saved === 'real') {
-    const url = localStorage.getItem('nexusforge_api_url') || import.meta.env.VITE_API_URL || ''
-    if (!url) {
-      localStorage.setItem('nexusforge_mode', 'demo')
-      return 'demo'
-    }
-  }
-  return saved
+  if (typeof window === 'undefined') return 'real'
+  return localStorage.getItem('nexusforge_mode') || 'real'
 }
 
 /** Persist mode to localStorage and notify listeners. */
