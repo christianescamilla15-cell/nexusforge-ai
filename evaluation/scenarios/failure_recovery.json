@@ -1,0 +1,23 @@
+{
+  "name": "failure_recovery",
+  "description": "Test self-healing capabilities by simulating provider failures",
+  "input": "Execute a workflow that intentionally triggers provider failure to test fallback routing",
+  "topology": "sequential",
+  "expected_capabilities": [
+    "retry_handling",
+    "provider_failover",
+    "checkpoint_resume",
+    "graceful_degradation"
+  ],
+  "expected_agents": ["ResearchAgent", "AnalyzerAgent"],
+  "timeout_seconds": 60,
+  "simulate_failures": {
+    "provider_failure_at_step": 1,
+    "expected_fallback": "claude"
+  },
+  "success_criteria": {
+    "must_trigger_fallback": true,
+    "must_complete": true,
+    "max_retries": 5
+  }
+}

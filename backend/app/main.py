@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.client import get_db_pool, get_redis, close_connections
 from app.db.mongo_client import close_mongo
-from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth, metrics
+from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth, metrics, workflow_runs
 from app.observability.tracing import get_tracer
 
 @asynccontextmanager
@@ -43,3 +43,4 @@ app.include_router(plugins.router, prefix="/api/plugins", tags=["plugins"])
 app.include_router(memory.router, prefix="/api", tags=["memory"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(metrics.router, prefix="/api", tags=["metrics"])
+app.include_router(workflow_runs.router, prefix="/api", tags=["workflow-runs"])
