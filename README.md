@@ -1,160 +1,273 @@
 # NexusForge AI
 
-Enterprise multi-agent orchestration platform with DAG execution, self-healing workflows, shared memory, RAG, and multi-provider LLM routing.
+Enterprise multi-agent orchestration platform for building resilient AI workflows.
+
+NexusForge AI is an experimental platform designed to coordinate specialized AI agents across complex workflows using orchestration, shared memory, and failure recovery mechanisms.
+
+The goal is to explore how AI systems can behave more like reliable software platforms rather than isolated LLM calls.
 
 ---
 
-## Why NexusForge Exists
+## Why This Project Exists
 
-LLM workflows fail in production because orchestration, retries, memory, and observability are often bolted on late. NexusForge explores how to build resilient multi-agent systems with explicit coordination, recovery, and memory design.
+Most AI applications break in production because orchestration, memory, retries, and observability are treated as afterthoughts.
+
+Typical problems include:
+
+- brittle agent chains
+- context loss between steps
+- provider failures
+- lack of monitoring
+- unpredictable execution paths
+
+NexusForge explores how to design AI workflows that are **observable, resilient, and modular**.
+
+---
 
 ## Core Capabilities
 
-- **22 specialized AI agents** with role-based routing
-- **6 swarm topologies** — sequential, parallel, hierarchical, debate, consensus, adaptive
-- **3-tier memory** — working (Redis), episodic (PostgreSQL), semantic (pgvector)
-- **Self-healing execution** — 5 recovery strategies with checkpoint/resume
-- **RAG retrieval** — Voyage AI embeddings + pgvector similarity search
-- **Multi-provider LLM routing** — Groq primary, Claude fallback, circuit breaker pattern
+- Multi-agent orchestration
+- DAG-based workflow execution
+- Swarm agent topologies
+- Self-healing execution strategies
+- Shared vector memory
+- Retrieval-augmented pipelines (RAG)
+- Multi-provider LLM routing
+- Observability and execution streaming
 
-## Architecture (simplified)
+---
+
+## System Architecture (Simplified)
 
 ```text
-Client / UI / CLI
-       ↓
-  FastAPI Gateway
-       ↓
-    Orchestrator
-       ↓
-   Agent Swarm (22 agents × 6 topologies)
-       ↓
-  Memory + Retrieval (pgvector + Redis)
-       ↓
-  PostgreSQL / Redis
+Client / UI
+      ↓
+FastAPI Gateway
+      ↓
+Orchestrator Engine
+      ↓
+Agent Swarm
+      ↓
+Shared Memory Layer
+      ↓
+PostgreSQL + Redis
 ```
 
-> Full architecture details → [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Full architecture diagram:
 
-## Engineering Decisions
+```text
+Web UI / CLI
+      ↓
+FastAPI Gateway
+      ↓
+DAG Executor + State Machine
+      ↓
+Agent Orchestrator
+      ↓
+Swarm Topologies
+      ↓
+Memory Layer (working / episodic / semantic)
+      ↓
+LLM Router + Circuit Breaker
+      ↓
+PostgreSQL / pgvector + Redis
+```
 
-### Why DAG execution instead of linear chaining?
-Complex workflows need validation, retries, checkpointing, and non-linear agent coordination. Kahn's algorithm enables topological ordering with dependency resolution.
+---
 
-### Why external memory instead of long prompts?
-Agents stay stateless and modular. Shared context lives in a 3-tier memory system — working memory in Redis (fast), episodic in PostgreSQL (persistent), semantic in pgvector (similarity search).
+## Agent Topologies
 
-### Why Groq primary + Claude fallback?
-Groq (Llama 3.3 70B) provides fast, free inference. Claude serves as quality fallback. Circuit breaker pattern handles provider outages automatically.
+NexusForge experiments with multiple coordination models.
 
-### Why Redis + PostgreSQL split?
-Redis for hot state (agent working memory, pub/sub events). PostgreSQL for durable state (episodic memory, RAG index, execution history).
+Examples:
 
-### Why checkpoint/resume?
-Long-running agent workflows need recovery points. If an agent fails at step 7 of 12, the system resumes from the last checkpoint — not from scratch.
+- Sequential chain
+- Parallel agents
+- Reviewer loops
+- Debate agents
+- Swarm orchestration
+- Hybrid DAG workflows
+
+These topologies allow different strategies depending on task complexity.
+
+---
+
+## Memory Architecture
+
+The platform implements a **three-tier memory model**.
+
+### Working Memory
+Short-term execution context shared across agents.
+
+### Episodic Memory
+Execution history and checkpoints.
+
+### Semantic Memory
+Vector database storage using **pgvector** for retrieval.
+
+---
+
+## Failure Recovery
+
+AI workflows often fail due to:
+
+- tool failures
+- provider outages
+- invalid responses
+- context overflow
+
+NexusForge introduces several resilience strategies:
+
+- Retry policies
+- Fallback LLM providers
+- Circuit breakers
+- Checkpoint / resume
+- Agent re-routing
+
+---
 
 ## Observability
 
-NexusForge includes built-in monitoring for production debugging:
+The system exposes execution signals through:
 
-- **Live execution events** via WebSocket streaming
-- **Provider failure tracking** with automatic failover logs
-- **Retry behavior** visibility per agent per step
-- **Checkpoint state** inspection and resume controls
-- **Token usage and cost tracking** across providers
+- WebSocket streaming
+- Redis pub/sub events
+- Execution state tracking
+- Cost / token monitoring
 
-## Demo Scenarios
+This enables real-time monitoring of agent workflows.
 
-### 1. Run a simple agent workflow
-```bash
-python -m cli run --workflow simple --agents 3
-```
+---
 
-### 2. Trigger a swarm topology execution
-```bash
-python -m cli swarm --topology hierarchical --task "analyze document"
-```
+## Technology Stack
 
-### 3. Simulate provider failure and fallback recovery
-```bash
-python -m cli test-failover --primary groq --fallback claude
-```
+**Core:**
+Python · FastAPI · PostgreSQL · pgvector · Redis · Docker
 
-## Tech Stack
+**AI Integration:**
+Groq · Claude · LLM APIs
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.12, FastAPI, Pydantic v2 |
-| Database | PostgreSQL + pgvector |
-| Cache | Redis |
-| Embeddings | Voyage AI (512d) |
-| LLM Providers | Groq (Llama 3.3 70B), Claude (Anthropic) |
-| Infra | Docker, Terraform, Kubernetes |
-| Frontend | React 18 + Vite |
-| Monitoring | WebSocket real-time streaming |
-| SDK | TypeScript SDK + Python CLI |
+**Infrastructure:**
+Docker · WebSockets · Async orchestration
 
-## Code Structure
+---
+
+## Repository Structure
 
 ```
-backend/app/agents       → agent implementations and registry
-backend/app/orchestrator → DAG execution, routing, state machine
-backend/app/memory       → working / episodic / semantic memory
-backend/app/rag          → indexing, chunking, retrieval
-backend/app/providers    → Groq / Claude routing + circuit breaker
-backend/app/healing      → self-healing strategies
-cli/                     → command-line interface
-frontend/                → React monitoring dashboard
-infrastructure/          → Terraform + Kubernetes configs
-packages/sdk/            → TypeScript SDK
-plugins/                 → plugin system
-tests/                   → 247 pytest tests
-docs/                    → ARCHITECTURE.md, API_CONTRACT.md
+backend/
+  agents/         → agent implementations
+  orchestrator/   → workflow execution engine
+  memory/         → shared memory layers
+  rag/            → indexing and retrieval
+  providers/      → LLM routing and fallbacks
+  tests/          → system validation
+
+cli/              → command line interface
+
+frontend/         → monitoring dashboard
+
+docs/             → architecture documentation
 ```
+
+---
 
 ## Key Metrics
 
 | Metric | Value |
 |--------|-------|
-| AI Agents | 22 |
-| Swarm Topologies | 6 |
-| Memory Tiers | 3 |
-| Self-healing Strategies | 5 |
-| Tests | 247 (pytest) |
-| Commits | 31 |
+| Agents implemented | 22 |
+| Swarm topologies tested | 6 |
+| Test cases | 247 |
+| Architecture modules | orchestration, memory, routing, recovery |
 
-## Current Limitations
+---
 
-- Benchmark latency not yet formalized across topologies
-- Evaluation harness for agent quality still in progress
-- Production observability dashboard planned but not shipped
-- Plugin ecosystem still early — 2 plugins available
-
-## How to Run
+## Running Locally
 
 ```bash
+git clone https://github.com/christianescamilla15-cell/nexusforge-ai
+cd nexusforge-ai
 cp .env.example .env
 docker compose up --build
 ```
 
-| Entry Point | URL |
-|-------------|-----|
-| API Docs | `http://localhost:8000/docs` |
-| CLI | `python -m cli` |
-| Dashboard | `http://localhost:3000` |
-
-## Documentation
-
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — full system architecture
-- [API_CONTRACT.md](docs/API_CONTRACT.md) — endpoint specifications
-
-## Roadmap
-
-- [ ] Agent performance evaluation harness
-- [ ] Latency benchmarking suite per topology
-- [ ] Production observability dashboard
-- [ ] Richer plugin ecosystem
-- [ ] Multi-tenant agent isolation
+Once running, you can access:
+- API endpoints
+- CLI interface
+- Monitoring dashboard
 
 ---
 
-Built by [Christian Hernandez](https://ch65-portfolio.vercel.app) · AI Systems Engineer
+## Demo Scenarios
+
+Suggested demo flows:
+
+### 1. Agent workflow execution
+Run a simple multi-agent pipeline.
+
+### 2. Swarm orchestration
+Trigger parallel agent execution.
+
+### 3. Failure recovery
+Simulate provider failure and observe fallback routing.
+
+---
+
+## Engineering Decisions
+
+### Why DAG execution instead of linear chains?
+Complex AI workflows require branching, validation, retries, and checkpoints. DAG execution provides flexibility for non-linear workflows.
+
+### Why external memory instead of prompt-only context?
+Keeping memory external reduces context window limitations and enables shared state across agents.
+
+### Why multiple LLM providers?
+Provider routing enables resilience and reduces dependency on a single API.
+
+---
+
+## Current Limitations
+
+This project is experimental and still evolving.
+
+Known limitations include:
+
+- Limited benchmarking data
+- Evaluation harness still in progress
+- Observability dashboards under development
+- Plugin ecosystem early stage
+
+---
+
+## Future Work
+
+Planned improvements:
+
+- [ ] Evaluation framework for agent workflows
+- [ ] Latency benchmarking
+- [ ] Advanced observability dashboards
+- [ ] Plugin marketplace for agents
+- [ ] Improved cost monitoring
+
+---
+
+## Related Projects
+
+Part of a broader AI systems portfolio:
+
+- [MindScrolling](https://github.com/christianescamilla15-cell/MindScrolling) — AI-powered mobile product
+- [Ad Analytics Pipeline](https://github.com/christianescamilla15-cell/ad-analytics-pipeline) — Marketing analytics platform
+- [HRScout](https://github.com/christianescamilla15-cell/hr-scout-llm) — AI candidate screening workflow
+
+**Portfolio:** [ch65-portfolio.vercel.app](https://ch65-portfolio.vercel.app)
+
+---
+
+## Author
+
+**Christian Hernandez** — AI Systems Engineer
+
+Focused on multi-agent orchestration, AI product engineering, LLM pipelines, and data & analytics systems.
+
+[GitHub](https://github.com/christianescamilla15-cell) · [Portfolio](https://ch65-portfolio.vercel.app) · [LinkedIn](https://linkedin.com/in/christianescamilla15-cell)
