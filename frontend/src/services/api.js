@@ -1,30 +1,69 @@
 // ---------------------------------------------------------------------------
-// NexusForge API Service — dual-mode: real backend when available, demo data
-// when not.  Exports `fetchAPI` and the `api` convenience object.
+// NexusForge API Service — dual-mode: real backend or demo data.
+// Mode is controlled via localStorage ('demo' or 'real').
+// Exports `fetchAPI`, `api`, `getMode`, `setMode`, `isDemoMode`.
 // ---------------------------------------------------------------------------
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+const DEFAULT_API_BASE = import.meta.env.VITE_API_URL || '/api'
+
+// ── Mode helpers ────────────────────────────────────────────────────────────
+
+/** Return the current mode: 'demo' or 'real'. */
+export function getMode() {
+  if (typeof window === 'undefined') return 'demo'
+  return localStorage.getItem('nexusforge_mode') || 'demo'
+}
+
+/** Persist mode to localStorage. */
+export function setMode(mode) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('nexusforge_mode', mode)
+  }
+}
+
+/** Return the user-configured API URL (only relevant in real mode). */
+export function getApiUrl() {
+  if (typeof window === 'undefined') return DEFAULT_API_BASE
+  return localStorage.getItem('nexusforge_api_url') || DEFAULT_API_BASE
+}
+
+/** Persist API URL to localStorage. */
+export function setApiUrl(url) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('nexusforge_api_url', url)
+  }
+}
 
 // ── Public helpers ──────────────────────────────────────────────────────────
 
-let _isDemoMode = false
+let _isDemoMode = true
 
-/** True when the last request(s) fell back to demo data. */
+/** True when the last request(s) used demo data. */
 export function isDemoMode() {
   return _isDemoMode
 }
 
 /**
- * Generic fetcher.  Tries the real backend first; if it fails (network error,
- * timeout, non-OK status) it transparently returns demo data and sets the
- * global demo-mode flag.
+ * Generic fetcher.
+ * - Demo mode: returns demo data immediately (no network request).
+ * - Real mode: tries the backend; on failure returns error (no fallback).
  */
 export async function fetchAPI(endpoint, options = {}) {
+  const mode = getMode()
+
+  // Demo mode — return demo data immediately, no fetch attempt
+  if (mode === 'demo') {
+    _isDemoMode = true
+    return { data: getDemoData(endpoint, options), isDemo: true }
+  }
+
+  // Real mode — try backend
   try {
+    const apiUrl = getApiUrl()
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-    const res = await fetch(`${API_BASE}${endpoint}`, {
+    const res = await fetch(`${apiUrl}${endpoint}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...options.headers },
       signal: controller.signal,
@@ -36,9 +75,10 @@ export async function fetchAPI(endpoint, options = {}) {
 
     _isDemoMode = false
     return { data: await res.json(), isDemo: false }
-  } catch (_err) {
-    _isDemoMode = true
-    return { data: getDemoData(endpoint), isDemo: true }
+  } catch (err) {
+    // Real mode but backend failed — return error, do NOT fall back to demo
+    _isDemoMode = false
+    return { data: null, isDemo: false, error: err.message }
   }
 }
 

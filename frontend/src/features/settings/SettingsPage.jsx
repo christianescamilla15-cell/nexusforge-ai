@@ -1,12 +1,29 @@
 import { useState } from 'react'
 import { t } from '../../shared/i18n/translations'
+import { getMode, setMode, getApiUrl, setApiUrl as persistApiUrl } from '../../services/api'
 
 export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
-  const [apiUrl, setApiUrl] = useState(
-    () => (typeof window !== 'undefined' && import.meta.env.VITE_API_URL) || ''
-  )
+  const [currentMode, setCurrentMode] = useState(() => getMode())
+  const [apiUrl, setApiUrl] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nexusforge_api_url') || ''
+    }
+    return ''
+  })
   const [darkMode] = useState(true)
   const [tourResetDone, setTourResetDone] = useState(false)
+
+  const handleModeChange = (mode) => {
+    setCurrentMode(mode)
+    setMode(mode)
+    // Force re-render of components that read mode
+    window.dispatchEvent(new Event('nexusforge-mode-change'))
+  }
+
+  const handleApiUrlChange = (value) => {
+    setApiUrl(value)
+    persistApiUrl(value)
+  }
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out', maxWidth: 640 }}>
@@ -20,27 +37,96 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
       {/* Settings cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* API URL */}
-        <div style={cardStyle}>
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>{t('apiBaseUrl', lang)}</label>
-            <p style={descStyle}>{t('apiBaseUrlDesc', lang)}</p>
+        {/* Mode Toggle — Demo / Real */}
+        <div style={{
+          ...cardStyle,
+          border: '1px solid rgba(37,99,235,0.3)',
+          background: 'rgba(37,99,235,0.02)',
+        }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ ...labelStyle, fontSize: 16 }}>
+              {lang === 'es' ? 'Modo de operacion' : 'Operating Mode'}
+            </label>
+            <p style={descStyle}>
+              {lang === 'es'
+                ? 'Controla si NexusForge usa datos de ejemplo o se conecta al backend real.'
+                : 'Controls whether NexusForge uses built-in demo data or connects to the real backend.'}
+            </p>
           </div>
-          <input
-            type="text"
-            value={apiUrl}
-            onChange={(e) => setApiUrl(e.target.value)}
-            placeholder={lang === 'es' ? 'Dejar vacio para modo demo' : 'Leave blank for demo mode'}
-            aria-label={t('apiBaseUrl', lang)}
-            style={inputStyle}
-            onFocus={(e) => e.target.style.borderColor = 'rgba(99,102,241,0.4)'}
-            onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
-          />
-          <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 8, lineHeight: 1.5 }}>
-            {lang === 'es'
-              ? 'Local: http://localhost:8000/api | Produccion: URL del backend desplegado | Vacio: modo demo'
-              : 'Local: http://localhost:8000/api | Production: deployed backend URL | Blank: demo mode'}
-          </p>
+
+          {/* Toggle buttons */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 16 }}>
+            {[
+              { key: 'demo', label: 'Demo' },
+              { key: 'real', label: 'Real' },
+            ].map((option, idx) => (
+              <button
+                key={option.key}
+                onClick={() => handleModeChange(option.key)}
+                aria-label={`Mode: ${option.label}`}
+                style={{
+                  padding: '10px 28px',
+                  border: '1px solid',
+                  borderColor: currentMode === option.key
+                    ? (option.key === 'demo' ? '#F59E0B' : '#10B981')
+                    : '#E5E7EB',
+                  borderRadius: idx === 0 ? '8px 0 0 8px' : '0 8px 8px 0',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  background: currentMode === option.key
+                    ? (option.key === 'demo' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)')
+                    : '#FFFFFF',
+                  color: currentMode === option.key
+                    ? (option.key === 'demo' ? '#D97706' : '#059669')
+                    : '#9CA3AF',
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Mode description */}
+          <div style={{
+            padding: '12px 16px', borderRadius: 8, fontSize: 13, lineHeight: 1.6,
+            background: currentMode === 'demo' ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.06)',
+            border: `1px solid ${currentMode === 'demo' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}`,
+            color: currentMode === 'demo' ? '#92400E' : '#065F46',
+          }}>
+            {currentMode === 'demo'
+              ? (lang === 'es'
+                  ? 'Demo: Usa datos de ejemplo integrados. No requiere backend.'
+                  : 'Demo: Uses built-in demo data. No backend required.')
+              : (lang === 'es'
+                  ? 'Real: Se conecta al backend API. Requiere servidor activo.'
+                  : 'Real: Connects to backend API. Requires running server.')}
+          </div>
+
+          {/* API URL — only visible in Real mode */}
+          {currentMode === 'real' && (
+            <div style={{ marginTop: 16 }}>
+              <label style={{ ...labelStyle, fontSize: 13 }}>
+                {lang === 'es' ? 'URL del API (solo modo Real)' : 'API URL (Real mode only)'}
+              </label>
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => handleApiUrlChange(e.target.value)}
+                placeholder={lang === 'es' ? 'http://localhost:8000/api' : 'http://localhost:8000/api'}
+                aria-label="API URL"
+                style={inputStyle}
+                onFocus={(e) => e.target.style.borderColor = 'rgba(16,185,129,0.4)'}
+                onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+              />
+              <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 8, lineHeight: 1.5 }}>
+                {lang === 'es'
+                  ? 'Local: http://localhost:8000/api | Produccion: URL del backend desplegado'
+                  : 'Local: http://localhost:8000/api | Production: deployed backend URL'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Theme */}
@@ -92,30 +178,44 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour }) {
           </div>
         </div>
 
-        {/* API Status — Demo Mode */}
+        {/* API Status */}
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>{t('apiStatus', lang)}</label>
             <p style={descStyle}>
-              {lang === 'es'
-                ? 'Modo demo — no se requiere backend.'
-                : 'Demo mode — no backend required.'}
+              {currentMode === 'demo'
+                ? (lang === 'es'
+                    ? 'Modo demo — no se requiere backend.'
+                    : 'Demo mode — no backend required.')
+                : (lang === 'es'
+                    ? 'Modo real — conectado al backend API.'
+                    : 'Real mode — connected to backend API.')}
             </p>
           </div>
           <div style={{
             padding: '12px 16px', borderRadius: 8,
-            background: 'rgba(99,102,241,0.08)',
-            border: '1px solid rgba(99,102,241,0.2)',
-            color: '#818CF8', fontSize: 13,
+            background: currentMode === 'demo'
+              ? 'rgba(245,158,11,0.08)'
+              : 'rgba(16,185,129,0.08)',
+            border: `1px solid ${currentMode === 'demo'
+              ? 'rgba(245,158,11,0.2)'
+              : 'rgba(16,185,129,0.2)'}`,
+            color: currentMode === 'demo' ? '#D97706' : '#10B981',
+            fontSize: 13,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <span style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: '#818CF8', flexShrink: 0,
+              background: currentMode === 'demo' ? '#F59E0B' : '#10B981',
+              flexShrink: 0,
             }} />
-            {lang === 'es'
-              ? 'Demo Mode — todos los datos son de ejemplo'
-              : 'Demo Mode — all data is simulated'}
+            {currentMode === 'demo'
+              ? (lang === 'es'
+                  ? 'Demo Mode — todos los datos son de ejemplo'
+                  : 'Demo Mode — all data is simulated')
+              : (lang === 'es'
+                  ? 'Real Mode — datos del backend en vivo'
+                  : 'Real Mode — live backend data')}
           </div>
         </div>
 
