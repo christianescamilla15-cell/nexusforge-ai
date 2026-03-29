@@ -97,7 +97,7 @@ async def run_enterprise_ops_workflow(request: OperationsRequest) -> OperationsR
         # Step 8: Supervisor (final response generation)
         step8 = collector.start_step(tracked_run_id, "SupervisorAgent", 7)
         supervisor_result = await supervisor_agent(intent, customer_name, actions_taken, documents, lang)
-        collector.end_step(step8)
+        collector.end_step(step8, provider=supervisor_result.get("provider", ""), tokens=supervisor_result.get("total_tokens", 0), cost=supervisor_result.get("cost_usd", 0.0))
         agents_used.append("SupervisorAgent")
 
         # Propagate LLM usage from supervisor

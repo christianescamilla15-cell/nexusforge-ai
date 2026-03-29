@@ -75,7 +75,7 @@ async def run_document_intelligence_workflow(request: DocumentIntelligenceInput)
         # Step 7: Supervisor
         s7 = collector.start_step(tracked_id, "SupervisorAgent", 6)
         supervisor = await supervisor_agent(doc_type, fields, is_valid, errors, summary_result["summary"], confidence, lang)
-        collector.end_step(s7)
+        collector.end_step(s7, provider=supervisor.get("provider", ""), tokens=supervisor.get("total_tokens", 0), cost=supervisor.get("cost_usd", 0.0))
         agents_used.append("SupervisorAgent")
         actions.append(f"supervisor: {supervisor['approval']}")
 

@@ -30,13 +30,20 @@ class MetricsCollector:
         self._log_event(run_id, EventType.AGENT_START, f"Agent '{agent_name}' started (step {step_index})", agent_name)
         return step
 
-    def end_step(self, step: WorkflowStep, provider: str = "", output_summary: str = ""):
+    def end_step(self, step: WorkflowStep, provider: str = "", output_summary: str = "", tokens: int = 0, cost: float = 0.0):
         step.end_time = datetime.utcnow()
         step.latency_ms = (step.end_time - step.start_time).total_seconds() * 1000
         step.status = StepStatus.COMPLETED
         step.provider_used = provider
         step.output_summary = output_summary
         self._log_event(step.run_id, EventType.AGENT_END, f"Agent '{step.agent_name}' completed in {step.latency_ms:.0f}ms", step.agent_name)
+        # Accumulate tokens/cost on the run
+        run = self.runs.get(step.run_id)
+        if run and tokens > 0:
+            run.total_tokens = getattr(run, 'total_tokens', 0) + tokens
+            run.total_cost = (run.total_cost or 0) + cost
+            if provider:
+                run.provider_used = provider
 
     def fail_step(self, step: WorkflowStep, error: str):
         step.end_time = datetime.utcnow()

@@ -48,7 +48,7 @@ async def run_portfolio_copilot_workflow(request: PortfolioCopilotInput) -> Port
 
         s6 = collector.start_step(tid, "SupervisorAgent", 5)
         r6 = await supervisor_agent(q_type, r5["final_answer"], r2["results_found"], lang)
-        collector.end_step(s6)
+        collector.end_step(s6, provider=r6.get("provider", ""), tokens=r6.get("total_tokens", 0), cost=r6.get("cost_usd", 0.0))
         agents_used.append("SupervisorAgent")
         actions.append(f"supervisor: {'review' if r6['requires_human_review'] else 'approved'}")
 

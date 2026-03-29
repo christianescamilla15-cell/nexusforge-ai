@@ -20,6 +20,9 @@ class WorkflowRun(BaseModel):
     end_time: Optional[datetime] = None
     total_latency_ms: Optional[float] = None
     total_cost: float = 0.0
+    total_tokens: int = 0
+    provider_used: str = ""
+    model_used: str = ""
     agent_count: int = 0
     step_count: int = 0
     retry_count: int = 0
