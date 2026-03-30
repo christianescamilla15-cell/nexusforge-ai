@@ -303,7 +303,7 @@ async def pipeline_files():
         return {"status": "error", "files": [], "message": str(e)}
 
 @app.post("/api/workflows/drive-to-intelligence")
-async def pipeline_run(file_id: str, language: str = "es", save_to_notion: bool = True, send_webhook: bool = True):
+async def pipeline_run(file_id: str, language: str = "es", save_to_notion: bool = True, send_webhook: bool = True, send_email: bool = False, email_to: str = "christianescamilla15@gmail.com", send_whatsapp: bool = False, whatsapp_number: str = "525579605324"):
     import time
     from datetime import datetime
     start = time.time()
@@ -344,7 +344,34 @@ async def pipeline_run(file_id: str, language: str = "es", save_to_notion: bool 
             steps.append(f"webhook: {'ok' if ws else 'failed'}")
         except Exception as e:
             steps.append(f"webhook: {e}")
-    return {"status": doc["status"], "file_name": file_name, "document_type": doc["document_type"], "extracted_fields": doc.get("extracted_fields",{}), "summary": doc.get("summary",""), "requires_human_review": doc.get("requires_human_review",False), "notion_url": notion_url, "webhook_sent": ws, "llm_used": doc.get("llm_used",False), "total_tokens": doc.get("total_tokens",0), "cost_usd": doc.get("cost_usd",0), "processing_time_ms": round((time.time()-start)*1000,1), "agents_used": doc.get("agents_used",[]), "pipeline_steps": steps, "source": "backend", "server_time": datetime.utcnow().isoformat()}
+    # Email via Resend
+    es = False
+    if send_email:
+        try:
+            from app.integrations.email.client import send_email as _send_email
+            subject = f"NexusForge: [{doc['document_type'].upper()}] {file_name}"
+            body = f"<h2>Documento Procesado</h2><p><b>Archivo:</b> {file_name}</p><p><b>Tipo:</b> {doc['document_type']}</p><p><b>Resumen:</b> {doc.get('summary','')}</p>"
+            if notion_url:
+                body += f"<p><a href='{notion_url}'>Ver en Notion</a></p>"
+            er = await _send_email(to=email_to, subject=subject, body=body)
+            es = er["status"] == "success"
+            steps.append(f"email: {'sent to ' + email_to if es else 'failed'}")
+        except Exception as e:
+            steps.append(f"email: {e}")
+    # WhatsApp
+    wl = None
+    if send_whatsapp:
+        try:
+            from app.integrations.whatsapp.client import send_whatsapp as _send_wa
+            msg = f"📄 NexusForge\n📁 {file_name}\n📋 {doc['document_type']}\n📝 {doc.get('summary','')[:200]}"
+            if notion_url:
+                msg += f"\n🔗 {notion_url}"
+            wr2 = await _send_wa(whatsapp_number, msg)
+            wl = wr2.get("whatsapp_link")
+            steps.append(f"whatsapp: {wr2.get('method','link')}")
+        except Exception as e:
+            steps.append(f"whatsapp: {e}")
+    return {"status": doc["status"], "file_name": file_name, "document_type": doc["document_type"], "extracted_fields": doc.get("extracted_fields",{}), "summary": doc.get("summary",""), "requires_human_review": doc.get("requires_human_review",False), "notion_url": notion_url, "webhook_sent": ws, "email_sent": es, "whatsapp_link": wl, "llm_used": doc.get("llm_used",False), "total_tokens": doc.get("total_tokens",0), "cost_usd": doc.get("cost_usd",0), "processing_time_ms": round((time.time()-start)*1000,1), "agents_used": doc.get("agents_used",[]), "pipeline_steps": steps, "source": "backend", "server_time": datetime.utcnow().isoformat()}
 
 # ── Feedback Loop ──
 @app.post("/api/feedback/submit")
