@@ -26,7 +26,7 @@ export function getApiUrl() {
   if (typeof window === 'undefined') return ''
   return localStorage.getItem('nexusforge_api_url')
     || import.meta.env.VITE_API_URL
-    || 'https://nexusforge-two.vercel.app/api'
+    || 'https://nexusforge-api.onrender.com/api'
 }
 
 /** Return the source of the current API URL for diagnostics. */
