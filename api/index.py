@@ -183,6 +183,31 @@ async def integration_status():
     from app.integrations.config import IntegrationConfig
     return IntegrationConfig.status()
 
+@app.get("/api/integrations/google/test")
+async def google_test():
+    """Test Google credentials and token generation."""
+    import os
+    creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
+    creds_path = os.environ.get("GOOGLE_CREDENTIALS_PATH", "")
+    has_json = bool(creds_json.strip()) if creds_json else False
+    has_path = bool(creds_path.strip()) if creds_path else False
+
+    result = {
+        "GOOGLE_CREDENTIALS_JSON_set": has_json,
+        "GOOGLE_CREDENTIALS_JSON_length": len(creds_json) if creds_json else 0,
+        "GOOGLE_CREDENTIALS_PATH_set": has_path,
+    }
+
+    try:
+        from app.integrations.google_drive.client import _get_access_token
+        token = await _get_access_token()
+        result["token_result"] = token[:20] + "..." if token and not token.startswith("__") else token
+        result["token_success"] = bool(token and not token.startswith("__"))
+    except Exception as e:
+        result["token_error"] = str(e)
+
+    return result
+
 @app.get("/api/integrations/drive/files")
 async def drive_files(query: str = "", limit: int = 10):
     try:

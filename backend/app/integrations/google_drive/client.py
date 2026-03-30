@@ -95,7 +95,7 @@ async def _get_access_token() -> str:
 
         creds.refresh(Request())
         return creds.token
-    except ImportError:
-        return ""
-    except Exception:
-        return ""
+    except ImportError as e:
+        return f"__import_error__{e}"
+    except Exception as e:
+        return f"__error__{e}"
