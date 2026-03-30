@@ -71,7 +71,7 @@ function TourSpotlight({ targetRect, padding = 12 }) {
 }
 
 // --- Tooltip ---
-function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunning, onNext, onPrev, onSkip }) {
+function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang, actionRunning, onNext, onPrev, onSkip }) {
   const stepTitles = {
     welcome: 'tourStepWelcome',
     dashboard: 'tourStepDashboard',
@@ -168,6 +168,21 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, actionRunn
       }}>
         {t(stepDescs[step.id], lang)}
       </p>
+
+      {/* Language selector on welcome step */}
+      {step.id === 'welcome' && onSetLang && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {[{ key: 'es', label: 'Español' }, { key: 'en', label: 'English' }].map(opt => (
+            <button key={opt.key} onClick={() => onSetLang(opt.key)} style={{
+              padding: '6px 16px', borderRadius: 100, fontSize: 13, fontWeight: 600,
+              border: '1px solid', cursor: 'pointer',
+              borderColor: lang === opt.key ? '#2563EB' : '#E5E7EB',
+              background: lang === opt.key ? '#2563EB' : '#FFFFFF',
+              color: lang === opt.key ? '#FFFFFF' : '#6B7280',
+            }}>{opt.label}</button>
+          ))}
+        </div>
+      )}
 
       {/* Action running indicator */}
       {actionRunning && (
@@ -607,6 +622,7 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
           totalSteps={TOUR_STEPS.length}
           targetRect={targetRect}
           lang={lang}
+          onSetLang={onSetLang}
           actionRunning={actionRunning}
           onNext={handleNext}
           onPrev={handlePrev}
