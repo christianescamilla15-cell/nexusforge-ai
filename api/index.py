@@ -302,6 +302,38 @@ async def pipeline_files():
     except Exception as e:
         return {"status": "error", "files": [], "message": str(e)}
 
+@app.post("/api/workflows/drive-to-intelligence/by-name")
+async def pipeline_by_name(file_name: str, language: str = "es", save_to_notion: bool = True, send_webhook: bool = True, send_email: bool = False, email_to: str = "christianescamilla15@gmail.com", send_whatsapp: bool = False, whatsapp_number: str = "525579605324"):
+    """Process a Drive file by name instead of ID."""
+    try:
+        from app.integrations.google_drive.client import list_files
+        result = await list_files(query=file_name, max_results=5)
+        files = [f for f in result.get("files", []) if f.get("mimeType") != "application/vnd.google-apps.folder"]
+        if not files:
+            return {"status": "error", "message": f"No file found matching '{file_name}'", "available_files": []}
+        # Use the first match
+        file_id = files[0]["id"]
+        return await pipeline_run(file_id=file_id, language=language, save_to_notion=save_to_notion, send_webhook=send_webhook, send_email=send_email, email_to=email_to, send_whatsapp=send_whatsapp, whatsapp_number=whatsapp_number)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/workflows/drive-to-intelligence/all")
+async def pipeline_all(language: str = "es", save_to_notion: bool = True, send_webhook: bool = True, send_email: bool = False, email_to: str = "christianescamilla15@gmail.com", send_whatsapp: bool = False, whatsapp_number: str = "525579605324"):
+    """Process ALL files in Drive folder automatically."""
+    try:
+        from app.integrations.google_drive.client import list_files
+        result = await list_files(max_results=20)
+        files = [f for f in result.get("files", []) if f.get("mimeType") != "application/vnd.google-apps.folder"]
+        if not files:
+            return {"status": "no_files", "results": []}
+        results = []
+        for f in files:
+            r = await pipeline_run(file_id=f["id"], language=language, save_to_notion=save_to_notion, send_webhook=send_webhook, send_email=send_email, email_to=email_to, send_whatsapp=send_whatsapp, whatsapp_number=whatsapp_number)
+            results.append({"file": f["name"], "result": r})
+        return {"status": "completed", "files_processed": len(results), "results": results}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/workflows/drive-to-intelligence")
 async def pipeline_run(file_id: str, language: str = "es", save_to_notion: bool = True, send_webhook: bool = True, send_email: bool = False, email_to: str = "christianescamilla15@gmail.com", send_whatsapp: bool = False, whatsapp_number: str = "525579605324"):
     import time
