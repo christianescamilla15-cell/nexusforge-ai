@@ -104,7 +104,7 @@ export default function AgentDetailPanel({ agent, onClose }) {
 
       {/* Execution stats */}
       {agent.stats && (
-        <div>
+        <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 10 }}>Estadísticas</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             {[
@@ -123,6 +123,19 @@ export default function AgentDetailPanel({ agent, onClose }) {
           </div>
         </div>
       )}
+
+      {/* Agent customization notice */}
+      <div style={{
+        background: '#FFFBEB', borderRadius: 8, padding: 14,
+        border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round">
+          <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+        <span style={{ fontSize: 13, color: '#92400E' }}>
+          Agent configuration coming soon / Configuración de agentes próximamente
+        </span>
+      </div>
     </div>
   )
 }
