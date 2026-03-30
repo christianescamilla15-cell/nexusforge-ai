@@ -208,9 +208,9 @@ async def google_test():
         result["token_result"] = token[:20] + "..." if token and not token.startswith("__") else token
         result["token_success"] = bool(token and not token.startswith("__"))
 
-        # Direct Calendar API test
+        # Direct API tests
         if token and not token.startswith("__"):
-            async with httpx.AsyncClient(timeout=10.0) as client:
+          async with httpx.AsyncClient(timeout=15.0) as client:
                 # Try calendarList first to see what calendars are accessible
                 resp = await client.get(
                     "https://www.googleapis.com/calendar/v3/users/me/calendarList",
