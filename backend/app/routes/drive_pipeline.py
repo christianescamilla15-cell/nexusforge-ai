@@ -87,14 +87,14 @@ async def drive_to_intelligence(request: DrivePipelineInput):
         except Exception as e:
             steps.append(f"webhook: error - {e}")
 
-    # Step 5: WhatsApp (via Twilio/WhatsApp API or direct link)
+    # Step 5: WhatsApp
     whatsapp_sent = False
+    wa_link = None
     if request.send_whatsapp:
         try:
-            import httpx
+            from ..integrations.whatsapp.client import send_whatsapp
             phone = request.whatsapp_number or "525579605324"
-            lang = request.language
-            msg = f"📄 *NexusForge - Documento Procesado*\n\n" if lang == "es" else f"📄 *NexusForge - Document Processed*\n\n"
+            msg = f"📄 *NexusForge - Documento Procesado*\n\n"
             msg += f"📁 Archivo: {file_name}\n"
             msg += f"📋 Tipo: {doc['document_type']}\n"
             msg += f"📝 Resumen: {doc.get('summary', 'N/A')[:200]}\n"
@@ -102,33 +102,37 @@ async def drive_to_intelligence(request: DrivePipelineInput):
                 msg += f"\n⚠️ Requiere revisión humana"
             if notion_url:
                 msg += f"\n🔗 Notion: {notion_url}"
-
-            # Generate WhatsApp API link (works without Twilio)
-            import urllib.parse
-            wa_link = f"https://api.whatsapp.com/send?phone={phone}&text={urllib.parse.quote(msg)}"
-            whatsapp_sent = True
-            steps.append(f"whatsapp: link generated for {phone}")
+            wa_result = await send_whatsapp(phone, msg)
+            whatsapp_sent = wa_result["status"] == "success"
+            wa_link = wa_result.get("whatsapp_link")
+            steps.append(f"whatsapp: {wa_result['method']} ({'success' if whatsapp_sent else 'failed'})")
         except Exception as e:
-            wa_link = None
             steps.append(f"whatsapp: error - {e}")
 
-    # Step 6: Email summary
+    # Step 6: Email via Resend
     email_sent = False
-    email_body = None
     if request.send_email:
         try:
+            from ..integrations.email.client import send_email
             email_to = request.email_to or "christianescamilla15@gmail.com"
-            email_body = f"NexusForge - Documento Procesado\n\n"
-            email_body += f"Archivo: {file_name}\n"
-            email_body += f"Tipo: {doc['document_type']}\n"
-            email_body += f"Resumen: {doc.get('summary', 'N/A')}\n\n"
-            email_body += f"Campos extraídos:\n"
-            for k, v in doc.get("extracted_fields", {}).items():
-                email_body += f"  - {k}: {v}\n"
+            subject = f"📄 NexusForge: [{doc['document_type'].upper()}] {file_name}"
+            body = f"<h2>📄 Documento Procesado por NexusForge</h2>"
+            body += f"<p><strong>Archivo:</strong> {file_name}</p>"
+            body += f"<p><strong>Tipo:</strong> {doc['document_type']}</p>"
+            body += f"<p><strong>Resumen:</strong> {doc.get('summary', 'N/A')}</p>"
+            if doc.get("extracted_fields"):
+                body += f"<h3>Campos extraídos:</h3><ul>"
+                for k, v in doc["extracted_fields"].items():
+                    body += f"<li><strong>{k}:</strong> {v}</li>"
+                body += "</ul>"
+            if doc.get("requires_human_review"):
+                body += f"<p>⚠️ <strong>Requiere revisión humana</strong></p>"
             if notion_url:
-                email_body += f"\nVer en Notion: {notion_url}"
-            email_sent = True  # Email body generated (actual sending needs SMTP config)
-            steps.append(f"email: body generated for {email_to}")
+                body += f"<p>🔗 <a href='{notion_url}'>Ver en Notion</a></p>"
+            body += f"<hr><p><small>Tokens: {doc.get('total_tokens', 0)} | Costo: ${doc.get('cost_usd', 0)} | Agentes: {len(doc.get('agents_used', []))}</small></p>"
+            email_result = await send_email(to=email_to, subject=subject, body=body)
+            email_sent = email_result["status"] == "success"
+            steps.append(f"email: {'sent to ' + email_to if email_sent else 'failed - ' + email_result.get('message', '')}")
         except Exception as e:
             steps.append(f"email: error - {e}")
 
