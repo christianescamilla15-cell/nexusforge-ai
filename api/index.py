@@ -405,6 +405,156 @@ async def pipeline_run(file_id: str, language: str = "es", save_to_notion: bool 
             steps.append(f"whatsapp: {e}")
     return {"status": doc["status"], "file_name": file_name, "document_type": doc["document_type"], "extracted_fields": doc.get("extracted_fields",{}), "summary": doc.get("summary",""), "requires_human_review": doc.get("requires_human_review",False), "notion_url": notion_url, "webhook_sent": ws, "email_sent": es, "whatsapp_link": wl, "llm_used": doc.get("llm_used",False), "total_tokens": doc.get("total_tokens",0), "cost_usd": doc.get("cost_usd",0), "processing_time_ms": round((time.time()-start)*1000,1), "agents_used": doc.get("agents_used",[]), "pipeline_steps": steps, "source": "backend", "server_time": datetime.utcnow().isoformat()}
 
+# ── Drive-to-Enterprise Ops Pipeline ──
+@app.post("/api/workflows/drive-to-ops")
+async def pipeline_drive_to_ops(file_id: str = "", file_name: str = "", customer_id: str = "CUST-001", language: str = "es", save_to_notion: bool = True, send_email: bool = False, email_to: str = "christianescamilla15@gmail.com", send_whatsapp: bool = False, whatsapp_number: str = "525579605324"):
+    """Read a customer request/email from Drive → process with Enterprise Ops (8 agents)."""
+    import time
+    from datetime import datetime
+    start = time.time()
+    steps = []
+    # Resolve file
+    try:
+        from app.integrations.google_drive.client import get_file_content, list_files
+        if not file_id and file_name:
+            result = await list_files(query=file_name, max_results=5)
+            files = [f for f in result.get("files", []) if f.get("mimeType") != "application/vnd.google-apps.folder"]
+            if not files:
+                return {"status": "error", "message": f"No file found: '{file_name}'"}
+            file_id = files[0]["id"]
+            fname = files[0]["name"]
+        else:
+            fname = file_id
+        cr = await get_file_content(file_id)
+        if cr["status"] != "success":
+            return {"status": "error", "pipeline_steps": ["drive_read: failed"]}
+        content = cr["content"]
+        steps.append(f"drive_read: success ({len(content)} chars from {fname})")
+    except Exception as e:
+        return {"status": "error", "pipeline_steps": [f"drive_read: {e}"]}
+    # Enterprise Ops
+    try:
+        from app.use_cases.enterprise_ops.workflow import run_enterprise_ops_workflow
+        from app.use_cases.enterprise_ops.schemas import OperationsRequest
+        ops = (await run_enterprise_ops_workflow(OperationsRequest(message=content[:2000], customer_id=customer_id, language=language))).model_dump()
+        steps.append(f"enterprise_ops: {ops['status']} (intent: {ops.get('intent','?')}, agents: {len(ops.get('agents_used',[]))})")
+    except Exception as e:
+        return {"status": "error", "pipeline_steps": steps + [f"enterprise_ops: {e}"]}
+    # Notion
+    notion_url = None
+    if save_to_notion:
+        try:
+            from app.integrations.notion.client import write_page
+            title = f"[OPS] {ops.get('intent','request')} - {fname}"
+            body = f"Intent: {ops.get('intent','')}\nCliente: {ops.get('customer_name','')}\nRespuesta: {ops.get('response_message','')}\nAcciones: {', '.join(ops.get('actions_taken',[]))}"
+            nr = await write_page(title=title, content=body)
+            notion_url = nr.get("url") if nr["status"] == "success" else None
+            steps.append(f"notion: {'ok' if notion_url else 'failed'}")
+        except Exception as e:
+            steps.append(f"notion: {e}")
+    # Email
+    es = False
+    if send_email:
+        try:
+            from app.integrations.email.client import send_email as _se
+            er = await _se(to=email_to, subject=f"NexusForge Ops: {ops.get('intent','')}", body=f"<h2>Solicitud Procesada</h2><p><b>Intent:</b> {ops.get('intent','')}</p><p><b>Cliente:</b> {ops.get('customer_name','')}</p><p><b>Respuesta:</b> {ops.get('response_message','')}</p>")
+            es = er["status"] == "success"
+            steps.append(f"email: {'sent' if es else 'failed'}")
+        except Exception as e:
+            steps.append(f"email: {e}")
+    # WhatsApp
+    wl = None
+    if send_whatsapp:
+        try:
+            from app.integrations.whatsapp.client import send_whatsapp as _sw
+            msg = f"🏢 NexusForge Ops\n📋 {ops.get('intent','')}\n👤 {ops.get('customer_name','')}\n💬 {ops.get('response_message','')[:200]}"
+            wr = await _sw(whatsapp_number, msg)
+            wl = wr.get("whatsapp_link")
+            steps.append(f"whatsapp: {wr.get('method','link')}")
+        except Exception as e:
+            steps.append(f"whatsapp: {e}")
+    return {"status": ops["status"], "file_name": fname, "intent": ops.get("intent"), "customer_name": ops.get("customer_name"), "response_message": ops.get("response_message",""), "actions_taken": ops.get("actions_taken",[]), "notion_url": notion_url, "email_sent": es, "whatsapp_link": wl, "llm_used": ops.get("llm_used",False), "total_tokens": ops.get("total_tokens",0), "cost_usd": ops.get("cost_usd",0), "agents_used": ops.get("agents_used",[]), "pipeline_steps": steps, "processing_time_ms": round((time.time()-start)*1000,1), "source": "backend", "server_time": datetime.utcnow().isoformat()}
+
+# ── Drive-to-Portfolio Copilot Pipeline ──
+@app.post("/api/workflows/drive-to-copilot")
+async def pipeline_drive_to_copilot(file_id: str = "", file_name: str = "", language: str = "es", save_to_notion: bool = True, send_email: bool = False, email_to: str = "christianescamilla15@gmail.com", send_whatsapp: bool = False, whatsapp_number: str = "525579605324"):
+    """Read questions from Drive → answer with Portfolio Copilot (6 agents)."""
+    import time
+    from datetime import datetime
+    start = time.time()
+    steps = []
+    # Resolve file
+    try:
+        from app.integrations.google_drive.client import get_file_content, list_files
+        if not file_id and file_name:
+            result = await list_files(query=file_name, max_results=5)
+            files = [f for f in result.get("files", []) if f.get("mimeType") != "application/vnd.google-apps.folder"]
+            if not files:
+                return {"status": "error", "message": f"No file found: '{file_name}'"}
+            file_id = files[0]["id"]
+            fname = files[0]["name"]
+        else:
+            fname = file_id
+        cr = await get_file_content(file_id)
+        if cr["status"] != "success":
+            return {"status": "error", "pipeline_steps": ["drive_read: failed"]}
+        content = cr["content"]
+        steps.append(f"drive_read: success ({len(content)} chars from {fname})")
+    except Exception as e:
+        return {"status": "error", "pipeline_steps": [f"drive_read: {e}"]}
+    # Process each line as a question (or full content as one question)
+    lines = [l.strip() for l in content.split("\n") if l.strip() and len(l.strip()) > 10]
+    questions = lines[:5] if len(lines) > 1 else [content[:1000]]
+    all_answers = []
+    try:
+        from app.use_cases.portfolio_copilot.workflow import run_portfolio_copilot_workflow
+        from app.use_cases.portfolio_copilot.schemas import PortfolioCopilotInput
+        for q in questions:
+            r = (await run_portfolio_copilot_workflow(PortfolioCopilotInput(question=q, language=language))).model_dump()
+            all_answers.append({"question": q[:100], "answer": r.get("final_answer",""), "recommended": r.get("recommended_project"), "skills": r.get("related_skills",[])[:5], "tokens": r.get("total_tokens",0)})
+        steps.append(f"copilot: {len(all_answers)} questions answered")
+    except Exception as e:
+        return {"status": "error", "pipeline_steps": steps + [f"copilot: {e}"]}
+    total_tokens = sum(a.get("tokens",0) for a in all_answers)
+    # Notion
+    notion_url = None
+    if save_to_notion:
+        try:
+            from app.integrations.notion.client import write_page
+            body = "\n\n".join([f"Q: {a['question']}\nA: {a['answer']}" for a in all_answers])
+            nr = await write_page(title=f"[COPILOT] {fname} ({len(all_answers)} preguntas)", content=body)
+            notion_url = nr.get("url") if nr["status"] == "success" else None
+            steps.append(f"notion: {'ok' if notion_url else 'failed'}")
+        except Exception as e:
+            steps.append(f"notion: {e}")
+    # Email
+    es = False
+    if send_email:
+        try:
+            from app.integrations.email.client import send_email as _se
+            html = "<h2>Portfolio Copilot - Respuestas</h2>"
+            for a in all_answers:
+                html += f"<h3>{a['question']}</h3><p>{a['answer']}</p><hr>"
+            er = await _se(to=email_to, subject=f"NexusForge Copilot: {len(all_answers)} respuestas", body=html)
+            es = er["status"] == "success"
+            steps.append(f"email: {'sent' if es else 'failed'}")
+        except Exception as e:
+            steps.append(f"email: {e}")
+    # WhatsApp
+    wl = None
+    if send_whatsapp:
+        try:
+            from app.integrations.whatsapp.client import send_whatsapp as _sw
+            msg = f"🧠 NexusForge Copilot\n📁 {fname}\n📊 {len(all_answers)} preguntas respondidas\n\n"
+            for a in all_answers[:3]:
+                msg += f"❓ {a['question'][:50]}...\n💡 {a['answer'][:100]}...\n\n"
+            wr = await _sw(whatsapp_number, msg)
+            wl = wr.get("whatsapp_link")
+            steps.append(f"whatsapp: {wr.get('method','link')}")
+        except Exception as e:
+            steps.append(f"whatsapp: {e}")
+    return {"status": "completed", "file_name": fname, "questions_answered": len(all_answers), "answers": all_answers, "total_tokens": total_tokens, "notion_url": notion_url, "email_sent": es, "whatsapp_link": wl, "pipeline_steps": steps, "processing_time_ms": round((time.time()-start)*1000,1), "source": "backend", "server_time": datetime.utcnow().isoformat()}
+
 # ── Feedback Loop ──
 @app.post("/api/feedback/submit")
 async def submit_feedback_api(run_id: str, rating: int = 3, approved: bool = False, comments: str = "", reviewer: str = "anonymous"):
