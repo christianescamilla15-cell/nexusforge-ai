@@ -3,22 +3,22 @@ import os
 
 class IntegrationConfig:
     # Google (service account JSON path OR inline JSON for serverless)
-    GOOGLE_CREDENTIALS_PATH = os.environ.get("GOOGLE_CREDENTIALS_PATH", "")
+    GOOGLE_CREDENTIALS_PATH = os.environ.get("GOOGLE_CREDENTIALS_PATH", "").strip()
     GOOGLE_CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS_JSON", "").strip()
-    GOOGLE_TOKEN_PATH = os.environ.get("GOOGLE_TOKEN_PATH", "")
+    GOOGLE_TOKEN_PATH = os.environ.get("GOOGLE_TOKEN_PATH", "").strip()
 
     # Gmail
-    GMAIL_USER = os.environ.get("GMAIL_USER", "")
+    GMAIL_USER = os.environ.get("GMAIL_USER", "").strip()
 
     # Google Calendar
-    CALENDAR_ID = os.environ.get("GOOGLE_CALENDAR_ID", "primary")
+    CALENDAR_ID = os.environ.get("GOOGLE_CALENDAR_ID", "primary").strip()
 
     # Notion
     NOTION_API_KEY = os.environ.get("NOTION_API_KEY", "").strip()
     NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID", "").strip()
 
     # Webhooks
-    WEBHOOK_URL = os.environ.get("NEXUSFORGE_WEBHOOK_URL", "")
+    WEBHOOK_URL = os.environ.get("NEXUSFORGE_WEBHOOK_URL", "").strip()
 
     @classmethod
     def status(cls):
