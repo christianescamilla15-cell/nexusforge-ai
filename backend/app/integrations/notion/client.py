@@ -19,10 +19,25 @@ async def write_page(title: str, content: str, properties: dict = None) -> dict:
             "Notion-Version": NOTION_VERSION,
         }
 
+        # First, get the database schema to find the title property name
+        db_id = IntegrationConfig.NOTION_DATABASE_ID
+        title_prop = "Name"  # default
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as c:
+                db_resp = await c.get(f"{NOTION_API}/databases/{db_id}", headers=headers)
+                if db_resp.status_code == 200:
+                    db_data = db_resp.json()
+                    for prop_name, prop_val in db_data.get("properties", {}).items():
+                        if prop_val.get("type") == "title":
+                            title_prop = prop_name
+                            break
+        except Exception:
+            pass
+
         page_data = {
-            "parent": {"database_id": IntegrationConfig.NOTION_DATABASE_ID},
+            "parent": {"database_id": db_id},
             "properties": {
-                "Name": {"title": [{"text": {"content": title}}]},
+                title_prop: {"title": [{"text": {"content": title}}]},
                 **(properties or {}),
             },
             "children": [

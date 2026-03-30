@@ -15,7 +15,7 @@ class IntegrationConfig:
 
     # Notion
     NOTION_API_KEY = os.environ.get("NOTION_API_KEY", "").strip()
-    NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID", "")
+    NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID", "").strip()
 
     # Webhooks
     WEBHOOK_URL = os.environ.get("NEXUSFORGE_WEBHOOK_URL", "")
