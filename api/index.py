@@ -185,17 +185,20 @@ async def integration_status():
 
 @app.get("/api/integrations/google/test")
 async def google_test():
-    """Test Google credentials and token generation."""
+    """Test Google credentials, token, and direct Calendar API call."""
     import os
+    import httpx
     creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
     creds_path = os.environ.get("GOOGLE_CREDENTIALS_PATH", "")
     has_json = bool(creds_json.strip()) if creds_json else False
     has_path = bool(creds_path.strip()) if creds_path else False
+    cal_id = os.environ.get("GOOGLE_CALENDAR_ID", "primary").strip()
 
     result = {
         "GOOGLE_CREDENTIALS_JSON_set": has_json,
         "GOOGLE_CREDENTIALS_JSON_length": len(creds_json) if creds_json else 0,
         "GOOGLE_CREDENTIALS_PATH_set": has_path,
+        "GOOGLE_CALENDAR_ID": cal_id,
     }
 
     try:
@@ -203,8 +206,24 @@ async def google_test():
         token = await _get_access_token()
         result["token_result"] = token[:20] + "..." if token and not token.startswith("__") else token
         result["token_success"] = bool(token and not token.startswith("__"))
+
+        # Direct Calendar API test
+        if token and not token.startswith("__"):
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Try calendarList first to see what calendars are accessible
+                resp = await client.get(
+                    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                result["calendarList_status"] = resp.status_code
+                if resp.status_code == 200:
+                    cals = resp.json().get("items", [])
+                    result["calendars_found"] = len(cals)
+                    result["calendars"] = [{"id": c.get("id"), "summary": c.get("summary")} for c in cals[:5]]
+                else:
+                    result["calendarList_error"] = resp.text[:200]
     except Exception as e:
-        result["token_error"] = str(e)
+        result["error"] = str(e)
 
     return result
 
