@@ -9,7 +9,7 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -765,3 +765,186 @@ async def agent_perf_api():
 async def agent_recs_api():
     from app.services.feedback_service import get_agent_recommendations
     return get_agent_recommendations()
+
+
+# ── DB-Powered Endpoints (Render PostgreSQL) ──
+
+@app.get("/api/db/status")
+async def db_status():
+    """Check if Render PostgreSQL is reachable."""
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        return {"status": "not_configured", "message": "DATABASE_URL not set"}
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(db_url)
+        version = await conn.fetchval("SELECT version()")
+        tables = await conn.fetchval("SELECT COUNT(*) FROM _migrations")
+        await conn.close()
+        return {"status": "connected", "migrations_applied": tables, "pg_version": version}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/workflows/pipeline-runs")
+async def get_pipeline_runs(pipeline: str = None, limit: int = 20):
+    """List persisted pipeline run history from Render DB."""
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        return {"status": "error", "runs": [], "message": "DATABASE_URL not configured"}
+    try:
+        import asyncpg
+        conn = await asyncpg.connect(db_url)
+        try:
+            if pipeline:
+                rows = await conn.fetch(
+                    "SELECT * FROM pipeline_runs WHERE pipeline_name = $1 ORDER BY created_at DESC LIMIT $2",
+                    pipeline, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT * FROM pipeline_runs ORDER BY created_at DESC LIMIT $1", limit,
+                )
+            runs = []
+            for r in rows:
+                run = dict(r)
+                run["id"] = str(run["id"])
+                if run.get("created_at"):
+                    run["created_at"] = run["created_at"].isoformat()
+                runs.append(run)
+            return {"status": "success", "runs": runs, "total": len(runs)}
+        finally:
+            await conn.close()
+    except Exception as e:
+        return {"status": "error", "runs": [], "message": str(e)}
+
+
+@app.post("/api/analyze")
+async def analyze_document_serverless(
+    file: UploadFile = File(...),
+    questions: Optional[str] = Form(None),
+    language: str = Form("es"),
+    send_email: bool = Form(True),
+    email_to: Optional[str] = Form(None),
+    save_to_notion: bool = Form(True),
+):
+    """Upload a file (PDF, Word, TXT), analyze, auto-Q&A, email results."""
+    import time
+    start = time.time()
+    steps = []
+
+    # Extract text
+    try:
+        from app.routes.analyze import _extract_text
+        text, file_type = await _extract_text(file)
+        steps.append(f"extract: {len(text)} chars ({file_type})")
+    except Exception as e:
+        return {"status": "error", "message": f"Extract failed: {e}"}
+
+    # Document Intelligence
+    try:
+        from app.use_cases.document_intelligence.workflow import run_document_intelligence_workflow
+        from app.use_cases.document_intelligence.schemas import DocumentIntelligenceInput
+        doc_result = await run_document_intelligence_workflow(
+            DocumentIntelligenceInput(content=text, filename=file.filename or "upload", language=language)
+        )
+        doc = doc_result.model_dump()
+        steps.append(f"intelligence: {doc['status']}")
+    except Exception as e:
+        return {"status": "error", "message": f"Intelligence failed: {e}"}
+
+    # Questions & Answers
+    try:
+        from app.routes.analyze import _generate_questions, _answer_questions
+        if questions and questions.strip():
+            q_list = [{"question": q.strip(), "category": "custom"} for q in questions.split(",") if q.strip()]
+        else:
+            q_list = await _generate_questions(text, doc["document_type"], language)
+        answers = await _answer_questions(text, q_list, language)
+        steps.append(f"qa: {len(q_list)}q {len(answers)}a")
+    except Exception as e:
+        q_list, answers = [], []
+        steps.append(f"qa: {e}")
+
+    # Notion
+    notion_url = None
+    if save_to_notion:
+        try:
+            from app.integrations.notion.client import write_page
+            title = f"[ANALYSIS] {file.filename or 'upload'}"
+            body = f"Tipo: {doc['document_type']}\nResumen: {doc.get('summary', '')}\n\n"
+            for i, q in enumerate(q_list):
+                a = answers[i] if i < len(answers) else {"answer": "N/A"}
+                body += f"Q: {q['question']}\nA: {a.get('answer', 'N/A')}\n\n"
+            nr = await write_page(title=title, content=body)
+            notion_url = nr.get("url") if nr["status"] == "success" else None
+            steps.append(f"notion: {'ok' if notion_url else 'fail'}")
+        except Exception as e:
+            steps.append(f"notion: {e}")
+
+    # Email
+    email_sent = False
+    if send_email:
+        try:
+            from app.integrations.email.client import send_email as resend_email, build_analysis_email
+            recipient = email_to or os.environ.get("GMAIL_USER")
+            if recipient:
+                html = build_analysis_email(
+                    file_name=file.filename or "upload", document_type=doc["document_type"],
+                    summary=doc.get("summary", ""), extracted_fields=doc.get("extracted_fields", {}),
+                    questions=q_list, answers=answers, notion_url=notion_url,
+                    cost_usd=doc.get("cost_usd", 0), total_tokens=doc.get("total_tokens", 0),
+                )
+                er = await resend_email(to=recipient, subject=f"[NexusForge] Analisis: {file.filename}", html_body=html)
+                email_sent = er["status"] == "success"
+                steps.append(f"email: {'ok' if email_sent else 'fail'}")
+        except Exception as e:
+            steps.append(f"email: {e}")
+
+    processing_time = round((time.time() - start) * 1000, 1)
+
+    # Persist to DB (best-effort)
+    run_id = None
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        try:
+            import asyncpg, json as _json
+            conn = await asyncpg.connect(db_url)
+            try:
+                row = await conn.fetchrow(
+                    """INSERT INTO pipeline_runs
+                       (pipeline_name, status, trigger_source, input_summary, output_summary,
+                        steps, file_name, document_type, total_tokens, cost_usd,
+                        processing_time_ms, llm_used, agents_used, notion_url, webhook_sent)
+                       VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15)
+                       RETURNING id""",
+                    "analyze", doc["status"], "serverless",
+                    _json.dumps({"file_type": file_type, "language": language}),
+                    _json.dumps({"summary": doc.get("summary", "")}),
+                    _json.dumps(steps), file.filename, doc.get("document_type"),
+                    doc.get("total_tokens", 0), doc.get("cost_usd", 0),
+                    int(processing_time), doc.get("llm_used", False),
+                    _json.dumps(doc.get("agents_used", [])), notion_url, False,
+                )
+                run_id = str(row["id"])
+            finally:
+                await conn.close()
+        except Exception:
+            pass
+
+    from datetime import datetime
+    return {
+        "status": doc["status"], "run_id": run_id,
+        "file_name": file.filename, "file_type": file_type,
+        "document_type": doc["document_type"],
+        "summary": doc.get("summary", ""),
+        "extracted_fields": doc.get("extracted_fields", {}),
+        "questions": q_list, "answers": answers,
+        "notion_url": notion_url, "email_sent": email_sent,
+        "total_tokens": doc.get("total_tokens", 0),
+        "cost_usd": doc.get("cost_usd", 0),
+        "processing_time_ms": processing_time,
+        "pipeline_steps": steps,
+        "source": "serverless",
+        "server_time": datetime.utcnow().isoformat(),
+    }
