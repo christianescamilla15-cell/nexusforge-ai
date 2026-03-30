@@ -9,7 +9,7 @@ import os
 import time
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 router = APIRouter(tags=["Analyze"])
 logger = logging.getLogger(__name__)
@@ -482,3 +482,23 @@ async def analyze_text(
         "processing_time_ms": processing_time,
         "pipeline_steps": steps,
     }
+
+
+@router.get("/pipeline-runs")
+async def get_all_pipeline_runs(
+    pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """List all persisted pipeline run history."""
+    try:
+        from ..db.client import get_db_pool
+        from ..db.pipeline_store import list_pipeline_runs
+        pool = await get_db_pool()
+        runs = await list_pipeline_runs(pool, pipeline_name=pipeline, limit=limit)
+        for run in runs:
+            run["id"] = str(run["id"])
+            if run.get("created_at"):
+                run["created_at"] = run["created_at"].isoformat()
+        return {"status": "success", "runs": runs, "total": len(runs)}
+    except Exception as e:
+        return {"status": "error", "runs": [], "message": str(e)}

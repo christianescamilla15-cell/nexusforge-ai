@@ -204,7 +204,7 @@ async def list_drive_files():
         return {"status": "error", "files": [], "message": str(e)}
 
 
-@router.get("/pipeline-runs")
+@router.get("/drive-to-intelligence/runs")
 async def get_pipeline_runs(
     pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),
     limit: int = Query(20, ge=1, le=100),
