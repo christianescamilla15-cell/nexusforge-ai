@@ -136,13 +136,15 @@ async def _get_db_health() -> dict:
 
 @router.get("/")
 async def list_runs(limit: int = 50):
-    """List recent runs — tries PostgreSQL first, falls back to in-memory."""
+    """List recent runs — merges PostgreSQL + in-memory."""
     db_runs = await _get_db_runs(limit)
-    if db_runs:
-        return {"runs": db_runs, "total": len(db_runs), "source": "postgresql"}
-
     mem_runs = collector.get_runs(limit=limit)
-    return {"runs": [r.model_dump() for r in mem_runs], "total": len(mem_runs), "source": "memory"}
+    mem_list = [r.model_dump() for r in mem_runs]
+
+    # Merge: DB runs first, then in-memory (avoid duplicates)
+    all_runs = db_runs + mem_list
+    source = "postgresql" if db_runs else ("memory" if mem_list else "empty")
+    return {"runs": all_runs, "total": len(all_runs), "source": source}
 
 
 @router.get("/reliability/agents")
