@@ -182,3 +182,26 @@ async def reliability_agents():
 async def integration_status():
     from app.integrations.config import IntegrationConfig
     return IntegrationConfig.status()
+
+# ── Feedback Loop ──
+@app.post("/api/feedback/submit")
+async def submit_feedback_api(run_id: str, rating: int = 3, approved: bool = False, comments: str = "", reviewer: str = "anonymous"):
+    from app.services.feedback_service import submit_feedback
+    result = submit_feedback(run_id=run_id, rating=rating, approved=approved, comments=comments, reviewer=reviewer)
+    return result.model_dump()
+
+@app.get("/api/feedback/stats")
+async def feedback_stats_api():
+    from app.services.feedback_service import get_feedback_stats
+    return get_feedback_stats()
+
+@app.get("/api/feedback/agents/performance")
+async def agent_perf_api():
+    from app.services.feedback_service import get_agent_performance
+    agents = get_agent_performance()
+    return {"agents": [a.model_dump() for a in agents]}
+
+@app.get("/api/feedback/agents/recommendations")
+async def agent_recs_api():
+    from app.services.feedback_service import get_agent_recommendations
+    return get_agent_recommendations()

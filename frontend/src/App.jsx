@@ -20,6 +20,7 @@ import PlaygroundPage from './features/playground/PlaygroundPage'
 import CostTokenDashboard from './features/metrics/CostTokenDashboard'
 import ExecutionTimelineViewer from './features/executions/ExecutionTimelineViewer'
 import EvaluationPage from './features/evaluations/EvaluationPage'
+import FeedbackPage from './features/feedback/FeedbackPage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -114,6 +115,8 @@ export default function App() {
         return <ExecutionTimelineViewer lang={lang} />
       case 'evaluations':
         return <EvaluationPage lang={lang} />
+      case 'feedback':
+        return <FeedbackPage lang={lang} />
       case 'settings':
         return (
           <SettingsPage

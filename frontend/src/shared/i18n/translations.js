@@ -15,6 +15,7 @@ export const translations = {
     timeline: 'Timeline',
 
     evaluations: 'Evaluations',
+    feedback: 'Feedback Loop',
 
     // Dashboard
     totalWorkflows: 'Total Workflows',
@@ -295,6 +296,7 @@ export const translations = {
     timeline: 'Timeline',
 
     evaluations: 'Evaluaciones',
+    feedback: 'Ciclo de Feedback',
 
     // Dashboard
     totalWorkflows: 'Total Flujos',
