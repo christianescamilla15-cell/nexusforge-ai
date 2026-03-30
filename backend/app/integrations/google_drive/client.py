@@ -10,8 +10,8 @@ from ..config import IntegrationConfig
 
 async def list_files(query: str = "", max_results: int = 10) -> dict:
     """List files from Google Drive. Requires Google credentials."""
-    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH:
-        return {"status": "not_configured", "files": [], "message": "Set GOOGLE_CREDENTIALS_PATH env var"}
+    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH and not IntegrationConfig.GOOGLE_CREDENTIALS_JSON:
+        return {"status": "not_configured", "files": [], "message": "Set GOOGLE_CREDENTIALS_PATH or GOOGLE_CREDENTIALS_JSON env var"}
 
     # For MVP: use REST API with service account token
     try:
@@ -40,8 +40,8 @@ async def list_files(query: str = "", max_results: int = 10) -> dict:
 
 async def get_file_content(file_id: str) -> dict:
     """Fetch text content of a Google Drive document."""
-    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH:
-        return {"status": "not_configured", "content": "", "message": "Set GOOGLE_CREDENTIALS_PATH"}
+    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH and not IntegrationConfig.GOOGLE_CREDENTIALS_JSON:
+        return {"status": "not_configured", "content": "", "message": "Set GOOGLE_CREDENTIALS_PATH or GOOGLE_CREDENTIALS_JSON"}
 
     try:
         token = await _get_access_token()

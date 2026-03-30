@@ -5,7 +5,7 @@ from ..google_drive.client import _get_access_token
 
 async def list_messages(query: str = "is:unread", max_results: int = 5) -> dict:
     """List Gmail messages matching a query."""
-    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH:
+    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH and not IntegrationConfig.GOOGLE_CREDENTIALS_JSON:
         return {"status": "not_configured", "messages": [], "message": "Set GOOGLE_CREDENTIALS_PATH"}
 
     try:
@@ -48,7 +48,7 @@ async def list_messages(query: str = "is:unread", max_results: int = 5) -> dict:
 
 async def get_message_content(message_id: str) -> dict:
     """Get the full content of a specific Gmail message."""
-    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH:
+    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH and not IntegrationConfig.GOOGLE_CREDENTIALS_JSON:
         return {"status": "not_configured", "content": ""}
 
     try:

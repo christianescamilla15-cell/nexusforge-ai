@@ -6,7 +6,7 @@ from ..google_drive.client import _get_access_token
 
 async def list_events(days_ahead: int = 7, max_results: int = 10) -> dict:
     """List upcoming calendar events."""
-    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH:
+    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH and not IntegrationConfig.GOOGLE_CREDENTIALS_JSON:
         return {"status": "not_configured", "events": []}
 
     try:
