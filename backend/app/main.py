@@ -8,6 +8,7 @@ from app.routes import workflows, executions, agents, documents, health, swarms,
 from app.routes.enterprise_ops import router as enterprise_ops_router
 from app.routes.document_intelligence import router as doc_intel_router
 from app.routes.portfolio_copilot import router as portfolio_copilot_router
+from app.routes.integrations import router as integrations_router
 from app.observability.tracing import get_tracer
 
 @asynccontextmanager
@@ -66,3 +67,4 @@ app.include_router(evaluation.router, prefix="/api", tags=["evaluation"])
 app.include_router(enterprise_ops_router, prefix="/api")
 app.include_router(doc_intel_router, prefix="/api")
 app.include_router(portfolio_copilot_router, prefix="/api")
+app.include_router(integrations_router, prefix="/api")

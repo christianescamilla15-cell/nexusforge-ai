@@ -176,3 +176,9 @@ async def reliability_agents():
         return {"agents": [vars(s) for s in scores]}
     except Exception:
         return {"agents": []}
+
+# ── Integrations Status ──
+@app.get("/api/integrations/status")
+async def integration_status():
+    from app.integrations.config import IntegrationConfig
+    return IntegrationConfig.status()
