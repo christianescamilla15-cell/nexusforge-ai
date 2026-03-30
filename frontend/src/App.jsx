@@ -130,6 +130,7 @@ export default function App() {
               try { localStorage.removeItem('nxf-onboarding-done') } catch { /* */ }
               setShowTour(true)
               setShowOnboarding(true)
+              setCurrentPage('dashboard')
             }}
           />
         )
