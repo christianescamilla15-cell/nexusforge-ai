@@ -204,6 +204,48 @@ async def list_drive_files():
         return {"status": "error", "files": [], "message": str(e)}
 
 
+@router.post("/drive-to-intelligence/by-name")
+async def drive_to_intelligence_by_name(
+    file_name: str = Query(..., description="File name or partial name to search"),
+    language: str = Query("es"),
+    save_to_notion: bool = Query(True),
+    send_email: bool = Query(False),
+):
+    """Find a Drive file by name and process it."""
+    try:
+        from ..integrations.google_drive.client import list_files
+        result = await list_files(max_results=50)
+        files = [f for f in result.get("files", []) if f.get("mimeType") != "application/vnd.google-apps.folder"]
+
+        # Search by partial name (case insensitive)
+        match = None
+        name_lower = file_name.lower()
+        for f in files:
+            if name_lower in f["name"].lower():
+                match = f
+                break
+
+        if not match:
+            return {"status": "error", "message": f"No file matching '{file_name}' found in Drive"}
+
+        # Reuse the main pipeline with a mock request
+        from pydantic import BaseModel
+        class Req(BaseModel):
+            file_id: str
+            language: str = "es"
+            save_to_notion: bool = True
+            send_webhook: bool = False
+            send_whatsapp: bool = False
+            send_email: bool = False
+            whatsapp_number: str = ""
+            email_to: str = ""
+
+        req = Req(file_id=match["id"], language=language, save_to_notion=save_to_notion, send_email=send_email)
+        return await drive_to_intelligence(req)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @router.get("/drive-to-intelligence/runs")
 async def get_pipeline_runs(
     pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),

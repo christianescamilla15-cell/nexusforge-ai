@@ -2,6 +2,7 @@ export const translations = {
   en: {
     // Navigation
     dashboard: 'Dashboard',
+    analyze: 'AI Analyze',
     workflows: 'Workflows',
     executions: 'Executions',
     agents: 'Agents',
@@ -283,6 +284,7 @@ export const translations = {
   es: {
     // Navigation
     dashboard: 'Panel Principal',
+    analyze: 'IA Analizar',
     workflows: 'Flujos de Trabajo',
     executions: 'Ejecuciones',
     agents: 'Agentes',

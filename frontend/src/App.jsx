@@ -21,6 +21,7 @@ import CostTokenDashboard from './features/metrics/CostTokenDashboard'
 import ExecutionTimelineViewer from './features/executions/ExecutionTimelineViewer'
 import EvaluationPage from './features/evaluations/EvaluationPage'
 import FeedbackPage from './features/feedback/FeedbackPage'
+import AnalyzePage from './features/analyze/AnalyzePage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -108,6 +109,8 @@ export default function App() {
         return <DocumentListPage lang={lang} />
       case 'enterprise-ops':
         return <EnterpriseOpsPage lang={lang} />
+      case 'analyze':
+        return <AnalyzePage lang={lang} />
       case 'playground':
         return <PlaygroundPage lang={lang} />
       case 'cost-metrics':
