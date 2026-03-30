@@ -10,6 +10,7 @@ from app.routes.document_intelligence import router as doc_intel_router
 from app.routes.portfolio_copilot import router as portfolio_copilot_router
 from app.routes.integrations import router as integrations_router
 from app.routes.feedback import router as feedback_router
+from app.routes.drive_pipeline import router as drive_pipeline_router
 from app.observability.tracing import get_tracer
 
 @asynccontextmanager
@@ -70,3 +71,4 @@ app.include_router(doc_intel_router, prefix="/api")
 app.include_router(portfolio_copilot_router, prefix="/api")
 app.include_router(integrations_router, prefix="/api")
 app.include_router(feedback_router, prefix="/api")
+app.include_router(drive_pipeline_router, prefix="/api")

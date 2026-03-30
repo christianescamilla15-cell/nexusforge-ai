@@ -291,6 +291,61 @@ async def webhook_send_api(event_type: str = "test", url: str = None):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ── Drive-to-Intelligence Pipeline ──
+@app.get("/api/workflows/drive-to-intelligence/files")
+async def pipeline_files():
+    try:
+        from app.integrations.google_drive.client import list_files
+        result = await list_files(max_results=20)
+        files = [f for f in result.get("files", []) if f.get("mimeType") != "application/vnd.google-apps.folder"]
+        return {"status": "success", "files": files, "total": len(files)}
+    except Exception as e:
+        return {"status": "error", "files": [], "message": str(e)}
+
+@app.post("/api/workflows/drive-to-intelligence")
+async def pipeline_run(file_id: str, language: str = "es", save_to_notion: bool = True, send_webhook: bool = True):
+    import time
+    from datetime import datetime
+    start = time.time()
+    steps = []
+    try:
+        from app.integrations.google_drive.client import get_file_content, list_files
+        files_result = await list_files(max_results=50)
+        file_meta = next((f for f in files_result.get("files", []) if f["id"] == file_id), None)
+        cr = await get_file_content(file_id)
+        if cr["status"] != "success":
+            return {"status": "error", "pipeline_steps": ["drive_read: failed"]}
+        content, file_name = cr["content"], (file_meta["name"] if file_meta else file_id)
+        steps.append(f"drive_read: success ({len(content)} chars)")
+    except Exception as e:
+        return {"status": "error", "pipeline_steps": [f"drive_read: {e}"]}
+    try:
+        from app.use_cases.document_intelligence.workflow import run_document_intelligence_workflow
+        from app.use_cases.document_intelligence.schemas import DocumentIntelligenceInput
+        doc = (await run_document_intelligence_workflow(DocumentIntelligenceInput(content=content, filename=file_name, language=language))).model_dump()
+        steps.append(f"intelligence: {doc['status']} ({doc['document_type']})")
+    except Exception as e:
+        return {"status": "error", "pipeline_steps": steps + [f"intelligence: {e}"]}
+    notion_url = None
+    if save_to_notion:
+        try:
+            from app.integrations.notion.client import write_page
+            nr = await write_page(f"[{doc['document_type'].upper()}] {file_name}", f"Tipo: {doc['document_type']}\nResumen: {doc.get('summary','')}\nCampos: {doc.get('extracted_fields',{})}")
+            notion_url = nr.get("url") if nr["status"] == "success" else None
+            steps.append(f"notion: {'ok' if notion_url else 'failed'}")
+        except Exception as e:
+            steps.append(f"notion: {e}")
+    ws = False
+    if send_webhook:
+        try:
+            from app.integrations.webhooks.client import send_webhook
+            wr = await send_webhook("document_processed", {"file": file_name, "type": doc["document_type"], "summary": doc.get("summary","")})
+            ws = wr["status"] == "success"
+            steps.append(f"webhook: {'ok' if ws else 'failed'}")
+        except Exception as e:
+            steps.append(f"webhook: {e}")
+    return {"status": doc["status"], "file_name": file_name, "document_type": doc["document_type"], "extracted_fields": doc.get("extracted_fields",{}), "summary": doc.get("summary",""), "requires_human_review": doc.get("requires_human_review",False), "notion_url": notion_url, "webhook_sent": ws, "llm_used": doc.get("llm_used",False), "total_tokens": doc.get("total_tokens",0), "cost_usd": doc.get("cost_usd",0), "processing_time_ms": round((time.time()-start)*1000,1), "agents_used": doc.get("agents_used",[]), "pipeline_steps": steps, "source": "backend", "server_time": datetime.utcnow().isoformat()}
+
 # ── Feedback Loop ──
 @app.post("/api/feedback/submit")
 async def submit_feedback_api(run_id: str, rating: int = 3, approved: bool = False, comments: str = "", reviewer: str = "anonymous"):
