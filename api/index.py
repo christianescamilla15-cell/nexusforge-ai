@@ -177,11 +177,67 @@ async def reliability_agents():
     except Exception:
         return {"agents": []}
 
-# ── Integrations Status ──
+# ── Integrations ──
 @app.get("/api/integrations/status")
 async def integration_status():
     from app.integrations.config import IntegrationConfig
     return IntegrationConfig.status()
+
+@app.get("/api/integrations/drive/files")
+async def drive_files(query: str = "", limit: int = 10):
+    try:
+        from app.integrations.google_drive.client import list_files
+        return await list_files(query=query, max_results=limit)
+    except Exception as e:
+        return {"status": "error", "files": [], "message": str(e)}
+
+@app.get("/api/integrations/gmail/messages")
+async def gmail_messages(query: str = "is:unread", limit: int = 5):
+    try:
+        from app.integrations.gmail.client import list_messages
+        return await list_messages(query=query, max_results=limit)
+    except Exception as e:
+        return {"status": "error", "messages": [], "message": str(e)}
+
+@app.get("/api/integrations/calendar/events")
+async def calendar_events(days: int = 7, limit: int = 10):
+    try:
+        from app.integrations.google_calendar.client import list_events
+        return await list_events(days_ahead=days, max_results=limit)
+    except Exception as e:
+        return {"status": "error", "events": [], "message": str(e)}
+
+@app.get("/api/integrations/calendar/availability")
+async def calendar_avail(date: str = None):
+    try:
+        from app.integrations.google_calendar.client import get_availability
+        return await get_availability(date=date)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/integrations/notion/write")
+async def notion_write_api(title: str = "Test", content: str = ""):
+    try:
+        from app.integrations.notion.client import write_page
+        return await write_page(title=title, content=content)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/integrations/notion/query")
+async def notion_query_api():
+    try:
+        from app.integrations.notion.client import query_database
+        return await query_database()
+    except Exception as e:
+        return {"status": "error", "results": [], "message": str(e)}
+
+@app.post("/api/integrations/webhook/send")
+async def webhook_send_api(event_type: str = "test", url: str = None):
+    try:
+        from app.integrations.webhooks.client import send_webhook
+        return await send_webhook(event_type=event_type, payload={"test": True}, url=url)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # ── Feedback Loop ──
 @app.post("/api/feedback/submit")

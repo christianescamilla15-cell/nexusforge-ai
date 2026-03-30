@@ -1,5 +1,5 @@
 """Google Calendar integration — read events, check availability."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import httpx
 from ..config import IntegrationConfig
 from ..google_drive.client import _get_access_token
@@ -14,7 +14,7 @@ async def list_events(days_ahead: int = 7, max_results: int = 10) -> dict:
         if not token:
             return {"status": "auth_failed", "events": []}
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         time_min = now.isoformat() + "Z"
         time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
         calendar_id = IntegrationConfig.CALENDAR_ID or "primary"
@@ -49,7 +49,7 @@ async def list_events(days_ahead: int = 7, max_results: int = 10) -> dict:
 async def get_availability(date: str = None) -> dict:
     """Check available time slots for a specific date."""
     if not date:
-        date = (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
+        date = (datetime.now(tz=timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
 
     events = await list_events(days_ahead=7)
     if events["status"] != "success":
