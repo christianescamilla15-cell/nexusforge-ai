@@ -17,7 +17,7 @@ async def list_events(days_ahead: int = 7, max_results: int = 10) -> dict:
         now = datetime.now(tz=timezone.utc)
         time_min = now.isoformat() + "Z"
         time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
-        calendar_id = IntegrationConfig.CALENDAR_ID or "primary"
+        calendar_id = (IntegrationConfig.CALENDAR_ID or "primary").strip()
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
