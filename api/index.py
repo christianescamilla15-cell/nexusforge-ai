@@ -210,49 +210,33 @@ async def google_test():
 
         # Direct API tests
         if token and not token.startswith("__"):
-          async with httpx.AsyncClient(timeout=15.0) as client:
-                # Try calendarList first to see what calendars are accessible
-                resp = await client.get(
-                    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
-                    headers={"Authorization": f"Bearer {token}"},
+            client = httpx.AsyncClient(timeout=15.0)
+            try:
+                # Check token scopes
+                scope_resp = await client.get(f"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={token}")
+                if scope_resp.status_code == 200:
+                    result["token_scopes"] = scope_resp.json().get("scope", "unknown")
+                    result["token_expires_in"] = scope_resp.json().get("expires_in")
+
+                # Test Drive write
+                test_meta = json.dumps({"name": "__scope_test.txt", "mimeType": "text/plain"})
+                bd = "nxf_test"
+                payload = f"--{bd}\r\nContent-Type: application/json\r\n\r\n{test_meta}\r\n--{bd}\r\nContent-Type: text/plain\r\n\r\ntest\r\n--{bd}--"
+                wr = await client.post(
+                    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+                    headers={"Authorization": f"Bearer {token}", "Content-Type": f"multipart/related; boundary={bd}"},
+                    content=payload.encode(),
                 )
-                result["calendarList_status"] = resp.status_code
-                if resp.status_code == 200:
-                    cals = resp.json().get("items", [])
-                    result["calendars_found"] = len(cals)
-                    result["calendars"] = [{"id": c.get("id"), "summary": c.get("summary")} for c in cals[:5]]
+                result["drive_write_status"] = wr.status_code
+                if wr.status_code == 200:
+                    fid = wr.json().get("id")
+                    result["drive_write_success"] = True
+                    if fid:
+                        await client.delete(f"https://www.googleapis.com/drive/v3/files/{fid}", headers={"Authorization": f"Bearer {token}"})
                 else:
-                    result["calendarList_error"] = resp.text[:200]
-
-            # Check token scopes
-            scope_resp = await client.get(
-                f"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={token}",
-            )
-            if scope_resp.status_code == 200:
-                result["token_scopes"] = scope_resp.json().get("scope", "unknown")
-
-            # Test Drive write directly
-            test_metadata = json.dumps({"name": "__nexusforge_scope_test.txt", "mimeType": "text/plain"})
-            boundary = "test_boundary"
-            body = f"--{boundary}\r\nContent-Type: application/json\r\n\r\n{test_metadata}\r\n--{boundary}\r\nContent-Type: text/plain\r\n\r\ntest\r\n--{boundary}--"
-            write_resp = await client.post(
-                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": f"multipart/related; boundary={boundary}"},
-                content=body.encode(),
-            )
-            result["drive_write_status"] = write_resp.status_code
-            if write_resp.status_code != 200:
-                result["drive_write_error"] = write_resp.text[:300]
-            else:
-                # Clean up test file
-                test_file_id = write_resp.json().get("id")
-                result["drive_write_success"] = True
-                result["drive_write_file_id"] = test_file_id
-                if test_file_id:
-                    await client.delete(
-                        f"https://www.googleapis.com/drive/v3/files/{test_file_id}",
-                        headers={"Authorization": f"Bearer {token}"},
-                    )
+                    result["drive_write_error"] = wr.text[:300]
+            finally:
+                await client.aclose()
     except Exception as e:
         result["error"] = str(e)
 
