@@ -185,8 +185,9 @@ async def integration_status():
 
 @app.get("/api/integrations/google/test")
 async def google_test():
-    """Test Google credentials, token, and direct Calendar API call."""
+    """Test Google credentials, token, scopes, and write permission."""
     import os
+    import json
     import httpx
     creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
     creds_path = os.environ.get("GOOGLE_CREDENTIALS_PATH", "")
@@ -222,6 +223,36 @@ async def google_test():
                     result["calendars"] = [{"id": c.get("id"), "summary": c.get("summary")} for c in cals[:5]]
                 else:
                     result["calendarList_error"] = resp.text[:200]
+
+            # Check token scopes
+            scope_resp = await client.get(
+                f"https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={token}",
+            )
+            if scope_resp.status_code == 200:
+                result["token_scopes"] = scope_resp.json().get("scope", "unknown")
+
+            # Test Drive write directly
+            test_metadata = json.dumps({"name": "__nexusforge_scope_test.txt", "mimeType": "text/plain"})
+            boundary = "test_boundary"
+            body = f"--{boundary}\r\nContent-Type: application/json\r\n\r\n{test_metadata}\r\n--{boundary}\r\nContent-Type: text/plain\r\n\r\ntest\r\n--{boundary}--"
+            write_resp = await client.post(
+                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": f"multipart/related; boundary={boundary}"},
+                content=body.encode(),
+            )
+            result["drive_write_status"] = write_resp.status_code
+            if write_resp.status_code != 200:
+                result["drive_write_error"] = write_resp.text[:300]
+            else:
+                # Clean up test file
+                test_file_id = write_resp.json().get("id")
+                result["drive_write_success"] = True
+                result["drive_write_file_id"] = test_file_id
+                if test_file_id:
+                    await client.delete(
+                        f"https://www.googleapis.com/drive/v3/files/{test_file_id}",
+                        headers={"Authorization": f"Bearer {token}"},
+                    )
     except Exception as e:
         result["error"] = str(e)
 
