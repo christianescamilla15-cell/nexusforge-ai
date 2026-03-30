@@ -68,12 +68,14 @@ async def get_file_content(file_id: str) -> dict:
 
 async def _get_access_token() -> str:
     """Get access token from service account credentials."""
+    import json as _json
     creds_path = IntegrationConfig.GOOGLE_CREDENTIALS_PATH
-    if not creds_path or not os.path.exists(creds_path):
+    creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "").strip()
+
+    if not creds_path and not creds_json:
         return ""
 
     try:
-        # Use google-auth if available, otherwise return empty
         from google.oauth2 import service_account
         from google.auth.transport.requests import Request
 
@@ -82,10 +84,18 @@ async def _get_access_token() -> str:
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/calendar.readonly",
         ]
-        creds = service_account.Credentials.from_service_account_file(creds_path, scopes=SCOPES)
+
+        if creds_json:
+            info = _json.loads(creds_json)
+            creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        elif creds_path and os.path.exists(creds_path):
+            creds = service_account.Credentials.from_service_account_file(creds_path, scopes=SCOPES)
+        else:
+            return ""
+
         creds.refresh(Request())
         return creds.token
     except ImportError:
-        return ""  # google-auth not installed
+        return ""
     except Exception:
         return ""

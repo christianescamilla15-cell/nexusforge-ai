@@ -2,8 +2,9 @@
 import os
 
 class IntegrationConfig:
-    # Google (service account JSON path or OAuth)
+    # Google (service account JSON path OR inline JSON for serverless)
     GOOGLE_CREDENTIALS_PATH = os.environ.get("GOOGLE_CREDENTIALS_PATH", "")
+    GOOGLE_CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS_JSON", "").strip()
     GOOGLE_TOKEN_PATH = os.environ.get("GOOGLE_TOKEN_PATH", "")
 
     # Gmail
@@ -22,9 +23,9 @@ class IntegrationConfig:
     @classmethod
     def status(cls):
         return {
-            "google_drive": {"configured": bool(cls.GOOGLE_CREDENTIALS_PATH), "type": "Google Drive"},
-            "gmail": {"configured": bool(cls.GOOGLE_CREDENTIALS_PATH and cls.GMAIL_USER), "type": "Gmail API"},
-            "google_calendar": {"configured": bool(cls.GOOGLE_CREDENTIALS_PATH), "type": "Google Calendar"},
+            "google_drive": {"configured": bool(cls.GOOGLE_CREDENTIALS_PATH or cls.GOOGLE_CREDENTIALS_JSON), "type": "Google Drive"},
+            "gmail": {"configured": bool((cls.GOOGLE_CREDENTIALS_PATH or cls.GOOGLE_CREDENTIALS_JSON) and cls.GMAIL_USER), "type": "Gmail API"},
+            "google_calendar": {"configured": bool(cls.GOOGLE_CREDENTIALS_PATH or cls.GOOGLE_CREDENTIALS_JSON), "type": "Google Calendar"},
             "notion": {"configured": bool(cls.NOTION_API_KEY), "type": "Notion API"},
             "webhooks": {"configured": bool(cls.WEBHOOK_URL), "type": "Webhook"},
         }
