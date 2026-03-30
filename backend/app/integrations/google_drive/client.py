@@ -66,6 +66,54 @@ async def get_file_content(file_id: str) -> dict:
     except Exception as e:
         return {"status": "error", "content": "", "message": str(e)}
 
+async def create_file(name: str, content: str, folder_id: str = "", mime_type: str = "text/plain") -> dict:
+    """Create a text file in Google Drive."""
+    if not IntegrationConfig.GOOGLE_CREDENTIALS_PATH and not IntegrationConfig.GOOGLE_CREDENTIALS_JSON:
+        return {"status": "not_configured", "message": "Set Google credentials"}
+
+    try:
+        token = await _get_access_token()
+        if not token or token.startswith("__"):
+            return {"status": "auth_failed", "message": "Could not get token"}
+
+        import json
+        # Step 1: Create file metadata
+        metadata = {"name": name, "mimeType": mime_type}
+        if folder_id:
+            metadata["parents"] = [folder_id]
+
+        # Use multipart upload
+        boundary = "nexusforge_boundary"
+        body = f"--{boundary}\r\n"
+        body += "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+        body += json.dumps(metadata) + "\r\n"
+        body += f"--{boundary}\r\n"
+        body += f"Content-Type: {mime_type}\r\n\r\n"
+        body += content + "\r\n"
+        body += f"--{boundary}--"
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": f"multipart/related; boundary={boundary}",
+                },
+                content=body.encode("utf-8"),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        return {
+            "status": "success",
+            "file_id": data.get("id"),
+            "name": data.get("name"),
+            "link": f"https://drive.google.com/file/d/{data.get('id')}/view",
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 async def _get_access_token() -> str:
     """Get access token from service account credentials."""
     import json as _json
@@ -80,7 +128,7 @@ async def _get_access_token() -> str:
         from google.auth.transport.requests import Request
 
         SCOPES = [
-            "https://www.googleapis.com/auth/drive.readonly",
+            "https://www.googleapis.com/auth/drive",
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/calendar.readonly",
         ]

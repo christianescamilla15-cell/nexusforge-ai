@@ -291,6 +291,16 @@ async def webhook_send_api(event_type: str = "test", url: str = None):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ── Drive Create File ──
+@app.post("/api/integrations/drive/create")
+async def drive_create_file(name: str, content: str, folder_id: str = "1P56v2fkzWZbgEFSqhQvZsQPu9x8_1vb6"):
+    """Create a file in Google Drive. Default folder: NexusForge."""
+    try:
+        from app.integrations.google_drive.client import create_file
+        return await create_file(name=name, content=content, folder_id=folder_id)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # ── Drive-to-Intelligence Pipeline ──
 @app.get("/api/workflows/drive-to-intelligence/files")
 async def pipeline_files():
