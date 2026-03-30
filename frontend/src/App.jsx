@@ -72,6 +72,7 @@ export default function App() {
             {showOnboarding && (
               <Onboarding
                 lang={lang}
+                setLang={setLang}
                 onDismiss={() => {
                   setShowOnboarding(false)
                   try { localStorage.setItem('nxf-onboarding-done', '1') } catch { /* */ }

@@ -49,14 +49,16 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: isDark ? '#0F1117' : '#F9FAFB' }}>
-      {/* Mobile overlay */}
+      {/* Mobile overlay — semi-transparent, closes sidebar on tap */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
           aria-label="Close sidebar overlay"
           style={{
-            position: 'fixed', inset: 0, background: isDark ? 'rgba(0,0,0,0.6)' : '#F3F4F6',
+            position: 'fixed', inset: 0,
+            background: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.3)',
             zIndex: 40,
+            backdropFilter: 'blur(2px)',
           }}
         />
       )}
@@ -80,12 +82,13 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           overflow: 'hidden',
         }}
       >
-        {/* Logo */}
+        {/* Logo + close button on mobile */}
         <div style={{
           height: topBarHeight, display: 'flex', alignItems: 'center',
           padding: '0 16px', gap: 10, borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
-          flexShrink: 0,
+          flexShrink: 0, justifyContent: 'space-between',
         }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 32, height: 32, borderRadius: 8, background: isDark ? '#6366F1' : '#2563EB',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -97,6 +100,18 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
             <span style={{ fontWeight: 700, fontSize: 16, color: isDark ? '#E5E7EB' : '#111827', whiteSpace: 'nowrap' }}>
               NexusForge
             </span>
+          )}
+          </div>
+          {/* Close button — mobile only */}
+          {isMobile && mobileOpen && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close menu"
+              style={{
+                background: 'none', border: 'none', padding: 4, cursor: 'pointer',
+                color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 20,
+              }}
+            >✕</button>
           )}
         </div>
 

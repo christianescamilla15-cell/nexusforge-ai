@@ -127,7 +127,7 @@ const STEPS = {
   ],
 }
 
-export default function Onboarding({ lang = 'es', onDismiss }) {
+export default function Onboarding({ lang = 'es', setLang, onDismiss }) {
   const [dismissed, setDismissed] = useState(false)
   const currentLang = lang === 'en' ? 'en' : 'es'
   const steps = STEPS[currentLang]
@@ -141,6 +141,29 @@ export default function Onboarding({ lang = 'es', onDismiss }) {
 
   return (
     <div style={{ padding: '0 0 32px', animation: 'fadeIn 0.4s ease-out' }}>
+      {/* Language selector at the top of onboarding */}
+      <div style={{
+        display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16,
+      }}>
+        {[
+          { key: 'es', label: 'Español' },
+          { key: 'en', label: 'English' },
+        ].map(option => (
+          <button
+            key={option.key}
+            onClick={() => setLang && setLang(option.key)}
+            style={{
+              padding: '8px 20px', borderRadius: 100, fontSize: 14, fontWeight: 600,
+              border: '1px solid',
+              borderColor: currentLang === option.key ? '#2563EB' : '#E5E7EB',
+              background: currentLang === option.key ? '#2563EB' : '#FFFFFF',
+              color: currentLang === option.key ? '#FFFFFF' : '#6B7280',
+              cursor: 'pointer', transition: 'all 0.2s ease',
+            }}
+          >{option.label}</button>
+        ))}
+      </div>
+
       {/* Hero */}
       <div className="nxf-onboarding-hero" style={{
         textAlign: 'center', padding: '48px 24px 40px', marginBottom: 32,
