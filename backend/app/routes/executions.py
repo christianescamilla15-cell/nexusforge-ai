@@ -156,7 +156,7 @@ async def get_execution(run_id: UUID):
                 """SELECT id, step_name, step_type, agent_type, status, input_data, output_data,
                           error_message, retry_count, tokens_used, cost_usd, duration_ms,
                           started_at, completed_at
-                   FROM run_steps WHERE run_id = $1
+                   FROM step_executions WHERE run_id = $1
                    ORDER BY started_at ASC NULLS LAST""",
                 run_id,
             )

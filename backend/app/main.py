@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +12,10 @@ from app.routes.portfolio_copilot import router as portfolio_copilot_router
 from app.routes.integrations import router as integrations_router
 from app.routes.feedback import router as feedback_router
 from app.routes.drive_pipeline import router as drive_pipeline_router
+from app.routes.analyze import router as analyze_router
 from app.observability.tracing import get_tracer
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,15 +25,24 @@ async def lifespan(app: FastAPI):
     except Exception:
         print("Warning: OpenTelemetry tracing not available")
     try:
-        await get_db_pool()
+        pool = await get_db_pool()
+        from app.db.migrator import run_migrations
+        summary = await run_migrations(pool)
+        logger.info("DB connected, migrations: %s", summary)
+        app.state.db_available = True
         print("PostgreSQL connected")
     except Exception as e:
+        logger.warning("DB unavailable — running in degraded mode: %s", e)
+        app.state.db_available = False
         print(f"Warning: PostgreSQL not available: {e}")
     try:
         await get_redis()
+        app.state.redis_available = True
         print("Redis connected")
     except Exception as e:
+        app.state.redis_available = False
         print(f"Warning: Redis not available: {e}")
+
     yield
     # Shutdown
     try:
@@ -72,3 +85,4 @@ app.include_router(portfolio_copilot_router, prefix="/api")
 app.include_router(integrations_router, prefix="/api")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(drive_pipeline_router, prefix="/api")
+app.include_router(analyze_router, prefix="/api", tags=["analyze"])

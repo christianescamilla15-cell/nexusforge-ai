@@ -1,8 +1,8 @@
 """
 Drive-to-Intelligence Pipeline + WhatsApp/Email notifications
-Reads file from Drive → Document Intelligence → Notion → Webhook → WhatsApp/Email
+Reads file from Drive -> Document Intelligence -> Notion -> Webhook -> WhatsApp/Email
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from typing import Optional
 import time
@@ -23,7 +23,7 @@ class DrivePipelineInput(BaseModel):
 
 @router.post("/drive-to-intelligence")
 async def drive_to_intelligence(request: DrivePipelineInput):
-    """Full pipeline: Drive → Intelligence → Notion → Webhook → WhatsApp/Email."""
+    """Full pipeline: Drive -> Intelligence -> Notion -> Webhook -> WhatsApp/Email."""
     start = time.time()
     steps = []
 
@@ -61,11 +61,11 @@ async def drive_to_intelligence(request: DrivePipelineInput):
             title = f"[{doc['document_type'].upper()}] {file_name}"
             body = f"Tipo: {doc['document_type']}\n"
             body += f"Resumen: {doc.get('summary', 'N/A')}\n\n"
-            body += f"Campos extraídos:\n"
+            body += f"Campos extraidos:\n"
             for k, v in doc.get("extracted_fields", {}).items():
-                body += f"  • {k}: {v}\n"
+                body += f"  - {k}: {v}\n"
             if doc.get("requires_human_review"):
-                body += f"\n⚠️ Requiere revisión humana"
+                body += f"\nRequiere revision humana"
             body += f"\n\nTokens: {doc.get('total_tokens', 0)} | Costo: ${doc.get('cost_usd', 0)}"
             nr = await write_page(title=title, content=body)
             notion_url = nr.get("url") if nr["status"] == "success" else None
@@ -94,14 +94,14 @@ async def drive_to_intelligence(request: DrivePipelineInput):
         try:
             from ..integrations.whatsapp.client import send_whatsapp
             phone = request.whatsapp_number or "525579605324"
-            msg = f"📄 *NexusForge - Documento Procesado*\n\n"
-            msg += f"📁 Archivo: {file_name}\n"
-            msg += f"📋 Tipo: {doc['document_type']}\n"
-            msg += f"📝 Resumen: {doc.get('summary', 'N/A')[:200]}\n"
+            msg = f"*NexusForge - Documento Procesado*\n\n"
+            msg += f"Archivo: {file_name}\n"
+            msg += f"Tipo: {doc['document_type']}\n"
+            msg += f"Resumen: {doc.get('summary', 'N/A')[:200]}\n"
             if doc.get("requires_human_review"):
-                msg += f"\n⚠️ Requiere revisión humana"
+                msg += f"\nRequiere revision humana"
             if notion_url:
-                msg += f"\n🔗 Notion: {notion_url}"
+                msg += f"\nNotion: {notion_url}"
             wa_result = await send_whatsapp(phone, msg)
             whatsapp_sent = wa_result["status"] == "success"
             wa_link = wa_result.get("whatsapp_link")
@@ -115,30 +115,60 @@ async def drive_to_intelligence(request: DrivePipelineInput):
         try:
             from ..integrations.email.client import send_email
             email_to = request.email_to or "christianescamilla15@gmail.com"
-            subject = f"📄 NexusForge: [{doc['document_type'].upper()}] {file_name}"
-            body = f"<h2>📄 Documento Procesado por NexusForge</h2>"
-            body += f"<p><strong>Archivo:</strong> {file_name}</p>"
-            body += f"<p><strong>Tipo:</strong> {doc['document_type']}</p>"
-            body += f"<p><strong>Resumen:</strong> {doc.get('summary', 'N/A')}</p>"
+            subject = f"NexusForge: [{doc['document_type'].upper()}] {file_name}"
+            html_body = f"<h2>Documento Procesado por NexusForge</h2>"
+            html_body += f"<p><strong>Archivo:</strong> {file_name}</p>"
+            html_body += f"<p><strong>Tipo:</strong> {doc['document_type']}</p>"
+            html_body += f"<p><strong>Resumen:</strong> {doc.get('summary', 'N/A')}</p>"
             if doc.get("extracted_fields"):
-                body += f"<h3>Campos extraídos:</h3><ul>"
+                html_body += f"<h3>Campos extraidos:</h3><ul>"
                 for k, v in doc["extracted_fields"].items():
-                    body += f"<li><strong>{k}:</strong> {v}</li>"
-                body += "</ul>"
+                    html_body += f"<li><strong>{k}:</strong> {v}</li>"
+                html_body += "</ul>"
             if doc.get("requires_human_review"):
-                body += f"<p>⚠️ <strong>Requiere revisión humana</strong></p>"
+                html_body += f"<p><strong>Requiere revision humana</strong></p>"
             if notion_url:
-                body += f"<p>🔗 <a href='{notion_url}'>Ver en Notion</a></p>"
-            body += f"<hr><p><small>Tokens: {doc.get('total_tokens', 0)} | Costo: ${doc.get('cost_usd', 0)} | Agentes: {len(doc.get('agents_used', []))}</small></p>"
-            email_result = await send_email(to=email_to, subject=subject, body=body)
+                html_body += f"<p><a href='{notion_url}'>Ver en Notion</a></p>"
+            html_body += f"<hr><p><small>Tokens: {doc.get('total_tokens', 0)} | Costo: ${doc.get('cost_usd', 0)} | Agentes: {len(doc.get('agents_used', []))}</small></p>"
+            email_result = await send_email(to=email_to, subject=subject, html_body=html_body)
             email_sent = email_result["status"] == "success"
             steps.append(f"email: {'sent to ' + email_to if email_sent else 'failed - ' + email_result.get('message', '')}")
         except Exception as e:
             steps.append(f"email: error - {e}")
 
+    processing_time = round((time.time() - start) * 1000, 1)
+
+    # Persist run to DB (best-effort)
+    run_id = None
+    try:
+        from ..db.client import get_db_pool
+        from ..db.pipeline_store import save_pipeline_run
+        pool = await get_db_pool()
+        run_id = await save_pipeline_run(
+            pool,
+            pipeline_name="drive-to-intelligence",
+            status=doc["status"],
+            trigger_source="backend",
+            file_name=file_name,
+            document_type=doc.get("document_type"),
+            input_summary={"file_id": request.file_id, "language": request.language},
+            output_summary={"summary": doc.get("summary", ""), "extracted_fields": doc.get("extracted_fields", {})},
+            steps=steps,
+            total_tokens=doc.get("total_tokens", 0),
+            cost_usd=doc.get("cost_usd", 0),
+            processing_time_ms=int(processing_time),
+            llm_used=doc.get("llm_used", False),
+            agents_used=doc.get("agents_used", []),
+            notion_url=notion_url,
+            webhook_sent=webhook_sent,
+        )
+    except Exception:
+        pass
+
     from datetime import datetime
     return {
         "status": doc["status"],
+        "run_id": run_id,
         "file_name": file_name,
         "file_content_length": len(content),
         "document_type": doc["document_type"],
@@ -150,12 +180,11 @@ async def drive_to_intelligence(request: DrivePipelineInput):
         "webhook_sent": webhook_sent,
         "whatsapp_link": wa_link if request.send_whatsapp else None,
         "whatsapp_sent": whatsapp_sent,
-        "email_body": email_body if request.send_email else None,
         "email_sent": email_sent,
         "llm_used": doc.get("llm_used", False),
         "total_tokens": doc.get("total_tokens", 0),
         "cost_usd": doc.get("cost_usd", 0),
-        "processing_time_ms": round((time.time() - start) * 1000, 1),
+        "processing_time_ms": processing_time,
         "agents_used": doc.get("agents_used", []),
         "pipeline_steps": steps,
         "source": "backend",
@@ -173,3 +202,23 @@ async def list_drive_files():
         return {"status": "success", "files": files, "total": len(files)}
     except Exception as e:
         return {"status": "error", "files": [], "message": str(e)}
+
+
+@router.get("/pipeline-runs")
+async def get_pipeline_runs(
+    pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """List persisted pipeline run history."""
+    try:
+        from ..db.client import get_db_pool
+        from ..db.pipeline_store import list_pipeline_runs
+        pool = await get_db_pool()
+        runs = await list_pipeline_runs(pool, pipeline_name=pipeline, limit=limit)
+        for run in runs:
+            run["id"] = str(run["id"])
+            if run.get("created_at"):
+                run["created_at"] = run["created_at"].isoformat()
+        return {"status": "success", "runs": runs, "total": len(runs)}
+    except Exception as e:
+        return {"status": "error", "runs": [], "message": str(e)}

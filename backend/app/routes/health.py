@@ -40,6 +40,18 @@ async def health_check():
     except Exception:
         pass
 
+    # Migration count
+    migration_count = 0
+    if db_ok:
+        try:
+            pool = await get_db_pool()
+            async with pool.acquire() as conn:
+                migration_count = await conn.fetchval(
+                    "SELECT COUNT(*) FROM _migrations"
+                )
+        except Exception:
+            pass
+
     overall = "healthy" if (db_ok and redis_ok) else "degraded"
 
     return {
@@ -49,5 +61,6 @@ async def health_check():
             "database": "up" if db_ok else "down",
             "redis": "up" if redis_ok else "down",
         },
+        "migrations_applied": migration_count,
         "agent_count": agent_count,
     }
