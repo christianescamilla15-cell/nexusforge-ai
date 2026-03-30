@@ -291,6 +291,169 @@ async def webhook_send_api(event_type: str = "test", url: str = None):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ── Direct Document Upload + Query ──
+@app.post("/api/workflows/analyze")
+async def analyze_document(
+    content: str,
+    query: str = "",
+    language: str = "es",
+    send_email: bool = False,
+    email_to: str = "christianescamilla15@gmail.com",
+    send_whatsapp: bool = False,
+    whatsapp_number: str = "525579605324",
+    save_to_notion: bool = False,
+):
+    """
+    Upload any document text + optional query → get intelligent analysis.
+
+    Examples:
+    - content="contrato..." query="extrae las partes involucradas"
+    - content="CV de Ana..." query="resume sus habilidades principales"
+    - content="factura..." query="cuanto es el total con IVA?"
+    - content="email del cliente..." query="" (auto-analiza)
+    """
+    import time
+    from datetime import datetime
+    start = time.time()
+    steps = []
+
+    # Step 1: Analyze document with Document Intelligence
+    try:
+        from app.use_cases.document_intelligence.workflow import run_document_intelligence_workflow
+        from app.use_cases.document_intelligence.schemas import DocumentIntelligenceInput
+        doc = (await run_document_intelligence_workflow(
+            DocumentIntelligenceInput(content=content, language=language)
+        )).model_dump()
+        steps.append(f"analysis: {doc['status']} (type: {doc['document_type']}, {len(doc.get('agents_used',[]))} agents)")
+    except Exception as e:
+        return {"status": "error", "message": str(e), "pipeline_steps": [f"analysis: {e}"]}
+
+    # Step 2: If there's a specific query, use LLM to answer it
+    custom_answer = None
+    query_tokens = 0
+    if query.strip():
+        try:
+            from app.use_cases.shared.llm_client import llm_generate
+            prompt = f"""Documento analizado:
+Tipo: {doc['document_type']}
+Campos extraídos: {doc.get('extracted_fields', {})}
+Resumen: {doc.get('summary', '')}
+
+Contenido original (primeros 3000 caracteres):
+{content[:3000]}
+
+Pregunta del usuario: {query}
+
+Responde de forma clara, concisa y profesional en {'español' if language == 'es' else 'English'}."""
+
+            llm_result = await llm_generate(prompt, system="Eres un asistente de análisis documental. Responde basándote en el documento proporcionado.", max_tokens=500)
+            if llm_result.get("llm_used") and llm_result.get("text"):
+                custom_answer = llm_result["text"]
+                query_tokens = llm_result.get("total_tokens", 0)
+                steps.append(f"query_answer: success ({query_tokens} tokens)")
+            else:
+                custom_answer = f"No se pudo generar respuesta con LLM. Resumen disponible: {doc.get('summary', '')}"
+                steps.append("query_answer: fallback to summary")
+        except Exception as e:
+            custom_answer = f"Error al responder consulta: {e}. Resumen: {doc.get('summary', '')}"
+            steps.append(f"query_answer: error - {e}")
+
+    # Build final response text
+    if custom_answer:
+        response_text = custom_answer
+    else:
+        response_text = doc.get("summary", "Documento procesado.")
+
+    total_tokens = doc.get("total_tokens", 0) + query_tokens
+    total_cost = doc.get("cost_usd", 0) + (query_tokens * 0.0000007)
+
+    # Step 3: Notion
+    notion_url = None
+    if save_to_notion:
+        try:
+            from app.integrations.notion.client import write_page
+            title = f"[{doc['document_type'].upper()}] Análisis"
+            if query:
+                title += f" - {query[:50]}"
+            body = f"Tipo: {doc['document_type']}\n"
+            if query:
+                body += f"Consulta: {query}\n"
+            body += f"Respuesta: {response_text}\n\n"
+            body += f"Campos: {doc.get('extracted_fields', {})}\n"
+            body += f"Tokens: {total_tokens} | Costo: ${total_cost:.6f}"
+            nr = await write_page(title=title, content=body)
+            notion_url = nr.get("url") if nr["status"] == "success" else None
+            steps.append(f"notion: {'ok' if notion_url else 'failed'}")
+        except Exception as e:
+            steps.append(f"notion: {e}")
+
+    # Step 4: Email
+    email_sent = False
+    if send_email:
+        try:
+            from app.integrations.email.client import send_email as _se
+            subject = f"📄 NexusForge: {doc['document_type'].upper()}"
+            if query:
+                subject += f" - {query[:40]}"
+            html = f"<h2>📄 Análisis de Documento</h2>"
+            html += f"<p><b>Tipo:</b> {doc['document_type']}</p>"
+            if query:
+                html += f"<p><b>Tu pregunta:</b> {query}</p>"
+                html += f"<p><b>Respuesta:</b></p><div style='background:#f5f5f5;padding:16px;border-radius:8px;'>{response_text}</div>"
+            else:
+                html += f"<p><b>Resumen:</b> {response_text}</p>"
+            if doc.get("extracted_fields"):
+                html += "<h3>Campos extraídos:</h3><ul>"
+                for k, v in doc["extracted_fields"].items():
+                    html += f"<li><b>{k}:</b> {v}</li>"
+                html += "</ul>"
+            if notion_url:
+                html += f"<p>🔗 <a href='{notion_url}'>Ver en Notion</a></p>"
+            html += f"<hr><small>Tokens: {total_tokens} | Costo: ${total_cost:.6f} | Agentes: {len(doc.get('agents_used',[]))}</small>"
+            er = await _se(to=email_to, subject=subject, body=html)
+            email_sent = er["status"] == "success"
+            steps.append(f"email: {'sent to ' + email_to if email_sent else 'failed'}")
+        except Exception as e:
+            steps.append(f"email: {e}")
+
+    # Step 5: WhatsApp
+    wa_link = None
+    if send_whatsapp:
+        try:
+            from app.integrations.whatsapp.client import send_whatsapp as _sw
+            msg = f"📄 *NexusForge*\n📋 Tipo: {doc['document_type']}\n"
+            if query:
+                msg += f"❓ {query}\n"
+            msg += f"💡 {response_text[:300]}"
+            if notion_url:
+                msg += f"\n🔗 {notion_url}"
+            wr = await _sw(whatsapp_number, msg)
+            wa_link = wr.get("whatsapp_link")
+            steps.append(f"whatsapp: {wr.get('method','link')}")
+        except Exception as e:
+            steps.append(f"whatsapp: {e}")
+
+    return {
+        "status": "completed",
+        "document_type": doc["document_type"],
+        "query": query if query else None,
+        "answer": response_text,
+        "extracted_fields": doc.get("extracted_fields", {}),
+        "summary": doc.get("summary", ""),
+        "requires_human_review": doc.get("requires_human_review", False),
+        "notion_url": notion_url,
+        "email_sent": email_sent,
+        "whatsapp_link": wa_link,
+        "llm_used": True if query_tokens > 0 else doc.get("llm_used", False),
+        "total_tokens": total_tokens,
+        "cost_usd": total_cost,
+        "agents_used": doc.get("agents_used", []),
+        "pipeline_steps": steps,
+        "processing_time_ms": round((time.time() - start) * 1000, 1),
+        "source": "backend",
+        "server_time": datetime.utcnow().isoformat(),
+    }
+
 # ── Drive Create File ──
 @app.post("/api/integrations/drive/create")
 async def drive_create_file(name: str, content: str, folder_id: str = "1P56v2fkzWZbgEFSqhQvZsQPu9x8_1vb6"):
