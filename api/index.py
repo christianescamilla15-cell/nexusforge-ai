@@ -235,6 +235,14 @@ async def drive_files(query: str = "", limit: int = 10):
     except Exception as e:
         return {"status": "error", "files": [], "message": str(e)}
 
+@app.get("/api/integrations/drive/files/{file_id}/content")
+async def drive_file_content(file_id: str):
+    try:
+        from app.integrations.google_drive.client import get_file_content
+        return await get_file_content(file_id)
+    except Exception as e:
+        return {"status": "error", "content": "", "message": str(e)}
+
 @app.get("/api/integrations/gmail/messages")
 async def gmail_messages(query: str = "is:unread", limit: int = 5):
     try:
