@@ -71,11 +71,19 @@ app.add_middleware(
 from app.auth.middleware import AuthMiddleware
 app.add_middleware(AuthMiddleware)
 
-# Auth + Billing routes
+# Auth + Billing + API Keys + Audit + Custom Agents + Slack
 from app.auth.routes import router as auth_routes
 from app.auth.billing import router as billing_routes
+from app.auth.api_keys import router as api_keys_routes
+from app.auth.audit import router as audit_routes
+from app.routes.custom_agents import router as custom_agents_routes
+from app.integrations.slack.client import router as slack_routes
 app.include_router(auth_routes, prefix="/api")
 app.include_router(billing_routes, prefix="/api")
+app.include_router(api_keys_routes, prefix="/api")
+app.include_router(audit_routes, prefix="/api")
+app.include_router(custom_agents_routes, prefix="/api")
+app.include_router(slack_routes, prefix="/api")
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
