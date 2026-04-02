@@ -47,8 +47,50 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
     { key: 'archived', label: t('archived', lang) },
   ]
 
+  const [menuOpen, setMenuOpen] = useState(null) // workflow id that has menu open
+  const [renaming, setRenaming] = useState(null) // workflow id being renamed
+  const [renameValue, setRenameValue] = useState('')
+
+  const handleDelete = async (wf) => {
+    if (!confirm(lang === 'es' ? `¿Eliminar "${wf.name}"?` : `Delete "${wf.name}"?`)) return
+    if (wf.id?.startsWith('wf-')) return // can't delete demos
+    await fetchAPI(`/workflows/${wf.id}`, { method: 'DELETE' })
+    setApiWorkflows(prev => prev.filter(w => w.id !== wf.id))
+    setMenuOpen(null)
+  }
+
+  const handleRename = async (wf) => {
+    if (!renameValue.trim()) return
+    if (!wf.id?.startsWith('wf-')) {
+      await fetchAPI(`/workflows/${wf.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: renameValue }),
+      })
+      setApiWorkflows(prev => prev.map(w => w.id === wf.id ? { ...w, name: renameValue } : w))
+    }
+    setRenaming(null)
+    setMenuOpen(null)
+  }
+
   const columns = [
-    { key: 'name', label: t('name', lang) },
+    { key: 'name', label: t('name', lang), render: (v, row) => {
+      if (renaming === row.id) {
+        return (
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleRename(row)}
+              autoFocus
+              style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #6366F1', fontSize: 13, outline: 'none', flex: 1 }}
+            />
+            <button onClick={() => handleRename(row)} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: '#6366F1', color: '#fff', fontSize: 11, cursor: 'pointer' }}>OK</button>
+            <button onClick={() => setRenaming(null)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', fontSize: 11, cursor: 'pointer' }}>✕</button>
+          </div>
+        )
+      }
+      return v
+    }},
     {
       key: 'status', label: t('status', lang),
       render: (v) => {
@@ -59,6 +101,47 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
     { key: 'version', label: t('version', lang) },
     { key: 'steps', label: t('steps', lang) },
     { key: 'created', label: t('created', lang) },
+    { key: 'actions', label: '', render: (_, row) => (
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === row.id ? null : row.id) }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 18, color: '#9CA3AF' }}
+        >
+          ⋮
+        </button>
+        {menuOpen === row.id && (
+          <div
+            style={{
+              position: 'absolute', right: 0, top: 28, width: 160, zIndex: 50,
+              background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 4,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {[
+              { label: lang === 'es' ? 'Editar' : 'Edit', icon: '✏️', action: () => { onSelectWorkflow(row.id); setMenuOpen(null) } },
+              { label: lang === 'es' ? 'Renombrar' : 'Rename', icon: '📝', action: () => { setRenaming(row.id); setRenameValue(row.name); setMenuOpen(null) } },
+              { label: lang === 'es' ? 'Eliminar' : 'Delete', icon: '🗑️', action: () => handleDelete(row), color: '#EF4444' },
+            ].map((item, i) => (
+              <div
+                key={i}
+                onClick={item.action}
+                style={{
+                  padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  color: item.color || '#374151', transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <span style={{ fontSize: 14 }}>{item.icon}</span>
+                {item.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )},
   ]
 
   // Merge API workflows (real) + demo workflows (fallback)
