@@ -1,8 +1,13 @@
+import logging
 from fastapi import APIRouter
 from ..use_cases.portfolio_copilot.schemas import PortfolioCopilotInput, PortfolioCopilotFinalOutput
 from ..use_cases.portfolio_copilot.workflow import run_portfolio_copilot_workflow
 from ..use_cases.portfolio_copilot.services import load_interview_questions
 from ..integrations.email.notify import notify_workflow_complete
+from ..db.client import get_db_pool
+from ..db.pipeline_store import save_pipeline_run
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/portfolio-copilot", tags=["Portfolio Copilot"])
 
@@ -10,6 +15,26 @@ router = APIRouter(prefix="/portfolio-copilot", tags=["Portfolio Copilot"])
 async def run_portfolio_copilot(request: PortfolioCopilotInput):
     result = await run_portfolio_copilot_workflow(request)
 
+    # Persist to DB
+    try:
+        pool = await get_db_pool()
+        if pool:
+            await save_pipeline_run(
+                pool,
+                pipeline_name="portfolio_copilot",
+                status=result.status,
+                trigger_source="frontend",
+                total_tokens=result.total_tokens or 0,
+                cost_usd=result.cost_usd or 0.0,
+                processing_time_ms=int(result.processing_time_ms or 0),
+                llm_used=result.llm_used,
+                agents_used=result.agents_used or [],
+                steps=result.actions_taken or [],
+            )
+    except Exception as e:
+        logger.warning("Failed to persist portfolio_copilot run: %s", e)
+
+    # Email notification
     await notify_workflow_complete(
         workflow_name="Portfolio Copilot",
         status=result.status,
