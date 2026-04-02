@@ -480,12 +480,49 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
   const handleDemo = async () => {
     if (!workflow) return
     setExecuting(true)
-    const res = await fetchAPI('/executions', {
-      method: 'POST',
-      body: JSON.stringify({ workflow, trigger_source: 'wizard', mode: 'demo' }),
-    })
+    setError(null)
+
+    try {
+      // Step 1: Save workflow first
+      const saveRes = await fetchAPI('/workflows', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: workflow.name || 'AI Generated Workflow',
+          description: workflow.description || description,
+          dag: { steps: workflow.steps || [] },
+        }),
+      })
+
+      if (saveRes.error || !saveRes.data) {
+        // If save fails, try direct enterprise-ops as fallback demo
+        const fallbackRes = await fetchAPI('/enterprise-ops/process', {
+          method: 'POST',
+          body: JSON.stringify({
+            message: description,
+            customer_id: 'WIZARD-001',
+            language: lang,
+          }),
+        })
+        setExecResult(fallbackRes)
+        setExecuting(false)
+        return
+      }
+
+      // Step 2: Execute with the saved workflow ID
+      const workflowId = saveRes.data.id
+      const execRes = await fetchAPI('/executions', {
+        method: 'POST',
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          trigger_type: 'manual',
+          input_data: { source: 'wizard', description },
+        }),
+      })
+      setExecResult(execRes)
+    } catch (e) {
+      setError(e.message)
+    }
     setExecuting(false)
-    setExecResult(res)
   }
 
   const handleConfigure = () => {
