@@ -65,7 +65,7 @@ async def execute_swarm(req: SwarmExecuteRequest):
                 pool,
                 pipeline_name=f"swarm_{req.topology}",
                 status="completed",
-                trigger_source="frontend",
+                trigger_source="backend",
                 total_tokens=result.total_tokens,
                 cost_usd=result.total_cost,
                 processing_time_ms=result.duration_ms,

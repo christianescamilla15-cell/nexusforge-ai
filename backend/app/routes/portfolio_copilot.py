@@ -23,7 +23,7 @@ async def run_portfolio_copilot(request: PortfolioCopilotInput):
                 pool,
                 pipeline_name="portfolio_copilot",
                 status=result.status,
-                trigger_source="frontend",
+                trigger_source="backend",
                 total_tokens=result.total_tokens or 0,
                 cost_usd=float(result.cost_usd or 0.0),
                 processing_time_ms=int(result.processing_time_ms or 0),

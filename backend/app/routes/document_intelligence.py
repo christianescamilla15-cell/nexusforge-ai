@@ -23,7 +23,7 @@ async def run_document_workflow(request: DocumentIntelligenceInput):
                 pool,
                 pipeline_name="document_intelligence",
                 status=result.status,
-                trigger_source="frontend",
+                trigger_source="backend",
                 document_type=result.document_type,
                 total_tokens=result.total_tokens or 0,
                 cost_usd=float(result.cost_usd or 0.0),
