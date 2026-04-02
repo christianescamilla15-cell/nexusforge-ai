@@ -531,7 +531,31 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
     setExecuting(false)
   }
 
-  const handleConfigure = () => {
+  const handleConfigure = async () => {
+    // Save workflow first, then open in builder
+    if (workflow) {
+      const saveRes = await fetchAPI('/workflows', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: workflow.name || 'AI Generated Workflow',
+          description: workflow.description || description,
+          dag_definition: {
+            steps: (workflow.steps || []).map(s => ({
+              name: s.name,
+              type: s.agent_type || s.type,
+              depends_on: s.depends_on || [],
+            })),
+          },
+        }),
+      })
+
+      if (saveRes.data?.id) {
+        // Pass workflow ID to builder
+        window.__nf_edit_workflow = saveRes.data.id
+        if (onNavigate) onNavigate('workflow-builder')
+        return
+      }
+    }
     if (onNavigate) onNavigate('integrations')
   }
 

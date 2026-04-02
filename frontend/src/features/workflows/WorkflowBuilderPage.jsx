@@ -173,15 +173,15 @@ export default function WorkflowBuilderPage({ lang = 'en' }) {
           const wf = res.data
           setWorkflowName(wf.name || 'Edited Workflow')
           // Convert steps to nodes + edges
-          if (wf.dag?.steps || wf.steps) {
-            const steps = wf.dag?.steps || wf.steps || []
+          if (wf.dag_definition?.steps || wf.dag?.steps || wf.steps) {
+            const steps = wf.dag_definition?.steps || wf.dag?.steps || wf.steps || []
             const newNodes = []
             const newEdges = []
             steps.forEach((step, i) => {
               const id = `node-${i}`
               newNodes.push({
                 id,
-                agentType: step.agent_type,
+                agentType: step.type || step.agent_type,
                 label: step.name,
                 x: 80 + (i % 4) * 220,
                 y: 80 + Math.floor(i / 4) * 120,
