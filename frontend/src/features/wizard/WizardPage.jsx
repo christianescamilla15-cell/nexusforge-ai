@@ -489,7 +489,13 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
         body: JSON.stringify({
           name: workflow.name || 'AI Generated Workflow',
           description: workflow.description || description,
-          dag_definition: { steps: workflow.steps || [] },
+          dag_definition: {
+            steps: (workflow.steps || []).map(s => ({
+              name: s.name,
+              type: s.agent_type || s.type,
+              depends_on: s.depends_on || [],
+            })),
+          },
         }),
       })
 

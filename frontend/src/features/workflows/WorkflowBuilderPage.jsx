@@ -307,27 +307,27 @@ export default function WorkflowBuilderPage({ lang = 'en' }) {
 
   // ── Build DAG definition ───────────────────────────────────────────────────
 
-  const buildDAG = () => ({
-    name: workflowName,
-    steps: nodes.map((node) => ({
-      name: node.name,
-      agent_type: node.agent_type,
-      depends_on: edges.filter((e) => e.to === node.id).map((e) => {
-        const fromNode = nodes.find((n) => n.id === e.from)
-        return fromNode?.name || e.from
-      }),
-    })),
-  })
+  const buildSteps = () => nodes.map((node) => ({
+    name: node.label || node.id,
+    type: node.agentType,
+    depends_on: edges.filter((e) => e.to === node.id).map((e) => {
+      const fromNode = nodes.find((n) => n.id === e.from)
+      return fromNode?.label || e.from
+    }),
+  }))
 
   // ── Save workflow ──────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (nodes.length === 0) { showToast('Add at least one agent node', 'error'); return }
     setSaving(true)
-    const dag = buildDAG()
     const res = await fetchAPI('/workflows', {
       method: 'POST',
-      body: JSON.stringify(dag),
+      body: JSON.stringify({
+        name: workflowName,
+        description: `${nodes.length} steps workflow`,
+        dag_definition: { steps: buildSteps() },
+      }),
     })
     setSaving(false)
     if (res.error) {
@@ -342,14 +342,30 @@ export default function WorkflowBuilderPage({ lang = 'en' }) {
   const handleExecute = async () => {
     if (nodes.length === 0) { showToast('Add at least one agent node', 'error'); return }
     setExecuting(true)
-    const dag = buildDAG()
-    const res = await fetchAPI('/executions', {
+    // Save first, then execute with workflow_id
+    const saveRes = await fetchAPI('/workflows', {
       method: 'POST',
-      body: JSON.stringify({ workflow: dag, trigger_source: 'builder' }),
+      body: JSON.stringify({
+        name: workflowName,
+        dag_definition: { steps: buildSteps() },
+      }),
+    })
+    if (saveRes.error || !saveRes.data?.id) {
+      showToast(`Save failed: ${saveRes.error || 'unknown'}`, 'error')
+      setExecuting(false)
+      return
+    }
+    const execRes = await fetchAPI('/executions', {
+      method: 'POST',
+      body: JSON.stringify({
+        workflow_id: saveRes.data.id,
+        trigger_type: 'manual',
+        input_data: { source: 'builder' },
+      }),
     })
     setExecuting(false)
-    if (res.error) {
-      showToast(`Execute failed: ${res.error}`, 'error')
+    if (execRes.error) {
+      showToast(`Execute failed: ${execRes.error}`, 'error')
     } else {
       showToast('Execution started')
     }
