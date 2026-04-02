@@ -1,5 +1,6 @@
 """Execute a single workflow step — dispatches to the appropriate agent."""
 
+import logging
 import time
 import json
 from uuid import UUID, uuid4
@@ -9,6 +10,9 @@ from app.engine.checkpoint import save_checkpoint
 from app.agents.registry import get_agent
 from app.db.client import get_db_pool
 from app.domain.tracking.events import ExecutionContext
+from app.healing.healer import SelfHealer
+
+logger = logging.getLogger(__name__)
 
 async def run_step(run_id: UUID, step_name: str, step_type: str,
                    input_data: dict, config: dict, retry_max: int = 3,
@@ -44,7 +48,7 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
 
             # Get agent and execute
             agent = get_agent(step_type)
-            result = await agent.execute(input_data, config)
+            result = await agent.run(input_data, config)
 
             duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -99,78 +103,77 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
                 break
 
     # All retries exhausted — attempt self-healing before dead letter queue
-    duration_ms = int((time.monotonic() - start) * 1000) if 'start' in dir() else 0
+    duration_ms = int((time.monotonic() - start) * 1000) if 'start' in locals() else 0
+
+    failed_step_info = {
+        "step_name": step_name,
+        "step_type": step_type,
+        "input_data": input_data,
+        "config": config,
+    }
+    error_info = {
+        "error_message": str(last_error),
+        "error": last_error,
+        "retry_count": retry_max,
+    }
+    execution_context = {
+        "run_id": str(run_id),
+        "step_id": str(step_id),
+    }
 
     try:
-        from app.healing.healer import SelfHealer
-        self_healer = SelfHealer()
-    except Exception:
-        self_healer = None
+        heal_result = await SelfHealer().attempt_heal(
+            failed_step=failed_step_info,
+            error_info=error_info,
+            execution_context=execution_context,
+        )
+    except Exception as heal_exc:
+        logger.error("SelfHealer raised an unexpected error for step '%s': %s", step_name, heal_exc)
+        heal_result = None
 
-    if self_healer:
-        try:
-            failed_step_info = {
-                "step_name": step_name,
-                "step_type": step_type,
-                "input_data": input_data,
-                "config": config,
-            }
-            error_info = {
-                "error_message": str(last_error),
-                "error": last_error,
-                "retry_count": retry_max,
-            }
-            execution_context = {
-                "run_id": str(run_id),
-                "step_id": str(step_id),
-            }
-
-            heal_result = await self_healer.attempt_heal(
-                failed_step=failed_step_info,
-                error_info=error_info,
-                execution_context=execution_context,
+    if heal_result and heal_result.success:
+        # Recovery succeeded — mark step as healed
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """UPDATE step_executions
+                   SET status = 'completed', output_data = $1, duration_ms = $2,
+                       retry_count = $3, completed_at = now(),
+                       error_message = $4
+                   WHERE id = $5""",
+                json.dumps(heal_result.output), duration_ms,
+                retry_max, f"healed via {heal_result.strategy_used}", step_id
             )
 
-            if heal_result and heal_result.success:
-                # Recovery succeeded — mark step as healed
-                async with pool.acquire() as conn:
-                    await conn.execute(
-                        """UPDATE step_executions
-                           SET status = 'completed', output_data = $1, duration_ms = $2,
-                               retry_count = $3, completed_at = now(),
-                               error_message = $4
-                           WHERE id = $5""",
-                        json.dumps(heal_result.output), duration_ms,
-                        retry_max, f"healed via {heal_result.strategy_used}", step_id
-                    )
+        await save_checkpoint(run_id, step_name,
+                              {"status": "healed", "output": heal_result.output},
+                              ctx=ctx, step_id=str(step_id))
 
-                # Checkpoint healed state
-                await save_checkpoint(run_id, step_name,
-                                      {"status": "healed", "output": heal_result.output},
-                                      ctx=ctx, step_id=str(step_id))
+        if ctx and ctx.tracker:
+            await ctx.tracker.step_completed(
+                step_id=str(step_id),
+                output_payload=heal_result.output if isinstance(heal_result.output, dict) else None,
+                tokens_used=0,
+                cost_usd=0.0,
+            )
 
-                # Tracking: healing succeeded
-                if ctx and ctx.tracker:
-                    await ctx.tracker.step_completed(
-                        step_id=str(step_id),
-                        output_payload=heal_result.output if isinstance(heal_result.output, dict) else None,
-                        tokens_used=0,
-                        cost_usd=0.0,
-                    )
+        logger.info("Self-healing succeeded for step '%s' via strategy '%s'", step_name, heal_result.strategy_used)
+        return {
+            "step_name": step_name,
+            "status": "healed",
+            "output": heal_result.output,
+            "strategy_used": heal_result.strategy_used,
+            "retries": retry_max,
+            "duration_ms": duration_ms,
+        }
 
-                return {
-                    "step_name": step_name,
-                    "status": "healed",
-                    "output": heal_result.output,
-                    "strategy_used": heal_result.strategy_used,
-                    "retries": retry_max,
-                    "duration_ms": duration_ms,
-                }
-        except Exception:
-            # Healing failed — proceed to dead letter queue as before
-            pass
+    # Healing not available or failed — log reason before dead letter queue
+    if heal_result:
+        logger.warning(
+            "Self-healing failed for step '%s' (strategy: %s): %s",
+            step_name, heal_result.strategy_used, heal_result.message,
+        )
 
-    # Healing not available or failed — mark failed and send to dead letter queue
+    # Mark failed and write to dead letter queue
     async with pool.acquire() as conn:
         await conn.execute(
             """UPDATE step_executions

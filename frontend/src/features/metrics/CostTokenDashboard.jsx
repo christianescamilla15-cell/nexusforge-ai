@@ -62,61 +62,35 @@ const T = {
   },
 }
 
-const DEMO_RUNS = [
-  { id: 'run-001', workflow: 'Enterprise Ops Pipeline', duration_ms: 797, tokens: 845, cost: 0.0025, status: 'completed' },
-  { id: 'run-002', workflow: 'Document Intelligence', duration_ms: 735, tokens: 520, cost: 0.0016, status: 'completed' },
-  { id: 'run-003', workflow: 'Portfolio Copilot', duration_ms: 1560, tokens: 1200, cost: 0.0036, status: 'completed' },
-  { id: 'run-004', workflow: 'Enterprise Ops Pipeline', duration_ms: 4500, tokens: 300, cost: 0.0009, status: 'failed' },
-  { id: 'run-005', workflow: 'Document Intelligence', duration_ms: 640, tokens: 480, cost: 0.0014, status: 'completed' },
-  { id: 'run-006', workflow: 'Enterprise Ops Pipeline', duration_ms: 920, tokens: 910, cost: 0.0027, status: 'completed' },
-  { id: 'run-007', workflow: 'Portfolio Copilot', duration_ms: 1780, tokens: 1350, cost: 0.0041, status: 'completed' },
-  { id: 'run-008', workflow: 'Enterprise Ops Pipeline', duration_ms: 1100, tokens: 870, cost: 0.0026, status: 'completed' },
-]
-
-const DEMO_AGENTS = [
-  { agent: 'IntakeAgent', executions: 47, avg_latency_ms: 14, tokens: 0, retries: 0, fallbacks: 0 },
-  { agent: 'IntentClassifierAgent', executions: 47, avg_latency_ms: 52, tokens: 7050, retries: 0, fallbacks: 0 },
-  { agent: 'CustomerContextAgent', executions: 38, avg_latency_ms: 28, tokens: 0, retries: 1, fallbacks: 0 },
-  { agent: 'DocumentRAGAgent', executions: 32, avg_latency_ms: 95, tokens: 10240, retries: 2, fallbacks: 0 },
-  { agent: 'SchedulerAgent', executions: 15, avg_latency_ms: 18, tokens: 0, retries: 0, fallbacks: 0 },
-  { agent: 'CRMUpdateAgent', executions: 28, avg_latency_ms: 180, tokens: 2240, retries: 5, fallbacks: 0 },
-  { agent: 'NotificationAgent', executions: 22, avg_latency_ms: 290, tokens: 2090, retries: 1, fallbacks: 3 },
-  { agent: 'SupervisorAgent', executions: 47, avg_latency_ms: 70, tokens: 9400, retries: 0, fallbacks: 0 },
-  { agent: 'SummarizerAgent', executions: 18, avg_latency_ms: 340, tokens: 6120, retries: 0, fallbacks: 1 },
-  { agent: 'PortfolioAnalyzer', executions: 12, avg_latency_ms: 450, tokens: 5400, retries: 0, fallbacks: 0 },
-  { agent: 'RiskAgent', executions: 12, avg_latency_ms: 380, tokens: 4560, retries: 1, fallbacks: 0 },
-  { agent: 'RecommenderAgent', executions: 12, avg_latency_ms: 520, tokens: 6240, retries: 0, fallbacks: 2 },
-]
-
 function tl(key, lang) {
   return T[lang]?.[key] || T.en[key] || key
 }
 
 export default function CostTokenDashboard({ lang = 'en' }) {
-  const [runs, setRuns] = useState(DEMO_RUNS)
-  const [agents, setAgents] = useState(DEMO_AGENTS)
-  const [isDemo, setIsDemo] = useState(true)
+  const [runs, setRuns] = useState([])
+  const [agents, setAgents] = useState([])
+  const [isDemo, setIsDemo] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [providerStatus, setProviderStatus] = useState(null)
 
   useEffect(() => {
     async function load() {
-      const healthRes = await fetchAPI('/reliability/health')
+      const [healthRes, runsRes] = await Promise.all([
+        fetchAPI('/runs/reliability/health'),
+        fetchAPI('/runs'),
+      ])
 
-      // Handle errors in Real mode — do NOT silently fall back to demo data
-      if (healthRes.error) {
-        setError(healthRes.error)
-        setIsDemo(false)
-        setRuns([])
-        setAgents([])
+      if (healthRes.error || runsRes.error) {
+        setError(healthRes.error || runsRes.error)
         setLoading(false)
         return
       }
 
-      const { data, isDemo: demo } = healthRes
-      if (!demo && data?.agents) {
-        setAgents(data.agents.map(a => ({
+      setIsDemo(healthRes.isDemo || runsRes.isDemo)
+
+      if (healthRes.data?.agents) {
+        setAgents(healthRes.data.agents.map(a => ({
           agent: a.agent,
           executions: a.executions || 0,
           avg_latency_ms: a.avg_latency_ms || 0,
@@ -124,39 +98,24 @@ export default function CostTokenDashboard({ lang = 'en' }) {
           retries: a.retries || 0,
           fallbacks: a.fallbacks || 0,
         })))
-        setIsDemo(false)
       }
 
-      const runsRes = await fetchAPI('/runs')
-      if (runsRes.error) {
-        setError(runsRes.error)
-        setIsDemo(false)
-        setRuns([])
-        setLoading(false)
-        return
-      }
-      if (!runsRes.isDemo && runsRes.data?.runs) {
-        setRuns(runsRes.data.runs.map(r => {
-          const latency = r.total_latency_ms || r.latency_ms || 0
-          return {
-            id: r.id,
-            workflow: r.workflow_name,
-            duration_ms: latency,
-            tokens: r.total_tokens || r.tokens || 0,
-            cost: r.total_cost || r.cost || 0,
-            status: r.status,
-          }
-        }))
-        setIsDemo(false)
+      if (runsRes.data?.runs) {
+        setRuns(runsRes.data.runs.map(r => ({
+          id: r.id,
+          workflow: r.workflow_name,
+          duration_ms: r.total_latency_ms || r.latency_ms || 0,
+          tokens: r.total_tokens || r.tokens || 0,
+          cost: r.total_cost || r.cost || 0,
+          status: r.status,
+        })))
       }
 
-      // Fetch provider status
       const provRes = await fetchAPI('/providers/status')
       if (!provRes.error && provRes.data) {
         setProviderStatus(provRes.data)
       }
 
-      if (demo) setIsDemo(true)
       setLoading(false)
     }
     load()

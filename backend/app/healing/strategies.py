@@ -50,7 +50,7 @@ class RetryStrategy(HealingStrategy):
 
         try:
             agent = get_agent(step_type)
-            result = await agent.execute(input_data, config)
+            result = await agent.run(input_data, config)
             return HealingResult(
                 success=True,
                 strategy_used=self.name,
@@ -107,7 +107,7 @@ class RepairStrategy(HealingStrategy):
 
                 try:
                     agent = get_agent(failed_step.get("step_type", ""))
-                    result = await agent.execute(failed_step.get("input_data", {}), merged_config)
+                    result = await agent.run(failed_step.get("input_data", {}), merged_config)
                     return HealingResult(
                         success=True,
                         strategy_used=self.name,
