@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '../../services/api'
+import { api, trackGuestRun } from '../../services/api'
 import { DEMO_ENTERPRISE_RESULT, DEMO_DOC_RESULT, DEMO_COPILOT_RESULT } from '../../services/api'
 
 const T = {
@@ -133,6 +133,15 @@ export default function PlaygroundPage({ lang = 'en' }) {
   const [error, setError] = useState(null)
 
   const handleRun = async () => {
+    const { allowed } = trackGuestRun()
+    if (!allowed) {
+      setError(lang === 'es'
+        ? 'Limite de prueba alcanzado (10 ejecuciones). Registrate para continuar.'
+        : 'Trial limit reached (10 runs). Register to continue.')
+      setStatus('error')
+      return
+    }
+
     setStatus('running')
     setResult(null)
     setTimeline(null)

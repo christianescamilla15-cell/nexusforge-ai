@@ -180,6 +180,61 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
           </button>
         </form>
 
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+          <div style={{ flex: 1, height: 1, background: border }} />
+          <span style={{ color: muted, fontSize: 12 }}>{lang === 'es' ? 'o' : 'or'}</span>
+          <div style={{ flex: 1, height: 1, background: border }} />
+        </div>
+
+        {/* Guest / Trial mode */}
+        <button
+          onClick={() => {
+            const guestRuns = parseInt(localStorage.getItem('nf_guest_runs') || '0')
+            if (guestRuns >= 10) {
+              setError(lang === 'es'
+                ? 'Limite de prueba alcanzado (10 ejecuciones). Registrate para continuar.'
+                : 'Trial limit reached (10 runs). Register to continue.')
+              return
+            }
+            const guestUser = {
+              id: 'guest',
+              name: lang === 'es' ? 'Invitado' : 'Guest',
+              email: 'guest@nexusforge.ai',
+              role: 'viewer',
+              plan: 'trial',
+              runs_today: guestRuns,
+              isGuest: true,
+            }
+            localStorage.setItem('nf_user', JSON.stringify(guestUser))
+            if (!localStorage.getItem('nf_guest_runs')) {
+              localStorage.setItem('nf_guest_runs', '0')
+            }
+            if (onLogin) onLogin(guestUser)
+          }}
+          style={{
+            width: '100%', padding: '12px 0', borderRadius: 8,
+            border: `1px solid ${border}`,
+            background: 'transparent', color: text,
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🔬</span>
+          {lang === 'es' ? 'Probar sin cuenta (10 ejecuciones)' : 'Try without account (10 runs)'}
+        </button>
+        {(() => {
+          const guestRuns = parseInt(localStorage.getItem('nf_guest_runs') || '0')
+          if (guestRuns > 0) {
+            return (
+              <p style={{ textAlign: 'center', color: guestRuns >= 8 ? '#EF4444' : muted, fontSize: 11, marginTop: 6 }}>
+                {guestRuns}/10 {lang === 'es' ? 'ejecuciones usadas' : 'runs used'}
+              </p>
+            )
+          }
+          return null
+        })()}
+
         {/* Toggle */}
         <p style={{ textAlign: 'center', color: muted, fontSize: 13, marginTop: 20 }}>
           {mode === 'login'

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { fetchAPI, DEMO_ENTERPRISE_RESULT } from '../../services/api'
+import { fetchAPI, DEMO_ENTERPRISE_RESULT, trackGuestRun } from '../../services/api'
 
 const TEXTS = {
   es: {
@@ -166,6 +166,14 @@ export default function EnterpriseOpsPage({ lang = 'es' }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!message.trim()) return
+
+    const { allowed, remaining } = trackGuestRun()
+    if (!allowed) {
+      setError(lang === 'es'
+        ? 'Limite de prueba alcanzado (10 ejecuciones). Registrate para continuar.'
+        : 'Trial limit reached (10 runs). Register to continue.')
+      return
+    }
 
     setLoading(true)
     setError(null)

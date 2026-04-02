@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchAPI, api } from '../../services/api'
+import { fetchAPI, api, trackGuestRun } from '../../services/api'
 import { t } from '../../shared/i18n/translations'
 
 const TABS = ['upload', 'drive', 'history']
@@ -69,6 +69,15 @@ export default function AnalyzePage({ lang = 'es' }) {
 
   async function handleUpload() {
     if (!file && !textInput.trim()) return
+
+    const { allowed } = trackGuestRun()
+    if (!allowed) {
+      setError(lang === 'es'
+        ? 'Limite de prueba alcanzado (10 ejecuciones). Registrate para continuar.'
+        : 'Trial limit reached (10 runs). Register to continue.')
+      return
+    }
+
     setLoading(true)
     setError(null)
     setResult(null)

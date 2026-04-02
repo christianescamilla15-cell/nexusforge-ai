@@ -133,6 +133,33 @@ export const api = {
   del: (path) => fetchAPI(path, { method: 'DELETE' }),
 }
 
+// ── Guest trial tracking ────────────────────────────────────────
+
+const GUEST_RUN_LIMIT = 10
+
+/** Increment guest run counter. Returns { allowed, remaining } */
+export function trackGuestRun() {
+  try {
+    const user = JSON.parse(localStorage.getItem('nf_user') || '{}')
+    if (!user.isGuest) return { allowed: true, remaining: -1 } // unlimited for registered
+
+    const runs = parseInt(localStorage.getItem('nf_guest_runs') || '0')
+    if (runs >= GUEST_RUN_LIMIT) {
+      return { allowed: false, remaining: 0 }
+    }
+    localStorage.setItem('nf_guest_runs', String(runs + 1))
+    return { allowed: true, remaining: GUEST_RUN_LIMIT - runs - 1 }
+  } catch {
+    return { allowed: true, remaining: -1 }
+  }
+}
+
+/** Get current guest usage */
+export function getGuestUsage() {
+  const runs = parseInt(localStorage.getItem('nf_guest_runs') || '0')
+  return { used: runs, limit: GUEST_RUN_LIMIT, remaining: Math.max(0, GUEST_RUN_LIMIT - runs) }
+}
+
 // ── Demo data router ────────────────────────────────────────────────────────
 
 function getDemoData(endpoint) {
