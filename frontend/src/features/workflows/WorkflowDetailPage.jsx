@@ -102,26 +102,26 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Support both array index (demo) and UUID (real) workflow IDs
-  const [wf, setWf] = useState(() => {
-    if (typeof workflowId === 'number' || /^\d+$/.test(workflowId)) {
-      return DEMO_WORKFLOWS[workflowId] || DEFAULT_WORKFLOW
-    }
-    return DEFAULT_WORKFLOW
-  })
+  // Support demo (wf-*), numeric index, and UUID (real) workflow IDs
+  const [wf, setWf] = useState(() => DEMO_WORKFLOWS[workflowId] || DEFAULT_WORKFLOW)
 
   useEffect(() => {
-    // Fetch real workflow from API if UUID
-    if (workflowId && !/^\d+$/.test(String(workflowId)) && !workflowId.startsWith('wf-')) {
+    // Demo workflow — already loaded from initial state
+    if (DEMO_WORKFLOWS[workflowId]) return
+
+    // Real workflow — fetch from API
+    if (workflowId && !workflowId.startsWith('wf-')) {
       fetchAPI(`/workflows/${workflowId}`).then((res) => {
         if (!res.error && res.data) {
           const w = res.data
           setWf({
             ...DEFAULT_WORKFLOW,
+            id: w.id,
             name: w.name,
             description: w.description || '',
             status: w.status || 'active',
             version: 'v' + (w.version || '1.0'),
+            dag_definition: w.dag_definition,
             steps: (w.dag_definition?.steps || []).map(s => ({
               name: s.name,
               type: s.type,
@@ -132,10 +132,6 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
           })
         }
       })
-    } else if (workflowId?.startsWith('wf-')) {
-      // Demo workflow by id
-      const demo = DEMO_WORKFLOWS.find(d => d?.id === workflowId)
-      if (demo) setWf(demo)
     }
   }, [workflowId])
   const runHistory = demoRuns
