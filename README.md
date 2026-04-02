@@ -1,8 +1,8 @@
 # NexusForge AI
 
-Enterprise multi-agent orchestration platform for building resilient, observable, and evaluable AI workflows.
+AI SaaS orchestration platform with 24 agents, auth + Stripe billing, AI Workflow Wizard, and 10 integrations.
 
-NexusForge coordinates 22 specialized AI agents across complex workflows using DAG execution, shared memory, self-healing recovery, and persistent observability. Three real business use cases demonstrate the platform's capabilities end-to-end.
+NexusForge coordinates 24 specialized AI agents across complex workflows using DAG execution, 3-tier memory, self-healing, 4 LLM providers (Groq, Claude, GPT-4o, GPT-4o-mini), and 10 integrations (Email, Notion, Slack, WhatsApp, Drive, Gmail, Calendar, Webhook). Commercial-ready with JWT auth, Stripe billing (Free/Pro/Team/Enterprise), API keys, audit trail, custom agents, and an AI Wizard that generates workflows from natural language.
 
 **Live Demo:** [frontend-silk-three-66.vercel.app](https://frontend-silk-three-66.vercel.app)
 
