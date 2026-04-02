@@ -7,6 +7,7 @@ import { useLanguage } from './shared/hooks/useLanguage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import WorkflowListPage from './features/workflows/WorkflowListPage'
 import WorkflowDetailPage from './features/workflows/WorkflowDetailPage'
+import WorkflowBuilderPage from './features/workflows/WorkflowBuilderPage'
 import ExecutionListPage from './features/executions/ExecutionListPage'
 import ExecutionDetailPage from './features/executions/ExecutionDetailPage'
 import AgentListPage from './features/agents/AgentListPage'
@@ -108,6 +109,8 @@ export default function App() {
             <DashboardPage lang={lang} />
           </>
         )
+      case 'workflow-builder':
+        return <WorkflowBuilderPage lang={lang} />
       case 'workflows':
         return (
           <WorkflowListPage

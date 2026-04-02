@@ -1,0 +1,612 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { fetchAPI } from '../../services/api'
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const NODE_W = 180
+const NODE_H = 72
+const AGENT_COLORS = {
+  classifier: '#2563EB', extractor: '#059669', summarizer: '#7C3AED',
+  analyzer: '#D97706', enricher: '#0891B2', validator: '#DC2626',
+  reporter: '#DB2777', repair: '#6366F1', normalizer: '#0D9488',
+  researcher: '#B45309', translator: '#4F46E5', compliance: '#BE185D',
+  monitor: '#0369A1', router_agent: '#7C2D12', critic: '#15803D',
+  planner: '#9333EA', knowledge: '#1D4ED8', scraper: '#B91C1C',
+  ocr: '#0F766E', sentiment: '#C2410C', scheduler: '#6D28D9',
+  webhook: '#374151', judge: '#1E40AF', router: '#065F46',
+}
+
+function agentColor(type) {
+  return AGENT_COLORS[type] || '#6B7280'
+}
+
+// ── SVG edge between two nodes ───────────────────────────────────────────────
+
+function Edge({ fromNode, toNode, onDelete }) {
+  const x1 = fromNode.x + NODE_W
+  const y1 = fromNode.y + NODE_H / 2
+  const x2 = toNode.x
+  const y2 = toNode.y + NODE_H / 2
+  const cx1 = x1 + Math.max(60, (x2 - x1) * 0.5)
+  const cx2 = x2 - Math.max(60, (x2 - x1) * 0.5)
+  const mx = (x1 + x2) / 2
+  const my = (y1 + y2) / 2
+
+  return (
+    <g>
+      <path
+        d={`M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`}
+        fill="none" stroke="#6366F1" strokeWidth="2"
+        markerEnd="url(#arrow)"
+      />
+      {/* invisible wider hit area */}
+      <path
+        d={`M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`}
+        fill="none" stroke="transparent" strokeWidth="12"
+        style={{ cursor: 'pointer' }}
+        onClick={onDelete}
+      />
+      {/* delete dot */}
+      <circle cx={mx} cy={my} r={8} fill="#EF4444" style={{ cursor: 'pointer' }} onClick={onDelete} />
+      <text x={mx} y={my + 4} textAnchor="middle" fill="#fff" fontSize="11" style={{ pointerEvents: 'none' }}>×</text>
+    </g>
+  )
+}
+
+// ── Single agent node ────────────────────────────────────────────────────────
+
+function AgentNode({ node, selected, connecting, onMouseDown, onDelete, onPortMouseDown, onPortMouseUp }) {
+  const color = agentColor(node.agent_type)
+  const border = selected ? '#6366F1' : connecting ? '#F59E0B' : '#E5E7EB'
+
+  return (
+    <g transform={`translate(${node.x},${node.y})`}>
+      {/* shadow */}
+      <rect x="2" y="4" width={NODE_W} height={NODE_H} rx="10" fill="rgba(0,0,0,0.08)" />
+      {/* card */}
+      <rect
+        width={NODE_W} height={NODE_H} rx="10"
+        fill="#fff" stroke={border} strokeWidth={selected ? 2 : 1}
+        style={{ cursor: 'grab', filter: selected ? 'drop-shadow(0 0 6px rgba(99,102,241,0.4))' : 'none' }}
+        onMouseDown={onMouseDown}
+      />
+      {/* color bar */}
+      <rect width="6" height={NODE_H} rx="3" fill={color} />
+      {/* agent type badge */}
+      <rect x="14" y="10" width={NODE_W - 44} height="18" rx="4" fill={color + '18'} />
+      <text x="20" y="23" fill={color} fontSize="10" fontWeight="700" fontFamily="monospace">
+        {node.agent_type.toUpperCase()}
+      </text>
+      {/* name */}
+      <text x="14" y="52" fill="#374151" fontSize="12" fontWeight="600">
+        {node.name.length > 20 ? node.name.slice(0, 19) + '…' : node.name}
+      </text>
+      {/* delete button */}
+      <g style={{ cursor: 'pointer' }} onClick={onDelete}>
+        <rect x={NODE_W - 22} y="8" width="16" height="16" rx="4" fill="#FEE2E2" />
+        <text x={NODE_W - 14} y="20" textAnchor="middle" fill="#EF4444" fontSize="12" fontWeight="700">×</text>
+      </g>
+      {/* output port (right) */}
+      <circle
+        cx={NODE_W} cy={NODE_H / 2} r={6}
+        fill="#6366F1" stroke="#fff" strokeWidth="2"
+        style={{ cursor: 'crosshair' }}
+        onMouseDown={(e) => { e.stopPropagation(); onPortMouseDown(e, node.id, 'out') }}
+      />
+      {/* input port (left) */}
+      <circle
+        cx={0} cy={NODE_H / 2} r={6}
+        fill="#10B981" stroke="#fff" strokeWidth="2"
+        style={{ cursor: 'crosshair' }}
+        onMouseUp={(e) => { e.stopPropagation(); onPortMouseUp(e, node.id) }}
+      />
+    </g>
+  )
+}
+
+// ── Sidebar agent item ───────────────────────────────────────────────────────
+
+function SidebarAgent({ agent, onDragStart }) {
+  const color = agentColor(agent.agent_type)
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, agent)}
+      title={agent.description || agent.name}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 10px', borderRadius: 8, marginBottom: 4,
+        border: '1px solid #E5E7EB', background: '#fff',
+        cursor: 'grab', userSelect: 'none', transition: 'box-shadow 0.15s',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'}
+      onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+    >
+      <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', flex: 1 }}>
+        {agent.agent_type}
+      </span>
+    </div>
+  )
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
+
+export default function WorkflowBuilderPage({ lang = 'en' }) {
+  const [agents, setAgents] = useState([])
+  const [nodes, setNodes] = useState([])
+  const [edges, setEdges] = useState([]) // [{from: nodeId, to: nodeId}]
+  const [selected, setSelected] = useState(null)
+  const [workflowName, setWorkflowName] = useState('My Workflow')
+  const [saving, setSaving] = useState(false)
+  const [executing, setExecuting] = useState(false)
+  const [toast, setToast] = useState(null)
+  const [search, setSearch] = useState('')
+
+  // Drag-node state
+  const draggingNode = useRef(null)
+  const dragOffset = useRef({ x: 0, y: 0 })
+
+  // Edge-drawing state
+  const connectingFrom = useRef(null) // nodeId
+  const [pendingLine, setPendingLine] = useState(null) // {x1,y1,x2,y2}
+
+  const canvasRef = useRef(null)
+  const svgRef = useRef(null)
+  const nodeCounter = useRef(0)
+
+  // ── Load agents ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    fetchAPI('/agents').then((res) => {
+      if (!res.error && res.data) {
+        setAgents(Array.isArray(res.data) ? res.data : [])
+      }
+    })
+  }, [])
+
+  const showToast = useCallback((msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
+
+  // ── Drag from sidebar → drop on canvas ────────────────────────────────────
+
+  const handleSidebarDragStart = (e, agent) => {
+    e.dataTransfer.setData('agent_type', agent.agent_type)
+    e.dataTransfer.setData('agent_name', agent.name || agent.agent_type)
+  }
+
+  const handleCanvasDrop = (e) => {
+    e.preventDefault()
+    const agent_type = e.dataTransfer.getData('agent_type')
+    const agent_name = e.dataTransfer.getData('agent_name')
+    if (!agent_type) return
+
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left - NODE_W / 2
+    const y = e.clientY - rect.top - NODE_H / 2
+
+    nodeCounter.current += 1
+    const id = `node_${nodeCounter.current}`
+    setNodes((prev) => [...prev, {
+      id,
+      name: `${agent_type}_${nodeCounter.current}`,
+      agent_type,
+      x: Math.max(0, x),
+      y: Math.max(0, y),
+    }])
+  }
+
+  // ── Node drag (move on canvas) ─────────────────────────────────────────────
+
+  const handleNodeMouseDown = (e, nodeId) => {
+    e.stopPropagation()
+    setSelected(nodeId)
+    const node = nodes.find((n) => n.id === nodeId)
+    draggingNode.current = nodeId
+    dragOffset.current = { x: e.clientX - node.x, y: e.clientY - node.y }
+  }
+
+  const handleCanvasMouseMove = useCallback((e) => {
+    if (draggingNode.current) {
+      const x = e.clientX - dragOffset.current.x
+      const y = e.clientY - dragOffset.current.y
+      setNodes((prev) => prev.map((n) =>
+        n.id === draggingNode.current ? { ...n, x: Math.max(0, x), y: Math.max(0, y) } : n
+      ))
+    }
+    if (connectingFrom.current && svgRef.current) {
+      const rect = svgRef.current.getBoundingClientRect()
+      setPendingLine((prev) => prev ? { ...prev, x2: e.clientX - rect.left, y2: e.clientY - rect.top } : null)
+    }
+  }, [])
+
+  const handleCanvasMouseUp = useCallback(() => {
+    draggingNode.current = null
+    connectingFrom.current = null
+    setPendingLine(null)
+  }, [])
+
+  // ── Port interactions (draw edges) ─────────────────────────────────────────
+
+  const handlePortMouseDown = (e, nodeId) => {
+    e.preventDefault()
+    connectingFrom.current = nodeId
+    const node = nodes.find((n) => n.id === nodeId)
+    const rect = svgRef.current.getBoundingClientRect()
+    setPendingLine({
+      x1: node.x + NODE_W,
+      y1: node.y + NODE_H / 2,
+      x2: e.clientX - rect.left,
+      y2: e.clientY - rect.top,
+    })
+  }
+
+  const handlePortMouseUp = (e, toNodeId) => {
+    if (!connectingFrom.current || connectingFrom.current === toNodeId) return
+    const from = connectingFrom.current
+    // Prevent duplicate edges
+    const exists = edges.some((ed) => ed.from === from && ed.to === toNodeId)
+    if (!exists) {
+      setEdges((prev) => [...prev, { from, to: toNodeId }])
+    }
+    connectingFrom.current = null
+    setPendingLine(null)
+  }
+
+  const deleteEdge = (from, to) => {
+    setEdges((prev) => prev.filter((e) => !(e.from === from && e.to === to)))
+  }
+
+  const deleteNode = (nodeId) => {
+    setNodes((prev) => prev.filter((n) => n.id !== nodeId))
+    setEdges((prev) => prev.filter((e) => e.from !== nodeId && e.to !== nodeId))
+    if (selected === nodeId) setSelected(null)
+  }
+
+  // ── Build DAG definition ───────────────────────────────────────────────────
+
+  const buildDAG = () => ({
+    name: workflowName,
+    steps: nodes.map((node) => ({
+      name: node.name,
+      agent_type: node.agent_type,
+      depends_on: edges.filter((e) => e.to === node.id).map((e) => {
+        const fromNode = nodes.find((n) => n.id === e.from)
+        return fromNode?.name || e.from
+      }),
+    })),
+  })
+
+  // ── Save workflow ──────────────────────────────────────────────────────────
+
+  const handleSave = async () => {
+    if (nodes.length === 0) { showToast('Add at least one agent node', 'error'); return }
+    setSaving(true)
+    const dag = buildDAG()
+    const res = await fetchAPI('/workflows', {
+      method: 'POST',
+      body: JSON.stringify(dag),
+    })
+    setSaving(false)
+    if (res.error) {
+      showToast(`Save failed: ${res.error}`, 'error')
+    } else {
+      showToast(`Workflow "${workflowName}" saved`)
+    }
+  }
+
+  // ── Execute workflow ───────────────────────────────────────────────────────
+
+  const handleExecute = async () => {
+    if (nodes.length === 0) { showToast('Add at least one agent node', 'error'); return }
+    setExecuting(true)
+    const dag = buildDAG()
+    const res = await fetchAPI('/executions', {
+      method: 'POST',
+      body: JSON.stringify({ workflow: dag, trigger_source: 'builder' }),
+    })
+    setExecuting(false)
+    if (res.error) {
+      showToast(`Execute failed: ${res.error}`, 'error')
+    } else {
+      showToast('Execution started')
+    }
+  }
+
+  const clearCanvas = () => { setNodes([]); setEdges([]); setSelected(null) }
+
+  const filteredAgents = agents.filter((a) =>
+    a.agent_type.includes(search.toLowerCase()) || (a.name || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'hidden', background: '#F9FAFB' }}>
+
+      {/* Top bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px',
+        background: '#fff', borderBottom: '1px solid #E5E7EB', flexShrink: 0,
+      }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round">
+          <path d="M4 6h16M4 12h8m-8 6h16" />
+        </svg>
+        <input
+          value={workflowName}
+          onChange={(e) => setWorkflowName(e.target.value)}
+          style={{
+            fontSize: 16, fontWeight: 700, color: '#111827', border: 'none',
+            outline: 'none', background: 'transparent', minWidth: 200,
+          }}
+          aria-label="Workflow name"
+        />
+        <span style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 4 }}>
+          {nodes.length} nodes · {edges.length} edges
+        </span>
+      </div>
+
+      {/* Body: sidebar + canvas */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* Left sidebar */}
+        <div style={{
+          width: 200, flexShrink: 0, background: '#fff',
+          borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          <div style={{ padding: '12px 10px 8px', borderBottom: '1px solid #F3F4F6' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>
+              Agents ({agents.length})
+            </p>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search..."
+              style={{
+                width: '100%', padding: '5px 8px', borderRadius: 6, fontSize: 12,
+                border: '1px solid #E5E7EB', outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
+            {filteredAgents.length === 0 && (
+              <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 20 }}>
+                {agents.length === 0 ? 'Loading...' : 'No match'}
+              </p>
+            )}
+            {filteredAgents.map((a) => (
+              <SidebarAgent key={a.agent_type} agent={a} onDragStart={handleSidebarDragStart} />
+            ))}
+          </div>
+          <div style={{ padding: '8px 10px', borderTop: '1px solid #F3F4F6', fontSize: 11, color: '#9CA3AF' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366F1' }} />
+              Drag to canvas
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
+              Input port (left)
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366F1' }} />
+              Output port (right)
+            </div>
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div
+          ref={canvasRef}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleCanvasDrop}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseUp={handleCanvasMouseUp}
+          onClick={() => setSelected(null)}
+          style={{
+            flex: 1, position: 'relative', overflow: 'auto',
+            backgroundImage: 'radial-gradient(circle, #D1D5DB 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+            cursor: 'default',
+          }}
+        >
+          {nodes.length === 0 && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
+            }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5">
+                <path d="M4 6h16M4 12h8m-8 6h16" />
+              </svg>
+              <p style={{ color: '#9CA3AF', fontSize: 14, marginTop: 12 }}>Drag agents here to build your workflow</p>
+            </div>
+          )}
+
+          {/* SVG layer for edges */}
+          <svg
+            ref={svgRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
+          >
+            <defs>
+              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#6366F1" />
+              </marker>
+            </defs>
+            {/* Committed edges */}
+            {edges.map((e) => {
+              const from = nodes.find((n) => n.id === e.from)
+              const to = nodes.find((n) => n.id === e.to)
+              if (!from || !to) return null
+              return (
+                <Edge
+                  key={`${e.from}-${e.to}`}
+                  fromNode={from}
+                  toNode={to}
+                  onDelete={() => deleteEdge(e.from, e.to)}
+                />
+              )
+            })}
+            {/* Pending edge while drawing */}
+            {pendingLine && (
+              <line
+                x1={pendingLine.x1} y1={pendingLine.y1}
+                x2={pendingLine.x2} y2={pendingLine.y2}
+                stroke="#F59E0B" strokeWidth="2" strokeDasharray="6 3"
+                markerEnd="url(#arrow)"
+              />
+            )}
+          </svg>
+
+          {/* Node layer */}
+          <svg
+            style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible', pointerEvents: 'all' }}
+            width="100%" height="100%"
+          >
+            {nodes.map((node) => (
+              <AgentNode
+                key={node.id}
+                node={node}
+                selected={selected === node.id}
+                connecting={connectingFrom.current === node.id}
+                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                onDelete={(e) => { e.stopPropagation(); deleteNode(node.id) }}
+                onPortMouseDown={handlePortMouseDown}
+                onPortMouseUp={handlePortMouseUp}
+              />
+            ))}
+          </svg>
+        </div>
+
+        {/* Right panel — selected node details */}
+        {selected && (() => {
+          const node = nodes.find((n) => n.id === selected)
+          if (!node) return null
+          const deps = edges.filter((e) => e.to === node.id).map((e) => nodes.find((n) => n.id === e.from)?.name).filter(Boolean)
+          return (
+            <div style={{
+              width: 220, flexShrink: 0, background: '#fff',
+              borderLeft: '1px solid #E5E7EB', padding: 16, overflowY: 'auto',
+            }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 12 }}>
+                Node Properties
+              </p>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>Step name</label>
+              <input
+                value={node.name}
+                onChange={(e) => setNodes((prev) => prev.map((n) => n.id === node.id ? { ...n, name: e.target.value } : n))}
+                style={{
+                  width: '100%', padding: '6px 8px', borderRadius: 6, fontSize: 12,
+                  border: '1px solid #E5E7EB', outline: 'none', boxSizing: 'border-box', marginBottom: 12,
+                }}
+              />
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>Agent type</label>
+              <div style={{
+                padding: '6px 8px', borderRadius: 6, fontSize: 12, fontFamily: 'monospace',
+                background: agentColor(node.agent_type) + '18', color: agentColor(node.agent_type),
+                fontWeight: 700, marginBottom: 12,
+              }}>
+                {node.agent_type}
+              </div>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>Depends on</label>
+              {deps.length === 0
+                ? <p style={{ fontSize: 12, color: '#9CA3AF' }}>No dependencies</p>
+                : deps.map((d) => (
+                  <div key={d} style={{
+                    fontSize: 12, padding: '3px 8px', borderRadius: 4, background: '#EEF2FF',
+                    color: '#6366F1', marginBottom: 4, fontFamily: 'monospace',
+                  }}>{d}</div>
+                ))
+              }
+              <button
+                onClick={() => deleteNode(node.id)}
+                style={{
+                  marginTop: 16, width: '100%', padding: '7px', borderRadius: 6,
+                  border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#EF4444',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Delete Node
+              </button>
+            </div>
+          )
+        })()}
+      </div>
+
+      {/* Bottom toolbar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px',
+        background: '#fff', borderTop: '1px solid #E5E7EB', flexShrink: 0,
+      }}>
+        <button
+          onClick={clearCanvas}
+          style={{
+            padding: '8px 14px', borderRadius: 7, border: '1px solid #E5E7EB',
+            background: '#F9FAFB', color: '#6B7280', fontSize: 13, cursor: 'pointer',
+          }}
+        >
+          Clear
+        </button>
+        <div style={{ flex: 1 }} />
+        {/* DAG preview */}
+        <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'monospace' }}>
+          {nodes.length} steps · {edges.length} edges
+        </span>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            padding: '8px 18px', borderRadius: 7, border: 'none',
+            background: saving ? '#A5B4FC' : '#6366F1', color: '#fff',
+            fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          {saving ? 'Saving…' : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+              </svg>
+              Save Workflow
+            </>
+          )}
+        </button>
+        <button
+          onClick={handleExecute}
+          disabled={executing}
+          style={{
+            padding: '8px 18px', borderRadius: 7, border: 'none',
+            background: executing ? '#6EE7B7' : '#059669', color: '#fff',
+            fontSize: 13, fontWeight: 600, cursor: executing ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          {executing ? 'Running…' : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              Execute
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 80, right: 24, zIndex: 9999,
+          padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+          background: toast.type === 'error' ? '#FEF2F2' : '#F0FDF4',
+          color: toast.type === 'error' ? '#DC2626' : '#16A34A',
+          border: `1px solid ${toast.type === 'error' ? '#FECACA' : '#BBF7D0'}`,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          animation: 'fadeIn 0.2s ease-out',
+        }}>
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  )
+}
