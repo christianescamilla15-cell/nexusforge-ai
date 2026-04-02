@@ -77,6 +77,11 @@ export default function App() {
         <WorkflowDetailPage
           workflowId={selectedWorkflow}
           onBack={() => setSelectedWorkflow(null)}
+          onEdit={() => {
+            setCurrentPage('workflow-builder')
+            // Pass workflow ID via state so builder can load it
+            window.__nf_edit_workflow = selectedWorkflow
+          }}
           lang={lang}
         />
       )

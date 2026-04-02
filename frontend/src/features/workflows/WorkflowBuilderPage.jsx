@@ -155,7 +155,7 @@ export default function WorkflowBuilderPage({ lang = 'en' }) {
   const svgRef = useRef(null)
   const nodeCounter = useRef(0)
 
-  // ── Load agents ────────────────────────────────────────────────────────────
+  // ── Load agents + existing workflow (if editing) ────────────────────────────
 
   useEffect(() => {
     fetchAPI('/agents').then((res) => {
@@ -163,6 +163,46 @@ export default function WorkflowBuilderPage({ lang = 'en' }) {
         setAgents(Array.isArray(res.data) ? res.data : [])
       }
     })
+
+    // Check if we're editing an existing workflow
+    const editId = window.__nf_edit_workflow
+    if (editId) {
+      delete window.__nf_edit_workflow
+      fetchAPI(`/workflows/${editId}`).then((res) => {
+        if (!res.error && res.data) {
+          const wf = res.data
+          setWorkflowName(wf.name || 'Edited Workflow')
+          // Convert steps to nodes + edges
+          if (wf.dag?.steps || wf.steps) {
+            const steps = wf.dag?.steps || wf.steps || []
+            const newNodes = []
+            const newEdges = []
+            steps.forEach((step, i) => {
+              const id = `node-${i}`
+              newNodes.push({
+                id,
+                agentType: step.agent_type,
+                label: step.name,
+                x: 80 + (i % 4) * 220,
+                y: 80 + Math.floor(i / 4) * 120,
+              })
+              // Create edges from depends_on
+              if (step.depends_on) {
+                step.depends_on.forEach(dep => {
+                  const fromIdx = steps.findIndex(s => s.name === dep)
+                  if (fromIdx >= 0) {
+                    newEdges.push({ from: `node-${fromIdx}`, to: id })
+                  }
+                })
+              }
+            })
+            nodeCounter.current = steps.length
+            setNodes(newNodes)
+            setEdges(newEdges)
+          }
+        }
+      })
+    }
   }, [])
 
   const showToast = useCallback((msg, type = 'success') => {

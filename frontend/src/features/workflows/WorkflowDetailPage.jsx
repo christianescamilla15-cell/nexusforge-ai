@@ -88,7 +88,7 @@ const statusMap = {
   archived: 'pending',
 }
 
-export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) {
+export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 'en' }) {
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState(null)
   const [demoRuns, setDemoRuns] = useState(DEMO_RUNS)
@@ -165,7 +165,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, lang = 'en' }) 
           width: isMobile ? '100%' : 'auto',
         }}>
           <button
-            onClick={onBack}
+            onClick={onEdit || onBack}
             aria-label={t('edit', lang)}
             style={{
               padding: '10px 18px', borderRadius: 8, fontSize: 14,
