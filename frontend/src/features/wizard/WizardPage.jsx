@@ -3,6 +3,46 @@ import { fetchAPI } from '../../services/api'
 
 // ── Agent color map ───────────────────────────────────────────────────────────
 
+// ── Translations ─────────────────────────────────────────────────────────────
+
+const T = {
+  steps: { es: ['Describir', 'Clarificar', 'Generando', 'Vista previa', 'Lanzar'], en: ['Describe', 'Clarify', 'Generating', 'Preview', 'Launch'] },
+  title: { es: 'Asistente de Flujos de Trabajo IA', en: 'AI Workflow Wizard' },
+  subtitle: { es: 'Describe lo que quieres automatizar — la IA diseña el flujo por ti.', en: 'Describe what you want to automate — the AI designs the workflow for you.' },
+  step1Title: { es: '¿Qué quieres automatizar?', en: 'What do you want to automate?' },
+  step1Desc: { es: 'Describe tu flujo de trabajo en lenguaje natural. La IA diseñará el pipeline óptimo de agentes.', en: 'Describe your workflow in plain language. The AI will design the optimal agent pipeline.' },
+  step1Placeholder: { es: 'Ej: Leer correos de Gmail, clasificar por urgencia, resumir cada uno y enviar un resumen diario a Slack...', en: 'e.g. Read emails from Gmail, classify them by urgency, summarize each one, and send a daily digest to Slack...' },
+  step1Examples: {
+    es: ['Clasificar correos de clientes y enrutarlos al equipo correcto', 'Extraer datos de facturas PDF y guardar en Notion', 'Monitorear noticias sobre competidores y enviar alertas a Slack', 'Traducir documentos del español al inglés y resumir puntos clave'],
+    en: ['Classify incoming customer emails and route them to the right team', 'Extract data from PDF invoices and save to Notion database', 'Monitor news articles for competitor mentions and send Slack alerts', 'Translate documents from Spanish to English and summarize key points'],
+  },
+  characters: { es: 'caracteres', en: 'characters' },
+  examples: { es: 'Ejemplos:', en: 'Examples:' },
+  next: { es: 'Siguiente', en: 'Next' },
+  back: { es: 'Atrás', en: 'Back' },
+  minChars: { es: 'Mínimo 10 caracteres', en: 'Minimum 10 characters' },
+  step2Title: { es: 'Cuéntanos más', en: 'Tell us more' },
+  step2Desc: { es: 'Responde estas preguntas para que la IA genere un flujo óptimo.', en: 'Answer these questions so the AI generates an optimal workflow.' },
+  generating: { es: 'Generando tu flujo de trabajo...', en: 'Generating your workflow...' },
+  generatingDesc: { es: 'La IA está seleccionando los mejores agentes y diseñando las dependencias...', en: 'The AI is selecting the best agents and designing dependencies...' },
+  step4Title: { es: 'Tu flujo de trabajo', en: 'Your workflow' },
+  step4Desc: { es: 'Revisa el flujo generado por IA. Puedes editarlo después en el builder.', en: 'Review the AI-generated workflow. You can edit it later in the builder.' },
+  steps_label: { es: 'Pasos', en: 'Steps' },
+  deps: { es: 'Depende de:', en: 'Depends on:' },
+  noDeps: { es: 'Inicio (sin dependencias)', en: 'Start (no dependencies)' },
+  integrations: { es: 'Integraciones sugeridas', en: 'Suggested integrations' },
+  inputs: { es: 'Entradas', en: 'Inputs' },
+  outputs: { es: 'Salidas', en: 'Outputs' },
+  estimate: { es: 'Estimación', en: 'Estimate' },
+  tokens: { es: 'tokens', en: 'tokens' },
+  testDemo: { es: 'Probar en Demo', en: 'Test in Demo' },
+  saveConfig: { es: 'Guardar y Configurar', en: 'Save & Configure' },
+  provider: { es: 'Proveedor', en: 'Provider' },
+  warning: { es: 'Advertencia', en: 'Warning' },
+}
+
+const t = (key, lang) => (T[key] && T[key][lang]) || (T[key] && T[key].en) || key
+
 const AGENT_COLORS = {
   classifier: '#2563EB', extractor: '#059669', summarizer: '#7C3AED',
   analyzer: '#D97706', enricher: '#0891B2', validator: '#DC2626',
@@ -16,9 +56,8 @@ const agentColor = (t) => AGENT_COLORS[t] || '#6B7280'
 
 // ── Progress bar ──────────────────────────────────────────────────────────────
 
-const STEPS = ['Describe', 'Clarify', 'Generating', 'Preview', 'Launch']
-
-function ProgressBar({ step }) {
+function ProgressBar({ step, lang = 'en' }) {
+  const STEPS = T.steps[lang] || T.steps.en
   return (
     <div style={{ marginBottom: 32 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -52,25 +91,20 @@ function ProgressBar({ step }) {
 
 // ── Step 1: Description ───────────────────────────────────────────────────────
 
-function StepDescribe({ description, onChange }) {
-  const examples = [
-    'Classify incoming customer emails and route them to the right team',
-    'Extract data from PDF invoices and save to Notion database',
-    'Monitor news articles for competitor mentions and send Slack alerts',
-    'Translate documents from Spanish to English and summarize key points',
-  ]
+function StepDescribe({ description, onChange, lang = 'en' }) {
+  const examples = T.step1Examples[lang] || T.step1Examples.en
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-        What do you want to automate?
+        {t('step1Title', lang)}
       </h2>
       <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 24 }}>
-        Describe your workflow in plain language. The AI will design the optimal agent pipeline.
+        {t('step1Desc', lang)}
       </p>
       <textarea
         value={description}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. Read emails from Gmail, classify them by urgency, summarize each one, and send a daily digest to Slack..."
+        placeholder={t('step1Placeholder', lang)}
         rows={5}
         autoFocus
         style={{
@@ -83,9 +117,9 @@ function StepDescribe({ description, onChange }) {
         onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
       />
       <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 8, marginBottom: 20 }}>
-        {description.length} characters
+        {description.length} {t('characters', lang)}
       </p>
-      <p style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10 }}>Examples:</p>
+      <p style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10 }}>{t('examples', lang)}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {examples.map((ex) => (
           <button
@@ -193,7 +227,7 @@ function StepClarify({ questions, answers, onChange }) {
 
 // ── Step 3: Generating ────────────────────────────────────────────────────────
 
-function StepGenerating() {
+function StepGenerating({ lang = 'en' }) {
   return (
     <div style={{ textAlign: 'center', padding: '40px 0' }}>
       <div style={{
@@ -203,10 +237,10 @@ function StepGenerating() {
       }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-        Designing your workflow…
+        {t('generating', lang)}
       </h2>
       <p style={{ fontSize: 14, color: '#9CA3AF' }}>
-        The AI is selecting the optimal agents and building your DAG.
+        {t('generatingDesc', lang)}
       </p>
     </div>
   )
@@ -468,10 +502,10 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
       {/* Header */}
       <div style={{ marginBottom: 8 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
-          AI Workflow Wizard
+          {t('title', lang)}
         </h1>
         <p style={{ fontSize: 14, color: '#9CA3AF' }}>
-          Describe what you want to automate — the AI designs the workflow for you.
+          {t('subtitle', lang)}
         </p>
       </div>
 
@@ -479,7 +513,7 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
         background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB',
         padding: 32, marginTop: 24,
       }}>
-        <ProgressBar step={step} />
+        <ProgressBar step={step} lang={lang} />
 
         {error && (
           <div style={{
@@ -490,10 +524,10 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
           </div>
         )}
 
-        {step === 0 && <StepDescribe description={description} onChange={setDescription} />}
+        {step === 0 && <StepDescribe description={description} onChange={setDescription} lang={lang} />}
         {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} />}
-        {step === 2 && <StepGenerating />}
-        {step === 3 && <StepPreview workflow={workflow} warning={warning} />}
+        {step === 2 && <StepGenerating lang={lang} />}
+        {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} />}
         {step === 4 && (
           <StepLaunch
             workflow={workflow}
@@ -501,6 +535,7 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
             onConfigure={handleConfigure}
             executing={executing}
             execResult={execResult}
+            lang={lang}
           />
         )}
 
@@ -520,7 +555,7 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
-              Back
+              {t('back', lang)}
             </button>
 
             {step < 4 && (
@@ -536,7 +571,7 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
                   transition: 'background 0.15s',
                 }}
               >
-                {step === 1 ? 'Generate Workflow' : step === 3 ? 'Continue' : 'Next'}
+                {step === 1 ? (lang === 'es' ? 'Generar Flujo' : 'Generate Workflow') : step === 3 ? (lang === 'es' ? 'Continuar' : 'Continue') : t('next', lang)}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
