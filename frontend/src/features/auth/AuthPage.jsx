@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { fetchAPI } from '../../services/api'
+import { getApiUrl } from '../../services/api'
 
 export default function AuthPage({ onLogin, lang = 'es' }) {
   const [mode, setMode] = useState('login') // login | register
@@ -28,27 +28,33 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
       : { email, password }
 
     try {
-      const res = await fetchAPI(endpoint, {
+      const apiUrl = getApiUrl()
+      const res = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        redirect: 'follow',
       })
 
-      if (res.error) {
-        setError(res.error)
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data?.detail || `Error ${res.status}`)
         setLoading(false)
         return
       }
 
-      const data = res.data
       if (data?.token) {
         localStorage.setItem('nf_token', data.token)
         localStorage.setItem('nf_user', JSON.stringify(data.user))
         if (onLogin) onLogin(data.user)
       } else {
-        setError(data?.detail || 'Authentication failed')
+        setError('Authentication failed — no token received')
       }
     } catch (err) {
-      setError(err.message)
+      setError(lang === 'es'
+        ? 'Servidor no disponible. Espera 30s e intenta de nuevo.'
+        : 'Server unavailable. Wait 30s and try again.')
     }
     setLoading(false)
   }
