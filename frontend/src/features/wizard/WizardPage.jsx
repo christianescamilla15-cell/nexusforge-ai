@@ -417,7 +417,7 @@ function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult }) {
 
 // ── Main wizard ───────────────────────────────────────────────────────────────
 
-export default function WizardPage({ lang = 'en', onNavigate }) {
+export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilder }) {
   const [step, setStep] = useState(0)
   const [description, setDescription] = useState('')
   const [questions, setQuestions] = useState([])
@@ -532,7 +532,7 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
   }
 
   const handleConfigure = async () => {
-    // Save workflow first, then open in builder
+    // Save workflow first, then open in builder with the saved ID
     if (workflow) {
       const saveRes = await fetchAPI('/workflows', {
         method: 'POST',
@@ -549,13 +549,12 @@ export default function WizardPage({ lang = 'en', onNavigate }) {
         }),
       })
 
-      if (saveRes.data?.id) {
-        // Pass workflow ID to builder
-        window.__nf_edit_workflow = saveRes.data.id
-        if (onNavigate) onNavigate('workflow-builder')
+      if (saveRes.data?.id && onNavigateToBuilder) {
+        onNavigateToBuilder(saveRes.data.id)
         return
       }
     }
+    // Fallback: go to integrations if save failed or no builder callback
     if (onNavigate) onNavigate('integrations')
   }
 

@@ -20,6 +20,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
   const [showCreate, setShowCreate] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [apiWorkflows, setApiWorkflows] = useState([])
+  const [localWorkflows, setLocalWorkflows] = useState([])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)

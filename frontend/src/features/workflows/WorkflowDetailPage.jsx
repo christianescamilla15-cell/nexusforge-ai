@@ -155,7 +155,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
         started: new Date().toLocaleString(lang === 'es' ? 'es-ES' : 'en-US'),
         duration: `${Math.floor(Math.random() * 2 + 1)}m ${Math.floor(Math.random() * 50 + 10)}s`,
         cost: `$${(Math.random() * 0.3 + 0.05).toFixed(2)}`,
-        steps_done: `${wf.dag_definition.steps.length}/${wf.dag_definition.steps.length}`,
+        steps_done: `${wf.dag_definition?.steps?.length ?? 0}/${wf.dag_definition?.steps?.length ?? 0}`,
       }
       setDemoRuns(prev => [newRun, ...prev])
       setRunning(false)
@@ -250,8 +250,8 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
         {[
           { label: t('status', lang), value: <StatusBadge status={statusMap[wf.status] || wf.status} /> },
           { label: t('version', lang), value: wf.version },
-          { label: t('created', lang), value: new Date(wf.created_at).toLocaleDateString(locale) },
-          { label: t('updated', lang), value: new Date(wf.updated_at).toLocaleDateString(locale) },
+          { label: t('created', lang), value: wf.created_at ? new Date(wf.created_at).toLocaleDateString(locale) : '—' },
+          { label: t('updated', lang), value: wf.updated_at ? new Date(wf.updated_at).toLocaleDateString(locale) : '—' },
           { label: t('steps', lang), value: wf.dag_definition?.steps?.length || 0 },
         ].map((info) => (
           <div key={info.label} style={{

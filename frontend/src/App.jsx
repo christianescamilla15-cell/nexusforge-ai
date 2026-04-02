@@ -31,6 +31,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [selectedWorkflow, setSelectedWorkflow] = useState(null)
   const [selectedExecution, setSelectedExecution] = useState(null)
+  const [editWorkflowId, setEditWorkflowId] = useState(null)
   const { lang, setLang, toggle: toggleLang } = useLanguage()
   const [theme, setTheme] = useState(() => localStorage.getItem('nexusforge_theme') || 'light')
   const [showTour, setShowTour] = useState(true)
@@ -66,6 +67,14 @@ export default function App() {
     setCurrentPage(page)
     setSelectedWorkflow(null)
     setSelectedExecution(null)
+    if (page !== 'workflow-builder') setEditWorkflowId(null)
+  }
+
+  const navigateToBuilder = (workflowId = null) => {
+    setEditWorkflowId(workflowId)
+    setCurrentPage('workflow-builder')
+    setSelectedWorkflow(null)
+    setSelectedExecution(null)
   }
 
   // Auth gate — must be AFTER all hooks
@@ -80,9 +89,7 @@ export default function App() {
           workflowId={selectedWorkflow}
           onBack={() => setSelectedWorkflow(null)}
           onEdit={() => {
-            setCurrentPage('workflow-builder')
-            // Pass workflow ID via state so builder can load it
-            window.__nf_edit_workflow = selectedWorkflow
+            navigateToBuilder(selectedWorkflow)
           }}
           lang={lang}
         />
@@ -119,9 +126,9 @@ export default function App() {
       case 'integrations':
         return <IntegrationManagerPage lang={lang} />
       case 'wizard':
-        return <WizardPage lang={lang} onNavigate={navigate} />
+        return <WizardPage lang={lang} onNavigate={navigate} onNavigateToBuilder={navigateToBuilder} />
       case 'workflow-builder':
-        return <WorkflowBuilderPage lang={lang} />
+        return <WorkflowBuilderPage lang={lang} editWorkflowId={editWorkflowId} />
       case 'workflows':
         return (
           <WorkflowListPage

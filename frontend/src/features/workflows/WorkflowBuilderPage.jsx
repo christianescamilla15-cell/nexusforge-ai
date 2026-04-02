@@ -135,12 +135,18 @@ const AGENT_DESCRIPTIONS = {
 
 function SidebarAgent({ agent, onDragStart, lang = 'en' }) {
   const color = agentColor(agent.agent_type)
-  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState(null)
   const desc = AGENT_DESCRIPTIONS[agent.agent_type]
   const tooltipText = desc ? (desc[lang] || desc.en) : (agent.description || agent.name)
 
+  const handleMouseEnter = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltipPos({ top: rect.top, left: rect.right + 8 })
+  }
+  const handleMouseLeave = () => setTooltipPos(null)
+
   return (
-    <div style={{ position: 'relative', marginBottom: 4 }}>
+    <div style={{ marginBottom: 4 }}>
       <div
         draggable
         onDragStart={(e) => onDragStart(e, agent)}
@@ -158,8 +164,8 @@ function SidebarAgent({ agent, onDragStart, lang = 'en' }) {
           {agent.agent_type}
         </span>
         <div
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           style={{
             width: 16, height: 16, borderRadius: '50%',
             background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -170,15 +176,16 @@ function SidebarAgent({ agent, onDragStart, lang = 'en' }) {
         </div>
       </div>
 
-      {showTooltip && (
+      {tooltipPos && (
         <div style={{
-          position: 'absolute', left: '105%', top: 0, width: 220, zIndex: 50,
+          position: 'fixed', left: tooltipPos.left, top: tooltipPos.top,
+          width: 220, zIndex: 9999,
           background: '#1F2937', color: '#F9FAFB', padding: '10px 12px',
           borderRadius: 10, fontSize: 11, lineHeight: 1.5,
           boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-          animation: 'fadeIn 0.15s ease',
+          pointerEvents: 'none',
         }}>
-          <div style={{ fontWeight: 700, marginBottom: 4, color: color }}>
+          <div style={{ fontWeight: 700, marginBottom: 4, color }}>
             {agent.agent_type}
           </div>
           {tooltipText}
@@ -188,9 +195,66 @@ function SidebarAgent({ agent, onDragStart, lang = 'en' }) {
   )
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Demo workflows for edit fallback ─────────────────────────────────────────
 
-export default function WorkflowBuilderPage({ lang = 'en' }) {
+const DEMO_WORKFLOW_STEPS = {
+  'wf-1': { name: 'Análisis de Documentos', steps: [
+    { name: 'ingest', type: 'extractor', depends_on: [] },
+    { name: 'classify', type: 'classifier', depends_on: ['ingest'] },
+    { name: 'summarize', type: 'summarizer', depends_on: ['classify'] },
+    { name: 'validate', type: 'validator', depends_on: ['summarize'] },
+  ]},
+  'wf-2': { name: 'Clasificación de Datos', steps: [
+    { name: 'load_data', type: 'extractor', depends_on: [] },
+    { name: 'preprocess', type: 'normalizer', depends_on: ['load_data'] },
+    { name: 'classify_a', type: 'classifier', depends_on: ['preprocess'] },
+    { name: 'classify_b', type: 'classifier', depends_on: ['preprocess'] },
+    { name: 'merge', type: 'enricher', depends_on: ['classify_a', 'classify_b'] },
+    { name: 'export', type: 'validator', depends_on: ['merge'] },
+  ]},
+  'wf-3': { name: 'Resumen Ejecutivo', steps: [
+    { name: 'extract', type: 'extractor', depends_on: [] },
+    { name: 'summarize', type: 'summarizer', depends_on: ['extract'] },
+  ]},
+  'wf-4': { name: 'Extracción de Entidades', steps: [
+    { name: 'ingest', type: 'extractor', depends_on: [] },
+    { name: 'ner', type: 'extractor', depends_on: ['ingest'] },
+    { name: 'validate', type: 'validator', depends_on: ['ner'] },
+  ]},
+  'wf-5': { name: 'Pipeline RAG', steps: [
+    { name: 'upload', type: 'extractor', depends_on: [] },
+    { name: 'chunk', type: 'normalizer', depends_on: ['upload'] },
+    { name: 'embed', type: 'enricher', depends_on: ['chunk'] },
+    { name: 'index', type: 'validator', depends_on: ['embed'] },
+    { name: 'search', type: 'knowledge', depends_on: ['index'] },
+  ]},
+  'wf-6': { name: 'Traducción Masiva', steps: [
+    { name: 'extract', type: 'extractor', depends_on: [] },
+    { name: 'translate', type: 'translator', depends_on: ['extract'] },
+    { name: 'review', type: 'critic', depends_on: ['translate'] },
+  ]},
+}
+
+/** Convert a steps array into nodes + edges with consistent field names. */
+function stepsToGraph(steps) {
+  const newNodes = steps.map((step, i) => ({
+    id: `node-${i}`,
+    name: step.name,
+    agent_type: step.type || step.agent_type || 'extractor',
+    x: 80 + (i % 4) * 220,
+    y: 80 + Math.floor(i / 4) * 140,
+  }))
+  const newEdges = []
+  steps.forEach((step, i) => {
+    (step.depends_on || []).forEach((dep) => {
+      const fromIdx = steps.findIndex((s) => s.name === dep)
+      if (fromIdx >= 0) newEdges.push({ from: `node-${fromIdx}`, to: `node-${i}` })
+    })
+  })
+  return { nodes: newNodes, edges: newEdges }
+}
+
+export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null }) {
   const [agents, setAgents] = useState([])
   const [nodes, setNodes] = useState([])
   const [edges, setEdges] = useState([]) // [{from: nodeId, to: nodeId}]
@@ -221,47 +285,38 @@ export default function WorkflowBuilderPage({ lang = 'en' }) {
         setAgents(Array.isArray(res.data) ? res.data : [])
       }
     })
-
-    // Check if we're editing an existing workflow
-    const editId = window.__nf_edit_workflow
-    if (editId) {
-      delete window.__nf_edit_workflow
-      fetchAPI(`/workflows/${editId}`).then((res) => {
-        if (!res.error && res.data) {
-          const wf = res.data
-          setWorkflowName(wf.name || 'Edited Workflow')
-          // Convert steps to nodes + edges
-          if (wf.dag_definition?.steps || wf.dag?.steps || wf.steps) {
-            const steps = wf.dag_definition?.steps || wf.dag?.steps || wf.steps || []
-            const newNodes = []
-            const newEdges = []
-            steps.forEach((step, i) => {
-              const id = `node-${i}`
-              newNodes.push({
-                id,
-                agentType: step.type || step.agent_type,
-                label: step.name,
-                x: 80 + (i % 4) * 220,
-                y: 80 + Math.floor(i / 4) * 120,
-              })
-              // Create edges from depends_on
-              if (step.depends_on) {
-                step.depends_on.forEach(dep => {
-                  const fromIdx = steps.findIndex(s => s.name === dep)
-                  if (fromIdx >= 0) {
-                    newEdges.push({ from: `node-${fromIdx}`, to: id })
-                  }
-                })
-              }
-            })
-            nodeCounter.current = steps.length
-            setNodes(newNodes)
-            setEdges(newEdges)
-          }
-        }
-      })
-    }
   }, [])
+
+  // Load workflow when editWorkflowId changes (prop-driven, works on re-mount too)
+  useEffect(() => {
+    if (!editWorkflowId) return
+
+    // Demo workflow — load from local data immediately, no API call needed
+    if (DEMO_WORKFLOW_STEPS[editWorkflowId]) {
+      const demo = DEMO_WORKFLOW_STEPS[editWorkflowId]
+      setWorkflowName(demo.name)
+      const { nodes: n, edges: e } = stepsToGraph(demo.steps)
+      nodeCounter.current = n.length
+      setNodes(n)
+      setEdges(e)
+      return
+    }
+
+    // Real workflow — fetch from API
+    fetchAPI(`/workflows/${editWorkflowId}`).then((res) => {
+      if (!res.error && res.data) {
+        const wf = res.data
+        setWorkflowName(wf.name || 'Edited Workflow')
+        const steps = wf.dag_definition?.steps || wf.dag?.steps || wf.steps || []
+        if (steps.length > 0) {
+          const { nodes: n, edges: e } = stepsToGraph(steps)
+          nodeCounter.current = n.length
+          setNodes(n)
+          setEdges(e)
+        }
+      }
+    })
+  }, [editWorkflowId])
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
@@ -366,11 +421,11 @@ export default function WorkflowBuilderPage({ lang = 'en' }) {
   // ── Build DAG definition ───────────────────────────────────────────────────
 
   const buildSteps = () => nodes.map((node) => ({
-    name: node.label || node.id,
-    type: node.agentType,
+    name: node.name,
+    type: node.agent_type,
     depends_on: edges.filter((e) => e.to === node.id).map((e) => {
       const fromNode = nodes.find((n) => n.id === e.from)
-      return fromNode?.label || e.from
+      return fromNode?.name || e.from
     }),
   }))
 
