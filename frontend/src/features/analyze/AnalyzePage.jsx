@@ -87,7 +87,7 @@ export default function AnalyzePage({ lang = 'es' }) {
         import.meta.env.VITE_API_URL ||
         'https://nexusforge-api.onrender.com/api'
 
-      const endpoint = file ? '/analyze/' : '/analyze/text/'
+      const endpoint = file ? '/analyze' : '/analyze/text'
       if (!file) formData.append('content', textInput)
 
       const resp = await fetch(`${apiUrl}${endpoint}`, {
@@ -114,7 +114,7 @@ export default function AnalyzePage({ lang = 'es' }) {
         import.meta.env.VITE_API_URL ||
         'https://nexusforge-api.onrender.com/api'
 
-      const resp = await fetch(`${apiUrl}/workflows/drive-to-intelligence/`, {
+      const resp = await fetch(`${apiUrl}/workflows/drive-to-intelligence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
