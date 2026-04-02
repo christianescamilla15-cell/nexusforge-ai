@@ -10,6 +10,14 @@ PRICING = {
         "input": 3.0 / 1_000_000,
         "output": 15.0 / 1_000_000,
     },
+    "openai": {
+        "input": 0.15 / 1_000_000,   # GPT-4o-mini
+        "output": 0.60 / 1_000_000,
+    },
+    "openai-gpt4o": {
+        "input": 2.50 / 1_000_000,   # GPT-4o
+        "output": 10.0 / 1_000_000,
+    },
 }
 
 
