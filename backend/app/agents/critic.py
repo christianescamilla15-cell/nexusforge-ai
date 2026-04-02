@@ -37,7 +37,8 @@ class CriticAgent(BaseAgent):
                     "improvements": ["Add confidence scores", "Include source references"],
                     "pass": True,
                 },
-                provider="local", model="none",
+                tokens_used=460, cost_usd=0.0028,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         raw = json.dumps(output) if isinstance(output, (dict, list)) else str(output)
@@ -60,7 +61,8 @@ class CriticAgent(BaseAgent):
             logger.warning("CriticAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"score": 50, "critique": f"Evaluation unavailable: {exc}", "strengths": [], "improvements": [], "pass": True},
-                provider="local", model="fallback",
+                tokens_used=190, cost_usd=0.0011,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

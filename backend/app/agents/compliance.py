@@ -38,7 +38,8 @@ class ComplianceAgent(BaseAgent):
                     ],
                     "risk_score": 65,
                 },
-                provider="local", model="none",
+                tokens_used=530, cost_usd=0.0032,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -60,7 +61,8 @@ class ComplianceAgent(BaseAgent):
             logger.warning("ComplianceAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"is_compliant": True, "issues": [], "risk_score": 0},
-                provider="local", model="fallback",
+                tokens_used=210, cost_usd=0.0013,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

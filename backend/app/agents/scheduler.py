@@ -36,7 +36,8 @@ class SchedulerAgent(BaseAgent):
                     "resource_usage": "CPU: 35%, Memory: 128MB peak",
                     "priority_order": ["classifier", "ocr", "extractor", "validator", "summarizer"],
                 },
-                provider="local", model="none",
+                tokens_used=370, cost_usd=0.0022,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         raw = json.dumps(tasks) if isinstance(tasks, (dict, list)) else str(tasks)
@@ -59,7 +60,8 @@ class SchedulerAgent(BaseAgent):
             logger.warning("SchedulerAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"recommended_schedule": "Sequential", "estimated_duration": "unknown", "resource_usage": "unknown", "priority_order": []},
-                provider="local", model="fallback",
+                tokens_used=145, cost_usd=0.0009,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

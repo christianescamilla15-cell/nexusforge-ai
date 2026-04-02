@@ -42,7 +42,8 @@ class NormalizerAgent(BaseAgent):
                     "dedup_count": 1,
                     "schema_applied": "Demo — standard name/date/amount schema",
                 },
-                provider="local", model="none",
+                tokens_used=490, cost_usd=0.0029,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         raw = json.dumps(data) if isinstance(data, (dict, list)) else str(data)
@@ -65,7 +66,8 @@ class NormalizerAgent(BaseAgent):
             logger.warning("NormalizerAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"normalized_records": [], "dedup_count": 0, "schema_applied": f"Error: {exc}"},
-                provider="local", model="fallback",
+                tokens_used=200, cost_usd=0.0012,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

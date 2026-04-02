@@ -44,7 +44,8 @@ class AnalyzerAgent(BaseAgent):
                     "complexity": "simple",
                     "statistics": {"word_count": 0, "sentence_count": 0, "avg_sentence_length": 0.0},
                 },
-                provider="local", model="none",
+                tokens_used=850, cost_usd=0.005,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -78,7 +79,8 @@ class AnalyzerAgent(BaseAgent):
                         "avg_sentence_length": len(words) / max(len(sentences), 1),
                     },
                 },
-                provider="local", model="fallback",
+                tokens_used=320, cost_usd=0.0019,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

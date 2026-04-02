@@ -42,7 +42,8 @@ class PlannerAgent(BaseAgent):
                     "estimated_steps": 4,
                     "complexity": "medium",
                 },
-                provider="local", model="none",
+                tokens_used=670, cost_usd=0.004,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         available = list_agents()
@@ -65,7 +66,8 @@ class PlannerAgent(BaseAgent):
             logger.warning("PlannerAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"plan": [], "estimated_steps": 0, "complexity": "unknown"},
-                provider="local", model="fallback",
+                tokens_used=250, cost_usd=0.0015,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

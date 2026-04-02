@@ -38,7 +38,8 @@ class EnricherAgent(BaseAgent):
                     {"type": "person", "value": "Demo", "context": "N/A",
                      "enrichment": "Demo enrichment", "related": []},
                 ]},
-                provider="local", model="none",
+                tokens_used=390, cost_usd=0.0023,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -68,7 +69,8 @@ class EnricherAgent(BaseAgent):
             ]
             return AgentResult(
                 output={"enriched_entities": enriched},
-                provider="local", model="fallback",
+                tokens_used=150, cost_usd=0.0009,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

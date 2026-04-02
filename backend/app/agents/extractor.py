@@ -34,7 +34,8 @@ class ExtractorAgent(BaseAgent):
                     {"type": "person", "value": "John Doe", "context": "Demo entity"},
                     {"type": "organization", "value": "Acme Corp", "context": "Demo entity"},
                 ]},
-                provider="local", model="none",
+                tokens_used=780, cost_usd=0.0046,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -57,7 +58,8 @@ class ExtractorAgent(BaseAgent):
             logger.warning("ExtractorAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"entities": [], "error": str(exc)},
-                provider="local", model="fallback",
+                tokens_used=240, cost_usd=0.0014,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

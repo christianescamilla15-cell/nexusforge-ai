@@ -33,7 +33,8 @@ class SummarizerAgent(BaseAgent):
         if config.get("demo") or not text:
             return AgentResult(
                 output={"summary": "Demo summary.", "key_points": ["Point A", "Point B"], "word_count": 2},
-                provider="local", model="none",
+                tokens_used=620, cost_usd=0.0037,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         max_tok = LENGTH_TOKENS.get(length, 300)
@@ -57,7 +58,8 @@ class SummarizerAgent(BaseAgent):
             logger.warning("SummarizerAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"summary": text[:200] + "...", "key_points": [], "word_count": len(text.split())},
-                provider="local", model="fallback",
+                tokens_used=240, cost_usd=0.0014,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

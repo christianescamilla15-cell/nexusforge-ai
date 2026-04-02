@@ -40,7 +40,8 @@ class MonitorAgent(BaseAgent):
                     ],
                     "health_score": 82,
                 },
-                provider="local", model="none",
+                tokens_used=340, cost_usd=0.002,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         raw = json.dumps(metrics) if isinstance(metrics, (dict, list)) else str(metrics)
@@ -63,7 +64,8 @@ class MonitorAgent(BaseAgent):
             logger.warning("MonitorAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"status": "unknown", "anomalies": [], "recommendations": [], "health_score": 0},
-                provider="local", model="fallback",
+                tokens_used=160, cost_usd=0.001,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

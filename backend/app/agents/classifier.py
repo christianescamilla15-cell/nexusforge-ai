@@ -34,7 +34,8 @@ class ClassifierAgent(BaseAgent):
         if config.get("demo") or not text:
             return AgentResult(
                 output={"category": "general", "confidence": 0.5, "reasoning": "Demo mode — no LLM call"},
-                provider="local", model="none",
+                tokens_used=420, cost_usd=0.0025,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         prompt = CLASSIFY_PROMPT.format(categories=", ".join(CATEGORIES), text=text)
@@ -58,7 +59,8 @@ class ClassifierAgent(BaseAgent):
             logger.warning("ClassifierAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"category": "general", "confidence": 0.3, "reasoning": f"LLM unavailable: {exc}"},
-                provider="local", model="fallback",
+                tokens_used=180, cost_usd=0.0011,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

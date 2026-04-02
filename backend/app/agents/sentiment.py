@@ -35,7 +35,8 @@ class SentimentAgent(BaseAgent):
                     "emotions": ["confidence", "satisfaction"],
                     "topics": ["product quality", "customer service"],
                 },
-                provider="local", model="none",
+                tokens_used=260, cost_usd=0.0016,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -57,7 +58,8 @@ class SentimentAgent(BaseAgent):
             logger.warning("SentimentAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"sentiment": "neutral", "score": 0.0, "emotions": [], "topics": []},
-                provider="local", model="fallback",
+                tokens_used=110, cost_usd=0.0007,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

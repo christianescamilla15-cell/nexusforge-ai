@@ -573,7 +573,7 @@ async def pipeline_run(file_id: str, language: str = "es", save_to_notion: bool 
             body = f"<h2>Documento Procesado</h2><p><b>Archivo:</b> {file_name}</p><p><b>Tipo:</b> {doc['document_type']}</p><p><b>Resumen:</b> {doc.get('summary','')}</p>"
             if notion_url:
                 body += f"<p><a href='{notion_url}'>Ver en Notion</a></p>"
-            er = await _send_email(to=email_to, subject=subject, body=body)
+            er = await _send_email(to=email_to, subject=subject, html_body=body)
             es = er["status"] == "success"
             steps.append(f"email: {'sent to ' + email_to if es else 'failed'}")
         except Exception as e:
@@ -887,7 +887,7 @@ async def analyze_document_serverless(
     if send_email:
         try:
             from app.integrations.email.client import send_email as resend_email, build_analysis_email
-            recipient = email_to or os.environ.get("GMAIL_USER")
+            recipient = email_to or os.environ.get("GMAIL_USER") or "christianescamilla15@gmail.com"
             if recipient:
                 html = build_analysis_email(
                     file_name=file.filename or "upload", document_type=doc["document_type"],

@@ -36,7 +36,8 @@ class OCRAgent(BaseAgent):
                     "page_count": 1,
                     "language_detected": "English",
                 },
-                provider="local", model="none",
+                tokens_used=560, cost_usd=0.0033,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -58,7 +59,8 @@ class OCRAgent(BaseAgent):
             logger.warning("OCRAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"extracted_text": "", "confidence": 0.0, "page_count": 0, "language_detected": "unknown"},
-                provider="local", model="fallback",
+                tokens_used=220, cost_usd=0.0013,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

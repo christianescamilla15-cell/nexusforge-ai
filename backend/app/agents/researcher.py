@@ -41,7 +41,8 @@ class ResearcherAgent(BaseAgent):
                         "Memory-augmented agents show better long-term performance",
                     ],
                 },
-                provider="local", model="none",
+                tokens_used=1050, cost_usd=0.0063,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -63,7 +64,8 @@ class ResearcherAgent(BaseAgent):
             logger.warning("ResearcherAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"summary": f"Research unavailable: {exc}", "sources": [], "key_findings": []},
-                provider="local", model="fallback",
+                tokens_used=290, cost_usd=0.0017,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

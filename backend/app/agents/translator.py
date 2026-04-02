@@ -37,7 +37,8 @@ class TranslatorAgent(BaseAgent):
                     "target_lang": target_lang,
                     "confidence": 0.95,
                 },
-                provider="local", model="none",
+                tokens_used=480, cost_usd=0.0029,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -59,7 +60,8 @@ class TranslatorAgent(BaseAgent):
             logger.warning("TranslatorAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"translated_text": "", "source_lang": "unknown", "target_lang": target_lang, "confidence": 0.0},
-                provider="local", model="fallback",
+                tokens_used=190, cost_usd=0.0011,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

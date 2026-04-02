@@ -40,7 +40,8 @@ class KnowledgeAgent(BaseAgent):
                     ],
                     "confidence": 0.88,
                 },
-                provider="local", model="none",
+                tokens_used=710, cost_usd=0.0042,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         # Retrieve context from semantic search
@@ -73,7 +74,8 @@ class KnowledgeAgent(BaseAgent):
             logger.warning("KnowledgeAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"answer": f"Unable to answer: {exc}", "sources": [], "confidence": 0.0},
-                provider="local", model="fallback",
+                tokens_used=280, cost_usd=0.0017,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

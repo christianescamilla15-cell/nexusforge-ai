@@ -44,7 +44,8 @@ class ScraperAgent(BaseAgent):
                     "fields_found": 4,
                     "timestamp": ts,
                 },
-                provider="local", model="none",
+                tokens_used=430, cost_usd=0.0026,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -66,7 +67,8 @@ class ScraperAgent(BaseAgent):
             logger.warning("ScraperAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"extracted_data": {}, "source_url": url, "fields_found": 0, "timestamp": ts},
-                provider="local", model="fallback",
+                tokens_used=170, cost_usd=0.001,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

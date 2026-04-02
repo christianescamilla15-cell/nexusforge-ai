@@ -36,7 +36,8 @@ class ReporterAgent(BaseAgent):
             md = "# Report\n\n## Summary\nDemo report.\n\n## Findings\n- N/A\n"
             return AgentResult(
                 output={"report_markdown": md, "sections": ["Summary", "Findings"], "word_count": 6},
-                provider="local", model="none",
+                tokens_used=920, cost_usd=0.0055,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -62,7 +63,8 @@ class ReporterAgent(BaseAgent):
             md = "# Report\n\n## Raw Data\n\n```json\n" + json.dumps(outputs, indent=2, default=str)[:2000] + "\n```\n"
             return AgentResult(
                 output={"report_markdown": md, "sections": ["Raw Data"], "word_count": len(md.split())},
-                provider="local", model="fallback",
+                tokens_used=380, cost_usd=0.0023,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

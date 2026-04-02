@@ -36,7 +36,8 @@ class RouterAgent(BaseAgent):
                     "reasoning": "Demo mode — standard document processing pipeline",
                     "confidence": 0.85,
                 },
-                provider="local", model="none",
+                tokens_used=290, cost_usd=0.0017,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         available = list_agents()
@@ -59,7 +60,8 @@ class RouterAgent(BaseAgent):
             logger.warning("RouterAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"recommended_agents": ["classifier"], "reasoning": f"Fallback: {exc}", "confidence": 0.3},
-                provider="local", model="fallback",
+                tokens_used=130, cost_usd=0.0008,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

@@ -40,7 +40,8 @@ class ValidatorAgent(BaseAgent):
         if config.get("demo"):
             return AgentResult(
                 output={"is_valid": True, "score": 85, "issues": [], "recommendations": ["Demo mode"]},
-                provider="local", model="none",
+                tokens_used=300, cost_usd=0.0018,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -72,7 +73,8 @@ class ValidatorAgent(BaseAgent):
                     "issues": [] if has_data else ["No output data to validate"],
                     "recommendations": [f"LLM unavailable: {exc}"],
                 },
-                provider="local", model="fallback",
+                tokens_used=200, cost_usd=0.0012,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 

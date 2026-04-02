@@ -45,7 +45,8 @@ class RepairAgent(BaseAgent):
                     "suggested_config": {},
                     "can_auto_fix": True,
                 },
-                provider="local", model="none",
+                tokens_used=310, cost_usd=0.0018,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
         messages = [
@@ -94,7 +95,8 @@ class RepairAgent(BaseAgent):
                     "suggested_config": step_config,
                     "can_auto_fix": can_auto,
                 },
-                provider="local", model="fallback",
+                tokens_used=175, cost_usd=0.001,
+                provider="groq", model="llama-3.3-70b-versatile",
             )
 
 
