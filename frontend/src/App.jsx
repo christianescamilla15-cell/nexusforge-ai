@@ -54,11 +54,6 @@ export default function App() {
     setUser(null)
   }, [])
 
-  // Show auth page if not logged in
-  if (!user) {
-    return <AuthPage onLogin={handleLogin} lang={lang} />
-  }
-
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('nexusforge_theme', theme)
@@ -68,6 +63,11 @@ export default function App() {
     setCurrentPage(page)
     setSelectedWorkflow(null)
     setSelectedExecution(null)
+  }
+
+  // Auth gate — must be AFTER all hooks
+  if (!user) {
+    return <AuthPage onLogin={handleLogin} lang={lang} />
   }
 
   const renderPage = () => {
