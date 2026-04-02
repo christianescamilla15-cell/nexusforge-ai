@@ -42,7 +42,7 @@ function SpeedBadge({ speed }) {
 
 // ── LLM Provider card ─────────────────────────────────────────────────────────
 
-function ProviderCard({ provider, savedKey, onSaved }) {
+function ProviderCard({ provider, savedKey, onSaved, lang = 'en' }) {
   const [key, setKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -59,7 +59,7 @@ function ProviderCard({ provider, savedKey, onSaved }) {
     if (res.error) {
       setMsg({ type: 'error', text: res.error })
     } else {
-      setMsg({ type: 'ok', text: 'Key saved' })
+      setMsg({ type: 'ok', text: lang === 'es' ? 'Clave guardada' : 'Key saved' })
       setKey('')
       onSaved(provider.id)
       setTimeout(() => setMsg(null), 2500)
@@ -121,7 +121,7 @@ function ProviderCard({ provider, savedKey, onSaved }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {saving ? 'Saving…' : configured ? 'Update' : 'Save'}
+          {saving ? (lang === 'es' ? 'Guardando…' : 'Saving…') : configured ? (lang === 'es' ? 'Actualizar' : 'Update') : (lang === 'es' ? 'Guardar' : 'Save')}
         </button>
       </div>
 
@@ -135,7 +135,7 @@ function ProviderCard({ provider, savedKey, onSaved }) {
       )}
 
       <div style={{ fontSize: 11, color: '#9CA3AF' }}>
-        Models: {provider.models.join(', ')}
+        {lang === 'es' ? 'Modelos' : 'Models'}: {provider.models.join(', ')}
       </div>
     </div>
   )

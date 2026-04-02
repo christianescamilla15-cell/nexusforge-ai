@@ -432,28 +432,28 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   // ── Save workflow ──────────────────────────────────────────────────────────
 
   const handleSave = async () => {
-    if (nodes.length === 0) { showToast('Add at least one agent node', 'error'); return }
+    if (nodes.length === 0) { showToast(lang === 'es' ? 'Agrega al menos un nodo' : 'Add at least one agent node', 'error'); return }
     setSaving(true)
     const res = await fetchAPI('/workflows', {
       method: 'POST',
       body: JSON.stringify({
         name: workflowName,
-        description: `${nodes.length} steps workflow`,
+        description: lang === 'es' ? `Flujo de ${nodes.length} pasos` : `${nodes.length} steps workflow`,
         dag_definition: { steps: buildSteps() },
       }),
     })
     setSaving(false)
     if (res.error) {
-      showToast(`Save failed: ${res.error}`, 'error')
+      showToast(`${lang === 'es' ? 'Error al guardar' : 'Save failed'}: ${res.error}`, 'error')
     } else {
-      showToast(`Workflow "${workflowName}" saved`)
+      showToast(lang === 'es' ? `Flujo "${workflowName}" guardado` : `Workflow "${workflowName}" saved`)
     }
   }
 
   // ── Execute workflow ───────────────────────────────────────────────────────
 
   const handleExecute = async () => {
-    if (nodes.length === 0) { showToast('Add at least one agent node', 'error'); return }
+    if (nodes.length === 0) { showToast(lang === 'es' ? 'Agrega al menos un nodo' : 'Add at least one agent node', 'error'); return }
     setExecuting(true)
     // Save first, then execute with workflow_id
     const saveRes = await fetchAPI('/workflows', {
@@ -464,7 +464,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
       }),
     })
     if (saveRes.error || !saveRes.data?.id) {
-      showToast(`Save failed: ${saveRes.error || 'unknown'}`, 'error')
+      showToast(`${lang === 'es' ? 'Error al guardar' : 'Save failed'}: ${saveRes.error || 'unknown'}`, 'error')
       setExecuting(false)
       return
     }
@@ -478,9 +478,9 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     })
     setExecuting(false)
     if (execRes.error) {
-      showToast(`Execute failed: ${execRes.error}`, 'error')
+      showToast(`${lang === 'es' ? 'Error al ejecutar' : 'Execute failed'}: ${execRes.error}`, 'error')
     } else {
-      showToast('Execution started')
+      showToast(lang === 'es' ? 'Ejecución iniciada' : 'Execution started')
     }
   }
 
@@ -513,7 +513,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
           aria-label="Workflow name"
         />
         <span style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 4 }}>
-          {nodes.length} nodes · {edges.length} edges
+          {nodes.length} {lang === 'es' ? 'nodos' : 'nodes'} · {edges.length} {lang === 'es' ? 'conexiones' : 'edges'}
         </span>
       </div>
 
@@ -528,12 +528,12 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
         }}>
           <div style={{ padding: '12px 10px 8px', borderBottom: '1px solid #F3F4F6' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>
-              Agents ({agents.length})
+              {lang === 'es' ? 'Agentes' : 'Agents'} ({agents.length})
             </p>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
+              placeholder={lang === 'es' ? 'Buscar...' : 'Search...'}
               style={{
                 width: '100%', padding: '5px 8px', borderRadius: 6, fontSize: 12,
                 border: '1px solid #E5E7EB', outline: 'none', boxSizing: 'border-box',
@@ -543,7 +543,9 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
             {filteredAgents.length === 0 && (
               <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 20 }}>
-                {agents.length === 0 ? 'Loading...' : 'No match'}
+                {agents.length === 0
+                  ? (lang === 'es' ? 'Cargando...' : 'Loading...')
+                  : (lang === 'es' ? 'Sin resultados' : 'No match')}
               </p>
             )}
             {filteredAgents.map((a) => (
@@ -553,15 +555,15 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
           <div style={{ padding: '8px 10px', borderTop: '1px solid #F3F4F6', fontSize: 11, color: '#9CA3AF' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366F1' }} />
-              Drag to canvas
+              {lang === 'es' ? 'Arrastra al canvas' : 'Drag to canvas'}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
-              Input port (left)
+              {lang === 'es' ? 'Puerto entrada (izq.)' : 'Input port (left)'}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366F1' }} />
-              Output port (right)
+              {lang === 'es' ? 'Puerto salida (der.)' : 'Output port (right)'}
             </div>
           </div>
         </div>
@@ -589,7 +591,9 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5">
                 <path d="M4 6h16M4 12h8m-8 6h16" />
               </svg>
-              <p style={{ color: '#9CA3AF', fontSize: 14, marginTop: 12 }}>Drag agents here to build your workflow</p>
+              <p style={{ color: '#9CA3AF', fontSize: 14, marginTop: 12 }}>
+                {lang === 'es' ? 'Arrastra agentes aquí para construir tu flujo' : 'Drag agents here to build your workflow'}
+              </p>
             </div>
           )}
 
@@ -659,9 +663,11 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
               borderLeft: '1px solid #E5E7EB', padding: 16, overflowY: 'auto',
             }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 12 }}>
-                Node Properties
+                {lang === 'es' ? 'Propiedades del nodo' : 'Node Properties'}
               </p>
-              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>Step name</label>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>
+                {lang === 'es' ? 'Nombre del paso' : 'Step name'}
+              </label>
               <input
                 value={node.name}
                 onChange={(e) => setNodes((prev) => prev.map((n) => n.id === node.id ? { ...n, name: e.target.value } : n))}
@@ -670,7 +676,9 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
                   border: '1px solid #E5E7EB', outline: 'none', boxSizing: 'border-box', marginBottom: 12,
                 }}
               />
-              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>Agent type</label>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>
+                {lang === 'es' ? 'Tipo de agente' : 'Agent type'}
+              </label>
               <div style={{
                 padding: '6px 8px', borderRadius: 6, fontSize: 12, fontFamily: 'monospace',
                 background: agentColor(node.agent_type) + '18', color: agentColor(node.agent_type),
@@ -678,9 +686,11 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
               }}>
                 {node.agent_type}
               </div>
-              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>Depends on</label>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>
+                {lang === 'es' ? 'Depende de' : 'Depends on'}
+              </label>
               {deps.length === 0
-                ? <p style={{ fontSize: 12, color: '#9CA3AF' }}>No dependencies</p>
+                ? <p style={{ fontSize: 12, color: '#9CA3AF' }}>{lang === 'es' ? 'Sin dependencias' : 'No dependencies'}</p>
                 : deps.map((d) => (
                   <div key={d} style={{
                     fontSize: 12, padding: '3px 8px', borderRadius: 4, background: '#EEF2FF',
@@ -696,7 +706,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
                   fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                Delete Node
+                {lang === 'es' ? 'Eliminar nodo' : 'Delete Node'}
               </button>
             </div>
           )
@@ -715,12 +725,12 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
             background: '#F9FAFB', color: '#6B7280', fontSize: 13, cursor: 'pointer',
           }}
         >
-          Clear
+          {lang === 'es' ? 'Limpiar' : 'Clear'}
         </button>
         <div style={{ flex: 1 }} />
         {/* DAG preview */}
         <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'monospace' }}>
-          {nodes.length} steps · {edges.length} edges
+          {nodes.length} {lang === 'es' ? 'pasos' : 'steps'} · {edges.length} {lang === 'es' ? 'conexiones' : 'edges'}
         </span>
         <button
           onClick={handleSave}
@@ -732,12 +742,12 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
             display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
-          {saving ? 'Saving…' : (
+          {saving ? (lang === 'es' ? 'Guardando…' : 'Saving…') : (
             <>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
               </svg>
-              Save Workflow
+              {lang === 'es' ? 'Guardar flujo' : 'Save Workflow'}
             </>
           )}
         </button>
@@ -751,12 +761,12 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
             display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
-          {executing ? 'Running…' : (
+          {executing ? (lang === 'es' ? 'Ejecutando…' : 'Running…') : (
             <>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
-              Execute
+              {lang === 'es' ? 'Ejecutar' : 'Execute'}
             </>
           )}
         </button>

@@ -248,14 +248,14 @@ function StepGenerating({ lang = 'en' }) {
 
 // ── Step 4: Preview ───────────────────────────────────────────────────────────
 
-function StepPreview({ workflow, warning }) {
+function StepPreview({ workflow, warning, lang = 'en', onUpdateName, onSaveDraft, onOpenBuilder, savingDraft }) {
   if (!workflow) return null
   const { name, description, steps = [], suggested_integrations = {}, estimated_tokens, estimated_cost_usd } = workflow
 
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
-        Your workflow is ready
+        {lang === 'es' ? 'Tu flujo de trabajo está listo' : 'Your workflow is ready'}
       </h2>
       <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 24 }}>{description}</p>
 
@@ -264,11 +264,11 @@ function StepPreview({ workflow, warning }) {
           padding: '10px 14px', borderRadius: 8, marginBottom: 20, fontSize: 13,
           background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E',
         }}>
-          ⚠️ {warning}
+          {warning}
         </div>
       )}
 
-      {/* Workflow name */}
+      {/* Editable workflow name */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
         padding: '12px 16px', borderRadius: 10, background: '#EEF2FF', border: '1px solid #C7D2FE',
@@ -276,16 +276,62 @@ function StepPreview({ workflow, warning }) {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round">
           <path d="M4 6h16M4 12h8m-8 6h16" />
         </svg>
-        <span style={{ fontSize: 15, fontWeight: 700, color: '#4338CA' }}>{name}</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6366F1' }}>
+        <input
+          value={name}
+          onChange={(e) => onUpdateName && onUpdateName(e.target.value)}
+          style={{
+            fontSize: 15, fontWeight: 700, color: '#4338CA', border: 'none', outline: 'none',
+            background: 'transparent', flex: 1, fontFamily: 'inherit',
+          }}
+          placeholder={lang === 'es' ? 'Nombre del flujo...' : 'Workflow name...'}
+        />
+        <span style={{ fontSize: 12, color: '#6366F1', flexShrink: 0 }}>
           ~{estimated_tokens} tokens · ~${(estimated_cost_usd || 0).toFixed(4)}
         </span>
+      </div>
+
+      {/* Action buttons: Save Draft + Open Builder */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        <button
+          onClick={onSaveDraft}
+          disabled={savingDraft}
+          style={{
+            padding: '8px 16px', borderRadius: 8, border: '1px solid #E5E7EB',
+            background: '#fff', color: '#6B7280', fontSize: 13, fontWeight: 600,
+            cursor: savingDraft ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          {savingDraft
+            ? (lang === 'es' ? 'Guardando...' : 'Saving...')
+            : (lang === 'es' ? 'Guardar como Borrador' : 'Save as Draft')
+          }
+        </button>
+        <button
+          onClick={onOpenBuilder}
+          style={{
+            padding: '8px 16px', borderRadius: 8, border: '1px solid #6366F1',
+            background: '#EEF2FF', color: '#6366F1', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          {lang === 'es' ? 'Editar en Builder' : 'Edit in Builder'}
+        </button>
       </div>
 
       {/* Steps */}
       <div style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 12 }}>
-          Pipeline ({steps.length} steps)
+          Pipeline ({steps.length} {lang === 'es' ? 'pasos' : 'steps'})
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {steps.map((step, i) => (
@@ -325,18 +371,18 @@ function StepPreview({ workflow, warning }) {
       {(suggested_integrations.inputs?.length > 0 || suggested_integrations.outputs?.length > 0) && (
         <div style={{ padding: '14px 16px', borderRadius: 10, background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: '#16A34A', marginBottom: 8 }}>
-            Suggested Integrations
+            {lang === 'es' ? 'Integraciones sugeridas' : 'Suggested Integrations'}
           </p>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
             {suggested_integrations.inputs?.length > 0 && (
               <div>
-                <span style={{ color: '#6B7280', fontWeight: 600 }}>Inputs: </span>
+                <span style={{ color: '#6B7280', fontWeight: 600 }}>{lang === 'es' ? 'Entradas: ' : 'Inputs: '}</span>
                 <span style={{ color: '#374151' }}>{suggested_integrations.inputs.join(', ')}</span>
               </div>
             )}
             {suggested_integrations.outputs?.length > 0 && (
               <div>
-                <span style={{ color: '#6B7280', fontWeight: 600 }}>Outputs: </span>
+                <span style={{ color: '#6B7280', fontWeight: 600 }}>{lang === 'es' ? 'Salidas: ' : 'Outputs: '}</span>
                 <span style={{ color: '#374151' }}>{suggested_integrations.outputs.join(', ')}</span>
               </div>
             )}
@@ -560,6 +606,59 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
     if (onNavigate) onNavigate('integrations')
   }
 
+  const [savingDraft, setSavingDraft] = useState(false)
+
+  const handleUpdateName = (newName) => {
+    if (workflow) setWorkflow({ ...workflow, name: newName })
+  }
+
+  const handleSaveDraft = async () => {
+    if (!workflow) return
+    setSavingDraft(true)
+    const res = await fetchAPI('/workflows', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: workflow.name || 'Draft Workflow',
+        description: workflow.description || description,
+        dag_definition: {
+          steps: (workflow.steps || []).map(s => ({
+            name: s.name,
+            type: s.agent_type || s.type,
+            depends_on: s.depends_on || [],
+          })),
+        },
+      }),
+    })
+    setSavingDraft(false)
+    if (res.data?.id) {
+      setError(null)
+      alert(lang === 'es' ? `Borrador guardado (ID: ${res.data.id.slice(0,8)}...)` : `Draft saved (ID: ${res.data.id.slice(0,8)}...)`)
+    } else {
+      setError(res.error || (lang === 'es' ? 'Error al guardar borrador' : 'Failed to save draft'))
+    }
+  }
+
+  const handleOpenBuilder = async () => {
+    if (!workflow) return
+    const res = await fetchAPI('/workflows', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: workflow.name || 'AI Generated Workflow',
+        description: workflow.description || description,
+        dag_definition: {
+          steps: (workflow.steps || []).map(s => ({
+            name: s.name,
+            type: s.agent_type || s.type,
+            depends_on: s.depends_on || [],
+          })),
+        },
+      }),
+    })
+    if (res.data?.id && onNavigateToBuilder) {
+      onNavigateToBuilder(res.data.id)
+    }
+  }
+
   const canNext = step === 0 ? description.trim().length > 10
     : step === 1 ? true
     : step === 3 ? !!workflow
@@ -595,7 +694,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         {step === 0 && <StepDescribe description={description} onChange={setDescription} lang={lang} />}
         {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} lang={lang} />}
         {step === 2 && <StepGenerating lang={lang} />}
-        {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} />}
+        {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} onUpdateName={handleUpdateName} onSaveDraft={handleSaveDraft} onOpenBuilder={handleOpenBuilder} savingDraft={savingDraft} />}
         {step === 4 && (
           <StepLaunch
             workflow={workflow}
