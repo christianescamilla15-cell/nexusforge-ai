@@ -61,15 +61,18 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
   ]
 
   // Merge API workflows (real) + demo workflows (fallback)
-  const realWorkflows = apiWorkflows.map(w => ({
-    id: w.id,
-    name: w.name,
-    status: w.status || 'active',
-    version: w.version || 'v1.0',
-    steps: w.dag_definition?.steps?.length || w.steps_count || 0,
-    created: w.created_at?.slice(0, 10) || w.created || 'now',
-  }))
-  const workflows = realWorkflows.length > 0 ? realWorkflows : DEMO_WORKFLOWS
+  let realWorkflows = []
+  try {
+    realWorkflows = (apiWorkflows || []).map(w => ({
+      id: w?.id || Math.random().toString(),
+      name: w?.name || 'Unnamed',
+      status: w?.status || 'active',
+      version: 'v' + (w?.version || '1.0'),
+      steps: w?.dag_definition?.steps?.length || w?.steps_count || 0,
+      created: w?.created_at?.slice(0, 10) || 'now',
+    }))
+  } catch { realWorkflows = [] }
+  const workflows = realWorkflows.length > 0 ? [...realWorkflows, ...DEMO_WORKFLOWS] : DEMO_WORKFLOWS
   const filtered = filter === 'all' ? workflows : workflows.filter((w) => w.status === filter)
 
   return (

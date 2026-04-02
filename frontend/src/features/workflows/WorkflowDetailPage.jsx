@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fetchAPI } from '../../services/api'
 import { t } from '../../shared/i18n/translations'
 import StatusBadge from '../../shared/components/StatusBadge'
 import DataTable from '../../shared/components/DataTable'
@@ -101,7 +102,42 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const wf = DEMO_WORKFLOWS[workflowId] || DEFAULT_WORKFLOW
+  // Support both array index (demo) and UUID (real) workflow IDs
+  const [wf, setWf] = useState(() => {
+    if (typeof workflowId === 'number' || /^\d+$/.test(workflowId)) {
+      return DEMO_WORKFLOWS[workflowId] || DEFAULT_WORKFLOW
+    }
+    return DEFAULT_WORKFLOW
+  })
+
+  useEffect(() => {
+    // Fetch real workflow from API if UUID
+    if (workflowId && !/^\d+$/.test(String(workflowId)) && !workflowId.startsWith('wf-')) {
+      fetchAPI(`/workflows/${workflowId}`).then((res) => {
+        if (!res.error && res.data) {
+          const w = res.data
+          setWf({
+            ...DEFAULT_WORKFLOW,
+            name: w.name,
+            description: w.description || '',
+            status: w.status || 'active',
+            version: 'v' + (w.version || '1.0'),
+            steps: (w.dag_definition?.steps || []).map(s => ({
+              name: s.name,
+              type: s.type,
+              depends_on: s.depends_on || [],
+            })),
+            created: w.created_at?.slice(0, 10) || 'now',
+            updated: w.updated_at?.slice(0, 10) || 'now',
+          })
+        }
+      })
+    } else if (workflowId?.startsWith('wf-')) {
+      // Demo workflow by id
+      const demo = DEMO_WORKFLOWS.find(d => d?.id === workflowId)
+      if (demo) setWf(demo)
+    }
+  }, [workflowId])
   const runHistory = demoRuns
 
   const runColumns = [
