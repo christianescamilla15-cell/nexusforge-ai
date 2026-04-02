@@ -133,9 +133,9 @@ export default function FeedbackPage({ lang = 'en' }) {
     try {
       const base = getApiUrl()
       const [statsRes, agentsRes, recsRes] = await Promise.all([
-        fetch(`${base}/feedback/stats`).then(r => r.json()).catch(() => null),
-        fetch(`${base}/feedback/agents/performance`).then(r => r.json()).catch(() => null),
-        fetch(`${base}/feedback/agents/recommendations`).then(r => r.json()).catch(() => null),
+        fetch(`${base}/feedback/stats/`).then(r => r.json()).catch(() => null),
+        fetch(`${base}/feedback/agents/performance/`).then(r => r.json()).catch(() => null),
+        fetch(`${base}/feedback/agents/recommendations/`).then(r => r.json()).catch(() => null),
       ])
       if (statsRes && statsRes.total > 0) setStats(statsRes)
       if (agentsRes && agentsRes.agents && agentsRes.agents.length > 0) setAgents(agentsRes.agents)
@@ -154,7 +154,7 @@ export default function FeedbackPage({ lang = 'en' }) {
     setSubmitStatus('submitting')
     try {
       const base = getApiUrl()
-      const res = await fetch(`${base}/feedback/submit`, {
+      const res = await fetch(`${base}/feedback/submit/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
