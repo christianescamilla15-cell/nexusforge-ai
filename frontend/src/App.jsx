@@ -24,6 +24,8 @@ import ExecutionTimelineViewer from './features/executions/ExecutionTimelineView
 import EvaluationPage from './features/evaluations/EvaluationPage'
 import FeedbackPage from './features/feedback/FeedbackPage'
 import AnalyzePage from './features/analyze/AnalyzePage'
+import IntegrationManagerPage from './features/integrations/IntegrationManagerPage'
+import WizardPage from './features/wizard/WizardPage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -114,6 +116,10 @@ export default function App() {
             <DashboardPage lang={lang} />
           </>
         )
+      case 'integrations':
+        return <IntegrationManagerPage lang={lang} />
+      case 'wizard':
+        return <WizardPage lang={lang} onNavigate={navigate} />
       case 'workflow-builder':
         return <WorkflowBuilderPage lang={lang} />
       case 'workflows':

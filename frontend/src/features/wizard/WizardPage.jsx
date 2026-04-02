@@ -1,0 +1,550 @@
+import { useState, useCallback } from 'react'
+import { fetchAPI } from '../../services/api'
+
+// ── Agent color map ───────────────────────────────────────────────────────────
+
+const AGENT_COLORS = {
+  classifier: '#2563EB', extractor: '#059669', summarizer: '#7C3AED',
+  analyzer: '#D97706', enricher: '#0891B2', validator: '#DC2626',
+  reporter: '#DB2777', repair: '#6366F1', normalizer: '#0D9488',
+  researcher: '#B45309', translator: '#4F46E5', compliance: '#BE185D',
+  monitor: '#0369A1', planner: '#9333EA', knowledge: '#1D4ED8',
+  scraper: '#B91C1C', ocr: '#0F766E', sentiment: '#C2410C',
+  scheduler: '#6D28D9', webhook: '#374151',
+}
+const agentColor = (t) => AGENT_COLORS[t] || '#6B7280'
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+
+const STEPS = ['Describe', 'Clarify', 'Generating', 'Preview', 'Launch']
+
+function ProgressBar({ step }) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+        {STEPS.map((label, i) => (
+          <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700,
+              background: i < step ? '#6366F1' : i === step ? '#818CF8' : '#E5E7EB',
+              color: i <= step ? '#fff' : '#9CA3AF',
+              border: i === step ? '2px solid #6366F1' : 'none',
+              transition: 'all 0.3s',
+            }}>
+              {i < step ? '✓' : i + 1}
+            </div>
+            <span style={{ fontSize: 10, color: i <= step ? '#6366F1' : '#9CA3AF', marginTop: 4, fontWeight: i === step ? 700 : 400 }}>
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div style={{ height: 3, background: '#E5E7EB', borderRadius: 2, position: 'relative' }}>
+        <div style={{
+          height: '100%', borderRadius: 2, background: 'linear-gradient(90deg, #6366F1, #818CF8)',
+          width: `${(step / (STEPS.length - 1)) * 100}%`, transition: 'width 0.4s ease',
+        }} />
+      </div>
+    </div>
+  )
+}
+
+// ── Step 1: Description ───────────────────────────────────────────────────────
+
+function StepDescribe({ description, onChange }) {
+  const examples = [
+    'Classify incoming customer emails and route them to the right team',
+    'Extract data from PDF invoices and save to Notion database',
+    'Monitor news articles for competitor mentions and send Slack alerts',
+    'Translate documents from Spanish to English and summarize key points',
+  ]
+  return (
+    <div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+        What do you want to automate?
+      </h2>
+      <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 24 }}>
+        Describe your workflow in plain language. The AI will design the optimal agent pipeline.
+      </p>
+      <textarea
+        value={description}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="e.g. Read emails from Gmail, classify them by urgency, summarize each one, and send a daily digest to Slack..."
+        rows={5}
+        autoFocus
+        style={{
+          width: '100%', padding: '14px 16px', borderRadius: 10, fontSize: 14,
+          border: '2px solid #E5E7EB', outline: 'none', resize: 'vertical',
+          lineHeight: 1.6, boxSizing: 'border-box', fontFamily: 'inherit',
+          transition: 'border-color 0.15s',
+        }}
+        onFocus={(e) => e.target.style.borderColor = '#6366F1'}
+        onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+      />
+      <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 8, marginBottom: 20 }}>
+        {description.length} characters
+      </p>
+      <p style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10 }}>Examples:</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {examples.map((ex) => (
+          <button
+            key={ex}
+            onClick={() => onChange(ex)}
+            style={{
+              textAlign: 'left', padding: '10px 14px', borderRadius: 8, fontSize: 13,
+              border: '1px solid #E5E7EB', background: description === ex ? '#EEF2FF' : '#F9FAFB',
+              color: description === ex ? '#6366F1' : '#374151', cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {ex}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Step 2: Clarifying questions ──────────────────────────────────────────────
+
+function StepClarify({ questions, answers, onChange }) {
+  return (
+    <div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+        A few quick questions
+      </h2>
+      <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 28 }}>
+        Help us generate the best workflow for your needs.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {questions.map((q) => (
+          <div key={q.id}>
+            <label style={{ fontSize: 14, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+              {q.question}
+            </label>
+            {q.type === 'text' && (
+              <input
+                type="text"
+                value={answers[q.id] || ''}
+                onChange={(e) => onChange(q.id, e.target.value)}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 14,
+                  border: '1px solid #E5E7EB', outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#6366F1'}
+                onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+              />
+            )}
+            {q.type === 'select' && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {q.options.map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => onChange(q.id, opt)}
+                    style={{
+                      padding: '7px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                      border: '1px solid',
+                      borderColor: answers[q.id] === opt ? '#6366F1' : '#E5E7EB',
+                      background: answers[q.id] === opt ? '#EEF2FF' : '#fff',
+                      color: answers[q.id] === opt ? '#6366F1' : '#374151',
+                      fontWeight: answers[q.id] === opt ? 600 : 400,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            )}
+            {q.type === 'multiselect' && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {q.options.map((opt) => {
+                  const selected = (answers[q.id] || []).includes(opt)
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        const cur = answers[q.id] || []
+                        onChange(q.id, selected ? cur.filter((v) => v !== opt) : [...cur, opt])
+                      }}
+                      style={{
+                        padding: '7px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                        border: '1px solid',
+                        borderColor: selected ? '#059669' : '#E5E7EB',
+                        background: selected ? '#F0FDF4' : '#fff',
+                        color: selected ? '#059669' : '#374151',
+                        fontWeight: selected ? 600 : 400,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {selected ? '✓ ' : ''}{opt}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Step 3: Generating ────────────────────────────────────────────────────────
+
+function StepGenerating() {
+  return (
+    <div style={{ textAlign: 'center', padding: '40px 0' }}>
+      <div style={{
+        width: 64, height: 64, borderRadius: '50%', margin: '0 auto 24px',
+        border: '4px solid #E5E7EB', borderTopColor: '#6366F1',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+        Designing your workflow…
+      </h2>
+      <p style={{ fontSize: 14, color: '#9CA3AF' }}>
+        The AI is selecting the optimal agents and building your DAG.
+      </p>
+    </div>
+  )
+}
+
+// ── Step 4: Preview ───────────────────────────────────────────────────────────
+
+function StepPreview({ workflow, warning }) {
+  if (!workflow) return null
+  const { name, description, steps = [], suggested_integrations = {}, estimated_tokens, estimated_cost_usd } = workflow
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+        Your workflow is ready
+      </h2>
+      <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 24 }}>{description}</p>
+
+      {warning && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 8, marginBottom: 20, fontSize: 13,
+          background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E',
+        }}>
+          ⚠️ {warning}
+        </div>
+      )}
+
+      {/* Workflow name */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
+        padding: '12px 16px', borderRadius: 10, background: '#EEF2FF', border: '1px solid #C7D2FE',
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round">
+          <path d="M4 6h16M4 12h8m-8 6h16" />
+        </svg>
+        <span style={{ fontSize: 15, fontWeight: 700, color: '#4338CA' }}>{name}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6366F1' }}>
+          ~{estimated_tokens} tokens · ~${(estimated_cost_usd || 0).toFixed(4)}
+        </span>
+      </div>
+
+      {/* Steps */}
+      <div style={{ marginBottom: 24 }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 12 }}>
+          Pipeline ({steps.length} steps)
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {steps.map((step, i) => (
+            <div key={step.name} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px', borderRadius: 8, background: '#fff',
+              border: `1px solid ${agentColor(step.agent_type)}30`,
+            }}>
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%', background: agentColor(step.agent_type),
+                color: '#fff', fontSize: 11, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>{i + 1}</div>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', fontFamily: 'monospace' }}>
+                  {step.name}
+                </span>
+                <span style={{
+                  marginLeft: 8, fontSize: 11, padding: '1px 7px', borderRadius: 20,
+                  background: agentColor(step.agent_type) + '18', color: agentColor(step.agent_type),
+                  fontWeight: 700,
+                }}>
+                  {step.agent_type}
+                </span>
+              </div>
+              {step.depends_on?.length > 0 && (
+                <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                  ← {step.depends_on.join(', ')}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Suggested integrations */}
+      {(suggested_integrations.inputs?.length > 0 || suggested_integrations.outputs?.length > 0) && (
+        <div style={{ padding: '14px 16px', borderRadius: 10, background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#16A34A', marginBottom: 8 }}>
+            Suggested Integrations
+          </p>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
+            {suggested_integrations.inputs?.length > 0 && (
+              <div>
+                <span style={{ color: '#6B7280', fontWeight: 600 }}>Inputs: </span>
+                <span style={{ color: '#374151' }}>{suggested_integrations.inputs.join(', ')}</span>
+              </div>
+            )}
+            {suggested_integrations.outputs?.length > 0 && (
+              <div>
+                <span style={{ color: '#6B7280', fontWeight: 600 }}>Outputs: </span>
+                <span style={{ color: '#374151' }}>{suggested_integrations.outputs.join(', ')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Step 5: Launch ────────────────────────────────────────────────────────────
+
+function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+      <div style={{
+        width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #818CF8)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px',
+      }}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+      </div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+        Ready to launch
+      </h2>
+      <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 32, maxWidth: 400, margin: '0 auto 32px' }}>
+        Your <strong>{workflow?.name}</strong> workflow with {workflow?.steps?.length} steps is ready.
+        Choose how to proceed.
+      </p>
+
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button
+          onClick={onDemo}
+          disabled={executing}
+          style={{
+            padding: '14px 28px', borderRadius: 10, border: '2px solid #6366F1',
+            background: '#EEF2FF', color: '#6366F1', fontSize: 15, fontWeight: 700,
+            cursor: executing ? 'not-allowed' : 'pointer', minWidth: 200,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          {executing ? 'Running…' : 'Test in Demo Mode'}
+        </button>
+        <button
+          onClick={onConfigure}
+          style={{
+            padding: '14px 28px', borderRadius: 10, border: 'none',
+            background: 'linear-gradient(135deg, #6366F1, #818CF8)', color: '#fff',
+            fontSize: 15, fontWeight: 700, cursor: 'pointer', minWidth: 200,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+          </svg>
+          Save & Configure
+        </button>
+      </div>
+
+      {execResult && (
+        <div style={{
+          marginTop: 24, padding: '12px 16px', borderRadius: 10, fontSize: 13,
+          background: execResult.error ? '#FEF2F2' : '#F0FDF4',
+          border: `1px solid ${execResult.error ? '#FECACA' : '#BBF7D0'}`,
+          color: execResult.error ? '#DC2626' : '#16A34A',
+          maxWidth: 480, margin: '24px auto 0',
+        }}>
+          {execResult.error ? `Error: ${execResult.error}` : '✓ Execution started successfully'}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main wizard ───────────────────────────────────────────────────────────────
+
+export default function WizardPage({ lang = 'en', onNavigate }) {
+  const [step, setStep] = useState(0)
+  const [description, setDescription] = useState('')
+  const [questions, setQuestions] = useState([])
+  const [answers, setAnswers] = useState({})
+  const [workflow, setWorkflow] = useState(null)
+  const [warning, setWarning] = useState(null)
+  const [executing, setExecuting] = useState(false)
+  const [execResult, setExecResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  const handleAnswer = useCallback((id, value) => {
+    setAnswers((prev) => ({ ...prev, [id]: value }))
+  }, [])
+
+  const handleNext = async () => {
+    setError(null)
+
+    if (step === 0) {
+      if (!description.trim()) { setError('Please describe your workflow first.'); return }
+      // Fetch clarifying questions
+      const res = await fetchAPI('/wizard/questions', {
+        method: 'POST',
+        body: JSON.stringify({ description, language: lang }),
+      })
+      if (res.error) { setError(res.error); return }
+      setQuestions(res.data?.questions || [])
+      setStep(1)
+      return
+    }
+
+    if (step === 1) {
+      // Move to generating step, then call API
+      setStep(2)
+      const complexity = answers.complexity?.includes('3') ? 'simple'
+        : answers.complexity?.includes('7') ? 'complex' : 'medium'
+      const res = await fetchAPI('/wizard/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          description,
+          industry: answers.industry || null,
+          complexity,
+          language: lang,
+        }),
+      })
+      if (res.error) { setError(res.error); setStep(1); return }
+      setWorkflow(res.data?.workflow || null)
+      setWarning(res.data?.warning || null)
+      setStep(3)
+      return
+    }
+
+    if (step === 3) { setStep(4); return }
+  }
+
+  const handleBack = () => {
+    if (step === 2) return // can't go back while generating
+    if (step > 0) setStep((s) => s - 1)
+  }
+
+  const handleDemo = async () => {
+    if (!workflow) return
+    setExecuting(true)
+    const res = await fetchAPI('/executions', {
+      method: 'POST',
+      body: JSON.stringify({ workflow, trigger_source: 'wizard', mode: 'demo' }),
+    })
+    setExecuting(false)
+    setExecResult(res)
+  }
+
+  const handleConfigure = () => {
+    if (onNavigate) onNavigate('integrations')
+  }
+
+  const canNext = step === 0 ? description.trim().length > 10
+    : step === 1 ? true
+    : step === 3 ? !!workflow
+    : false
+
+  return (
+    <div style={{ animation: 'fadeIn 0.3s ease-out', maxWidth: 680, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 8 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+          AI Workflow Wizard
+        </h1>
+        <p style={{ fontSize: 14, color: '#9CA3AF' }}>
+          Describe what you want to automate — the AI designs the workflow for you.
+        </p>
+      </div>
+
+      <div style={{
+        background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB',
+        padding: 32, marginTop: 24,
+      }}>
+        <ProgressBar step={step} />
+
+        {error && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 8, marginBottom: 20, fontSize: 13,
+            background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626',
+          }}>
+            {error}
+          </div>
+        )}
+
+        {step === 0 && <StepDescribe description={description} onChange={setDescription} />}
+        {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} />}
+        {step === 2 && <StepGenerating />}
+        {step === 3 && <StepPreview workflow={workflow} warning={warning} />}
+        {step === 4 && (
+          <StepLaunch
+            workflow={workflow}
+            onDemo={handleDemo}
+            onConfigure={handleConfigure}
+            executing={executing}
+            execResult={execResult}
+          />
+        )}
+
+        {/* Navigation */}
+        {step !== 2 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32 }}>
+            <button
+              onClick={handleBack}
+              disabled={step === 0}
+              style={{
+                padding: '10px 22px', borderRadius: 8, border: '1px solid #E5E7EB',
+                background: '#fff', color: step === 0 ? '#D1D5DB' : '#6B7280',
+                fontSize: 14, fontWeight: 500, cursor: step === 0 ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
+
+            {step < 4 && (
+              <button
+                onClick={handleNext}
+                disabled={!canNext}
+                style={{
+                  padding: '10px 28px', borderRadius: 8, border: 'none',
+                  background: canNext ? '#6366F1' : '#E5E7EB',
+                  color: canNext ? '#fff' : '#9CA3AF',
+                  fontSize: 14, fontWeight: 600, cursor: canNext ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  transition: 'background 0.15s',
+                }}
+              >
+                {step === 1 ? 'Generate Workflow' : step === 3 ? 'Continue' : 'Next'}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
