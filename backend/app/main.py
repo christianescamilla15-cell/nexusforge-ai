@@ -67,6 +67,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Auth middleware — injects user into request.state (non-blocking for now)
+from app.auth.middleware import AuthMiddleware
+app.add_middleware(AuthMiddleware)
+
+# Auth + Billing routes
+from app.auth.routes import router as auth_routes
+from app.auth.billing import router as billing_routes
+app.include_router(auth_routes, prefix="/api")
+app.include_router(billing_routes, prefix="/api")
+
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
 app.include_router(executions.router, prefix="/api/executions", tags=["executions"])
