@@ -1,31 +1,41 @@
 import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
+import { fetchAPI } from '../../services/api'
 import DataTable from '../../shared/components/DataTable'
 import StatusBadge from '../../shared/components/StatusBadge'
 import EmptyState from '../../shared/components/EmptyState'
 import WorkflowCreateModal from './WorkflowCreateModal'
 
 const DEMO_WORKFLOWS = [
-  { id: 'wf-1', name: 'Analisis de Documentos', status: 'active', version: 'v1.3', created: '2026-03-20', steps: 4 },
-  { id: 'wf-2', name: 'Clasificacion de Datos', status: 'active', version: 'v2.1', created: '2026-03-18', steps: 6 },
+  { id: 'wf-1', name: 'Análisis de Documentos', status: 'active', version: 'v1.3', created: '2026-03-20', steps: 4 },
+  { id: 'wf-2', name: 'Clasificación de Datos', status: 'active', version: 'v2.1', created: '2026-03-18', steps: 6 },
   { id: 'wf-3', name: 'Resumen Ejecutivo', status: 'draft', version: 'v1.0', created: '2026-03-22', steps: 2 },
-  { id: 'wf-4', name: 'Extraccion de Entidades', status: 'paused', version: 'v1.1', created: '2026-03-15', steps: 3 },
+  { id: 'wf-4', name: 'Extracción de Entidades', status: 'paused', version: 'v1.1', created: '2026-03-15', steps: 3 },
   { id: 'wf-5', name: 'Pipeline RAG', status: 'active', version: 'v3.0', created: '2026-03-10', steps: 5 },
-  { id: 'wf-6', name: 'Traduccion Masiva', status: 'archived', version: 'v1.2', created: '2026-02-28', steps: 3 },
+  { id: 'wf-6', name: 'Traducción Masiva', status: 'archived', version: 'v1.2', created: '2026-02-28', steps: 3 },
 ]
 
 export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
-  // Always start with demo data — no backend required
   const [filter, setFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [localWorkflows, setLocalWorkflows] = useState([])
+  const [apiWorkflows, setApiWorkflows] = useState([])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Fetch real workflows from API
+  useEffect(() => {
+    fetchAPI('/workflows').then((res) => {
+      if (!res.error && res.data) {
+        const list = Array.isArray(res.data) ? res.data : res.data.workflows || []
+        setApiWorkflows(list)
+      }
+    })
   }, [])
 
   const STATUS_FILTERS = [
@@ -50,9 +60,16 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
     { key: 'created', label: t('created', lang) },
   ]
 
-  const workflows = [...localWorkflows.map(w => ({
-    ...w, version: 'v1.0', steps: w.dag_definition?.steps?.length || 0, created: w.created_at?.slice(0, 10) || 'now'
-  })), ...DEMO_WORKFLOWS]
+  // Merge API workflows (real) + demo workflows (fallback)
+  const realWorkflows = apiWorkflows.map(w => ({
+    id: w.id,
+    name: w.name,
+    status: w.status || 'active',
+    version: w.version || 'v1.0',
+    steps: w.dag_definition?.steps?.length || w.steps_count || 0,
+    created: w.created_at?.slice(0, 10) || w.created || 'now',
+  }))
+  const workflows = realWorkflows.length > 0 ? realWorkflows : DEMO_WORKFLOWS
   const filtered = filter === 'all' ? workflows : workflows.filter((w) => w.status === filter)
 
   return (
