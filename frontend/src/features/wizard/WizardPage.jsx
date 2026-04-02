@@ -471,6 +471,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
   const [workflow, setWorkflow] = useState(null)
+  const [savedWorkflowId, setSavedWorkflowId] = useState(null) // tracks if already saved
   const [warning, setWarning] = useState(null)
   const [executing, setExecuting] = useState(false)
   const [execResult, setExecResult] = useState(null)
@@ -531,39 +532,19 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
     setError(null)
 
     try {
-      // Step 1: Save workflow first
-      const saveRes = await fetchAPI('/workflows', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: workflow.name || 'AI Generated Workflow',
-          description: workflow.description || description,
-          dag_definition: {
-            steps: (workflow.steps || []).map(s => ({
-              name: s.name,
-              type: s.agent_type || s.type,
-              depends_on: s.depends_on || [],
-            })),
-          },
-        }),
-      })
+      // Step 1: Save or update workflow
+      const workflowId = await saveOrUpdateWorkflow()
 
-      if (saveRes.error || !saveRes.data) {
-        // If save fails, try direct enterprise-ops as fallback demo
+      if (!workflowId) {
+        // Fallback demo
         const fallbackRes = await fetchAPI('/enterprise-ops/process', {
           method: 'POST',
-          body: JSON.stringify({
-            message: description,
-            customer_id: 'WIZARD-001',
-            language: lang,
-          }),
+          body: JSON.stringify({ message: description, customer_id: 'WIZARD-001', language: lang }),
         })
         setExecResult(fallbackRes)
         setExecuting(false)
         return
       }
-
-      // Step 2: Execute with the saved workflow ID
-      const workflowId = saveRes.data.id
       const execRes = await fetchAPI('/executions', {
         method: 'POST',
         body: JSON.stringify({
@@ -580,33 +561,52 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   }
 
   const handleConfigure = async () => {
-    // Save workflow first, then open in builder with the saved ID
     if (workflow) {
-      const saveRes = await fetchAPI('/workflows', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: workflow.name || 'AI Generated Workflow',
-          description: workflow.description || description,
-          dag_definition: {
-            steps: (workflow.steps || []).map(s => ({
-              name: s.name,
-              type: s.agent_type || s.type,
-              depends_on: s.depends_on || [],
-            })),
-          },
-        }),
-      })
-
-      if (saveRes.data?.id && onNavigateToBuilder) {
-        onNavigateToBuilder(saveRes.data.id)
+      const id = await saveOrUpdateWorkflow()
+      if (id && onNavigateToBuilder) {
+        onNavigateToBuilder(id)
         return
       }
     }
-    // Fallback: go to integrations if save failed or no builder callback
     if (onNavigate) onNavigate('integrations')
   }
 
   const [savingDraft, setSavingDraft] = useState(false)
+
+  // Save or update workflow — reuses existing ID if already saved
+  const saveOrUpdateWorkflow = async () => {
+    const body = {
+      name: workflow.name || 'AI Generated Workflow',
+      description: workflow.description || description,
+      dag_definition: {
+        steps: (workflow.steps || []).map(s => ({
+          name: s.name,
+          type: s.agent_type || s.type,
+          depends_on: s.depends_on || [],
+        })),
+      },
+    }
+
+    if (savedWorkflowId) {
+      // Update existing
+      const res = await fetchAPI(`/workflows/${savedWorkflowId}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      })
+      return res.error ? null : savedWorkflowId
+    } else {
+      // Create new
+      const res = await fetchAPI('/workflows', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      if (res.data?.id) {
+        setSavedWorkflowId(res.data.id)
+        return res.data.id
+      }
+      return null
+    }
+  }
 
   const handleUpdateName = (newName) => {
     if (workflow) setWorkflow({ ...workflow, name: newName })
@@ -615,47 +615,22 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const handleSaveDraft = async () => {
     if (!workflow) return
     setSavingDraft(true)
-    const res = await fetchAPI('/workflows', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: workflow.name || 'Draft Workflow',
-        description: workflow.description || description,
-        dag_definition: {
-          steps: (workflow.steps || []).map(s => ({
-            name: s.name,
-            type: s.agent_type || s.type,
-            depends_on: s.depends_on || [],
-          })),
-        },
-      }),
-    })
+    const id = await saveOrUpdateWorkflow()
     setSavingDraft(false)
-    if (res.data?.id) {
+    if (id) {
       setError(null)
-      alert(lang === 'es' ? `Borrador guardado (ID: ${res.data.id.slice(0,8)}...)` : `Draft saved (ID: ${res.data.id.slice(0,8)}...)`)
+      const action = savedWorkflowId ? (lang === 'es' ? 'actualizado' : 'updated') : (lang === 'es' ? 'guardado' : 'saved')
+      alert(lang === 'es' ? `Borrador ${action} (ID: ${id.slice(0,8)}...)` : `Draft ${action} (ID: ${id.slice(0,8)}...)`)
     } else {
-      setError(res.error || (lang === 'es' ? 'Error al guardar borrador' : 'Failed to save draft'))
+      setError(lang === 'es' ? 'Error al guardar borrador' : 'Failed to save draft')
     }
   }
 
   const handleOpenBuilder = async () => {
     if (!workflow) return
-    const res = await fetchAPI('/workflows', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: workflow.name || 'AI Generated Workflow',
-        description: workflow.description || description,
-        dag_definition: {
-          steps: (workflow.steps || []).map(s => ({
-            name: s.name,
-            type: s.agent_type || s.type,
-            depends_on: s.depends_on || [],
-          })),
-        },
-      }),
-    })
-    if (res.data?.id && onNavigateToBuilder) {
-      onNavigateToBuilder(res.data.id)
+    const id = await saveOrUpdateWorkflow()
+    if (id && onNavigateToBuilder) {
+      onNavigateToBuilder(id)
     }
   }
 

@@ -431,22 +431,43 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
 
   // ── Save workflow ──────────────────────────────────────────────────────────
 
+  const [currentSavedId, setCurrentSavedId] = useState(editWorkflowId || null)
+
   const handleSave = async () => {
     if (nodes.length === 0) { showToast(lang === 'es' ? 'Agrega al menos un nodo' : 'Add at least one agent node', 'error'); return }
+
+    const body = {
+      name: workflowName,
+      description: lang === 'es' ? `Flujo de ${nodes.length} pasos` : `${nodes.length} steps workflow`,
+      dag_definition: { steps: buildSteps() },
+    }
+
+    if (currentSavedId) {
+      const overwrite = confirm(
+        lang === 'es'
+          ? '¿Sobreescribir el flujo existente?\n\nAceptar = Sobreescribir\nCancelar = Guardar como nuevo'
+          : 'Overwrite existing workflow?\n\nOK = Overwrite\nCancel = Save as new'
+      )
+      if (overwrite) {
+        setSaving(true)
+        const res = await fetchAPI(`/workflows/${currentSavedId}`, { method: 'PUT', body: JSON.stringify(body) })
+        setSaving(false)
+        showToast(res.error
+          ? `${lang === 'es' ? 'Error' : 'Failed'}: ${res.error}`
+          : (lang === 'es' ? `"${workflowName}" actualizado` : `"${workflowName}" updated`),
+          res.error ? 'error' : 'success')
+        return
+      }
+    }
+
     setSaving(true)
-    const res = await fetchAPI('/workflows', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: workflowName,
-        description: lang === 'es' ? `Flujo de ${nodes.length} pasos` : `${nodes.length} steps workflow`,
-        dag_definition: { steps: buildSteps() },
-      }),
-    })
+    const res = await fetchAPI('/workflows', { method: 'POST', body: JSON.stringify(body) })
     setSaving(false)
     if (res.error) {
       showToast(`${lang === 'es' ? 'Error al guardar' : 'Save failed'}: ${res.error}`, 'error')
     } else {
-      showToast(lang === 'es' ? `Flujo "${workflowName}" guardado` : `Workflow "${workflowName}" saved`)
+      if (res.data?.id) setCurrentSavedId(res.data.id)
+      showToast(lang === 'es' ? `"${workflowName}" guardado` : `"${workflowName}" saved`)
     }
   }
 
