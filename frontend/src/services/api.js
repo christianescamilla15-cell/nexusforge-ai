@@ -52,7 +52,7 @@ export async function checkBackendHealth() {
   if (!apiUrl) return { status: 'no_url', message: 'No API URL configured' }
 
   try {
-    const response = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(3000) })
+    const response = await fetch(`${apiUrl}/health/`, { signal: AbortSignal.timeout(3000) })
     if (response.ok) return { status: 'connected', message: 'Backend is reachable' }
     return { status: 'error', message: `HTTP ${response.status}` }
   } catch (e) {
@@ -94,11 +94,15 @@ export async function fetchAPI(endpoint, options = {}) {
     }
   }
 
+  // Ensure trailing slash to avoid FastAPI 307 redirects that break CORS
+  const normalizedEndpoint = endpoint.endsWith('/') ? endpoint : endpoint + '/'
+
   try {
-    const res = await fetch(`${apiUrl}${endpoint}`, {
+    const res = await fetch(`${apiUrl}${normalizedEndpoint}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...options.headers },
       signal: AbortSignal.timeout(10000),
+      redirect: 'follow',
     })
 
     if (!res.ok) {

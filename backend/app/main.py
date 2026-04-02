@@ -56,6 +56,7 @@ app = FastAPI(
     version="0.1.0",
     description="Enterprise-grade AI Agent Orchestration Platform",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 app.add_middleware(
