@@ -142,14 +142,14 @@ function StepDescribe({ description, onChange, lang = 'en' }) {
 
 // ── Step 2: Clarifying questions ──────────────────────────────────────────────
 
-function StepClarify({ questions, answers, onChange }) {
+function StepClarify({ questions, answers, onChange, lang = 'en' }) {
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-        A few quick questions
+        {t('step2Title', lang)}
       </h2>
       <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 28 }}>
-        Help us generate the best workflow for your needs.
+        {t('step2Desc', lang)}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {questions.map((q) => (
@@ -349,7 +349,7 @@ function StepPreview({ workflow, warning }) {
 
 // ── Step 5: Launch ────────────────────────────────────────────────────────────
 
-function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult }) {
+function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult, lang = 'en' }) {
   return (
     <div style={{ textAlign: 'center', padding: '20px 0' }}>
       <div style={{
@@ -361,11 +361,13 @@ function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult }) {
         </svg>
       </div>
       <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-        Ready to launch
+        {lang === 'es' ? 'Listo para lanzar' : 'Ready to launch'}
       </h2>
       <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 32, maxWidth: 400, margin: '0 auto 32px' }}>
-        Your <strong>{workflow?.name}</strong> workflow with {workflow?.steps?.length} steps is ready.
-        Choose how to proceed.
+        {lang === 'es'
+          ? <>Tu flujo <strong>{workflow?.name}</strong> con {workflow?.steps?.length} pasos está listo. Elige cómo continuar.</>
+          : <>Your <strong>{workflow?.name}</strong> workflow with {workflow?.steps?.length} steps is ready. Choose how to proceed.</>
+        }
       </p>
 
       <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -382,7 +384,7 @@ function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult }) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <polygon points="5 3 19 12 5 21 5 3" />
           </svg>
-          {executing ? 'Running…' : 'Test in Demo Mode'}
+          {executing ? (lang === 'es' ? 'Ejecutando…' : 'Running…') : t('testDemo', lang)}
         </button>
         <button
           onClick={onConfigure}
@@ -396,7 +398,7 @@ function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult }) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
           </svg>
-          Save & Configure
+          {t('saveConfig', lang)}
         </button>
       </div>
 
@@ -591,7 +593,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         )}
 
         {step === 0 && <StepDescribe description={description} onChange={setDescription} lang={lang} />}
-        {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} />}
+        {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} lang={lang} />}
         {step === 2 && <StepGenerating lang={lang} />}
         {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} />}
         {step === 4 && (
