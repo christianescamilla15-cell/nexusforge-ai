@@ -13,11 +13,12 @@ async def run_portfolio_copilot(request: PortfolioCopilotInput):
     await notify_workflow_complete(
         workflow_name="Portfolio Copilot",
         status=result.status,
-        summary=result.recommendation or "Analysis complete",
+        summary=result.final_answer or result.reasoning or "Analysis complete",
         agents_used=result.agents_used or [],
         total_tokens=result.total_tokens or 0,
         cost_usd=result.cost_usd or 0.0,
         processing_time_ms=result.processing_time_ms or 0,
+        extra_details={"project": result.recommended_project or "N/A", "type": result.question_type},
     )
 
     return result
