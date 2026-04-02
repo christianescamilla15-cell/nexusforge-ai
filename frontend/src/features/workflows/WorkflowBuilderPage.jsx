@@ -106,26 +106,84 @@ function AgentNode({ node, selected, connecting, onMouseDown, onDelete, onPortMo
 
 // ── Sidebar agent item ───────────────────────────────────────────────────────
 
-function SidebarAgent({ agent, onDragStart }) {
+const AGENT_DESCRIPTIONS = {
+  classifier: { es: 'Clasifica documentos en categorías: legal, financiero, técnico, médico, general.', en: 'Classifies documents into categories: legal, financial, technical, medical, general.' },
+  extractor: { es: 'Extrae datos estructurados (entidades, campos, tablas) de texto no estructurado.', en: 'Extracts structured data (entities, fields, tables) from unstructured text.' },
+  summarizer: { es: 'Genera resúmenes concisos de documentos largos o resultados multi-paso.', en: 'Generates concise summaries of long documents or multi-step outputs.' },
+  analyzer: { es: 'Análisis profundo: sentimiento, tendencias, anomalías, comparaciones.', en: 'Deep analysis: sentiment, trends, anomalies, comparisons.' },
+  enricher: { es: 'Enriquece datos cruzando fuentes externas y base de conocimiento.', en: 'Enriches data by cross-referencing external sources and knowledge base.' },
+  validator: { es: 'Valida completitud, consistencia y precisión de resultados.', en: 'Validates completeness, consistency, and accuracy of outputs.' },
+  reporter: { es: 'Genera reportes formateados (Markdown, JSON) de resultados.', en: 'Generates formatted reports (Markdown, JSON) from results.' },
+  repair: { es: 'Diagnostica fallos y sugiere correcciones automáticas.', en: 'Diagnoses failures and suggests automatic fixes.' },
+  normalizer: { es: 'Limpia y normaliza datos, elimina duplicados.', en: 'Cleans and normalizes data, removes duplicates.' },
+  researcher: { es: 'Investigación de temas con citaciones y fuentes.', en: 'Topic research with citations and sources.' },
+  translator: { es: 'Traducción multi-idioma con preservación de contexto.', en: 'Multi-language translation with context preservation.' },
+  compliance: { es: 'Verificación de reglas regulatorias y cumplimiento.', en: 'Regulatory rule checking and compliance verification.' },
+  monitor: { es: 'Monitoreo de métricas de salud del sistema.', en: 'System health metrics monitoring.' },
+  router_agent: { es: 'Recomienda y enruta al agente correcto según la tarea.', en: 'Recommends and routes to the correct agent based on task.' },
+  critic: { es: 'Evaluación de calidad y crítica constructiva de resultados.', en: 'Quality scoring and constructive critique of outputs.' },
+  planner: { es: 'Descomposición de tareas y planificación de pasos.', en: 'Task decomposition and step planning.' },
+  knowledge: { es: 'Respuestas con RAG — busca en base de conocimiento.', en: 'Q&A with RAG — searches knowledge base.' },
+  scraper: { es: 'Web scraping con selectores configurables.', en: 'Web scraping with configurable selectors.' },
+  ocr: { es: 'Extracción de texto de imágenes y documentos escaneados.', en: 'Text extraction from images and scanned documents.' },
+  sentiment: { es: 'Análisis de emociones, tono y temas principales.', en: 'Emotion, tone, and topic analysis.' },
+  scheduler: { es: 'Programación y ordenamiento de tareas.', en: 'Task scheduling and ordering.' },
+  webhook: { es: 'Invocación de callbacks HTTP a URLs externas.', en: 'HTTP callback invocation to external URLs.' },
+  judge: { es: 'Juez imparcial para debates y decisiones entre agentes.', en: 'Impartial judge for debates and decisions between agents.' },
+  router: { es: 'Enrutador dinámico que selecciona agentes por input.', en: 'Dynamic router that selects agents based on input.' },
+}
+
+function SidebarAgent({ agent, onDragStart, lang = 'en' }) {
   const color = agentColor(agent.agent_type)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const desc = AGENT_DESCRIPTIONS[agent.agent_type]
+  const tooltipText = desc ? (desc[lang] || desc.en) : (agent.description || agent.name)
+
   return (
-    <div
-      draggable
-      onDragStart={(e) => onDragStart(e, agent)}
-      title={agent.description || agent.name}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '7px 10px', borderRadius: 8, marginBottom: 4,
-        border: '1px solid #E5E7EB', background: '#fff',
-        cursor: 'grab', userSelect: 'none', transition: 'box-shadow 0.15s',
-      }}
-      onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'}
-      onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
-    >
-      <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-      <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', flex: 1 }}>
-        {agent.agent_type}
-      </span>
+    <div style={{ position: 'relative', marginBottom: 4 }}>
+      <div
+        draggable
+        onDragStart={(e) => onDragStart(e, agent)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '7px 10px', borderRadius: 8,
+          border: '1px solid #E5E7EB', background: '#fff',
+          cursor: 'grab', userSelect: 'none', transition: 'box-shadow 0.15s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'}
+        onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', flex: 1 }}>
+          {agent.agent_type}
+        </span>
+        <div
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+          style={{
+            width: 16, height: 16, borderRadius: '50%',
+            background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'help', flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF' }}>i</span>
+        </div>
+      </div>
+
+      {showTooltip && (
+        <div style={{
+          position: 'absolute', left: '105%', top: 0, width: 220, zIndex: 50,
+          background: '#1F2937', color: '#F9FAFB', padding: '10px 12px',
+          borderRadius: 10, fontSize: 11, lineHeight: 1.5,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          animation: 'fadeIn 0.15s ease',
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: 4, color: color }}>
+            {agent.agent_type}
+          </div>
+          {tooltipText}
+        </div>
+      )}
     </div>
   )
 }
