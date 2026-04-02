@@ -1,16 +1,7 @@
 import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
+import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
-
-const DEMO_EXECUTIONS = [
-  { run_id: 'run-001', workflow_name: 'Clasificar Documentos', status: 'completed', started_at: '2026-03-26T09:12:00Z', duration_ms: 14200, total_cost: 0.032, steps_count: 4 },
-  { run_id: 'run-002', workflow_name: 'Extraer Datos Financieros', status: 'running', started_at: '2026-03-26T10:05:00Z', duration_ms: null, total_cost: 0.018, steps_count: 6 },
-  { run_id: 'run-003', workflow_name: 'Resumir Contratos', status: 'failed', started_at: '2026-03-26T08:30:00Z', duration_ms: 5400, total_cost: 0.009, steps_count: 3 },
-  { run_id: 'run-004', workflow_name: 'Analizar Sentimiento', status: 'completed', started_at: '2026-03-25T17:45:00Z', duration_ms: 8700, total_cost: 0.021, steps_count: 5 },
-  { run_id: 'run-005', workflow_name: 'Pipeline RAG Completo', status: 'pending', started_at: '2026-03-26T10:10:00Z', duration_ms: null, total_cost: 0, steps_count: 8 },
-  { run_id: 'run-006', workflow_name: 'Generar Reporte', status: 'completed', started_at: '2026-03-25T14:22:00Z', duration_ms: 22100, total_cost: 0.047, steps_count: 7 },
-  { run_id: 'run-007', workflow_name: 'Clasificar Documentos', status: 'cancelled', started_at: '2026-03-25T11:00:00Z', duration_ms: 3200, total_cost: 0.004, steps_count: 2 },
-]
 
 function formatDuration(ms) {
   if (!ms) return '--'
@@ -29,8 +20,10 @@ function formatDate(iso, lang) {
 }
 
 export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
-  // Always start with demo data — no backend required
-  const [executions] = useState(DEMO_EXECUTIONS)
+  const [executions, setExecutions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [isDemo, setIsDemo] = useState(false)
   const [filter, setFilter] = useState('all')
   const [isMobile, setIsMobile] = useState(false)
 
@@ -39,6 +32,28 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  }, [])
+
+  useEffect(() => {
+    fetchAPI('/runs').then((res) => {
+      if (res.error) {
+        setError(res.error)
+      } else {
+        // Normalize API shape → UI shape
+        const runs = (res.data?.runs || []).map((r) => ({
+          run_id: r.id,
+          workflow_name: r.workflow_name,
+          status: r.status,
+          started_at: r.started_at,
+          duration_ms: r.total_latency_ms || r.latency_ms || null,
+          total_cost: r.total_cost || r.cost || 0,
+          steps_count: r.agents_used?.length || 0,
+        }))
+        setExecutions(runs)
+        setIsDemo(res.isDemo)
+      }
+      setLoading(false)
+    })
   }, [])
 
   const FILTERS = [
@@ -69,6 +84,34 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
           </p>
         </div>
       </div>
+
+      {loading && (
+        <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+          Loading executions...
+        </div>
+      )}
+
+      {error && (
+        <div style={{
+          padding: '14px 18px', borderRadius: 10, marginBottom: 20,
+          background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
+          color: '#991B1B', fontSize: 14,
+        }}>
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      {isDemo && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16,
+          padding: '4px 12px', borderRadius: 6, fontSize: 12,
+          background: 'rgba(245,158,11,0.08)', color: '#D97706',
+          border: '1px solid rgba(245,158,11,0.2)', fontWeight: 600,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D97706' }} />
+          {lang === 'es' ? 'Modo Demo' : 'Demo Mode'}
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>

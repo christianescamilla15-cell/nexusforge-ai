@@ -66,8 +66,38 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
     let cancelled = false
     async function load() {
       try {
-        const data = await api.get(`/executions/${runId}`)
-        if (!cancelled) setExecution(data)
+        const res = await api.get(`/runs/${runId}`)
+        if (!cancelled) {
+          if (res.error) throw new Error(res.error)
+          // Map /api/runs/:id shape to what the UI expects
+          const data = res.data || res
+          const mapped = {
+            run_id: data.id || runId,
+            workflow_name: data.workflow_name || 'Unknown Workflow',
+            status: data.status || 'completed',
+            started_at: data.started_at,
+            finished_at: data.finished_at,
+            total_cost: data.total_cost || data.cost || 0,
+            total_tokens: data.total_tokens || data.tokens || 0,
+            duration_ms: data.total_latency_ms || data.latency_ms || null,
+            // Build step list from agents_used if no detailed steps available
+            steps: Array.isArray(data.steps) && data.steps.length > 0 && typeof data.steps[0] === 'object'
+              ? data.steps
+              : (data.agents_used || []).map((agent, i) => ({
+                  name: agent,
+                  agent_type: agent.toLowerCase().replace('agent', ''),
+                  status: 'completed',
+                  duration_ms: Math.round((data.total_latency_ms || 1000) / (data.agents_used?.length || 1)),
+                  tokens: Math.round((data.total_tokens || 0) / (data.agents_used?.length || 1)),
+                  cost: (data.total_cost || 0) / (data.agents_used?.length || 1),
+                  provider: 'groq',
+                  model: 'llama-3.3-70b-versatile',
+                  retries: 0,
+                  fallback_used: false,
+                })),
+          }
+          setExecution(mapped)
+        }
       } catch {
         if (!cancelled) {
           setExecution({ ...DEMO_EXECUTION, run_id: runId })
