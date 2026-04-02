@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import AuthPage from './features/auth/AuthPage'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
 import Onboarding from './shared/components/Onboarding'
@@ -33,6 +34,30 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(() => {
     try { return !localStorage.getItem('nxf-onboarding-done') } catch { return true }
   })
+
+  // Auth state
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nf_user')
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
+  })
+
+  const handleLogin = useCallback((userData) => {
+    setUser(userData)
+    setCurrentPage('dashboard')
+  }, [])
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('nf_token')
+    localStorage.removeItem('nf_user')
+    setUser(null)
+  }, [])
+
+  // Show auth page if not logged in
+  if (!user) {
+    return <AuthPage onLogin={handleLogin} lang={lang} />
+  }
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -144,7 +169,7 @@ export default function App() {
 
   return (
     <>
-      <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme}>
+      <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme} user={user} onLogout={handleLogout}>
         {renderPage()}
       </Layout>
       {showTour && (

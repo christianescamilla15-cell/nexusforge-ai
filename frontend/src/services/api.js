@@ -94,10 +94,14 @@ export async function fetchAPI(endpoint, options = {}) {
     }
   }
 
+  // Inject JWT token if available
+  const token = typeof window !== 'undefined' ? localStorage.getItem('nf_token') : null
+  const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {}
+
   try {
     const res = await fetch(`${apiUrl}${endpoint}`, {
       ...options,
-      headers: { 'Content-Type': 'application/json', ...options.headers },
+      headers: { 'Content-Type': 'application/json', ...authHeaders, ...options.headers },
       signal: AbortSignal.timeout(10000),
       redirect: 'follow',
     })
