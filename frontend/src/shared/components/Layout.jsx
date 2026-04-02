@@ -25,10 +25,11 @@ const sidebarWidth = 240
 const collapsedWidth = 64
 const topBarHeight = 56
 
-export default function Layout({ currentPage, onNavigate, children, lang, toggleLang, theme = 'light', setTheme }) {
+export default function Layout({ currentPage, onNavigate, children, lang, toggleLang, theme = 'light', setTheme, user, onLogout }) {
   const isDark = theme === 'dark'
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [mode, setModeState] = useState(() => getMode())
 
@@ -307,16 +308,87 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               ))}
             </div>
 
-            {/* User avatar */}
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%',
-              background: '#2563EB',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 600, fontSize: 13, color: '#fff', flexShrink: 0,
-            }}
-              aria-label="User profile"
+            {/* User avatar + dropdown */}
+            <div style={{ position: 'relative' }}
+              onMouseEnter={() => setShowUserMenu(true)}
+              onMouseLeave={() => setShowUserMenu(false)}
             >
-              CH
+              <div style={{
+                width: 34, height: 34, borderRadius: '50%',
+                background: '#2563EB',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 600, fontSize: 13, color: '#fff', flexShrink: 0,
+                cursor: 'pointer',
+              }}>
+                {user?.name ? user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+              </div>
+
+              {showUserMenu && (
+                <div style={{
+                  position: 'absolute', right: 0, top: 40, width: 260,
+                  background: isDark ? '#1A1D23' : '#FFFFFF',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'}`,
+                  borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                  padding: 8, zIndex: 100,
+                }}>
+                  {/* User info */}
+                  <div style={{ padding: '12px 12px 8px', borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6'}` }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: isDark ? '#F3F4F6' : '#111827' }}>
+                      {user?.name || 'User'}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{user?.email || ''}</div>
+                    <div style={{
+                      display: 'inline-block', marginTop: 6, padding: '2px 8px',
+                      borderRadius: 4, fontSize: 11, fontWeight: 600,
+                      background: user?.plan === 'pro' ? 'rgba(37,99,235,0.1)' : user?.plan === 'team' ? 'rgba(124,58,237,0.1)' : 'rgba(107,114,128,0.1)',
+                      color: user?.plan === 'pro' ? '#2563EB' : user?.plan === 'team' ? '#7C3AED' : '#6B7280',
+                    }}>
+                      {(user?.plan || 'free').toUpperCase()} PLAN
+                    </div>
+                  </div>
+
+                  {/* Menu items */}
+                  {[
+                    { label: lang === 'es' ? 'Mi Perfil' : 'My Profile', icon: '👤', action: () => onNavigate('settings') },
+                    { label: lang === 'es' ? 'Facturacion' : 'Billing', icon: '💳', action: () => onNavigate('settings') },
+                    { label: lang === 'es' ? 'Uso de API' : 'API Usage', icon: '📊', action: () => onNavigate('cost-metrics') },
+                    { label: lang === 'es' ? 'Configuracion' : 'Settings', icon: '⚙️', action: () => onNavigate('settings') },
+                  ].map((item, i) => (
+                    <div key={i}
+                      onClick={() => { item.action(); setShowUserMenu(false) }}
+                      style={{
+                        padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        fontSize: 13, color: isDark ? '#D1D5DB' : '#374151',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#F9FAFB'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ fontSize: 15 }}>{item.icon}</span>
+                      {item.label}
+                    </div>
+                  ))}
+
+                  {/* Divider + Logout */}
+                  <div style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6'}`, marginTop: 4, paddingTop: 4 }}>
+                    <div
+                      onClick={() => { if (onLogout) onLogout(); setShowUserMenu(false) }}
+                      style={{
+                        padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        fontSize: 13, color: '#EF4444',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.06)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ fontSize: 15 }}>🚪</span>
+                      {lang === 'es' ? 'Cerrar Sesion' : 'Sign Out'}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
