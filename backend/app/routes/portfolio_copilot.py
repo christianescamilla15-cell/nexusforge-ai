@@ -19,20 +19,21 @@ async def run_portfolio_copilot(request: PortfolioCopilotInput):
     try:
         pool = await get_db_pool()
         if pool:
-            await save_pipeline_run(
+            run_id = await save_pipeline_run(
                 pool,
                 pipeline_name="portfolio_copilot",
                 status=result.status,
                 trigger_source="frontend",
                 total_tokens=result.total_tokens or 0,
-                cost_usd=result.cost_usd or 0.0,
+                cost_usd=float(result.cost_usd or 0.0),
                 processing_time_ms=int(result.processing_time_ms or 0),
-                llm_used=result.llm_used,
+                llm_used=bool(result.llm_used),
                 agents_used=result.agents_used or [],
                 steps=result.actions_taken or [],
             )
+            logger.info("portfolio_copilot: persisted run_id=%s", run_id)
     except Exception as e:
-        logger.warning("Failed to persist portfolio_copilot run: %s", e)
+        logger.error("portfolio_copilot: PERSIST FAILED: %s", e, exc_info=True)
 
     # Email notification
     await notify_workflow_complete(

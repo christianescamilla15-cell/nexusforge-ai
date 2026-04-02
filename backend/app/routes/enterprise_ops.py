@@ -18,21 +18,25 @@ async def process_operations_request(request: OperationsRequest):
     # Persist to DB
     try:
         pool = await get_db_pool()
+        logger.info("enterprise_ops: pool=%s, status=%s, tokens=%s", pool is not None, result.status, result.total_tokens)
         if pool:
-            await save_pipeline_run(
+            run_id = await save_pipeline_run(
                 pool,
                 pipeline_name="enterprise_operations",
                 status=result.status,
                 trigger_source="frontend",
                 total_tokens=result.total_tokens or 0,
-                cost_usd=result.cost_usd or 0.0,
+                cost_usd=float(result.cost_usd or 0.0),
                 processing_time_ms=int(result.processing_time_ms or 0),
-                llm_used=result.llm_used,
-                agents_used=result.agents_used,
-                steps=result.actions_taken,
+                llm_used=bool(result.llm_used),
+                agents_used=result.agents_used or [],
+                steps=result.actions_taken or [],
             )
+            logger.info("enterprise_ops: persisted run_id=%s", run_id)
+        else:
+            logger.warning("enterprise_ops: no DB pool available")
     except Exception as e:
-        logger.warning("Failed to persist enterprise_ops run: %s", e)
+        logger.error("enterprise_ops: PERSIST FAILED: %s", e, exc_info=True)
 
     # Email notification
     await notify_workflow_complete(
