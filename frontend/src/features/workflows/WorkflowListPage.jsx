@@ -72,7 +72,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
       created: w?.created_at?.slice(0, 10) || 'now',
     }))
   } catch { realWorkflows = [] }
-  const workflows = realWorkflows.length > 0 ? [...realWorkflows, ...DEMO_WORKFLOWS] : DEMO_WORKFLOWS
+  const workflows = [...realWorkflows, ...DEMO_WORKFLOWS]
   const filtered = filter === 'all' ? workflows : workflows.filter((w) => w.status === filter)
 
   return (
