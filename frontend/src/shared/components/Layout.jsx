@@ -193,6 +193,8 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         flex: 1,
         transition: 'margin-left 0.2s ease',
         width: isMobile ? '100%' : undefined,
+        overflowX: 'hidden',
+        maxWidth: isMobile ? '100%' : `calc(100vw - ${w}px)`,
       }}>
         {/* Top bar */}
         <header style={{
