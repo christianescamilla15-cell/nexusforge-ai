@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import time
 from uuid import UUID, uuid4
 from app.engine.dag import validate_dag, get_parallel_groups, DAGValidationError
@@ -12,6 +13,18 @@ from app.models.workflow import DAGDefinition
 from app.db.client import get_db_pool, get_redis
 from app.domain.tracking.events import ExecutionContext
 
+logger = logging.getLogger(__name__)
+
+
+async def safe_publish(redis, channel, data):
+    """Publish to Redis if available, silently skip if not."""
+    if redis is None:
+        return
+    try:
+        await redis.publish(channel, data)
+    except Exception:
+        pass  # Redis is optional for event broadcasting
+
 class ExecutionError(Exception):
     pass
 
@@ -19,7 +32,12 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                           input_data: dict = None, ctx: ExecutionContext = None) -> dict:
     """Execute a complete workflow DAG with parallel group scheduling."""
     pool = await get_db_pool()
-    redis = await get_redis()
+    try:
+        redis = await get_redis()
+        await redis.ping()
+    except Exception:
+        redis = None
+        logger.warning("Redis unavailable — executing without live event broadcasting")
 
     # Validate DAG
     try:
@@ -43,7 +61,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
         )
 
     # Broadcast start event
-    await redis.publish(f"run:{run_id}", json.dumps({"event": "run_started", "groups": len(groups)}))
+    await safe_publish(redis, f"run:{run_id}", json.dumps({"event": "run_started", "groups": len(groups)}))
 
     # Tracking: workflow started
     if ctx and ctx.tracker:
@@ -70,7 +88,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                 continue
 
             # Broadcast group start
-            await redis.publish(f"run:{run_id}", json.dumps({
+            await safe_publish(redis, f"run:{run_id}", json.dumps({
                 "event": "group_started", "group": group_idx, "steps": pending_steps
             }))
 
@@ -96,7 +114,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                 )
 
                 # Broadcast step completion
-                await redis.publish(f"run:{run_id}", json.dumps({
+                await safe_publish(redis, f"run:{run_id}", json.dumps({
                     "event": f"step_{result['status']}",
                     "step": step_name,
                     "duration_ms": result.get("duration_ms", 0),
@@ -135,7 +153,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                             f"Step '{step_name}' failed: {results[step_name].get('error', 'unknown')}",
                             total_tokens, total_cost, run_id
                         )
-                    await redis.publish(f"run:{run_id}", json.dumps({
+                    await safe_publish(redis, f"run:{run_id}", json.dumps({
                         "event": "run_failed", "failed_step": step_name
                     }))
                     # Tracking: workflow failed (step failure)
@@ -155,7 +173,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                 total_tokens, total_cost, run_id
             )
 
-        await redis.publish(f"run:{run_id}", json.dumps({
+        await safe_publish(redis, f"run:{run_id}", json.dumps({
             "event": "run_completed", "total_tokens": total_tokens, "total_cost_usd": total_cost
         }))
 
