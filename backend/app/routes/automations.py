@@ -11,11 +11,6 @@ from pydantic import BaseModel
 
 from app.auth.jwt_handler import verify_token
 from app.db.client import get_db_pool
-from app.domain.tracking.events import ExecutionContext
-from app.engine.executor import execute_workflow
-from app.infrastructure.tracking.metrics_collector_tracker import MetricsCollectorTracker
-from app.infrastructure.tracking.safe_tracker import SafeExecutionTracker
-from app.models.workflow import DAGDefinition
 
 router = APIRouter(prefix="/automations", tags=["automations"])
 logger = logging.getLogger(__name__)
@@ -204,6 +199,7 @@ async def run_automation(automation_id: UUID, request: Request):
             dag_data = auto["dag_definition"]
             if isinstance(dag_data, str):
                 dag_data = json.loads(dag_data)
+            from app.models.workflow import DAGDefinition
             dag = DAGDefinition(**dag_data)
 
             row = await conn.fetchrow(
@@ -220,6 +216,11 @@ async def run_automation(automation_id: UUID, request: Request):
                 "UPDATE automations SET total_runs = total_runs + 1, last_run_at = now() WHERE id = $1",
                 automation_id,
             )
+
+        from app.infrastructure.tracking.metrics_collector_tracker import MetricsCollectorTracker
+        from app.infrastructure.tracking.safe_tracker import SafeExecutionTracker
+        from app.domain.tracking.events import ExecutionContext
+        from app.engine.executor import execute_workflow
 
         tracker = SafeExecutionTracker(MetricsCollectorTracker())
         ctx = ExecutionContext(
