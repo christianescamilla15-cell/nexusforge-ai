@@ -1,36 +1,38 @@
 import { useState, useEffect, useRef } from 'react'
 
 const ALL_AGENTS = [
-  'DocClassifier', 'EntityExtractor', 'SummaryAgent', 'ContentGen', 'FlowRouter',
-  'DataValidator', 'SentimentAnalyzer', 'TranslationAgent', 'CodeReviewer', 'TestGenerator',
-  'APIMapper', 'SchemaValidator', 'DataTransformer', 'ReportBuilder', 'AlertMonitor',
-  'ComplianceChecker', 'PriorityRanker', 'DuplicateDetector', 'ContextLinker', 'AnomalyDetector',
-  'FeedbackCollector', 'QualityAssurer',
+  'classifier', 'extractor', 'summarizer', 'analyzer', 'enricher',
+  'validator', 'reporter', 'repair', 'normalizer', 'researcher',
+  'translator', 'compliance', 'monitor', 'router_agent', 'critic',
+  'planner', 'knowledge', 'scraper', 'ocr', 'sentiment',
+  'scheduler', 'webhook', 'judge', 'router',
 ]
 
 const AGENT_TYPES = {
-  DocClassifier: { type: 'classifier', color: '#6366F1' },
-  EntityExtractor: { type: 'extractor', color: '#10B981' },
-  SummaryAgent: { type: 'summarizer', color: '#F59E0B' },
-  ContentGen: { type: 'generator', color: '#EC4899' },
-  FlowRouter: { type: 'router', color: '#60A5FA' },
-  DataValidator: { type: 'validator', color: '#8B5CF6' },
-  SentimentAnalyzer: { type: 'analyzer', color: '#F97316' },
-  TranslationAgent: { type: 'translator', color: '#14B8A6' },
-  CodeReviewer: { type: 'reviewer', color: '#EF4444' },
-  TestGenerator: { type: 'generator', color: '#EC4899' },
-  APIMapper: { type: 'mapper', color: '#6366F1' },
-  SchemaValidator: { type: 'validator', color: '#8B5CF6' },
-  DataTransformer: { type: 'transformer', color: '#10B981' },
-  ReportBuilder: { type: 'builder', color: '#F59E0B' },
-  AlertMonitor: { type: 'monitor', color: '#EF4444' },
-  ComplianceChecker: { type: 'checker', color: '#60A5FA' },
-  PriorityRanker: { type: 'ranker', color: '#F97316' },
-  DuplicateDetector: { type: 'detector', color: '#14B8A6' },
-  ContextLinker: { type: 'linker', color: '#8B5CF6' },
-  AnomalyDetector: { type: 'detector', color: '#14B8A6' },
-  FeedbackCollector: { type: 'collector', color: '#6366F1' },
-  QualityAssurer: { type: 'assurer', color: '#10B981' },
+  classifier: { type: 'classifier', color: '#2563EB' },
+  extractor: { type: 'extractor', color: '#059669' },
+  summarizer: { type: 'summarizer', color: '#7C3AED' },
+  analyzer: { type: 'analyzer', color: '#D97706' },
+  enricher: { type: 'enricher', color: '#0891B2' },
+  validator: { type: 'validator', color: '#DC2626' },
+  reporter: { type: 'reporter', color: '#DB2777' },
+  repair: { type: 'repair', color: '#6366F1' },
+  normalizer: { type: 'normalizer', color: '#0D9488' },
+  researcher: { type: 'researcher', color: '#B45309' },
+  translator: { type: 'translator', color: '#4F46E5' },
+  compliance: { type: 'compliance', color: '#BE185D' },
+  monitor: { type: 'monitor', color: '#0369A1' },
+  router_agent: { type: 'router_agent', color: '#7C2D12' },
+  critic: { type: 'critic', color: '#15803D' },
+  planner: { type: 'planner', color: '#9333EA' },
+  knowledge: { type: 'knowledge', color: '#1D4ED8' },
+  scraper: { type: 'scraper', color: '#B91C1C' },
+  ocr: { type: 'ocr', color: '#0F766E' },
+  sentiment: { type: 'sentiment', color: '#C2410C' },
+  scheduler: { type: 'scheduler', color: '#6D28D9' },
+  webhook: { type: 'webhook', color: '#374151' },
+  judge: { type: 'judge', color: '#1E40AF' },
+  router: { type: 'router', color: '#065F46' },
 }
 
 const LABELS = {
@@ -779,12 +781,42 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
     }
   }, [done])
 
-  const handleExecute = () => {
+  const [apiResult, setApiResult] = useState(null)
+
+  const handleExecute = async () => {
     if (selectedAgents.length < 2) return
     setExecuting(true)
     setSimulationRunning(false)
-    // Reset and start fresh
+    setApiResult(null)
+
+    // Start visual simulation
     setTimeout(() => setSimulationRunning(true), 50)
+
+    // Call real backend in parallel
+    try {
+      const { fetchAPI } = await import('../../services/api.js')
+      const agentTypes = selectedAgents.map(a => {
+        const info = AGENT_TYPES[a]
+        return info?.type || a.toLowerCase()
+      })
+
+      let inputData = {}
+      try { inputData = JSON.parse(input || '{}') } catch { inputData = { text: input || 'test' } }
+
+      const res = await fetchAPI('/swarms/execute', {
+        method: 'POST',
+        body: JSON.stringify({
+          topology,
+          agent_types: agentTypes,
+          input_data: inputData,
+          config: { demo: false },
+        }),
+      })
+
+      if (!res.error && res.data) {
+        setApiResult(res.data)
+      }
+    } catch {}
   }
 
   const topName = topology.charAt(0).toUpperCase() + topology.slice(1)
