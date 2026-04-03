@@ -244,23 +244,34 @@ async def get_execution(run_id: UUID):
 
 
 @router.delete("/{run_id}", status_code=200)
-async def cancel_execution(run_id: UUID):
-    """Cancel a running or pending execution."""
+async def delete_or_cancel_execution(run_id: UUID):
+    """Cancel a running execution or permanently delete a finished one."""
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            result = await conn.execute(
-                """UPDATE workflow_runs SET status = 'cancelled', completed_at = now()
-                   WHERE id = $1 AND status IN ('pending', 'queued', 'running')""",
-                run_id,
+            row = await conn.fetchrow(
+                "SELECT status FROM workflow_runs WHERE id = $1", run_id,
             )
-        if result == "UPDATE 0":
-            raise HTTPException(status_code=404, detail="Run not found or not cancellable")
-        return {"detail": "Execution cancelled", "run_id": str(run_id)}
+            if not row:
+                raise HTTPException(status_code=404, detail="Run not found")
+
+            if row["status"] in ("pending", "queued", "running"):
+                # Cancel active run
+                await conn.execute(
+                    "UPDATE workflow_runs SET status = 'cancelled', completed_at = now() WHERE id = $1",
+                    run_id,
+                )
+                return {"detail": "Execution cancelled", "run_id": str(run_id)}
+            else:
+                # Permanently delete finished run + its step data
+                await conn.execute("DELETE FROM step_executions WHERE run_id = $1", run_id)
+                await conn.execute("DELETE FROM dead_letters WHERE run_id = $1", run_id)
+                await conn.execute("DELETE FROM workflow_runs WHERE id = $1", run_id)
+                return {"detail": "Execution deleted", "run_id": str(run_id)}
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("Failed to cancel execution")
+        logger.exception("Failed to delete/cancel execution")
         raise HTTPException(status_code=500, detail=str(exc))
 
 
