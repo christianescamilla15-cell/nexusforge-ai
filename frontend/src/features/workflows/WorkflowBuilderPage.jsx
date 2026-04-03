@@ -781,7 +781,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
           onDrop={handleCanvasDrop}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
-          onClick={() => setSelected(null)}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelected(null) }}
           style={{
             flex: 1, position: 'relative', overflow: 'auto',
             backgroundImage: 'radial-gradient(circle, #D1D5DB 1px, transparent 1px)',
