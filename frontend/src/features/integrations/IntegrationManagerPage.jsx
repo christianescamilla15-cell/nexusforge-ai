@@ -23,6 +23,97 @@ function Icon({ name, size = 18, color = 'currentColor' }) {
   )
 }
 
+// ── Help tooltips ─────────────────────────────────────────────────────────────
+
+const HELP = {
+  groq: {
+    es: 'Motor LLM rápido y económico. Obtén tu key en console.groq.com → API Keys → Create.',
+    en: 'Fast, affordable LLM engine. Get your key at console.groq.com → API Keys → Create.',
+  },
+  claude: {
+    es: 'IA de alta calidad de Anthropic. Key en console.anthropic.com → API Keys.',
+    en: 'High-quality AI by Anthropic. Key at console.anthropic.com → API Keys.',
+  },
+  'openai-gpt4o': {
+    es: 'Modelo potente de OpenAI. Key en platform.openai.com → API Keys → Create.',
+    en: 'Powerful OpenAI model. Key at platform.openai.com → API Keys → Create.',
+  },
+  openai: {
+    es: 'Versión económica de GPT-4o. Misma key de OpenAI: platform.openai.com → API Keys.',
+    en: 'Budget GPT-4o version. Same OpenAI key: platform.openai.com → API Keys.',
+  },
+  email: {
+    es: 'Envía resultados por correo vía Resend. Key en resend.com → API Keys. Gratis hasta 100 emails/día.',
+    en: 'Send results via email through Resend. Key at resend.com → API Keys. Free up to 100 emails/day.',
+  },
+  notion: {
+    es: 'Guarda resultados en Notion. Crea integración en notion.so/my-integrations → New → copia el token. Comparte la DB con la integración.',
+    en: 'Save results to Notion. Create integration at notion.so/my-integrations → New → copy token. Share the DB with the integration.',
+  },
+  slack: {
+    es: 'Recibe alertas en Slack. Crea app en api.slack.com/apps → Incoming Webhooks → Add → copia la URL.',
+    en: 'Receive alerts in Slack. Create app at api.slack.com/apps → Incoming Webhooks → Add → copy URL.',
+  },
+  webhook: {
+    es: 'Envía resultados a cualquier URL como POST JSON. Opcionalmente firma con HMAC para seguridad.',
+    en: 'Send results to any URL as POST JSON. Optionally sign with HMAC for security.',
+  },
+  whatsapp: {
+    es: 'Envía por WhatsApp vía Twilio. Registra en twilio.com → Console → Account SID y Auth Token.',
+    en: 'Send via WhatsApp through Twilio. Register at twilio.com → Console → Account SID and Auth Token.',
+  },
+  drive: {
+    es: 'Lee archivos de Google Drive. Crea Service Account en console.cloud.google.com → APIs → Credentials → descarga JSON.',
+    en: 'Read files from Google Drive. Create Service Account at console.cloud.google.com → APIs → Credentials → download JSON.',
+  },
+  gmail: {
+    es: 'Lee correos de Gmail. Requiere OAuth 2.0: console.cloud.google.com → APIs → OAuth → descarga JSON.',
+    en: 'Read emails from Gmail. Requires OAuth 2.0: console.cloud.google.com → APIs → OAuth → download JSON.',
+  },
+  calendar: {
+    es: 'Accede a Google Calendar. Service Account en console.cloud.google.com → comparte calendario con la cuenta.',
+    en: 'Access Google Calendar. Service Account at console.cloud.google.com → share calendar with the account.',
+  },
+}
+
+function HelpBadge({ id, lang = 'en' }) {
+  const [show, setShow] = useState(false)
+  const text = HELP[id]?.[lang] || HELP[id]?.en || ''
+  if (!text) return null
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex' }}>
+      <div
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        style={{
+          width: 18, height: 18, borderRadius: '50%', background: '#F3F4F6',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'help', flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF' }}>?</span>
+      </div>
+      {show && (
+        <div style={{
+          position: 'absolute', bottom: '130%', left: '50%', transform: 'translateX(-50%)',
+          width: 260, zIndex: 100, padding: '10px 12px', borderRadius: 10,
+          background: '#1F2937', color: '#F9FAFB', fontSize: 12, lineHeight: 1.5,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+          textAlign: 'left',
+        }}>
+          {text}
+          <div style={{
+            position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)',
+            width: 0, height: 0, borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent', borderTop: '6px solid #1F2937',
+          }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Speed badge ───────────────────────────────────────────────────────────────
 
 function SpeedBadge({ speed }) {
@@ -75,6 +166,7 @@ function ProviderCard({ provider, savedKey, onSaved, lang = 'en' }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{provider.name}</span>
+            <HelpBadge id={provider.id} lang={lang} />
             {configured && (
               <span style={{ fontSize: 18, lineHeight: 1 }} title="Configured">✅</span>
             )}
@@ -192,6 +284,7 @@ function ServiceCard({ service, onSaved }) {
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{service.name}</span>
+            <HelpBadge id={service.id} lang={service._lang || 'en'} />
             {service.configured && <span title="Configured">✅</span>}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
@@ -403,7 +496,7 @@ export default function IntegrationManagerPage({ lang = 'en' }) {
           gap: 12,
         }}>
           {services.map((s) => (
-            <ServiceCard key={s.id} service={s} onSaved={handleServiceSaved} />
+            <ServiceCard key={s.id} service={{...s, _lang: lang}} onSaved={handleServiceSaved} />
           ))}
         </div>
       </section>
