@@ -34,9 +34,11 @@ export default function App() {
   const [editWorkflowId, setEditWorkflowId] = useState(null)
   const { lang, setLang, toggle: toggleLang } = useLanguage()
   const [theme, setTheme] = useState(() => localStorage.getItem('nexusforge_theme') || 'light')
-  const [showTour, setShowTour] = useState(true)
+  const [showTour, setShowTour] = useState(() => {
+    try { return !localStorage.getItem('nxf-tour-done') } catch { return false }
+  })
   const [showOnboarding, setShowOnboarding] = useState(() => {
-    try { return !localStorage.getItem('nxf-onboarding-done') } catch { return true }
+    try { return !localStorage.getItem('nxf-onboarding-done') } catch { return false }
   })
 
   // Auth state
