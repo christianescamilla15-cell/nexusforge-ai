@@ -289,7 +289,16 @@ export default function AgentListPage({ lang = 'en' }) {
             display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: 12,
           }}>
-            {agents.map(agent => {
+            {/* Show registered agents + any extra agent_types from step_executions */}
+            {(() => {
+              const registeredTypes = new Set(agents.map(a => a.type))
+              const extraTypes = Object.keys(memoryStats).filter(t => !registeredTypes.has(t))
+              const allAgents = [
+                ...agents,
+                ...extraTypes.map(t => ({ id: t, name: t.charAt(0).toUpperCase() + t.slice(1) + 'Agent', type: t })),
+              ]
+              return allAgents
+            })().map(agent => {
               const stats = memoryStats[agent.type]
               return (
                 <div

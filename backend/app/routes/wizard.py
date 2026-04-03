@@ -60,6 +60,16 @@ Rules:
 4. Include at least one output integration
 5. Each step must have a unique name (lowercase, underscores)
 
+Also analyze if this task would benefit from a swarm topology instead of a linear DAG:
+- "parallel" — multiple independent analyses running simultaneously (e.g. process many documents fast)
+- "debate" — iterative critique/improvement loop (e.g. analyze from multiple perspectives)
+- "consensus" — multiple agents vote on a decision (e.g. reach agreement between AI opinions)
+- "hierarchical" — supervisor decomposes and coordinates sub-tasks (e.g. complex multi-step orchestration)
+- "sequential" — ordered pipeline where each agent depends on the previous
+- "adaptive" — router selects the best topology at runtime based on input complexity
+If a swarm topology would be better than a DAG, set recommended_topology to one of the above values and explain why.
+If a DAG is better, set recommended_topology to null.
+
 Return this exact JSON format:
 {{
   "name": "workflow name",
@@ -73,7 +83,9 @@ Return this exact JSON format:
     "outputs": ["email", "notion"]
   }},
   "estimated_tokens": 500,
-  "estimated_cost_usd": 0.003
+  "estimated_cost_usd": 0.003,
+  "recommended_topology": null,
+  "topology_reason": null
 }}"""
 
 

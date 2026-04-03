@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { fetchAPI } from '../../services/api'
+import SwarmExecuteModal from '../swarms/SwarmExecuteModal'
 
 // ── Agent color map ───────────────────────────────────────────────────────────
 
@@ -248,9 +249,10 @@ function StepGenerating({ lang = 'en' }) {
 
 // ── Step 4: Preview ───────────────────────────────────────────────────────────
 
-function StepPreview({ workflow, warning, lang = 'en', onUpdateName, onSaveDraft, onOpenBuilder, savingDraft }) {
+function StepPreview({ workflow, warning, lang = 'en', onUpdateName, onSaveDraft, onOpenBuilder, savingDraft, onCreateSwarm }) {
   if (!workflow) return null
-  const { name, description, steps = [], suggested_integrations = {}, estimated_tokens, estimated_cost_usd } = workflow
+  const { name, description, steps = [], suggested_integrations = {}, estimated_tokens, estimated_cost_usd,
+          recommended_topology, topology_reason } = workflow
 
   return (
     <div>
@@ -389,6 +391,55 @@ function StepPreview({ workflow, warning, lang = 'en', onUpdateName, onSaveDraft
           </div>
         </div>
       )}
+
+      {/* Swarm topology recommendation */}
+      {recommended_topology && (
+        <div style={{
+          marginTop: 16, padding: '16px 18px', borderRadius: 12,
+          background: 'rgba(236,72,153,0.06)', border: '1px solid rgba(236,72,153,0.25)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 18 }}>🐝</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#BE185D' }}>
+              {lang === 'es' ? 'Recomendación de Swarm' : 'Swarm Recommendation'}
+            </span>
+            <span style={{
+              padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+              background: 'rgba(236,72,153,0.15)', color: '#EC4899',
+              textTransform: 'capitalize',
+            }}>
+              {recommended_topology}
+            </span>
+          </div>
+          {topology_reason && (
+            <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 12px', lineHeight: 1.5 }}>
+              {topology_reason}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => onCreateSwarm && onCreateSwarm(recommended_topology)}
+              style={{
+                padding: '8px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600,
+                background: 'linear-gradient(135deg, #EC4899, #BE185D)', color: '#fff',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <span>🐝</span>
+              {lang === 'es' ? 'Crear como Swarm' : 'Create as Swarm'}
+            </button>
+            <button
+              onClick={onSaveDraft}
+              style={{
+                padding: '8px 16px', borderRadius: 8, border: '1px solid #E5E7EB',
+                background: '#fff', color: '#6B7280', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {lang === 'es' ? 'Mantener como DAG' : 'Keep as DAG Workflow'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -476,6 +527,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const [executing, setExecuting] = useState(false)
   const [execResult, setExecResult] = useState(null)
   const [error, setError] = useState(null)
+  const [swarmTopology, setSwarmTopology] = useState(null) // opens SwarmExecuteModal when set
 
   const handleAnswer = useCallback((id, value) => {
     setAnswers((prev) => ({ ...prev, [id]: value }))
@@ -669,7 +721,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         {step === 0 && <StepDescribe description={description} onChange={setDescription} lang={lang} />}
         {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} lang={lang} />}
         {step === 2 && <StepGenerating lang={lang} />}
-        {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} onUpdateName={handleUpdateName} onSaveDraft={handleSaveDraft} onOpenBuilder={handleOpenBuilder} savingDraft={savingDraft} />}
+        {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} onUpdateName={handleUpdateName} onSaveDraft={handleSaveDraft} onOpenBuilder={handleOpenBuilder} savingDraft={savingDraft} onCreateSwarm={(topology) => setSwarmTopology(topology)} />}
         {step === 4 && (
           <StepLaunch
             workflow={workflow}
@@ -722,6 +774,15 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
           </div>
         )}
       </div>
+
+      {/* Swarm execute modal — opened when user clicks "Create as Swarm" */}
+      {swarmTopology && (
+        <SwarmExecuteModal
+          topology={swarmTopology}
+          onClose={() => setSwarmTopology(null)}
+          lang={lang}
+        />
+      )}
     </div>
   )
 }
