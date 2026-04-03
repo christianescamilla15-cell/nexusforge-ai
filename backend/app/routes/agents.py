@@ -65,6 +65,86 @@ AGENT_METADATA = {
         "description": "Analyzes failed workflow steps and suggests fixes for self-healing.",
         "tools": ["llm_chat", "config_editor"],
     },
+    "compliance": {
+        "name": "ComplianceAgent",
+        "description": "Verifies documents and processes against regulatory frameworks (GDPR, SOX, HIPAA).",
+        "tools": ["llm_chat", "policy_check"],
+    },
+    "critic": {
+        "name": "CriticAgent",
+        "description": "Reviews and critiques outputs from other agents, suggesting improvements and catching errors.",
+        "tools": ["llm_chat", "scoring"],
+    },
+    "judge": {
+        "name": "JudgeAgent",
+        "description": "Evaluates consensus between multiple agents and selects the best output.",
+        "tools": ["llm_chat", "voting"],
+    },
+    "knowledge": {
+        "name": "KnowledgeAgent",
+        "description": "Manages the knowledge base: indexes documents, performs semantic search (RAG).",
+        "tools": ["llm_chat", "rag_search", "embeddings"],
+    },
+    "monitor": {
+        "name": "MonitorAgent",
+        "description": "Monitors system metrics, detects anomalies, and triggers alerts when thresholds are exceeded.",
+        "tools": ["metrics_check", "alert_trigger"],
+    },
+    "normalizer": {
+        "name": "NormalizerAgent",
+        "description": "Normalizes and cleans data: standardizes formats, removes duplicates, fixes encoding.",
+        "tools": ["llm_chat", "data_transform"],
+    },
+    "ocr": {
+        "name": "OCRAgent",
+        "description": "Extracts text from images and scanned PDFs using optical character recognition.",
+        "tools": ["llm_chat", "image_processing"],
+    },
+    "planner": {
+        "name": "PlannerAgent",
+        "description": "Creates execution plans by decomposing complex tasks into ordered sub-tasks.",
+        "tools": ["llm_chat", "task_decomposition"],
+    },
+    "researcher": {
+        "name": "ResearcherAgent",
+        "description": "Researches topics by gathering information from multiple sources and synthesizing findings.",
+        "tools": ["llm_chat", "web_search", "rag_search"],
+    },
+    "router": {
+        "name": "RouterAgent",
+        "description": "Routes tasks to the most appropriate agent based on content analysis and workload.",
+        "tools": ["llm_chat", "agent_selector"],
+    },
+    "router_agent": {
+        "name": "RouterAgent (Adaptive)",
+        "description": "Adaptive router that dynamically selects agents based on performance history and task complexity.",
+        "tools": ["llm_chat", "agent_selector", "performance_history"],
+    },
+    "scheduler": {
+        "name": "SchedulerAgent",
+        "description": "Manages scheduling: creates, updates, and cancels calendar events and reminders.",
+        "tools": ["llm_chat", "calendar_api"],
+    },
+    "scraper": {
+        "name": "ScraperAgent",
+        "description": "Collects and extracts structured data from web sources and APIs.",
+        "tools": ["llm_chat", "http_client"],
+    },
+    "sentiment": {
+        "name": "SentimentAgent",
+        "description": "Analyzes emotional tone and sentiment of text: positive, negative, neutral, with confidence scores.",
+        "tools": ["llm_chat", "scoring"],
+    },
+    "translator": {
+        "name": "TranslatorAgent",
+        "description": "Translates text between languages while preserving technical terminology and context.",
+        "tools": ["llm_chat"],
+    },
+    "webhook": {
+        "name": "WebhookAgent",
+        "description": "Sends HTTP webhooks to external services with configurable payloads and retry logic.",
+        "tools": ["http_client", "retry_logic"],
+    },
 }
 
 
