@@ -44,6 +44,14 @@ async def lifespan(app: FastAPI):
         app.state.redis_available = False
         print(f"Warning: Redis not available: {e}")
 
+    # Start automation scheduler
+    try:
+        from app.routes.automations import start_scheduler
+        start_scheduler()
+        print("Automation scheduler started")
+    except Exception as e:
+        print(f"Warning: Scheduler not started: {e}")
+
     yield
     # Shutdown
     try:

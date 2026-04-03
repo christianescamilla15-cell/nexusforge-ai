@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import PublishModal from './PublishModal'
+import RunInputModal from './RunInputModal'
+import AutomationDashboard from './AutomationDashboard'
 
 const PREBUILT = [
   {
@@ -41,7 +43,7 @@ const TRIGGER_BADGE = {
   webhook: { en: 'Webhook', es: 'Webhook', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
 }
 
-function AutomationCard({ auto, lang, onRun, onDelete, running }) {
+function AutomationCard({ auto, lang, onRun, onDelete, onDashboard, running }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const trigger = TRIGGER_BADGE[auto.trigger_type] || TRIGGER_BADGE.manual
   const bg = auto.color ? `${auto.color}12` : 'rgba(99,102,241,0.08)'
@@ -80,6 +82,7 @@ function AutomationCard({ auto, lang, onRun, onDelete, running }) {
                 boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 4,
               }}>
                 {[
+                  { label: lang === 'es' ? 'Dashboard' : 'Dashboard', icon: '📊', action: () => { onDashboard(auto); setMenuOpen(false) } },
                   { label: lang === 'es' ? 'Despublicar' : 'Unpublish', icon: '🗑️', action: () => { onDelete(auto.id); setMenuOpen(false) }, color: '#EF4444' },
                 ].map((item, i) => (
                   <div key={i} onClick={item.action} style={{
@@ -98,7 +101,10 @@ function AutomationCard({ auto, lang, onRun, onDelete, running }) {
         </div>
       </div>
 
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 6 }}>{auto.name}</h3>
+      <h3 onClick={() => onDashboard(auto)} style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 6, cursor: 'pointer' }}
+        onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+        onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+      >{auto.name}</h3>
       <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5, marginBottom: 14, minHeight: 36 }}>
         {auto.description || auto.workflow_name}
       </p>
@@ -139,6 +145,8 @@ export default function AutomationsPage({ lang = 'en', onOpenCase, onNavigateToE
   const [loadingUser, setLoadingUser] = useState(true)
   const [showPublish, setShowPublish] = useState(false)
   const [running, setRunning] = useState(null)
+  const [runInputTarget, setRunInputTarget] = useState(null) // automation needing input
+  const [dashboardId, setDashboardId] = useState(null) // automation id for dashboard view
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -158,8 +166,20 @@ export default function AutomationsPage({ lang = 'en', onOpenCase, onNavigateToE
   useEffect(() => { loadUserAutomations() }, [])
 
   const handleRun = async (auto) => {
+    const inputType = auto.input_config?.type || 'none'
+    if (inputType !== 'none') {
+      setRunInputTarget(auto)
+      return
+    }
+    await _executeRun(auto, {})
+  }
+
+  const _executeRun = async (auto, input_data) => {
     setRunning(auto.id)
-    const res = await fetchAPI(`/automations/${auto.id}/run`, { method: 'POST' })
+    const res = await fetchAPI(`/automations/${auto.id}/run`, {
+      method: 'POST',
+      body: JSON.stringify({ input_data }),
+    })
     setRunning(null)
     if (!res.error && res.data?.run_id && onNavigateToExecution) {
       onNavigateToExecution(res.data.run_id)
@@ -273,7 +293,7 @@ export default function AutomationsPage({ lang = 'en', onOpenCase, onNavigateToE
       ) : (
         <div style={gridStyle}>
           {userAutomations.map(auto => (
-            <AutomationCard key={auto.id} auto={auto} lang={lang} onRun={handleRun} onDelete={handleDelete} running={running} />
+            <AutomationCard key={auto.id} auto={auto} lang={lang} onRun={handleRun} onDelete={handleDelete} onDashboard={(a) => setDashboardId(a.id)} running={running} />
           ))}
           <div onClick={() => setShowPublish(true)} style={{
             padding: 24, borderRadius: 16, border: '2px dashed #E5E7EB',
@@ -293,6 +313,40 @@ export default function AutomationsPage({ lang = 'en', onOpenCase, onNavigateToE
 
       {showPublish && (
         <PublishModal lang={lang} onClose={() => setShowPublish(false)} onPublished={loadUserAutomations} />
+      )}
+
+      {runInputTarget && (
+        <RunInputModal
+          automation={runInputTarget}
+          lang={lang}
+          onClose={() => setRunInputTarget(null)}
+          onSubmit={(input_data) => {
+            const auto = runInputTarget
+            setRunInputTarget(null)
+            _executeRun(auto, input_data)
+          }}
+        />
+      )}
+
+      {dashboardId && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+          zIndex: 100, backdropFilter: 'blur(4px)', overflowY: 'auto', padding: '24px 16px',
+        }} onClick={() => setDashboardId(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#F9FAFB', borderRadius: 16, padding: 24,
+            width: '100%', maxWidth: 800,
+            border: '1px solid #E5E7EB', boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+          }}>
+            <AutomationDashboard
+              automationId={dashboardId}
+              lang={lang}
+              onBack={() => setDashboardId(null)}
+              onRun={(auto) => { setDashboardId(null); handleRun(auto) }}
+            />
+          </div>
+        </div>
       )}
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
