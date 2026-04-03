@@ -15,7 +15,7 @@ const DEMO_WORKFLOWS = [
   { id: 'wf-6', name: 'Traducción Masiva', status: 'archived', version: 'v1.2', created: '2026-02-28', steps: 3 },
 ]
 
-export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
+export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lang = 'en' }) {
   const [filter, setFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -119,7 +119,7 @@ export default function WorkflowListPage({ onSelectWorkflow, lang = 'en' }) {
             onClick={e => e.stopPropagation()}
           >
             {[
-              { label: lang === 'es' ? 'Editar' : 'Edit', icon: '✏️', action: () => { onSelectWorkflow(row.id); setMenuOpen(null) } },
+              { label: lang === 'es' ? 'Editar' : 'Edit', icon: '✏️', action: () => { if (onEditWorkflow) onEditWorkflow(row.id); else onSelectWorkflow(row.id); setMenuOpen(null) } },
               { label: lang === 'es' ? 'Renombrar' : 'Rename', icon: '📝', action: () => { setRenaming(row.id); setRenameValue(row.name); setMenuOpen(null) } },
               { label: lang === 'es' ? 'Eliminar' : 'Delete', icon: '🗑️', action: () => handleDelete(row), color: '#EF4444' },
             ].map((item, i) => (

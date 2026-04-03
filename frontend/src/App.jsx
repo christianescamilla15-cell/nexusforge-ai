@@ -133,6 +133,7 @@ export default function App() {
         return (
           <WorkflowListPage
             onSelectWorkflow={(id) => setSelectedWorkflow(id)}
+            onEditWorkflow={(id) => navigateToBuilder(id)}
             lang={lang}
           />
         )
