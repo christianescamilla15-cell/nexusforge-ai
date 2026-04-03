@@ -15,6 +15,7 @@ export const translations = {
     'enterprise-ops': 'Enterprise Ops',
     playground: 'Playground',
     'use-cases': 'Use Cases',
+    automations: 'Automations',
     'cost-metrics': 'Cost Metrics',
     timeline: 'Timeline',
 
@@ -300,6 +301,7 @@ export const translations = {
     'enterprise-ops': 'Ops Empresariales',
     playground: 'Playground',
     'use-cases': 'Casos de Uso',
+    automations: 'Automatizaciones',
     'cost-metrics': 'Métricas de Costos',
     timeline: 'Timeline',
 

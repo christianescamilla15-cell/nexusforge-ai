@@ -13,6 +13,7 @@ from app.routes.integrations import router as integrations_router
 from app.routes.feedback import router as feedback_router
 from app.routes.drive_pipeline import router as drive_pipeline_router
 from app.routes.analyze import router as analyze_router
+from app.routes.automations import router as automations_router
 from app.observability.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
@@ -108,3 +109,4 @@ app.include_router(integrations_router, prefix="/api")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(drive_pipeline_router, prefix="/api")
 app.include_router(analyze_router, prefix="/api", tags=["analyze"])
+app.include_router(automations_router, prefix="/api", tags=["automations"])

@@ -25,6 +25,7 @@ import FeedbackPage from './features/feedback/FeedbackPage'
 import AnalyzePage from './features/analyze/AnalyzePage'
 import IntegrationManagerPage from './features/integrations/IntegrationManagerPage'
 import WizardPage from './features/wizard/WizardPage'
+import AutomationsPage from './features/automations/AutomationsPage'
 import UseCasesPage from './features/use-cases/UseCasesPage'
 
 export default function App() {
@@ -159,6 +160,17 @@ export default function App() {
         return <SwarmListPage lang={lang} />
       case 'use-cases':
         return <UseCasesPage lang={lang} onOpenCase={(key) => navigate(key)} />
+      case 'automations':
+        return (
+          <AutomationsPage
+            lang={lang}
+            onOpenCase={(key) => navigate(key)}
+            onNavigateToExecution={(runId) => {
+              setCurrentPage('executions')
+              setSelectedExecution(runId)
+            }}
+          />
+        )
       case 'documents':
         return <DocumentListPage lang={lang} />
       case 'enterprise-ops':

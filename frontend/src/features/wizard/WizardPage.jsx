@@ -92,7 +92,7 @@ function ProgressBar({ step, lang = 'en' }) {
 
 // ── Step 1: Description ───────────────────────────────────────────────────────
 
-function StepDescribe({ description, onChange, lang = 'en' }) {
+function StepDescribe({ description, onChange, workflowName, onNameChange, lang = 'en' }) {
   const examples = T.step1Examples[lang] || T.step1Examples.en
   return (
     <div>
@@ -102,6 +102,27 @@ function StepDescribe({ description, onChange, lang = 'en' }) {
       <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 24 }}>
         {t('step1Desc', lang)}
       </p>
+
+      {/* Workflow name field */}
+      <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+        {lang === 'es' ? 'Nombre del flujo' : 'Workflow name'}
+      </label>
+      <input
+        value={workflowName}
+        onChange={(e) => onNameChange(e.target.value)}
+        placeholder={lang === 'es' ? 'Ej: Proceso de Facturas' : 'Ex: Invoice Processing'}
+        style={{
+          width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 14,
+          border: '2px solid #E5E7EB', outline: 'none', boxSizing: 'border-box',
+          marginBottom: 16, fontFamily: 'inherit', transition: 'border-color 0.15s',
+        }}
+        onFocus={(e) => e.target.style.borderColor = '#6366F1'}
+        onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+      />
+
+      <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+        {lang === 'es' ? 'Descripción del flujo' : 'Workflow description'}
+      </label>
       <textarea
         value={description}
         onChange={(e) => onChange(e.target.value)}
@@ -519,6 +540,7 @@ function StepLaunch({ workflow, onDemo, onConfigure, executing, execResult, lang
 export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilder }) {
   const [step, setStep] = useState(0)
   const [description, setDescription] = useState('')
+  const [customName, setCustomName] = useState('')
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
   const [workflow, setWorkflow] = useState(null)
@@ -565,9 +587,9 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
       })
       if (res.error) { setError(res.error); setStep(1); return }
       const wf = res.data?.workflow || null
-      // Use user's description as workflow name if LLM generated a generic snake_case name
-      if (wf && description.trim()) {
-        wf.name = description.trim().slice(0, 60)
+      // Use user's custom name, or description as fallback
+      if (wf) {
+        wf.name = customName.trim() || description.trim().slice(0, 60) || wf.name
       }
       setWorkflow(wf)
       setWarning(res.data?.warning || null)
@@ -638,7 +660,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const saveOrUpdateWorkflow = async () => {
     const currentWorkflow = workflowRef.current || workflow
     const body = {
-      name: currentWorkflow.name || description.trim().slice(0, 60) || 'AI Generated Workflow',
+      name: customName.trim() || currentWorkflow.name || description.trim().slice(0, 60) || 'AI Generated Workflow',
       description: currentWorkflow.description || description,
       dag_definition: {
         steps: (currentWorkflow.steps || []).map(s => ({
@@ -696,7 +718,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
     }
   }
 
-  const canNext = step === 0 ? description.trim().length > 10
+  const canNext = step === 0 ? description.trim().length > 10 && customName.trim().length > 0
     : step === 1 ? true
     : step === 3 ? !!workflow
     : false
@@ -728,7 +750,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
           </div>
         )}
 
-        {step === 0 && <StepDescribe description={description} onChange={setDescription} lang={lang} />}
+        {step === 0 && <StepDescribe description={description} onChange={setDescription} workflowName={customName} onNameChange={setCustomName} lang={lang} />}
         {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} lang={lang} />}
         {step === 2 && <StepGenerating lang={lang} />}
         {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} onUpdateName={handleUpdateName} onSaveDraft={handleSaveDraft} onOpenBuilder={handleOpenBuilder} savingDraft={savingDraft} onCreateSwarm={(topology) => setSwarmTopology({ topology, agents: (workflow?.steps || []).map(s => s.agent_type || s.type).filter(Boolean), task: description })} />}
