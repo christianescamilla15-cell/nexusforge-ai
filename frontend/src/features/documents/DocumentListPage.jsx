@@ -6,7 +6,7 @@ import SemanticSearch from './SemanticSearch'
 
 const DEMO_CONTENT_1 = `NexusForge AI Architecture Overview
 
-NexusForge is an enterprise-grade agent orchestration platform designed for production workloads. The platform coordinates 22 specialized AI agents across 6 swarm topologies, enabling complex multi-step reasoning and autonomous task execution.
+NexusForge is an enterprise-grade agent orchestration platform designed for production workloads. The platform coordinates 24 specialized AI agents across 6 swarm topologies, enabling complex multi-step reasoning and autonomous task execution.
 
 Core Components:
 1. Agent Registry - Manages the lifecycle of all AI agents including provisioning, health checks, and decommissioning. Each agent has a 3-tier memory system: working memory for short-term context, episodic memory for past interactions, and semantic memory backed by pgvector for knowledge retrieval.

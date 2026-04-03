@@ -12,8 +12,8 @@ export function generateResponse(message, lang = 'en') {
   // 1. Greetings
   if (/^(hola|hello|hi|hey|buenos|buenas|good morning|good afternoon|que tal|saludos|greetings)/.test(lower)) {
     const greeting = lang === 'es'
-      ? '**¡Hola! Soy el asistente de NexusForge AI.** Puedo explicarte sobre:\n\n**Inicio:** Qué es NexusForge, cómo funciona, casos de uso\n**Agentes:** 22 agentes IA especializados\n**Topologías:** 6 patrones de colaboración multi-agente\n**Memoria:** Sistema de 3 niveles (trabajo, episódica, semántica)\n**Auto-Reparación:** 5 estrategias de recuperación automática\n**Casos Reales:** Operaciones Empresariales, Inteligencia Documental, Copiloto de Portafolio\n**Plataforma:** Playground, Timeline, Evaluación, Dashboard de Costos, Modo Demo/Real\n**Técnico:** RAG Pipeline, LLM Router, infraestructura, SDK, CLI\n\n¡Pregúntame lo que quieras!'
-      : '**Hi! I\'m the NexusForge AI assistant.** I can explain:\n\n**Getting Started:** What is NexusForge, how it works, use cases\n**Agents:** 22 specialized AI agents\n**Topologies:** 6 multi-agent collaboration patterns\n**Memory:** 3-tier system (working, episodic, semantic)\n**Self-Healing:** 5 automatic recovery strategies\n**Real Use Cases:** Enterprise Operations, Document Intelligence, Portfolio Copilot\n**Platform:** Playground, Timeline, Evaluation, Cost Dashboard, Demo/Real Mode\n**Technical:** RAG Pipeline, LLM Router, infrastructure, SDK, CLI\n\nAsk me anything!'
+      ? '**¡Hola! Soy el asistente de NexusForge AI.** Puedo explicarte sobre:\n\n**Inicio:** Qué es NexusForge, cómo funciona, casos de uso\n**Agentes:** 24 agentes IA especializados\n**Topologías:** 6 patrones de colaboración multi-agente\n**Memoria:** Sistema de 3 niveles (trabajo, episódica, semántica)\n**Auto-Reparación:** 5 estrategias de recuperación automática\n**Casos Reales:** Operaciones Empresariales, Inteligencia Documental, Copiloto de Portafolio\n**Plataforma:** Playground, Timeline, Evaluación, Dashboard de Costos, Modo Demo/Real\n**Técnico:** RAG Pipeline, LLM Router, infraestructura, SDK, CLI\n\n¡Pregúntame lo que quieras!'
+      : '**Hi! I\'m the NexusForge AI assistant.** I can explain:\n\n**Getting Started:** What is NexusForge, how it works, use cases\n**Agents:** 24 specialized AI agents\n**Topologies:** 6 multi-agent collaboration patterns\n**Memory:** 3-tier system (working, episodic, semantic)\n**Self-Healing:** 5 automatic recovery strategies\n**Real Use Cases:** Enterprise Operations, Document Intelligence, Portfolio Copilot\n**Platform:** Playground, Timeline, Evaluation, Cost Dashboard, Demo/Real Mode\n**Technical:** RAG Pipeline, LLM Router, infrastructure, SDK, CLI\n\nAsk me anything!'
     return {
       text: greeting,
       topic: 'greeting',
@@ -169,7 +169,7 @@ function getContextualFollowups(topicKey, lang) {
     how_it_works: { en: 'How does it work?', es: '¿Cómo funciona?' },
     use_cases: { en: 'Use cases', es: 'Casos de uso' },
     getting_started: { en: 'Getting started', es: 'Cómo empezar' },
-    agents_overview: { en: 'All 22 agents', es: 'Los 22 agentes' },
+    agents_overview: { en: 'All 24 agents', es: 'Los 24 agentes' },
     classifier_agent: { en: 'Classifier agent', es: 'Agente Clasificador' },
     extractor_agent: { en: 'Extractor agent', es: 'Agente Extractor' },
     summarizer_agent: { en: 'Summarizer agent', es: 'Agente Resumidor' },
@@ -215,7 +215,7 @@ function getContextualFollowups(topicKey, lang) {
     rag_pipeline: { en: 'RAG Pipeline', es: 'Pipeline RAG' },
     cost_tracking: { en: 'Cost tracking', es: 'Seguimiento de costos' },
     infrastructure: { en: 'Infrastructure', es: 'Infraestructura' },
-    testing: { en: 'Testing (231 tests)', es: 'Testing (231 tests)' },
+    testing: { en: 'Testing (260 tests)', es: 'Testing (260 tests)' },
     sdk: { en: 'TypeScript SDK', es: 'SDK TypeScript' },
     cli: { en: 'CLI (13 commands)', es: 'CLI (13 comandos)' },
     plugins: { en: 'Plugin system', es: 'Sistema de plugins' },
