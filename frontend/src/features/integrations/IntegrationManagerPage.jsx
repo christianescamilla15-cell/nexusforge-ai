@@ -453,14 +453,14 @@ export default function IntegrationManagerPage({ lang = 'en' }) {
           Integrations
         </h1>
         <p style={{ fontSize: 14, color: '#9CA3AF' }}>
-          Connect LLM providers and external services to power your workflows.
+          {lang === 'es' ? 'Conecta proveedores LLM y servicios externos para potenciar tus flujos.' : 'Connect LLM providers and external services to power your workflows.'}
         </p>
         <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
           <span style={{ fontSize: 13, color: '#6B7280' }}>
-            <strong style={{ color: '#6366F1' }}>{keyCount}</strong> LLM key{keyCount !== 1 ? 's' : ''} configured
+            <strong style={{ color: '#6366F1' }}>{keyCount}</strong> {lang === 'es' ? (keyCount !== 1 ? 'claves LLM configuradas' : 'clave LLM configurada') : `LLM key${keyCount !== 1 ? 's' : ''} configured`}
           </span>
           <span style={{ fontSize: 13, color: '#6B7280' }}>
-            <strong style={{ color: '#059669' }}>{configuredCount}</strong> service{configuredCount !== 1 ? 's' : ''} connected
+            <strong style={{ color: '#059669' }}>{configuredCount}</strong> {lang === 'es' ? (configuredCount !== 1 ? 'servicios conectados' : 'servicio conectado') : `service${configuredCount !== 1 ? 's' : ''} connected`}
           </span>
         </div>
       </div>
@@ -471,8 +471,8 @@ export default function IntegrationManagerPage({ lang = 'en' }) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round">
             <path d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5" />
           </svg>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>LLM Providers</h2>
-          <span style={{ fontSize: 12, color: '#9CA3AF' }}>Add your API keys to use your own quota</span>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>{lang === 'es' ? 'Proveedores LLM' : 'LLM Providers'}</h2>
+          <span style={{ fontSize: 12, color: '#9CA3AF' }}>{lang === 'es' ? 'Agrega tus API keys para usar tu propia cuota' : 'Add your API keys to use your own quota'}</span>
         </div>
         <div style={{
           display: 'grid',
@@ -485,6 +485,7 @@ export default function IntegrationManagerPage({ lang = 'en' }) {
               provider={p}
               savedKey={savedKeys[p.id] || null}
               onSaved={handleKeySaved}
+              lang={lang}
             />
           ))}
         </div>
@@ -496,8 +497,8 @@ export default function IntegrationManagerPage({ lang = 'en' }) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round">
             <path d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
           </svg>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>Service Integrations</h2>
-          <span style={{ fontSize: 12, color: '#9CA3AF' }}>Click a card to configure</span>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>{lang === 'es' ? 'Integraciones de Servicios' : 'Service Integrations'}</h2>
+          <span style={{ fontSize: 12, color: '#9CA3AF' }}>{lang === 'es' ? 'Haz clic en una tarjeta para configurar' : 'Click a card to configure'}</span>
         </div>
         <div style={{
           display: 'grid',
