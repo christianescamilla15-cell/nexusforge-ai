@@ -162,7 +162,7 @@ const DEMO_AGENTS = [
 ]
 
 export default function AgentListPage({ lang = 'en' }) {
-  const [agents] = useState(DEMO_AGENTS)
+  const [agents, setAgents] = useState(DEMO_AGENTS)
   const [selected, setSelected] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -171,6 +171,31 @@ export default function AgentListPage({ lang = 'en' }) {
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Fetch real agents from API and merge with demo enrichment
+  useEffect(() => {
+    import('../../services/api.js').then(({ fetchAPI }) => {
+      fetchAPI('/agents').then((res) => {
+        if (!res.error && res.data && Array.isArray(res.data) && res.data.length > 0) {
+          const realAgents = res.data.map((a, i) => {
+            // Find matching demo agent for enriched stats
+            const demo = DEMO_AGENTS.find(d => d.type === a.agent_type)
+            return {
+              id: `agent-${i + 1}`,
+              name: a.name || a.agent_type,
+              type: a.agent_type,
+              status: a.status || 'active',
+              description: a.description || (demo?.description) || '',
+              tools: a.tools || demo?.tools || [],
+              config: demo?.config || { model: 'llama-3.3-70b-versatile', temperature: 0.3, max_tokens: 1024 },
+              stats: demo?.stats || { total_runs: 0, avg_duration: 0, success_rate: 0 },
+            }
+          })
+          setAgents(realAgents)
+        }
+      })
+    })
   }, [])
 
   return (
