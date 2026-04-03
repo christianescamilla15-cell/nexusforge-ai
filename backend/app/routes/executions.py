@@ -128,7 +128,8 @@ async def list_executions(
                 f"""SELECT wr.id, wr.workflow_id, wr.status, wr.trigger_type,
                            wr.started_at, wr.completed_at, wr.error_message,
                            wr.total_tokens, wr.total_cost_usd, wr.metadata, wr.created_at,
-                           w.name AS workflow_name
+                           w.name AS workflow_name,
+                           (SELECT count(*) FROM step_executions se WHERE se.run_id = wr.id) AS steps_count
                     FROM workflow_runs wr
                     LEFT JOIN workflows w ON w.id = wr.workflow_id
                     {where.replace('workflow_id', 'wr.workflow_id').replace('status', 'wr.status') if where else ''}
@@ -161,6 +162,7 @@ async def list_executions(
             if not wf_name and isinstance(meta, dict):
                 wf_name = meta.get("workflow_name")
             resp.workflow_name = wf_name or "Workflow"
+            resp.steps_count = r.get("steps_count", 0)
             results.append(resp)
         return results
     except Exception as exc:
