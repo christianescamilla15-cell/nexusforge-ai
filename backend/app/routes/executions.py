@@ -243,6 +243,27 @@ async def cancel_execution(run_id: UUID):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@router.post("/cleanup-zombies", status_code=200)
+async def cleanup_zombie_runs():
+    """Mark all stuck pending/running runs (>10 min old) as failed."""
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            result = await conn.execute(
+                """UPDATE workflow_runs
+                   SET status = 'failed',
+                       completed_at = now(),
+                       error_message = 'Marked as failed: execution timed out (zombie cleanup)'
+                   WHERE status IN ('pending', 'queued', 'running')
+                     AND created_at < now() - interval '10 minutes'"""
+            )
+            count = int(result.split()[-1]) if result else 0
+        return {"detail": f"Cleaned up {count} zombie runs", "affected": count}
+    except Exception as exc:
+        logger.exception("Failed to cleanup zombies")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @router.websocket("/ws/{run_id}")
 async def execution_websocket(websocket: WebSocket, run_id: str):
     """Live stream execution events via WebSocket + Redis pub/sub."""
