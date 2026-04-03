@@ -174,7 +174,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
           </p>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => onEditWorkflow ? onEditWorkflow(null) : setShowCreate(true)}
           aria-label={t('newWorkflow', lang)}
           style={{
             padding: '10px 20px', borderRadius: 8, border: 'none',
