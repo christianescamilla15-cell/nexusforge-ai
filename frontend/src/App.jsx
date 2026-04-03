@@ -201,7 +201,7 @@ export default function App() {
           lang={lang}
           onSetLang={setLang}
           onNavigate={navigate}
-          onComplete={() => setShowTour(false)}
+          onComplete={() => { setShowTour(false); try { localStorage.setItem('nxf-tour-done', '1') } catch {} }}
           onSelectWorkflow={(id) => { setCurrentPage('workflows'); setSelectedWorkflow(id) }}
           onSelectExecution={(id) => { setCurrentPage('executions'); setSelectedExecution(id) }}
         />
