@@ -147,20 +147,6 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
 
           {/* Status rows */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            {/* Current mode */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
-              <span style={{ color: '#6B7280' }}>
-                {lang === 'es' ? 'Modo actual' : 'Current mode'}
-              </span>
-              <span style={{
-                padding: '2px 10px', borderRadius: 6, fontWeight: 600,
-                background: currentMode === 'demo' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
-                color: currentMode === 'demo' ? '#D97706' : '#059669',
-              }}>
-                {currentMode === 'demo' ? 'Demo' : 'Real'}
-              </span>
-            </div>
-
             {/* API URL */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
               <span style={{ color: '#6B7280' }}>
@@ -175,36 +161,19 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
               </span>
             </div>
 
-            {/* URL Source */}
+            {/* Connection status */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
               <span style={{ color: '#6B7280' }}>
-                {lang === 'es' ? 'Origen de URL' : 'URL source'}
+                {lang === 'es' ? 'Estado' : 'Status'}
               </span>
               <span style={{
-                fontSize: 12, fontWeight: 500,
-                color: getApiUrlSource() === 'none' ? '#9CA3AF' : '#374151',
+                padding: '2px 10px', borderRadius: 6, fontWeight: 600,
+                background: apiUrl ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+                color: apiUrl ? '#059669' : '#D97706',
               }}>
-                {getApiUrlSource() === 'localStorage'
-                  ? (lang === 'es' ? 'Configuracion local' : 'localStorage')
-                  : getApiUrlSource() === 'env'
-                    ? (lang === 'es' ? 'Variable de entorno' : 'env variable')
-                    : (lang === 'es' ? 'No configurado' : 'not configured')}
+                {apiUrl ? (lang === 'es' ? 'Conectado' : 'Connected') : (lang === 'es' ? 'Sin configurar' : 'Not configured')}
               </span>
             </div>
-
-            {/* Warning when Real mode but no URL */}
-            {currentMode === 'real' && !apiUrl && (
-              <div style={{
-                padding: '10px 14px', borderRadius: 8, fontSize: 13,
-                background: 'rgba(220,38,38,0.06)',
-                border: '1px solid rgba(220,38,38,0.2)',
-                color: '#991B1B', lineHeight: 1.5, fontWeight: 500,
-              }}>
-                {lang === 'es'
-                  ? 'Configura una URL para usar el modo Real'
-                  : 'Configure a URL to use Real mode'}
-              </div>
-            )}
 
             {/* Backend status */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
