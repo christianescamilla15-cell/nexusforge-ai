@@ -156,7 +156,11 @@ async def list_executions(
                 created_at=r["created_at"],
                 steps=[],
             )
-            resp.workflow_name = r.get("workflow_name") or "Workflow"
+            # workflow_name from JOIN, or from metadata for use-case runs
+            wf_name = r.get("workflow_name")
+            if not wf_name and isinstance(meta, dict):
+                wf_name = meta.get("workflow_name")
+            resp.workflow_name = wf_name or "Workflow"
             results.append(resp)
         return results
     except Exception as exc:
@@ -224,7 +228,7 @@ async def get_execution(run_id: UUID):
         return ExecutionResponse(
             id=row["id"],
             workflow_id=row["workflow_id"],
-            workflow_name=row.get("workflow_name") or "Workflow",
+            workflow_name=row.get("workflow_name") or (meta.get("workflow_name") if isinstance(meta, dict) else None) or "Workflow",
             status=row["status"],
             trigger_type=row["trigger_type"],
             started_at=row["started_at"],

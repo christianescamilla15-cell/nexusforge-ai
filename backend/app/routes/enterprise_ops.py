@@ -5,6 +5,7 @@ from ..use_cases.enterprise_ops.workflow import run_enterprise_ops_workflow
 from ..integrations.email.notify import notify_workflow_complete
 from ..db.client import get_db_pool
 from ..db.pipeline_store import save_pipeline_run
+from ..utils.run_tracker import start_run, record_step, complete_run
 
 logger = logging.getLogger(__name__)
 
@@ -13,14 +14,48 @@ router = APIRouter(prefix="/enterprise-ops", tags=["Enterprise Operations"])
 @router.post("/process", response_model=OperationsResponse)
 async def process_operations_request(request: OperationsRequest):
     """Process an enterprise operations request through the 8-agent workflow."""
+    # Track in workflow_runs for Executions page
+    tracker_run_id = None
+    try:
+        tracker_run_id = await start_run(
+            "Enterprise Ops Pipeline",
+            trigger_type="manual",
+            metadata={"input": request.message[:200] if request.message else ""},
+        )
+    except Exception as e:
+        logger.warning("enterprise_ops: run_tracker start failed: %s", e)
+
     result = await run_enterprise_ops_workflow(request)
 
-    # Persist to DB
+    # Record each agent as a step
+    if tracker_run_id:
+        try:
+            agents = result.agents_used or []
+            per_agent_tokens = (result.total_tokens or 0) // max(len(agents), 1)
+            per_agent_cost = float(result.cost_usd or 0) / max(len(agents), 1)
+            per_agent_ms = int(result.processing_time_ms or 0) // max(len(agents), 1)
+            for agent_name in agents:
+                await record_step(
+                    tracker_run_id, agent_name, agent_name.lower().replace("agent", ""),
+                    status="completed",
+                    tokens_used=per_agent_tokens,
+                    cost_usd=per_agent_cost,
+                    duration_ms=per_agent_ms,
+                )
+            await complete_run(
+                tracker_run_id,
+                status=result.status or "completed",
+                total_tokens=result.total_tokens or 0,
+                total_cost_usd=float(result.cost_usd or 0),
+            )
+        except Exception as e:
+            logger.warning("enterprise_ops: run_tracker complete failed: %s", e)
+
+    # Persist to pipeline_runs (legacy)
     try:
         pool = await get_db_pool()
-        logger.info("enterprise_ops: pool=%s, status=%s, tokens=%s", pool is not None, result.status, result.total_tokens)
         if pool:
-            run_id = await save_pipeline_run(
+            await save_pipeline_run(
                 pool,
                 pipeline_name="enterprise_operations",
                 status=result.status,
@@ -32,9 +67,6 @@ async def process_operations_request(request: OperationsRequest):
                 agents_used=result.agents_used or [],
                 steps=result.actions_taken or [],
             )
-            logger.info("enterprise_ops: persisted run_id=%s", run_id)
-        else:
-            logger.warning("enterprise_ops: no DB pool available")
     except Exception as e:
         logger.error("enterprise_ops: PERSIST FAILED: %s", e, exc_info=True)
 
