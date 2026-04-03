@@ -755,7 +755,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
               </p>
             )}
             {filteredAgents.map((a) => (
-              <SidebarAgent key={a.agent_type} agent={a} onDragStart={handleSidebarDragStart} />
+              <SidebarAgent key={a.agent_type} agent={a} onDragStart={handleSidebarDragStart} lang={lang} />
             ))}
           </div>
           <div style={{ padding: '8px 10px', borderTop: '1px solid #F3F4F6', fontSize: 11, color: '#9CA3AF' }}>
