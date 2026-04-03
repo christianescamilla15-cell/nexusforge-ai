@@ -3,6 +3,7 @@ import { fetchAPI } from '../../services/api'
 import PublishModal from './PublishModal'
 import RunInputModal from './RunInputModal'
 import AutomationDashboard from './AutomationDashboard'
+import TemplatesLibrary from '../templates/TemplatesLibrary'
 
 const PREBUILT = [
   {
@@ -254,6 +255,9 @@ export default function AutomationsPage({ lang = 'en', onOpenCase, onNavigateToE
           </div>
         ))}
       </div>
+
+      {/* Templates */}
+      <TemplatesLibrary lang={lang} isMobile={isMobile} onDeployed={() => loadUserAutomations()} />
 
       {/* User automations */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

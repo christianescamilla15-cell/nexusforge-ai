@@ -14,6 +14,11 @@ from app.routes.feedback import router as feedback_router
 from app.routes.drive_pipeline import router as drive_pipeline_router
 from app.routes.analyze import router as analyze_router
 from app.routes.automations import router as automations_router
+from app.routes.connectors import router as connectors_router
+from app.routes.templates import router as templates_router
+from app.routes.rules import router as rules_router
+from app.routes.variables import router as variables_router
+from app.routes.audit import router as audit_log_router
 from app.observability.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
@@ -118,3 +123,8 @@ app.include_router(feedback_router, prefix="/api")
 app.include_router(drive_pipeline_router, prefix="/api")
 app.include_router(analyze_router, prefix="/api", tags=["analyze"])
 app.include_router(automations_router, prefix="/api", tags=["automations"])
+app.include_router(connectors_router, prefix="/api", tags=["connectors"])
+app.include_router(templates_router, prefix="/api", tags=["templates"])
+app.include_router(rules_router, prefix="/api", tags=["rules"])
+app.include_router(variables_router, prefix="/api", tags=["variables"])
+app.include_router(audit_log_router, prefix="/api", tags=["audit-log"])

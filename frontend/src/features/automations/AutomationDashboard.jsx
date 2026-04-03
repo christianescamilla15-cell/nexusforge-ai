@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
+import RulesPanel from '../rules/RulesPanel'
+import VariablesPanel from '../variables/VariablesPanel'
+import AuditLog from '../audit/AuditLog'
 
 function formatDuration(ms) {
   if (!ms) return '--'
@@ -51,10 +54,18 @@ function RunsChart({ runs, color = '#6366F1' }) {
   )
 }
 
+const TABS = [
+  { key: 'stats', en: 'Stats', es: 'Estadísticas' },
+  { key: 'variables', en: 'Variables', es: 'Variables' },
+  { key: 'rules', en: 'Rules', es: 'Reglas' },
+  { key: 'audit', en: 'Audit', es: 'Auditoría' },
+]
+
 export default function AutomationDashboard({ automationId, onBack, onRun, lang = 'en' }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [activeTab, setActiveTab] = useState('stats')
 
   useEffect(() => {
     if (!automationId) return
@@ -133,77 +144,119 @@ export default function AutomationDashboard({ automationId, onBack, onRun, lang 
         ))}
       </div>
 
-      {/* Chart + webhook URL */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 280, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 16 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 12 }}>
-            {lang === 'es' ? 'Ejecuciones por día' : 'Runs per day'}
-          </p>
-          <RunsChart runs={recent_runs} color={color} />
-        </div>
-
-        {webhookUrl && (
-          <div style={{ flex: 1, minWidth: 280, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 16 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>
-              Webhook URL
-            </p>
-            <div style={{
-              padding: '8px 12px', borderRadius: 8, background: '#F9FAFB',
-              border: '1px solid #E5E7EB', fontSize: 11, fontFamily: 'monospace',
-              color: '#374151', wordBreak: 'break-all', marginBottom: 8,
-            }}>
-              {webhookUrl}
-            </div>
-            <button onClick={() => navigator.clipboard?.writeText(webhookUrl)} style={{
-              padding: '5px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
-              background: '#fff', fontSize: 12, color: '#6B7280', cursor: 'pointer',
-            }}>
-              {lang === 'es' ? 'Copiar URL' : 'Copy URL'}
+      {/* Tab bar */}
+      <div style={{
+        display: 'flex', gap: 0, marginBottom: 20,
+        borderBottom: '2px solid #E5E7EB',
+      }}>
+        {TABS.map(tab => {
+          const active = activeTab === tab.key
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: '10px 20px', fontSize: 13, fontWeight: active ? 700 : 500,
+                color: active ? color : '#6B7280',
+                background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: active ? `2px solid ${color}` : '2px solid transparent',
+                marginBottom: -2, transition: 'all 0.15s',
+              }}
+            >
+              {lang === 'es' ? tab.es : tab.en}
             </button>
-          </div>
-        )}
+          )
+        })}
       </div>
 
-      {/* Recent runs table */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6' }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>
-            {lang === 'es' ? 'Ejecuciones recientes' : 'Recent runs'}
-          </h3>
-        </div>
-        {recent_runs.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>
-            {lang === 'es' ? 'Sin ejecuciones aún.' : 'No runs yet.'}
+      {/* Tab content */}
+      {activeTab === 'stats' && (
+        <>
+          {/* Chart + webhook URL */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 280, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 16 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 12 }}>
+                {lang === 'es' ? 'Ejecuciones por día' : 'Runs per day'}
+              </p>
+              <RunsChart runs={recent_runs} color={color} />
+            </div>
+
+            {webhookUrl && (
+              <div style={{ flex: 1, minWidth: 280, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>
+                  Webhook URL
+                </p>
+                <div style={{
+                  padding: '8px 12px', borderRadius: 8, background: '#F9FAFB',
+                  border: '1px solid #E5E7EB', fontSize: 11, fontFamily: 'monospace',
+                  color: '#374151', wordBreak: 'break-all', marginBottom: 8,
+                }}>
+                  {webhookUrl}
+                </div>
+                <button onClick={() => navigator.clipboard?.writeText(webhookUrl)} style={{
+                  padding: '5px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
+                  background: '#fff', fontSize: 12, color: '#6B7280', cursor: 'pointer',
+                }}>
+                  {lang === 'es' ? 'Copiar URL' : 'Copy URL'}
+                </button>
+              </div>
+            )}
           </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                {[
-                  lang === 'es' ? 'Estado' : 'Status',
-                  lang === 'es' ? 'Inicio' : 'Started',
-                  lang === 'es' ? 'Duración' : 'Duration',
-                  'Tokens',
-                  lang === 'es' ? 'Costo' : 'Cost',
-                ].map((h, i) => (
-                  <th key={i} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recent_runs.map(r => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                  <td style={{ padding: '10px 16px' }}><StatusBadge status={r.status} /></td>
-                  <td style={{ padding: '10px 16px', color: '#6B7280' }}>{formatDate(r.started_at, lang)}</td>
-                  <td style={{ padding: '10px 16px', color: '#6B7280' }}>{formatDuration(r.duration_ms)}</td>
-                  <td style={{ padding: '10px 16px', color: '#6B7280' }}>{r.total_tokens || '--'}</td>
-                  <td style={{ padding: '10px 16px', color: '#10B981', fontWeight: 500 }}>${r.total_cost_usd?.toFixed(5) || '0.00000'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+
+          {/* Recent runs table */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6' }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>
+                {lang === 'es' ? 'Ejecuciones recientes' : 'Recent runs'}
+              </h3>
+            </div>
+            {recent_runs.length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>
+                {lang === 'es' ? 'Sin ejecuciones aún.' : 'No runs yet.'}
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
+                    {[
+                      lang === 'es' ? 'Estado' : 'Status',
+                      lang === 'es' ? 'Inicio' : 'Started',
+                      lang === 'es' ? 'Duración' : 'Duration',
+                      'Tokens',
+                      lang === 'es' ? 'Costo' : 'Cost',
+                    ].map((h, i) => (
+                      <th key={i} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent_runs.map(r => (
+                    <tr key={r.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                      <td style={{ padding: '10px 16px' }}><StatusBadge status={r.status} /></td>
+                      <td style={{ padding: '10px 16px', color: '#6B7280' }}>{formatDate(r.started_at, lang)}</td>
+                      <td style={{ padding: '10px 16px', color: '#6B7280' }}>{formatDuration(r.duration_ms)}</td>
+                      <td style={{ padding: '10px 16px', color: '#6B7280' }}>{r.total_tokens || '--'}</td>
+                      <td style={{ padding: '10px 16px', color: '#10B981', fontWeight: 500 }}>${r.total_cost_usd?.toFixed(5) || '0.00000'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'variables' && (
+        <VariablesPanel automationId={automationId} lang={lang} />
+      )}
+
+      {activeTab === 'rules' && (
+        <RulesPanel automationId={automationId} lang={lang} />
+      )}
+
+      {activeTab === 'audit' && (
+        <AuditLog entityType="automation" entityId={automationId} lang={lang} />
+      )}
     </div>
   )
 }
