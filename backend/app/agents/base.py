@@ -1,10 +1,14 @@
 """Abstract base agent class for all NexusForge agents."""
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# Fast timeout for memory ops — don't let broken Redis block execution
+_MEMORY_TIMEOUT = 2  # seconds
 
 
 @dataclass
@@ -37,16 +41,16 @@ class BaseAgent(ABC):
         """Public entrypoint: recall → execute → remember."""
         config = config or {}
 
-        # --- recall: fetch relevant context before execution ---
+        # --- recall: fetch relevant context before execution (fast timeout) ---
         memory_context: dict = {}
         try:
-            query = str(input_data)[:500]  # use input as the recall query
-            memory_context = await self._memory.recall(
-                agent_id=self.name,
-                query=query,
+            query = str(input_data)[:500]
+            memory_context = await asyncio.wait_for(
+                self._memory.recall(agent_id=self.name, query=query),
+                timeout=_MEMORY_TIMEOUT,
             )
-        except Exception as exc:
-            logger.warning("Memory recall failed for agent '%s': %s", self.name, exc)
+        except (asyncio.TimeoutError, Exception) as exc:
+            logger.debug("Memory recall skipped for '%s': %s", self.name, type(exc).__name__)
 
         # Inject context so subclasses can optionally use it
         enriched_input = {**input_data, "_memory_context": memory_context}
@@ -54,23 +58,26 @@ class BaseAgent(ABC):
         # --- execute: delegate to subclass ---
         result = await self.execute(enriched_input, config)
 
-        # --- remember: persist result after execution ---
+        # --- remember: persist result after execution (fast timeout) ---
         try:
             summary = str(result.output)[:1000]
-            await self._memory.remember(
-                agent_id=self.name,
-                text=summary,
-                tier="episodic",
-                metadata={
-                    "type": "execution",
-                    "agent": self.name,
-                    "tokens_used": result.tokens_used,
-                    "cost_usd": result.cost_usd,
-                    "outcome": "success",
-                },
+            await asyncio.wait_for(
+                self._memory.remember(
+                    agent_id=self.name,
+                    text=summary,
+                    tier="episodic",
+                    metadata={
+                        "type": "execution",
+                        "agent": self.name,
+                        "tokens_used": result.tokens_used,
+                        "cost_usd": result.cost_usd,
+                        "outcome": "success",
+                    },
+                ),
+                timeout=_MEMORY_TIMEOUT,
             )
-        except Exception as exc:
-            logger.warning("Memory remember failed for agent '%s': %s", self.name, exc)
+        except (asyncio.TimeoutError, Exception) as exc:
+            logger.debug("Memory remember skipped for '%s': %s", self.name, type(exc).__name__)
 
         return result
 
