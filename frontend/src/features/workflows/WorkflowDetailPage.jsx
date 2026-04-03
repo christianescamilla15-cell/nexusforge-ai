@@ -1,86 +1,15 @@
 import { useState, useEffect } from 'react'
-import { fetchAPI, trackGuestRun } from '../../services/api'
+import { fetchAPI } from '../../services/api'
 import { t } from '../../shared/i18n/translations'
 import StatusBadge from '../../shared/components/StatusBadge'
 import DataTable from '../../shared/components/DataTable'
 import DAGVisualization from './DAGVisualization'
 
-const DEMO_WORKFLOWS = {
-  'wf-1': {
-    id: 'wf-1', name: 'Análisis de Documentos',
-    description: 'Pipeline completo para ingerir, clasificar, resumir y validar documentos automáticamente con agentes IA.',
-    status: 'active', version: 'v1.3', created_at: '2026-03-20T10:30:00Z', updated_at: '2026-03-25T14:15:00Z',
-    dag_definition: { steps: [
-      { name: 'ingest', type: 'extractor', depends_on: [] },
-      { name: 'classify', type: 'classifier', depends_on: ['ingest'] },
-      { name: 'summarize', type: 'summarizer', depends_on: ['classify'] },
-      { name: 'validate', type: 'validator', depends_on: ['summarize'] },
-    ]},
-  },
-  'wf-2': {
-    id: 'wf-2', name: 'Clasificación de Datos',
-    description: 'Pipeline de clasificación con procesamiento paralelo y fusión de resultados.',
-    status: 'active', version: 'v2.1', created_at: '2026-03-18T09:00:00Z', updated_at: '2026-03-24T11:00:00Z',
-    dag_definition: { steps: [
-      { name: 'load_data', type: 'extractor', depends_on: [] },
-      { name: 'preprocess', type: 'normalizer', depends_on: ['load_data'] },
-      { name: 'classify_a', type: 'classifier', depends_on: ['preprocess'] },
-      { name: 'classify_b', type: 'classifier', depends_on: ['preprocess'] },
-      { name: 'merge', type: 'enricher', depends_on: ['classify_a', 'classify_b'] },
-      { name: 'export', type: 'validator', depends_on: ['merge'] },
-    ]},
-  },
-  'wf-3': {
-    id: 'wf-3', name: 'Resumen Ejecutivo',
-    description: 'Genera resúmenes ejecutivos de documentos largos con puntos clave.',
-    status: 'draft', version: 'v1.0', created_at: '2026-03-22T14:00:00Z', updated_at: '2026-03-22T14:00:00Z',
-    dag_definition: { steps: [
-      { name: 'extract', type: 'extractor', depends_on: [] },
-      { name: 'summarize', type: 'summarizer', depends_on: ['extract'] },
-    ]},
-  },
-  'wf-4': {
-    id: 'wf-4', name: 'Extracción de Entidades',
-    description: 'Extrae personas, organizaciones, fechas y montos de documentos.',
-    status: 'paused', version: 'v1.1', created_at: '2026-03-15T08:30:00Z', updated_at: '2026-03-20T16:00:00Z',
-    dag_definition: { steps: [
-      { name: 'ingest', type: 'extractor', depends_on: [] },
-      { name: 'ner', type: 'extractor', depends_on: ['ingest'] },
-      { name: 'validate', type: 'validator', depends_on: ['ner'] },
-    ]},
-  },
-  'wf-5': {
-    id: 'wf-5', name: 'Pipeline RAG',
-    description: 'Indexa documentos con embeddings y permite búsqueda semántica.',
-    status: 'active', version: 'v3.0', created_at: '2026-03-10T10:00:00Z', updated_at: '2026-03-25T09:00:00Z',
-    dag_definition: { steps: [
-      { name: 'upload', type: 'extractor', depends_on: [] },
-      { name: 'chunk', type: 'normalizer', depends_on: ['upload'] },
-      { name: 'embed', type: 'enricher', depends_on: ['chunk'] },
-      { name: 'index', type: 'validator', depends_on: ['embed'] },
-      { name: 'search', type: 'knowledge', depends_on: ['index'] },
-    ]},
-  },
-  'wf-6': {
-    id: 'wf-6', name: 'Traducción Masiva',
-    description: 'Traduce documentos a múltiples idiomas con verificación de calidad.',
-    status: 'archived', version: 'v1.2', created_at: '2026-02-28T12:00:00Z', updated_at: '2026-03-10T15:00:00Z',
-    dag_definition: { steps: [
-      { name: 'extract', type: 'extractor', depends_on: [] },
-      { name: 'translate', type: 'translator', depends_on: ['extract'] },
-      { name: 'review', type: 'critic', depends_on: ['translate'] },
-    ]},
-  },
+const EMPTY_WORKFLOW = {
+  id: '', name: '', description: '', status: 'active', version: 'v1',
+  created_at: null, updated_at: null,
+  dag_definition: { steps: [] },
 }
-
-const DEFAULT_WORKFLOW = DEMO_WORKFLOWS['wf-1']
-
-const DEMO_RUNS = [
-  { id: 'run-1', status: 'completed', started: '2026-03-25 14:10', duration: '2m 14s', cost: '$0.23', steps_done: '4/4' },
-  { id: 'run-2', status: 'completed', started: '2026-03-25 10:30', duration: '1m 58s', cost: '$0.19', steps_done: '4/4' },
-  { id: 'run-3', status: 'failed', started: '2026-03-24 16:45', duration: '1m 02s', cost: '$0.11', steps_done: '2/4' },
-  { id: 'run-4', status: 'completed', started: '2026-03-24 09:00', duration: '2m 30s', cost: '$0.25', steps_done: '4/4' },
-]
 
 const STATUS_CONFIG = {
   active: { color: '#10B981', bg: 'rgba(16,185,129,0.1)', label: { en: 'Active', es: 'Activo' } },
@@ -97,11 +26,11 @@ const INFO_ICONS = {
   steps: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
 }
 
-export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 'en' }) {
+export default function WorkflowDetailPage({ workflowId, onBack, onEdit, onNavigateToExecution, lang = 'en' }) {
   const [running, setRunning] = useState(false)
   const [runPhase, setRunPhase] = useState(null) // null | 'preparing' | 'executing' | 'done' | 'error'
   const [runError, setRunError] = useState(null)
-  const [runHistory, setRunHistory] = useState(DEMO_RUNS)
+  const [runHistory, setRunHistory] = useState([])
   const [stepStatuses, setStepStatuses] = useState({})
   const [activeTab, setActiveTab] = useState('dag')
   const [isMobile, setIsMobile] = useState(false)
@@ -113,34 +42,31 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const [wf, setWf] = useState(() => DEMO_WORKFLOWS[workflowId] || DEFAULT_WORKFLOW)
+  const [wf, setWf] = useState(EMPTY_WORKFLOW)
 
   useEffect(() => {
-    if (DEMO_WORKFLOWS[workflowId]) return
-    if (workflowId && !workflowId.startsWith('wf-')) {
-      fetchAPI(`/workflows/${workflowId}`).then((res) => {
-        if (!res.error && res.data) {
-          const w = res.data
-          setWf({
-            ...DEFAULT_WORKFLOW,
-            id: w.id,
-            name: w.name,
-            description: w.description || '',
-            status: w.status || 'active',
-            version: 'v' + (w.version || '1.0'),
-            dag_definition: w.dag_definition,
-            created_at: w.created_at,
-            updated_at: w.updated_at,
-          })
-        }
-      })
-    }
+    if (!workflowId) return
+    fetchAPI(`/workflows/${workflowId}`).then((res) => {
+      if (!res.error && res.data) {
+        const w = res.data
+        setWf({
+          id: w.id,
+          name: w.name || 'Workflow',
+          description: w.description || '',
+          status: w.status || 'active',
+          version: 'v' + (w.version || '1.0'),
+          dag_definition: w.dag_definition || { steps: [] },
+          created_at: w.created_at,
+          updated_at: w.updated_at,
+        })
+      }
+    })
   }, [workflowId])
 
   // Fetch real execution history for real workflows
   const loadRuns = () => {
-    if (workflowId && !workflowId.startsWith('wf-')) {
-      fetchAPI(`/executions?workflow_id=${workflowId}`).then((res) => {
+    if (workflowId) {
+      fetchAPI(`/executions/?workflow_id=${workflowId}`).then((res) => {
         if (!res.error && res.data) {
           const runs = Array.isArray(res.data) ? res.data : res.data.runs || []
           if (runs.length > 0) {
@@ -165,63 +91,56 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
   const statusCfg = STATUS_CONFIG[wf.status] || STATUS_CONFIG.active
 
   const handleRun = async () => {
+    alert('handleRun called! workflowId=' + workflowId)
     setRunning(true)
     setRunPhase('preparing')
     setRunError(null)
     setStepStatuses({})
 
-    const trial = trackGuestRun()
-    if (!trial.allowed) {
-      setRunError(lang === 'es' ? 'Límite de prueba alcanzado. Regístrate para continuar.' : 'Trial limit reached. Register to continue.')
+    // POST to real backend
+    setRunPhase('executing')
+    let res
+    try {
+      res = await fetchAPI('/executions/', {
+        method: 'POST',
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          trigger_type: 'manual',
+          input_data: {},
+        }),
+      })
+      alert('POST result: ' + JSON.stringify(res).slice(0, 200))
+    } catch (err) {
+      alert('POST error: ' + err)
+      setRunError(String(err))
+      setRunPhase('error')
+      setRunning(false)
+      return
+    }
+    console.log('[handleRun] POST result:', JSON.stringify(res))
+
+    if (res.error || !res.data?.run_id) {
+      const msg = res.error || (lang === 'es' ? 'Error al iniciar ejecución' : 'Failed to start execution')
+      console.error('[handleRun] POST failed:', msg)
+      setRunError(msg)
       setRunPhase('error')
       setRunning(false)
       return
     }
 
-    // Animate step-by-step execution
-    setRunPhase('executing')
-    const stepsToRun = [...steps]
-    for (let i = 0; i < stepsToRun.length; i++) {
-      setStepStatuses(prev => ({ ...prev, [stepsToRun[i].name]: 'running' }))
-      await new Promise(r => setTimeout(r, 600 + Math.random() * 800))
+    console.log('[handleRun] run created, run_id:', res.data.run_id)
 
-      // Try real backend for non-demo workflows (trigger once on first step)
-      if (!workflowId?.startsWith('wf-') && i === 0) {
-        const res = await fetchAPI('/executions', {
-          method: 'POST',
-          body: JSON.stringify({
-            workflow_id: workflowId,
-            trigger_type: 'manual',
-            input_data: {},
-          }),
-        })
-        if (!res.error && res.data?.run_id) {
-          // Real execution triggered — continue animation
-        }
-      }
-
-      const success = Math.random() > 0.05
-      setStepStatuses(prev => ({ ...prev, [stepsToRun[i].name]: success ? 'completed' : 'failed' }))
-      if (!success) {
-        setRunPhase('error')
-        setRunError(`Step "${stepsToRun[i].name}" failed`)
-        setRunning(false)
-        return
-      }
+    // Navigate to execution detail to see live progress
+    if (onNavigateToExecution) {
+      setRunning(false)
+      setRunPhase(null)
+      onNavigateToExecution(res.data.run_id)
+      return
     }
 
+    // Fallback if no navigation handler
     setRunPhase('done')
-    const newRun = {
-      id: 'run-' + Date.now(),
-      status: 'completed',
-      started: new Date().toLocaleString(locale),
-      duration: `${Math.floor(Math.random() * 2 + 1)}m ${Math.floor(Math.random() * 50 + 10)}s`,
-      cost: `$${(Math.random() * 0.3 + 0.05).toFixed(2)}`,
-      steps_done: `${steps.length}/${steps.length}`,
-    }
-    setRunHistory(prev => [newRun, ...prev])
-    // Refresh real runs from backend
-    setTimeout(() => { loadRuns() }, 1500)
+    loadRuns()
     setTimeout(() => { setRunning(false); setRunPhase(null) }, 2000)
   }
 
@@ -372,7 +291,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
           {lang === 'es' ? 'Ejecución completada exitosamente' : 'Execution completed successfully'}
         </div>
       )}
-      {runError && (
+      {(runPhase === 'error' || runError) && (
         <div style={{
           padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13,
           background: 'rgba(239,68,68,0.08)', color: '#DC2626',
@@ -382,7 +301,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6m0-6l6 6" />
           </svg>
-          {runError}
+          {runError || (lang === 'es' ? 'Error al iniciar ejecución' : 'Execution failed — check browser console for details')}
         </div>
       )}
 

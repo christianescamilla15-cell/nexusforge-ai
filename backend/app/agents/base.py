@@ -38,7 +38,12 @@ class BaseAgent(ABC):
         self._memory = MemoryManager()
 
     async def run(self, input_data: dict, config: dict = None) -> AgentResult:
-        """Public entrypoint: recall → execute → remember."""
+        """Public entrypoint: recall → execute → remember.
+
+        ``config`` may contain user-overrides:
+            provider, model, temperature, max_tokens, system_prompt, user_api_key
+        These are injected by step_runner when a user has a saved agent config.
+        """
         config = config or {}
 
         # --- recall: fetch relevant context before execution (fast timeout) ---

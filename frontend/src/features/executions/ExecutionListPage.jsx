@@ -5,7 +5,8 @@ import StatusBadge from '../../shared/components/StatusBadge'
 import CostTokenDashboard from '../metrics/CostTokenDashboard'
 
 function formatDuration(ms) {
-  if (!ms) return '--'
+  if (!ms && ms !== 0) return '--'
+  if (ms < 1000) return `${ms}ms`
   const s = Math.floor(ms / 1000)
   if (s < 60) return `${s}s`
   const m = Math.floor(s / 60)

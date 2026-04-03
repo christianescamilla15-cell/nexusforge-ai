@@ -1,50 +1,18 @@
 import { useState } from 'react'
 import { t } from '../../shared/i18n/translations'
-import { getMode, setMode, getApiUrl, setApiUrl as persistApiUrl, checkBackendHealth, getApiUrlSource } from '../../services/api'
+import { getApiUrl, setApiUrl as persistApiUrl, checkBackendHealth } from '../../services/api'
 
 export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme = 'light', setTheme }) {
-  const [currentMode, setCurrentMode] = useState(() => getMode())
   const [apiUrl, setApiUrl] = useState(() => getApiUrl())
   const isDark = theme === 'dark'
   const [tourResetDone, setTourResetDone] = useState(false)
   const [backendStatus, setBackendStatus] = useState(null)
   const [testing, setTesting] = useState(false)
-  const [showUrlPrompt, setShowUrlPrompt] = useState(false)
-  const [pendingUrl, setPendingUrl] = useState('http://localhost:8000/api')
-
-  const handleModeChange = (mode) => {
-    if (mode === 'real') {
-      const currentUrl = getApiUrl()
-      if (!currentUrl) {
-        setShowUrlPrompt(true)
-        return
-      }
-    }
-    setCurrentMode(mode)
-    setMode(mode)
-    window.dispatchEvent(new Event('nexusforge-mode-change'))
-  }
-
-  const handleConfirmRealMode = () => {
-    if (!pendingUrl.trim()) return
-    persistApiUrl(pendingUrl.trim())
-    setApiUrl(pendingUrl.trim())
-    setCurrentMode('real')
-    setMode('real')
-    setShowUrlPrompt(false)
-    setBackendStatus(null)
-    window.dispatchEvent(new Event('nexusforge-mode-change'))
-  }
-
-  const handleCancelRealMode = () => {
-    setShowUrlPrompt(false)
-    setPendingUrl('http://localhost:8000/api')
-  }
 
   const handleApiUrlChange = (value) => {
     setApiUrl(value)
     persistApiUrl(value)
-    setBackendStatus(null) // reset status when URL changes
+    setBackendStatus(null)
   }
 
   const testConnection = async () => {
@@ -66,131 +34,17 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
       {/* Settings cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* Mode Toggle — Demo / Real */}
+        {/* API Connection */}
         <div style={{
           ...cardStyle,
           border: '1px solid rgba(37,99,235,0.3)',
           background: 'rgba(37,99,235,0.02)',
         }}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ ...labelStyle, fontSize: 16 }}>
-              {lang === 'es' ? 'Modo de operacion' : 'Operating Mode'}
-            </label>
-            <p style={descStyle}>
-              {lang === 'es'
-                ? 'Controla si NexusForge usa datos de ejemplo o se conecta al backend real.'
-                : 'Controls whether NexusForge uses built-in demo data or connects to the real backend.'}
-            </p>
-          </div>
 
-          {/* Toggle buttons */}
-          <div style={{ display: 'flex', gap: 0, marginBottom: 16 }}>
-            {[
-              { key: 'demo', label: 'Demo' },
-              { key: 'real', label: 'Real' },
-            ].map((option, idx) => (
-              <button
-                key={option.key}
-                onClick={() => handleModeChange(option.key)}
-                aria-label={`Mode: ${option.label}`}
-                style={{
-                  padding: '10px 28px',
-                  border: '1px solid',
-                  borderColor: currentMode === option.key
-                    ? (option.key === 'demo' ? '#F59E0B' : '#10B981')
-                    : '#E5E7EB',
-                  borderRadius: idx === 0 ? '8px 0 0 8px' : '0 8px 8px 0',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  background: currentMode === option.key
-                    ? (option.key === 'demo' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)')
-                    : '#FFFFFF',
-                  color: currentMode === option.key
-                    ? (option.key === 'demo' ? '#D97706' : '#059669')
-                    : '#9CA3AF',
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Mode description */}
-          <div style={{
-            padding: '12px 16px', borderRadius: 8, fontSize: 13, lineHeight: 1.6,
-            background: currentMode === 'demo' ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.06)',
-            border: `1px solid ${currentMode === 'demo' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}`,
-            color: currentMode === 'demo' ? '#92400E' : '#065F46',
-          }}>
-            {currentMode === 'demo'
-              ? (lang === 'es'
-                  ? 'Demo: Usa datos de ejemplo integrados. No requiere backend.'
-                  : 'Demo: Uses built-in demo data. No backend required.')
-              : (lang === 'es'
-                  ? 'Real: Se conecta al backend API. Requiere servidor activo.'
-                  : 'Real: Connects to backend API. Requires running server.')}
-          </div>
-
-          {/* URL Prompt — appears when switching to Real without a URL */}
-          {showUrlPrompt && (
-            <div style={{
-              marginTop: 16, padding: 16, borderRadius: 10,
-              background: 'rgba(220,38,38,0.04)',
-              border: '1px solid rgba(220,38,38,0.2)',
-            }}>
-              <label style={{ ...labelStyle, fontSize: 14, color: '#991B1B', marginBottom: 8 }}>
-                {lang === 'es'
-                  ? 'Para modo Real, ingresa la URL de tu backend FastAPI'
-                  : 'To use Real mode, enter your FastAPI backend URL'}
-              </label>
-              <input
-                type="text"
-                value={pendingUrl}
-                onChange={(e) => setPendingUrl(e.target.value)}
-                placeholder="http://localhost:8000/api"
-                aria-label="API URL for Real mode"
-                autoFocus
-                style={{ ...inputStyle, marginBottom: 12 }}
-                onFocus={(e) => e.target.style.borderColor = 'rgba(16,185,129,0.4)'}
-                onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmRealMode() }}
-              />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={handleConfirmRealMode}
-                  disabled={!pendingUrl.trim()}
-                  style={{
-                    padding: '8px 18px', borderRadius: 8, border: 'none',
-                    background: pendingUrl.trim() ? '#059669' : '#D1D5DB',
-                    color: '#fff', fontSize: 13, fontWeight: 600,
-                    cursor: pendingUrl.trim() ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {lang === 'es' ? 'Guardar y activar modo Real' : 'Save & activate Real mode'}
-                </button>
-                <button
-                  onClick={handleCancelRealMode}
-                  style={{
-                    padding: '8px 18px', borderRadius: 8,
-                    border: '1px solid #E5E7EB', background: '#fff',
-                    color: '#6B7280', fontSize: 13, fontWeight: 500,
-                    cursor: 'pointer', transition: 'all 0.15s',
-                  }}
-                >
-                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* API URL — only visible in Real mode */}
-          {currentMode === 'real' && (
-            <div style={{ marginTop: 16 }}>
+          {/* API URL */}
+          <div>
               <label style={{ ...labelStyle, fontSize: 13 }}>
-                {lang === 'es' ? 'URL del API (solo modo Real)' : 'API URL (Real mode only)'}
+                {lang === 'es' ? 'URL del Backend API' : 'Backend API URL'}
               </label>
               <input
                 type="text"
@@ -208,7 +62,6 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
                   : 'Local: http://localhost:8000/api | Production: deployed backend URL'}
               </p>
             </div>
-          )}
         </div>
 
         {/* Theme */}

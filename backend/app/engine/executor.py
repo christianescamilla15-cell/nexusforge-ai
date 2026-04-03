@@ -29,7 +29,8 @@ class ExecutionError(Exception):
     pass
 
 async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
-                          input_data: dict = None, ctx: ExecutionContext = None) -> dict:
+                          input_data: dict = None, ctx: ExecutionContext = None,
+                          user_id: str = None) -> dict:
     """Execute a complete workflow DAG with parallel group scheduling."""
     pool = await get_db_pool()
     try:
@@ -111,6 +112,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                     retry_max=step.retry_max,
                     ctx=ctx,
                     step_order=group_idx,
+                    user_id=user_id,
                 )
 
                 # Broadcast step completion

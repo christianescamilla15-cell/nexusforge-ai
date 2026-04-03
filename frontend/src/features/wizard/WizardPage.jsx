@@ -545,7 +545,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         setExecuting(false)
         return
       }
-      const execRes = await fetchAPI('/executions', {
+      const execRes = await fetchAPI('/executions/', {
         method: 'POST',
         body: JSON.stringify({
           workflow_id: workflowId,

@@ -489,7 +489,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
       setExecuting(false)
       return
     }
-    const execRes = await fetchAPI('/executions', {
+    const execRes = await fetchAPI('/executions/', {
       method: 'POST',
       body: JSON.stringify({
         workflow_id: saveRes.data.id,

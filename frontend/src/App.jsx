@@ -93,6 +93,11 @@ export default function App() {
           onEdit={() => {
             navigateToBuilder(selectedWorkflow)
           }}
+          onNavigateToExecution={(runId) => {
+            setCurrentPage('executions')
+            setSelectedWorkflow(null)
+            setSelectedExecution(runId)
+          }}
           lang={lang}
         />
       )

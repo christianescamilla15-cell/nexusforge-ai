@@ -5,7 +5,7 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 
 from app.db.client import get_db_pool
 from app.domain.tracking.events import ExecutionContext
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/", status_code=201)
-async def trigger_execution(body: ExecutionTrigger):
+async def trigger_execution(body: ExecutionTrigger, request: Request):
     """Create a workflow run and enqueue execution in the background."""
     try:
         pool = await get_db_pool()
@@ -61,7 +61,11 @@ async def trigger_execution(body: ExecutionTrigger):
             tracker=tracker,
         )
 
-        asyncio.create_task(execute_workflow(body.workflow_id, run_id, dag, body.input_data, ctx=ctx))
+        asyncio.create_task(execute_workflow(
+            body.workflow_id, run_id, dag, body.input_data,
+            ctx=ctx,
+            user_id=getattr(request.state, "user_id", None),
+        ))
 
         return {
             "run_id": str(run_id),

@@ -76,15 +76,7 @@ export function isDemoMode() {
  *   NEVER falls back to demo data.
  */
 export async function fetchAPI(endpoint, options = {}) {
-  const mode = getMode()
-
-  // DEMO MODE: always return demo data, never call backend
-  if (mode === 'demo') {
-    _isDemoMode = true
-    return { data: getDemoData(endpoint, options), isDemo: true, error: null }
-  }
-
-  // REAL MODE: call backend, NEVER fall back to demo
+  // Always connect to real backend
   const apiUrl = getApiUrl()
   if (!apiUrl) {
     _isDemoMode = false
@@ -99,21 +91,28 @@ export async function fetchAPI(endpoint, options = {}) {
   const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {}
 
   try {
-    const res = await fetch(`${apiUrl}${endpoint}`, {
+    const url = `${apiUrl}${endpoint}`
+    console.log('[fetchAPI]', options.method || 'GET', url)
+    const res = await fetch(url, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...authHeaders, ...options.headers },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(30000),
       redirect: 'follow',
     })
+    console.log('[fetchAPI] response status:', res.status, res.url)
 
     if (!res.ok) {
+      let errDetail = `HTTP ${res.status}`
+      try { const body = await res.json(); errDetail = body.detail || body.error || errDetail } catch {}
+      console.error('[fetchAPI] error response:', errDetail)
       _isDemoMode = false
-      return { data: null, isDemo: false, error: `Backend error: HTTP ${res.status}` }
+      return { data: null, isDemo: false, error: `Backend error: ${errDetail}` }
     }
 
     _isDemoMode = false
     return { data: await res.json(), isDemo: false, error: null }
   } catch (err) {
+    console.error('[fetchAPI] fetch threw:', err)
     // STRICT: do NOT return demo data. Return error.
     _isDemoMode = false
     return {

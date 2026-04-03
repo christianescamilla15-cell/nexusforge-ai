@@ -1,25 +1,66 @@
 """Execute a single workflow step — dispatches to the appropriate agent."""
 
+import json
 import logging
 import time
-import json
 from uuid import UUID, uuid4
-from app.engine.retry_policy import RetryPolicy
-from app.engine.state_machine import transition_step
-from app.engine.checkpoint import save_checkpoint
+
 from app.agents.registry import get_agent
 from app.db.client import get_db_pool
 from app.domain.tracking.events import ExecutionContext
+from app.engine.checkpoint import save_checkpoint
+from app.engine.retry_policy import RetryPolicy
+from app.engine.state_machine import transition_step
 from app.healing.healer import SelfHealer
 
 logger = logging.getLogger(__name__)
 
+
+async def _load_user_agent_config(user_id: str | None, agent_type: str) -> dict:
+    """Fetch user's saved agent config from DB. Returns {} if none."""
+    if not user_id:
+        return {}
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT provider, model, temperature, max_tokens, system_prompt, tools "
+                "FROM agent_configs WHERE user_id = $1::uuid AND agent_type = $2",
+                user_id, agent_type,
+            )
+        if not row:
+            return {}
+        # Also fetch the user's API key for the chosen provider
+        async with pool.acquire() as conn:
+            key_row = await conn.fetchrow(
+                "SELECT api_key_encrypted FROM user_provider_keys "
+                "WHERE user_id = $1::uuid AND provider = $2 AND is_active = true",
+                user_id, row["provider"],
+            )
+        return {
+            "provider": row["provider"],
+            "model": row["model"],
+            "temperature": float(row["temperature"]),
+            "max_tokens": row["max_tokens"],
+            "system_prompt": row["system_prompt"],
+            "tools": row["tools"] or [],
+            "user_api_key": key_row["api_key_encrypted"] if key_row else None,
+        }
+    except Exception as exc:
+        logger.debug("Could not load user agent config for %s/%s: %s", user_id, agent_type, exc)
+        return {}
+
 async def run_step(run_id: UUID, step_name: str, step_type: str,
                    input_data: dict, config: dict, retry_max: int = 3,
-                   ctx: ExecutionContext = None, step_order: int = 0) -> dict:
+                   ctx: ExecutionContext = None, step_order: int = 0,
+                   user_id: str = None) -> dict:
     """Execute a single step with retry logic and checkpointing."""
     pool = await get_db_pool()
     step_id = uuid4()
+
+    # Merge user's saved agent config on top of workflow-level config
+    user_cfg = await _load_user_agent_config(user_id, step_type)
+    merged_config = {**config, **user_cfg}
 
     # Record step start
     async with pool.acquire() as conn:
@@ -48,7 +89,7 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
 
             # Get agent and execute
             agent = get_agent(step_type)
-            result = await agent.run(input_data, config)
+            result = await agent.run(input_data, merged_config)
 
             duration_ms = int((time.monotonic() - start) * 1000)
 

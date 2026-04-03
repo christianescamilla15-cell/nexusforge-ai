@@ -6,14 +6,6 @@ import StatusBadge from '../../shared/components/StatusBadge'
 import EmptyState from '../../shared/components/EmptyState'
 import WorkflowCreateModal from './WorkflowCreateModal'
 
-const DEMO_WORKFLOWS = [
-  { id: 'wf-1', name: 'Análisis de Documentos', status: 'active', version: 'v1.3', created: '2026-03-20', steps: 4 },
-  { id: 'wf-2', name: 'Clasificación de Datos', status: 'active', version: 'v2.1', created: '2026-03-18', steps: 6 },
-  { id: 'wf-3', name: 'Resumen Ejecutivo', status: 'draft', version: 'v1.0', created: '2026-03-22', steps: 2 },
-  { id: 'wf-4', name: 'Extracción de Entidades', status: 'paused', version: 'v1.1', created: '2026-03-15', steps: 3 },
-  { id: 'wf-5', name: 'Pipeline RAG', status: 'active', version: 'v3.0', created: '2026-03-10', steps: 5 },
-  { id: 'wf-6', name: 'Traducción Masiva', status: 'archived', version: 'v1.2', created: '2026-02-28', steps: 3 },
-]
 
 export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lang = 'en' }) {
   const [filter, setFilter] = useState('all')
@@ -53,7 +45,6 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
 
   const handleDelete = async (wf) => {
     if (!confirm(lang === 'es' ? `¿Eliminar "${wf.name}"?` : `Delete "${wf.name}"?`)) return
-    if (wf.id?.startsWith('wf-')) return // can't delete demos
     await fetchAPI(`/workflows/${wf.id}`, { method: 'DELETE' })
     setApiWorkflows(prev => prev.filter(w => w.id !== wf.id))
     setMenuOpen(null)
@@ -61,13 +52,11 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
 
   const handleRename = async (wf) => {
     if (!renameValue.trim()) return
-    if (!wf.id?.startsWith('wf-')) {
-      await fetchAPI(`/workflows/${wf.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name: renameValue }),
-      })
-      setApiWorkflows(prev => prev.map(w => w.id === wf.id ? { ...w, name: renameValue } : w))
-    }
+    await fetchAPI(`/workflows/${wf.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name: renameValue }),
+    })
+    setApiWorkflows(prev => prev.map(w => w.id === wf.id ? { ...w, name: renameValue } : w))
     setRenaming(null)
     setMenuOpen(null)
   }
@@ -144,10 +133,10 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
     )},
   ]
 
-  // Merge API workflows (real) + demo workflows (fallback)
-  let realWorkflows = []
+  // Map API workflows to table shape
+  let workflows = []
   try {
-    realWorkflows = (apiWorkflows || []).map(w => ({
+    workflows = (apiWorkflows || []).map(w => ({
       id: w?.id || Math.random().toString(),
       name: w?.name || 'Unnamed',
       status: w?.status || 'active',
@@ -155,8 +144,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
       steps: w?.dag_definition?.steps?.length || w?.steps_count || 0,
       created: w?.created_at?.slice(0, 10) || 'now',
     }))
-  } catch { realWorkflows = [] }
-  const workflows = [...realWorkflows, ...DEMO_WORKFLOWS]
+  } catch { workflows = [] }
   const filtered = filter === 'all' ? workflows : workflows.filter((w) => w.status === filter)
 
   return (

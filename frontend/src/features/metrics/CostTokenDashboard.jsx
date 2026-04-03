@@ -66,7 +66,7 @@ function tl(key, lang) {
   return T[lang]?.[key] || T.en[key] || key
 }
 
-export default function CostTokenDashboard({ lang = 'en' }) {
+export default function CostTokenDashboard({ lang = 'en', embedded = false }) {
   const [runs, setRuns] = useState([])
   const [agents, setAgents] = useState([])
   const [isDemo, setIsDemo] = useState(false)
@@ -158,25 +158,17 @@ export default function CostTokenDashboard({ lang = 'en' }) {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
+      {/* Header — hidden when embedded */}
+      {!embedded && <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: 0 }}>
             {tl('title', lang)}
           </h1>
-          {isDemo && (
-            <span style={{
-              padding: '4px 12px', borderRadius: 20, background: '#FFFBEB',
-              color: '#92400E', fontSize: 11, fontWeight: 600, border: '1px solid #FDE68A',
-            }}>
-              {tl('demoMode', lang)}
-            </span>
-          )}
         </div>
         <p style={{ fontSize: 14, color: '#6B7280', margin: '4px 0 0' }}>
           {tl('subtitle', lang)}
         </p>
-      </div>
+      </div>}
 
       {/* Error banner for Real mode failures */}
       {error && (
