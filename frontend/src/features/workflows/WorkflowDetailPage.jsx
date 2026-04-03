@@ -169,7 +169,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, lang = 
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24,
-        flexWrap: isMobile ? 'wrap' : 'nowrap',
+        flexWrap: 'wrap',
       }}>
         <button
           onClick={onBack}
