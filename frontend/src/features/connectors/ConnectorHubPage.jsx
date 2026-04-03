@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 
 const CONNECTOR_ICONS = {
-  gmail: '📧', slack: '💬', notion: '📝', drive: '📁', rest: '🔗', postgres: '🗄️',
+  gmail: '📧', slack: '💬', notion: '📝', drive: '📁', rest: '🌐', postgres: '🐘',
 }
 
 export default function ConnectorHubPage({ lang = 'en' }) {
@@ -101,7 +101,7 @@ export default function ConnectorHubPage({ lang = 'en' }) {
             gap: 12, marginBottom: 32,
           }}>
             {types.map(type => (
-              <div key={type.connector_type || type.id} style={{
+              <div key={type.connector_type || type.type || type.id} style={{
                 padding: 16, borderRadius: 12, border: '1px solid #E5E7EB',
                 background: '#fff', cursor: 'pointer', transition: 'all 0.15s',
               }}
@@ -109,10 +109,10 @@ export default function ConnectorHubPage({ lang = 'en' }) {
                 onMouseLeave={e => e.currentTarget.style.borderColor = '#E5E7EB'}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontSize: 24 }}>{CONNECTOR_ICONS[type.connector_type || type.id] || '🔌'}</span>
+                  <span style={{ fontSize: 24 }}>{type.icon || CONNECTOR_ICONS[type.connector_type || type.type || type.id] || '🔌'}</span>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{type.name}</div>
-                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>{type.connector_type || type.id}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>{type.connector_type || type.type || type.id}</div>
                   </div>
                 </div>
                 <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 12, minHeight: 32 }}>
@@ -251,9 +251,31 @@ export default function ConnectorHubPage({ lang = 'en' }) {
                       fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box',
                     }}
                   />
+                ) : field.type === 'select' ? (
+                  <select
+                    value={configValues[field.key] || ''}
+                    onChange={e => setConfigValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
+                      fontSize: 13, outline: 'none', boxSizing: 'border-box', background: '#fff',
+                    }}
+                  >
+                    <option value="">{lang === 'es' ? 'Seleccionar...' : 'Select...'}</option>
+                    {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                ) : field.type === 'boolean' ? (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={configValues[field.key] === true || configValues[field.key] === 'true'}
+                      onChange={e => setConfigValues(prev => ({ ...prev, [field.key]: e.target.checked }))}
+                      style={{ accentColor: '#6366F1' }}
+                    />
+                    <span style={{ fontSize: 13, color: '#374151' }}>{field.placeholder || 'Enable'}</span>
+                  </label>
                 ) : (
                   <input
-                    type={field.type === 'password' ? 'password' : 'text'}
+                    type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'}
                     value={configValues[field.key] || ''}
                     onChange={e => setConfigValues(prev => ({ ...prev, [field.key]: e.target.value }))}
                     placeholder={field.placeholder || ''}

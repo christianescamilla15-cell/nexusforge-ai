@@ -162,8 +162,12 @@ export default function TemplatesLibrary({ lang = 'en', onDeployed, isMobile = f
       body: JSON.stringify({ name_override: nameOverride }),
     })
     setDeploying(false)
+    if (res.error) {
+      alert(lang === 'es' ? `Error al desplegar: ${res.error}` : `Deploy failed: ${res.error}`)
+      return
+    }
     setDeployTarget(null)
-    if (!res.error && res.data?.automation_id) {
+    if (res.data?.automation_id) {
       if (onDeployed) onDeployed(res.data)
     }
   }

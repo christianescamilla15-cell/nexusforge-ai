@@ -44,7 +44,7 @@ def _check_condition(field_value, operator: str, expected_value) -> bool:
         return False
     try:
         return op_fn(field_value, expected_value)
-    except (ValueError, TypeError) as exc:
+    except (ValueError, TypeError, re.error) as exc:
         logger.debug("Condition eval error (%s): %s", operator, exc)
         return False
 
