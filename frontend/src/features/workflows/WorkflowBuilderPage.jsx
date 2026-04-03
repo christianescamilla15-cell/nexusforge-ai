@@ -644,6 +644,8 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     { divider: true },
     { icon: '⚡', label: lang === 'es' ? 'Auto-conectar secuencial' : 'Auto-connect sequential', action: handleAutoConnect },
     { icon: '🎨', label: lang === 'es' ? 'Auto-layout (grid)' : 'Auto-layout (grid)', action: handleAutoLayout },
+    { divider: true },
+    { icon: '🔌', label: lang === 'es' ? 'Configurar integraciones' : 'Configure integrations', action: () => { if (onNavigate) onNavigate('integrations'); setShowBuilderMenu(false) } },
   ]
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -938,6 +940,18 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
         <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'monospace' }}>
           {nodes.length} {lang === 'es' ? 'pasos' : 'steps'} · {edges.length} {lang === 'es' ? 'conexiones' : 'edges'}
         </span>
+        <button
+          onClick={() => onNavigate && onNavigate('integrations')}
+          style={{
+            padding: '8px 14px', borderRadius: 7, border: '1px solid #0891B2',
+            background: '#ECFEFF', color: '#0891B2',
+            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>🔌</span>
+          {lang === 'es' ? 'Integraciones' : 'Integrations'}
+        </button>
         <button
           onClick={handleSave}
           disabled={saving}
