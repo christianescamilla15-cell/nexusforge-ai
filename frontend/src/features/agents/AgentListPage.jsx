@@ -203,6 +203,21 @@ export default function AgentListPage({ lang = 'en' }) {
   const [memoryStats, setMemoryStats] = useState({})
   const [memoryLoading, setMemoryLoading] = useState(false)
 
+  // Load all memory stats at once when Memory tab is opened
+  const loadAllMemoryStats = async () => {
+    setMemoryLoading(true)
+    try {
+      const { fetchAPI } = await import('../../services/api.js')
+      const res = await fetchAPI('/memory/stats')
+      if (!res.error && Array.isArray(res.data)) {
+        const map = {}
+        res.data.forEach(s => { map[s.agent_type] = s })
+        setMemoryStats(map)
+      }
+    } catch {}
+    setMemoryLoading(false)
+  }
+
   const loadMemoryStats = async (agentType) => {
     setMemoryLoading(true)
     try {
@@ -236,7 +251,7 @@ export default function AgentListPage({ lang = 'en' }) {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => { setActiveTab(tab.key); if (tab.key === 'memory') loadAllMemoryStats() }}
             style={{
               padding: '10px 20px', border: 'none', cursor: 'pointer',
               fontSize: 14, fontWeight: 600, background: 'none',
@@ -279,8 +294,7 @@ export default function AgentListPage({ lang = 'en' }) {
               return (
                 <div
                   key={agent.id}
-                  onClick={() => loadMemoryStats(agent.type)}
-                  style={{
+                  onClick={() => loadMemoryStats(agent.type)}                  style={{
                     padding: 16, borderRadius: 10, border: '1px solid #E5E7EB',
                     background: stats ? '#F0FDF4' : '#fff', cursor: 'pointer',
                     transition: 'all 0.15s',
@@ -309,7 +323,9 @@ export default function AgentListPage({ lang = 'en' }) {
                     </div>
                   ) : (
                     <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
-                      {lang === 'es' ? 'Click para cargar memoria' : 'Click to load memory'}
+                      {memoryLoading
+                        ? (lang === 'es' ? 'Cargando...' : 'Loading...')
+                        : (lang === 'es' ? 'Click para cargar memoria' : 'Click to refresh')}
                     </p>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { t } from '../../shared/i18n/translations'
+import { fetchAPI } from '../../services/api'
 
 const ERROR_TYPES = [
   { key: 'network', label: 'networkError', error: 'TimeoutError: Groq API did not respond within 15s', severity: 'medium', recoverable: true, strategy: 'retry' },
@@ -83,6 +84,14 @@ const INITIAL_HISTORY = [
 export default function HealingPage({ lang = 'en', embedded = false }) {
   const [selectedError, setSelectedError] = useState(ERROR_TYPES[0].key)
   const [simPhase, setSimPhase] = useState(null) // null, 'error', 'detect', 'strategy', 'execute', 'resolve'
+
+  // Real backend stats
+  const [realStats, setRealStats] = useState(null)
+  useEffect(() => {
+    fetchAPI('/healing/stats').then(res => {
+      if (!res.error && res.data) setRealStats(res.data)
+    })
+  }, [])
   const [execStep, setExecStep] = useState(0)
   const [history, setHistory] = useState(INITIAL_HISTORY)
   const [showStrategies, setShowStrategies] = useState(false)
@@ -188,6 +197,57 @@ export default function HealingPage({ lang = 'en', embedded = false }) {
           }
         </p>
       </div>}
+
+      {/* Real backend stats banner */}
+      {realStats && (
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: 12, marginBottom: 20,
+        }}>
+          {[
+            { label: lang === 'es' ? 'Fallos totales' : 'Total failures', value: realStats.total_failures, color: '#EF4444', bg: 'rgba(239,68,68,0.08)' },
+            { label: lang === 'es' ? 'Reparados' : 'Healed', value: realStats.total_healed, color: '#10B981', bg: 'rgba(16,185,129,0.08)' },
+            { label: lang === 'es' ? 'Tasa de curación' : 'Heal rate', value: `${realStats.heal_rate}%`, color: '#6366F1', bg: 'rgba(99,102,241,0.08)' },
+            { label: lang === 'es' ? 'Dead letters' : 'Dead letters', value: realStats.dead_letters, color: '#F59E0B', bg: 'rgba(245,158,11,0.08)' },
+          ].map(s => (
+            <div key={s.label} style={{
+              padding: '14px 16px', borderRadius: 10, background: s.bg,
+              border: `1px solid ${s.color}33`,
+            }}>
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recent real failures */}
+      {realStats?.recent_failures?.length > 0 && (
+        <div style={{
+          background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+          padding: 16, marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 10 }}>
+            {lang === 'es' ? 'Fallos recientes (real)' : 'Recent failures (live)'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {realStats.recent_failures.slice(0, 5).map((f, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 10, fontSize: 12,
+                padding: '6px 10px', borderRadius: 8, background: '#FEF2F2',
+              }}>
+                <span style={{ color: '#EF4444', fontWeight: 600, minWidth: 80 }}>{f.agent_type}</span>
+                <span style={{ color: '#6B7280', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {f.step_name} — {f.error_message || 'unknown error'}
+                </span>
+                {f.retry_count > 0 && (
+                  <span style={{ color: '#9CA3AF', whiteSpace: 'nowrap' }}>×{f.retry_count}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
         {/* Main simulator area */}
