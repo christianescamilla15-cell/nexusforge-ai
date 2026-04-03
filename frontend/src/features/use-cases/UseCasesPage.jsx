@@ -53,6 +53,19 @@ const USE_CASES = [
     },
     tags: { en: ['Sandbox', 'Custom', 'Testing'], es: ['Sandbox', 'Personalizado', 'Pruebas'] },
   },
+  {
+    key: 'swarms',
+    icon: '🐝',
+    color: '#EC4899',
+    bg: 'rgba(236,72,153,0.08)',
+    agents: 24,
+    name: { en: 'Swarm Execution', es: 'Ejecución en Enjambre' },
+    desc: {
+      en: '6 topologies: Sequential, Parallel, Hierarchical, Debate, Consensus, Adaptive. Orchestrate multiple agents with different execution patterns.',
+      es: '6 topologías: Secuencial, Paralelo, Jerárquico, Debate, Consenso, Adaptativo. Orquesta múltiples agentes con diferentes patrones de ejecución.',
+    },
+    tags: { en: ['Sequential', 'Parallel', 'Debate', 'Consensus'], es: ['Secuencial', 'Paralelo', 'Debate', 'Consenso'] },
+  },
 ]
 
 export default function UseCasesPage({ lang = 'en', onOpenCase }) {

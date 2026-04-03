@@ -90,7 +90,8 @@ async def execute_swarm(req: SwarmExecuteRequest):
 
     # Track in workflow_runs for Executions page
     try:
-        tracker_id = await start_run(f"Swarm ({req.topology})", metadata={"topology": req.topology, "task": req.task[:100]})
+        task_str = str(req.input_data.get("task", ""))[:100] if req.input_data else ""
+        tracker_id = await start_run(f"Swarm ({req.topology})", metadata={"topology": req.topology, "task": task_str})
         agents = result.agents_used or []
         for agent in agents:
             await record_step(tracker_id, agent, agent.lower().replace("agent", ""), tokens_used=result.total_tokens // max(len(agents), 1), cost_usd=result.total_cost / max(len(agents), 1), duration_ms=result.duration_ms // max(len(agents), 1))
