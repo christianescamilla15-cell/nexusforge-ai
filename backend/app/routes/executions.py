@@ -104,10 +104,14 @@ async def list_executions(
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(
-                f"""SELECT id, workflow_id, status, trigger_type, started_at, completed_at,
-                           error_message, total_tokens, total_cost_usd, metadata, created_at
-                    FROM workflow_runs {where}
-                    ORDER BY created_at DESC
+                f"""SELECT wr.id, wr.workflow_id, wr.status, wr.trigger_type,
+                           wr.started_at, wr.completed_at, wr.error_message,
+                           wr.total_tokens, wr.total_cost_usd, wr.metadata, wr.created_at,
+                           w.name AS workflow_name
+                    FROM workflow_runs wr
+                    LEFT JOIN workflows w ON w.id = wr.workflow_id
+                    {where.replace('workflow_id', 'wr.workflow_id').replace('status', 'wr.status') if where else ''}
+                    ORDER BY wr.created_at DESC
                     OFFSET ${idx} LIMIT ${idx + 1}""",
                 *params,
             )
@@ -117,7 +121,7 @@ async def list_executions(
             meta = r["metadata"]
             if isinstance(meta, str):
                 meta = json.loads(meta)
-            results.append(ExecutionResponse(
+            resp = ExecutionResponse(
                 id=r["id"],
                 workflow_id=r["workflow_id"],
                 status=r["status"],
@@ -130,7 +134,9 @@ async def list_executions(
                 metadata=meta or {},
                 created_at=r["created_at"],
                 steps=[],
-            ))
+            )
+            resp.workflow_name = r.get("workflow_name") or "Workflow"
+            results.append(resp)
         return results
     except Exception as exc:
         logger.exception("Failed to list executions")
@@ -144,9 +150,13 @@ async def get_execution(run_id: UUID):
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                """SELECT id, workflow_id, status, trigger_type, started_at, completed_at,
-                          error_message, total_tokens, total_cost_usd, metadata, created_at
-                   FROM workflow_runs WHERE id = $1""",
+                """SELECT wr.id, wr.workflow_id, wr.status, wr.trigger_type,
+                          wr.started_at, wr.completed_at, wr.error_message,
+                          wr.total_tokens, wr.total_cost_usd, wr.metadata, wr.created_at,
+                          w.name AS workflow_name
+                   FROM workflow_runs wr
+                   LEFT JOIN workflows w ON w.id = wr.workflow_id
+                   WHERE wr.id = $1""",
                 run_id,
             )
             if not row:
@@ -193,6 +203,7 @@ async def get_execution(run_id: UUID):
         return ExecutionResponse(
             id=row["id"],
             workflow_id=row["workflow_id"],
+            workflow_name=row.get("workflow_name") or "Workflow",
             status=row["status"],
             trigger_type=row["trigger_type"],
             started_at=row["started_at"],

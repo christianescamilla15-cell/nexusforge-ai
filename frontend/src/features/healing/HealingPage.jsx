@@ -80,7 +80,7 @@ const INITIAL_HISTORY = [
   { time: '14:21:33', errorType: 'auth', strategy: 'escalate', result: 'escalated', duration: 1.5 },
 ]
 
-export default function HealingPage({ lang = 'en' }) {
+export default function HealingPage({ lang = 'en', embedded = false }) {
   const [selectedError, setSelectedError] = useState(ERROR_TYPES[0].key)
   const [simPhase, setSimPhase] = useState(null) // null, 'error', 'detect', 'strategy', 'execute', 'resolve'
   const [execStep, setExecStep] = useState(0)
@@ -177,7 +177,7 @@ export default function HealingPage({ lang = 'en' }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
+      {!embedded && <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
           {t('selfHealing', lang)}
         </h1>
@@ -187,7 +187,7 @@ export default function HealingPage({ lang = 'en' }) {
             : 'Simulate failures and watch the self-healing system detect, classify, and resolve errors automatically.'
           }
         </p>
-      </div>
+      </div>}
 
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
         {/* Main simulator area */}

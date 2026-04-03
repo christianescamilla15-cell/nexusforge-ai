@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
 import AgentCard from './AgentCard'
 import AgentDetailPanel from './AgentDetailPanel'
+import HealingPage from '../healing/HealingPage'
 
 const DEMO_AGENTS = [
   {
@@ -198,7 +199,7 @@ export default function AgentListPage({ lang = 'en' }) {
     })
   }, [])
 
-  const [activeTab, setActiveTab] = useState('agents') // 'agents' | 'memory'
+  const [activeTab, setActiveTab] = useState('agents') // 'agents' | 'memory' | 'healing'
   const [memoryStats, setMemoryStats] = useState({})
   const [memoryLoading, setMemoryLoading] = useState(false)
 
@@ -231,6 +232,7 @@ export default function AgentListPage({ lang = 'en' }) {
         {[
           { key: 'agents', label: lang === 'es' ? 'Agentes' : 'Agents', icon: '🤖' },
           { key: 'memory', label: lang === 'es' ? 'Memoria' : 'Memory', icon: '🧠' },
+          { key: 'healing', label: lang === 'es' ? 'Auto-Reparación' : 'Self-Healing', icon: '🛡️' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -336,6 +338,9 @@ export default function AgentListPage({ lang = 'en' }) {
       {activeTab === 'agents' && selected && (
         <AgentDetailPanel agent={selected} onClose={() => setSelected(null)} />
       )}
+
+      {/* Healing Tab */}
+      {activeTab === 'healing' && <HealingPage lang={lang} embedded />}
     </div>
   )
 }

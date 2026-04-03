@@ -3,6 +3,8 @@ export const translations = {
     // Navigation
     dashboard: 'Dashboard',
     analyze: 'AI Analyze',
+    wizard: 'AI Wizard',
+    integrations: 'Integrations',
     workflows: 'Workflows',
     executions: 'Executions',
     agents: 'Agents',
@@ -12,6 +14,7 @@ export const translations = {
     chat: 'AI Assistant',
     'enterprise-ops': 'Enterprise Ops',
     playground: 'Playground',
+    'use-cases': 'Use Cases',
     'cost-metrics': 'Cost Metrics',
     timeline: 'Timeline',
 
@@ -285,6 +288,8 @@ export const translations = {
     // Navigation
     dashboard: 'Panel Principal',
     analyze: 'IA Analizar',
+    wizard: 'AI Wizard',
+    integrations: 'Integraciones',
     workflows: 'Flujos de Trabajo',
     executions: 'Ejecuciones',
     agents: 'Agentes',
@@ -294,7 +299,8 @@ export const translations = {
     chat: 'Asistente IA',
     'enterprise-ops': 'Ops Empresariales',
     playground: 'Playground',
-    'cost-metrics': 'Metricas de Costos',
+    'use-cases': 'Casos de Uso',
+    'cost-metrics': 'Métricas de Costos',
     timeline: 'Timeline',
 
     evaluations: 'Evaluaciones',

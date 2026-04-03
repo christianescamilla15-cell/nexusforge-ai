@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Modal from '../../shared/components/Modal'
-import { api } from '../../api/client'
+import { fetchAPI } from '../../services/api'
 
 const TEMPLATES = [
   {
@@ -97,24 +97,41 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
 
     setSaving(true)
     setError(null)
-    // Demo mode: save locally (no backend needed)
-    setTimeout(() => {
+
+    const dagParsed = JSON.parse(dagJson)
+    const payload = {
+      name: name.trim(),
+      description: description.trim(),
+      dag_definition: dagParsed,
+      status: 'active',
+    }
+
+    try {
+      const res = await fetchAPI('/workflows', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+
       const newWorkflow = {
-        id: 'wf-' + Date.now(),
-        name: name.trim(),
-        description: description.trim(),
-        dag_definition: JSON.parse(dagJson),
+        id: res.data?.id || 'wf-' + Date.now(),
+        name: payload.name,
+        description: payload.description,
+        dag_definition: dagParsed,
         status: 'active',
-        version: 1,
-        created_at: new Date().toISOString(),
+        version: res.data?.version || 1,
+        created_at: res.data?.created_at || new Date().toISOString(),
       }
+
       setName('')
       setDescription('')
       setDagJson(JSON.stringify(TEMPLATES[0].dag, null, 2))
       setValidationMsg(null)
       setSaving(false)
       onCreated(newWorkflow)
-    }, 800)
+    } catch (err) {
+      setError(err.message || 'Error al guardar')
+      setSaving(false)
+    }
   }
 
   return (

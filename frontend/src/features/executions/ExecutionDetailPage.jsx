@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { api } from '../../api/client'
+import { fetchAPI } from '../../services/api'
 import { t } from '../../shared/i18n/translations'
-import { connectExecutionWS } from '../../api/websocket'
 import StatusBadge from '../../shared/components/StatusBadge'
 import StepTimeline from './StepTimeline'
 import LiveLog from './LiveLog'
@@ -66,30 +65,45 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
     let cancelled = false
     async function load() {
       try {
-        const res = await api.get(`/runs/${runId}`)
+        const res = await fetchAPI(`/executions/${runId}`)
         if (!cancelled) {
           if (res.error) throw new Error(res.error)
-          // Map /api/runs/:id shape to what the UI expects
-          const data = res.data || res
+          const data = res.data || {}
           const mapped = {
-            run_id: data.id || runId,
-            workflow_name: data.workflow_name || 'Unknown Workflow',
+            run_id: data.id || data.run_id || runId,
+            workflow_name: data.workflow_name || 'Workflow',
             status: data.status || 'completed',
-            started_at: data.started_at,
-            finished_at: data.finished_at,
-            total_cost: data.total_cost || data.cost || 0,
+            started_at: data.started_at || data.created_at,
+            finished_at: data.finished_at || data.completed_at,
+            total_cost: data.total_cost_usd || data.total_cost || data.cost || 0,
             total_tokens: data.total_tokens || data.tokens || 0,
-            duration_ms: data.total_latency_ms || data.latency_ms || null,
-            // Build step list from agents_used if no detailed steps available
+            duration_ms: data.total_latency_ms || data.latency_ms
+              || (data.completed_at && data.started_at ? new Date(data.completed_at) - new Date(data.started_at) : null),
             steps: Array.isArray(data.steps) && data.steps.length > 0 && typeof data.steps[0] === 'object'
-              ? data.steps
-              : (data.agents_used || []).map((agent, i) => ({
+              ? data.steps.map(s => ({
+                  name: s.step_name || s.name || 'Step',
+                  agent_type: s.agent_type || s.step_type || 'agent',
+                  status: s.status || 'completed',
+                  duration_ms: s.duration_ms || 0,
+                  tokens: s.tokens_used || s.tokens || 0,
+                  tokens_in: s.tokens_in || null,
+                  tokens_out: s.tokens_out || null,
+                  cost: s.cost_usd != null ? s.cost_usd : (s.cost || 0),
+                  model: s.model || null,
+                  provider: s.provider || null,
+                  retries: s.retry_count || s.retries || 0,
+                  fallback_used: s.fallback_used || false,
+                  input: s.input_data || s.input || null,
+                  output: s.output_data || s.output || null,
+                  error: s.error_message || s.error || null,
+                }))
+              : (data.agents_used || []).map((agent) => ({
                   name: agent,
                   agent_type: agent.toLowerCase().replace('agent', ''),
-                  status: 'completed',
+                  status: data.status === 'failed' ? 'failed' : 'completed',
                   duration_ms: Math.round((data.total_latency_ms || 1000) / (data.agents_used?.length || 1)),
                   tokens: Math.round((data.total_tokens || 0) / (data.agents_used?.length || 1)),
-                  cost: (data.total_cost || 0) / (data.agents_used?.length || 1),
+                  cost: (data.total_cost_usd || data.total_cost || 0) / (data.agents_used?.length || 1),
                   provider: 'groq',
                   model: 'llama-3.3-70b-versatile',
                   retries: 0,
@@ -97,6 +111,64 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
                 })),
           }
           setExecution(mapped)
+
+          // Generate events for the LiveLog
+          const generatedEvents = []
+          const baseTime = mapped.started_at ? new Date(mapped.started_at) : new Date()
+
+          // Always add a run_started event
+          generatedEvents.push({
+            timestamp: baseTime.toISOString(),
+            event_type: 'info',
+            step_name: '',
+            detail: `Run ${mapped.run_id.slice(0, 8)}… iniciado — workflow: ${mapped.workflow_name}`,
+          })
+
+          if (mapped.steps.length > 0) {
+            let timeOffset = 0
+            mapped.steps.forEach((step) => {
+              generatedEvents.push({
+                timestamp: new Date(baseTime.getTime() + timeOffset).toISOString(),
+                event_type: 'step_started',
+                step_name: step.name,
+                detail: `Ejecutando ${step.agent_type || 'agente'}${step.model ? ` (${step.model})` : ''}`,
+              })
+              timeOffset += step.duration_ms || 1000
+              generatedEvents.push({
+                timestamp: new Date(baseTime.getTime() + timeOffset).toISOString(),
+                event_type: step.status === 'failed' ? 'step_failed' : 'step_completed',
+                step_name: step.name,
+                detail: step.status === 'failed'
+                  ? (step.error || 'Error en ejecución')
+                  : `${step.tokens?.toLocaleString() || 0} tokens, ${step.duration_ms || 0}ms`,
+              })
+            })
+          } else {
+            // No steps — check if stuck
+            const elapsedMin = (Date.now() - baseTime.getTime()) / 60000
+            if (mapped.status === 'pending' || mapped.status === 'running') {
+              generatedEvents.push({
+                timestamp: new Date().toISOString(),
+                event_type: 'warning',
+                step_name: '',
+                detail: elapsedMin > 5
+                  ? `Ejecución en espera hace ${Math.floor(elapsedMin)} min — el backend puede estar procesando o el run se colgó`
+                  : 'Esperando que el backend inicie la ejecución del DAG…',
+              })
+            }
+            if (mapped.status === 'completed' || mapped.status === 'failed') {
+              generatedEvents.push({
+                timestamp: mapped.finished_at || new Date().toISOString(),
+                event_type: mapped.status === 'completed' ? 'step_completed' : 'step_failed',
+                step_name: '',
+                detail: mapped.status === 'completed'
+                  ? `Completado — costo: $${mapped.total_cost?.toFixed(3) || '0'}, tokens: ${mapped.total_tokens || 0}`
+                  : (data.error_message || 'Ejecución falló'),
+              })
+            }
+          }
+
+          setEvents(generatedEvents)
         }
       } catch {
         if (!cancelled) {
@@ -111,26 +183,20 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
     return () => { cancelled = true }
   }, [runId])
 
-  // WebSocket for live updates
+  // Poll for live updates when execution is still running
   useEffect(() => {
     if (!execution || execution.status === 'completed' || execution.status === 'failed') return
-    try {
-      wsRef.current = connectExecutionWS(runId, (msg) => {
-        if (msg.type === 'step_update' && msg.step) {
-          setExecution((prev) => {
-            if (!prev) return prev
-            const steps = prev.steps.map((s) =>
-              s.name === msg.step.name ? { ...s, ...msg.step } : s
-            )
-            return { ...prev, steps, status: msg.run_status || prev.status }
-          })
+    const interval = setInterval(async () => {
+      const res = await fetchAPI(`/executions/${runId}`)
+      if (!res.error && res.data) {
+        const data = res.data
+        if (data.status === 'completed' || data.status === 'failed') {
+          setExecution(prev => prev ? { ...prev, status: data.status, finished_at: data.completed_at } : prev)
+          clearInterval(interval)
         }
-        if (msg.type === 'event' || msg.event_type) {
-          setEvents((prev) => [...prev, msg])
-        }
-      })
-    } catch { /* WS unavailable */ }
-    return () => { wsRef.current?.close() }
+      }
+    }, 3000)
+    return () => clearInterval(interval)
   }, [execution?.status, runId])
 
   // Running timer
@@ -234,7 +300,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
         <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
           {t('eventLog', lang)}
         </h2>
-        <LiveLog events={events} />
+        <LiveLog events={events} lang={lang} />
       </div>
 
       {/* Summary if finished */}

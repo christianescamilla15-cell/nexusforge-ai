@@ -25,8 +25,11 @@ class StepExecutionResponse(BaseModel):
     completed_at: Optional[datetime]
 
 class ExecutionResponse(BaseModel):
+    model_config = {"extra": "allow"}
+
     id: UUID
     workflow_id: UUID
+    workflow_name: Optional[str] = "Workflow"
     status: str
     trigger_type: str
     started_at: Optional[datetime]

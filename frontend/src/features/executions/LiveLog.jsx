@@ -16,7 +16,7 @@ function formatTime(iso) {
   return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-export default function LiveLog({ events }) {
+export default function LiveLog({ events, lang = 'es' }) {
   const containerRef = useRef(null)
   const [autoScroll, setAutoScroll] = useState(true)
 
@@ -35,7 +35,7 @@ export default function LiveLog({ events }) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '10px 16px', borderBottom: '1px solid #E5E7EB',
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Eventos en Vivo</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{lang === 'es' ? 'Eventos en Vivo' : 'Live Events'}</span>
         <button
           onClick={() => setAutoScroll((a) => !a)}
           aria-label={autoScroll ? 'Pausar auto-scroll' : 'Activar auto-scroll'}
@@ -56,7 +56,7 @@ export default function LiveLog({ events }) {
       >
         {events.length === 0 && (
           <div style={{ padding: '20px 16px', color: '#9CA3AF', fontSize: 13, textAlign: 'center' }}>
-            Esperando eventos...
+            {lang === 'es' ? 'Esperando eventos...' : 'Waiting for events...'}
           </div>
         )}
         {events.map((evt, idx) => {

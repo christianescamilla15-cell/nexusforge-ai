@@ -35,19 +35,21 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   }, [])
 
   useEffect(() => {
-    fetchAPI('/runs').then((res) => {
+    fetchAPI('/executions').then((res) => {
       if (res.error) {
         setError(res.error)
       } else {
         // Normalize API shape → UI shape
-        const runs = (res.data?.runs || []).map((r) => ({
-          run_id: r.id,
-          workflow_name: r.workflow_name,
+        const raw = Array.isArray(res.data) ? res.data : (res.data?.runs || [])
+        const runs = raw.map((r) => ({
+          run_id: r.id || r.run_id,
+          workflow_name: r.workflow_name || 'Workflow',
           status: r.status,
-          started_at: r.started_at,
-          duration_ms: r.total_latency_ms || r.latency_ms || null,
-          total_cost: r.total_cost || r.cost || 0,
-          steps_count: r.agents_used?.length || 0,
+          started_at: r.started_at || r.created_at,
+          duration_ms: r.total_latency_ms || r.latency_ms
+            || (r.completed_at && r.started_at ? new Date(r.completed_at) - new Date(r.started_at) : null),
+          total_cost: r.total_cost_usd || r.total_cost || r.cost || 0,
+          steps_count: r.steps_count || r.agents_used?.length || 0,
         }))
         setExecutions(runs)
         setIsDemo(res.isDemo)

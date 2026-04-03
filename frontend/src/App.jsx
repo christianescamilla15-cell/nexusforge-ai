@@ -13,7 +13,6 @@ import ExecutionDetailPage from './features/executions/ExecutionDetailPage'
 import AgentListPage from './features/agents/AgentListPage'
 import MemoryPage from './features/memory/MemoryPage'
 import SwarmListPage from './features/swarms/SwarmListPage'
-import HealingPage from './features/healing/HealingPage'
 import DocumentListPage from './features/documents/DocumentListPage'
 import SettingsPage from './features/settings/SettingsPage'
 import ChatAssistant from './features/chat/ChatAssistant'
@@ -26,6 +25,7 @@ import FeedbackPage from './features/feedback/FeedbackPage'
 import AnalyzePage from './features/analyze/AnalyzePage'
 import IntegrationManagerPage from './features/integrations/IntegrationManagerPage'
 import WizardPage from './features/wizard/WizardPage'
+import UseCasesPage from './features/use-cases/UseCasesPage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -152,8 +152,8 @@ export default function App() {
         return <MemoryPage lang={lang} />
       case 'swarms':
         return <SwarmListPage lang={lang} />
-      case 'healing':
-        return <HealingPage lang={lang} />
+      case 'use-cases':
+        return <UseCasesPage lang={lang} onOpenCase={(key) => navigate(key)} />
       case 'documents':
         return <DocumentListPage lang={lang} />
       case 'enterprise-ops':
