@@ -198,6 +198,22 @@ export default function AgentListPage({ lang = 'en' }) {
     })
   }, [])
 
+  const [activeTab, setActiveTab] = useState('agents') // 'agents' | 'memory'
+  const [memoryStats, setMemoryStats] = useState({})
+  const [memoryLoading, setMemoryLoading] = useState(false)
+
+  const loadMemoryStats = async (agentType) => {
+    setMemoryLoading(true)
+    try {
+      const { fetchAPI } = await import('../../services/api.js')
+      const res = await fetchAPI(`/memory/stats/${agentType}`)
+      if (!res.error && res.data) {
+        setMemoryStats(prev => ({ ...prev, [agentType]: res.data }))
+      }
+    } catch {}
+    setMemoryLoading(false)
+  }
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div style={{ marginBottom: 20 }}>
@@ -210,7 +226,99 @@ export default function AgentListPage({ lang = 'en' }) {
         </p>
       </div>
 
-      <div data-tour="agent-grid" style={{
+      {/* Tabs: Agents | Memory */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #E5E7EB' }}>
+        {[
+          { key: 'agents', label: lang === 'es' ? 'Agentes' : 'Agents', icon: '🤖' },
+          { key: 'memory', label: lang === 'es' ? 'Memoria' : 'Memory', icon: '🧠' },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: '10px 20px', border: 'none', cursor: 'pointer',
+              fontSize: 14, fontWeight: 600, background: 'none',
+              color: activeTab === tab.key ? '#6366F1' : '#9CA3AF',
+              borderBottom: activeTab === tab.key ? '2px solid #6366F1' : '2px solid transparent',
+              marginBottom: -2, display: 'flex', alignItems: 'center', gap: 6,
+              transition: 'all 0.15s',
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Memory Tab */}
+      {activeTab === 'memory' && (
+        <div>
+          <div style={{
+            padding: 24, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+            marginBottom: 20, textAlign: 'center',
+          }}>
+            <span style={{ fontSize: 40 }}>🧠</span>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginTop: 12 }}>
+              {lang === 'es' ? 'Sistema de Memoria por Agente' : 'Per-Agent Memory System'}
+            </h2>
+            <p style={{ fontSize: 14, color: '#9CA3AF', maxWidth: 500, margin: '8px auto 20px' }}>
+              {lang === 'es'
+                ? 'Cada agente tiene 3 niveles de memoria: Trabajo (temporal), Episódica (Redis, 30 días) y Semántica (pgvector, permanente). Selecciona un agente para ver su memoria.'
+                : 'Each agent has 3 memory tiers: Working (temporary), Episodic (Redis, 30 days), and Semantic (pgvector, permanent). Select an agent to view its memory.'}
+            </p>
+          </div>
+
+          <div style={{
+            display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 12,
+          }}>
+            {agents.map(agent => {
+              const stats = memoryStats[agent.type]
+              return (
+                <div
+                  key={agent.id}
+                  onClick={() => loadMemoryStats(agent.type)}
+                  style={{
+                    padding: 16, borderRadius: 10, border: '1px solid #E5E7EB',
+                    background: stats ? '#F0FDF4' : '#fff', cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#6366F1'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#E5E7EB'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{agent.name}</span>
+                      <span style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 8 }}>{agent.type}</span>
+                    </div>
+                    {stats && <span style={{ fontSize: 14 }}>✅</span>}
+                  </div>
+                  {stats ? (
+                    <div style={{ display: 'flex', gap: 12, marginTop: 10, fontSize: 12 }}>
+                      <div style={{ padding: '4px 8px', borderRadius: 6, background: '#EFF6FF', color: '#2563EB' }}>
+                        {lang === 'es' ? 'Trabajo' : 'Working'}: {stats.working_count || 0}
+                      </div>
+                      <div style={{ padding: '4px 8px', borderRadius: 6, background: '#FFF7ED', color: '#C2410C' }}>
+                        {lang === 'es' ? 'Episódica' : 'Episodic'}: {stats.episodic_count || 0}
+                      </div>
+                      <div style={{ padding: '4px 8px', borderRadius: 6, background: '#F0FDF4', color: '#16A34A' }}>
+                        {lang === 'es' ? 'Semántica' : 'Semantic'}: {stats.semantic_count || 0}
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
+                      {lang === 'es' ? 'Click para cargar memoria' : 'Click to load memory'}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Agents Tab */}
+      {activeTab === 'agents' && <div data-tour="agent-grid" style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: 16, marginBottom: 24,
@@ -223,9 +331,9 @@ export default function AgentListPage({ lang = 'en' }) {
             onClick={(a) => setSelected(selected?.id === a.id ? null : a)}
           />
         ))}
-      </div>
+      </div>}
 
-      {selected && (
+      {activeTab === 'agents' && selected && (
         <AgentDetailPanel agent={selected} onClose={() => setSelected(null)} />
       )}
     </div>
