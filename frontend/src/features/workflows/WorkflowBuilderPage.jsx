@@ -516,11 +516,27 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   const [showBuilderMenu, setShowBuilderMenu] = useState(false)
   const fileInputRef = useRef(null)
 
-  const handleDuplicate = () => {
-    setWorkflowName(workflowName + ' (Copy)')
-    setCurrentSavedId(null) // force create new on next save
-    showToast(lang === 'es' ? 'Flujo duplicado — guarda para crear copia' : 'Workflow duplicated — save to create copy')
+  const handleDuplicate = async () => {
     setShowBuilderMenu(false)
+    const newName = workflowName + ' (Copy)'
+    setWorkflowName(newName)
+
+    // Save immediately as new workflow
+    const res = await fetchAPI('/workflows', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: newName,
+        description: lang === 'es' ? `Copia de ${workflowName}` : `Copy of ${workflowName}`,
+        dag_definition: { steps: buildSteps() },
+      }),
+    })
+
+    if (res.data?.id) {
+      setCurrentSavedId(res.data.id)
+      showToast(lang === 'es' ? `Copia guardada: "${newName}"` : `Copy saved: "${newName}"`)
+    } else {
+      showToast(lang === 'es' ? 'Error al duplicar' : 'Failed to duplicate', 'error')
+    }
   }
 
   const handleExportJSON = () => {
