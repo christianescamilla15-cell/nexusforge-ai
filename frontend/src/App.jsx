@@ -128,7 +128,7 @@ export default function App() {
       case 'wizard':
         return <WizardPage lang={lang} onNavigate={navigate} onNavigateToBuilder={navigateToBuilder} />
       case 'workflow-builder':
-        return <WorkflowBuilderPage lang={lang} editWorkflowId={editWorkflowId} />
+        return <WorkflowBuilderPage lang={lang} editWorkflowId={editWorkflowId} onNavigate={navigate} />
       case 'workflows':
         return (
           <WorkflowListPage

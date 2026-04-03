@@ -254,7 +254,7 @@ function stepsToGraph(steps) {
   return { nodes: newNodes, edges: newEdges }
 }
 
-export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null }) {
+export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null, onNavigate }) {
   const [agents, setAgents] = useState([])
   const [nodes, setNodes] = useState([])
   const [edges, setEdges] = useState([]) // [{from: nodeId, to: nodeId}]
@@ -511,10 +511,132 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     a.agent_type.includes(search.toLowerCase()) || (a.name || '').toLowerCase().includes(search.toLowerCase())
   )
 
+  // ── Builder Menu Actions ──────────────────────────────────────────────────
+
+  const [showBuilderMenu, setShowBuilderMenu] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const handleDuplicate = () => {
+    setWorkflowName(workflowName + ' (Copy)')
+    setCurrentSavedId(null) // force create new on next save
+    showToast(lang === 'es' ? 'Flujo duplicado — guarda para crear copia' : 'Workflow duplicated — save to create copy')
+    setShowBuilderMenu(false)
+  }
+
+  const handleExportJSON = () => {
+    const data = {
+      name: workflowName,
+      dag_definition: { steps: buildSteps() },
+      exported_at: new Date().toISOString(),
+      nodes_layout: nodes.map(n => ({ id: n.id, x: n.x, y: n.y })),
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${workflowName.replace(/\s+/g, '_')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast(lang === 'es' ? 'JSON exportado' : 'JSON exported')
+    setShowBuilderMenu(false)
+  }
+
+  const handleImportJSON = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      try {
+        const data = JSON.parse(evt.target.result)
+        if (data.name) setWorkflowName(data.name)
+        const steps = data.dag_definition?.steps || data.steps || []
+        if (steps.length > 0) {
+          const { nodes: n, edges: ed } = stepsToGraph(steps)
+          // Apply saved layout if available
+          if (data.nodes_layout) {
+            n.forEach(node => {
+              const layout = data.nodes_layout.find(l => l.id === node.id)
+              if (layout) { node.x = layout.x; node.y = layout.y }
+            })
+          }
+          setNodes(n)
+          setEdges(ed)
+          nodeCounter.current = steps.length
+          setCurrentSavedId(null)
+          showToast(lang === 'es' ? `Importado: ${steps.length} pasos` : `Imported: ${steps.length} steps`)
+        }
+      } catch {
+        showToast(lang === 'es' ? 'Error al leer JSON' : 'Failed to parse JSON', 'error')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+    setShowBuilderMenu(false)
+  }
+
+  const handleAutoConnect = () => {
+    if (nodes.length < 2) return
+    const newEdges = []
+    for (let i = 0; i < nodes.length - 1; i++) {
+      newEdges.push({ from: nodes[i].id, to: nodes[i + 1].id })
+    }
+    setEdges(newEdges)
+    showToast(lang === 'es' ? `${newEdges.length} conexiones creadas` : `${newEdges.length} connections created`)
+    setShowBuilderMenu(false)
+  }
+
+  const handleAutoLayout = () => {
+    if (nodes.length === 0) return
+    const cols = Math.ceil(Math.sqrt(nodes.length))
+    const newNodes = nodes.map((n, i) => ({
+      ...n,
+      x: 60 + (i % cols) * 220,
+      y: 60 + Math.floor(i / cols) * 120,
+    }))
+    setNodes(newNodes)
+    showToast(lang === 'es' ? 'Nodos reorganizados' : 'Nodes reorganized')
+    setShowBuilderMenu(false)
+  }
+
+  const handleRegenerate = () => {
+    if (onNavigate) onNavigate('wizard')
+    setShowBuilderMenu(false)
+  }
+
+  const handleViewHistory = async () => {
+    if (!currentSavedId && !editWorkflowId) {
+      showToast(lang === 'es' ? 'Guarda el flujo primero' : 'Save the workflow first', 'error')
+      setShowBuilderMenu(false)
+      return
+    }
+    const id = currentSavedId || editWorkflowId
+    const res = await fetchAPI(`/runs`)
+    if (!res.error && res.data?.runs) {
+      const count = res.data.runs.length
+      showToast(lang === 'es' ? `${count} ejecuciones en total` : `${count} total executions`)
+    }
+    setShowBuilderMenu(false)
+  }
+
+  const BUILDER_MENU_ITEMS = [
+    { icon: '📋', label: lang === 'es' ? 'Duplicar flujo' : 'Duplicate workflow', action: handleDuplicate },
+    { icon: '📤', label: lang === 'es' ? 'Exportar JSON' : 'Export JSON', action: handleExportJSON },
+    { icon: '📥', label: lang === 'es' ? 'Importar JSON' : 'Import JSON', action: () => fileInputRef.current?.click() },
+    { divider: true },
+    { icon: '🔄', label: lang === 'es' ? 'Regenerar con IA' : 'Regenerate with AI', action: handleRegenerate },
+    { icon: '📊', label: lang === 'es' ? 'Ver historial' : 'View history', action: handleViewHistory },
+    { divider: true },
+    { icon: '⚡', label: lang === 'es' ? 'Auto-conectar secuencial' : 'Auto-connect sequential', action: handleAutoConnect },
+    { icon: '🎨', label: lang === 'es' ? 'Auto-layout (grid)' : 'Auto-layout (grid)', action: handleAutoLayout },
+  ]
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'hidden', background: '#F9FAFB' }}>
+
+      {/* Hidden file input for import */}
+      <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportJSON} />
 
       {/* Top bar */}
       <div style={{
@@ -536,6 +658,53 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
         <span style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 4 }}>
           {nodes.length} {lang === 'es' ? 'nodos' : 'nodes'} · {edges.length} {lang === 'es' ? 'conexiones' : 'edges'}
         </span>
+
+        {/* Builder menu */}
+        <div style={{ position: 'relative', marginLeft: 'auto' }}>
+          <button
+            onClick={() => setShowBuilderMenu(!showBuilderMenu)}
+            style={{
+              background: showBuilderMenu ? '#EEF2FF' : 'none', border: '1px solid #E5E7EB',
+              borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 13, fontWeight: 600, color: '#6366F1',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+            {lang === 'es' ? 'Opciones' : 'Options'}
+          </button>
+
+          {showBuilderMenu && (
+            <div style={{
+              position: 'absolute', right: 0, top: 38, width: 220, zIndex: 100,
+              background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)', padding: 4,
+            }}>
+              {BUILDER_MENU_ITEMS.map((item, i) =>
+                item.divider ? (
+                  <div key={i} style={{ height: 1, background: '#F3F4F6', margin: '4px 8px' }} />
+                ) : (
+                  <div
+                    key={i}
+                    onClick={item.action}
+                    style={{
+                      padding: '8px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      color: '#374151', transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: 15 }}>{item.icon}</span>
+                    {item.label}
+                  </div>
+                )
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Body: sidebar + canvas */}
