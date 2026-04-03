@@ -8,6 +8,7 @@ from app.swarms.manager import get_swarm, list_topologies
 from app.db.client import get_db_pool
 from app.db.pipeline_store import save_pipeline_run
 from app.integrations.email.notify import notify_workflow_complete
+from app.utils.run_tracker import start_run, record_step, complete_run
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,16 @@ async def execute_swarm(req: SwarmExecuteRequest):
         processing_time_ms=result.duration_ms,
         extra_details={"topology": req.topology, "steps_executed": result.steps_executed},
     )
+
+    # Track in workflow_runs for Executions page
+    try:
+        tracker_id = await start_run(f"Swarm ({req.topology})", metadata={"topology": req.topology, "task": req.task[:100]})
+        agents = result.agents_used or []
+        for agent in agents:
+            await record_step(tracker_id, agent, agent.lower().replace("agent", ""), tokens_used=result.total_tokens // max(len(agents), 1), cost_usd=result.total_cost / max(len(agents), 1), duration_ms=result.duration_ms // max(len(agents), 1))
+        await complete_run(tracker_id, total_tokens=result.total_tokens, total_cost_usd=result.total_cost)
+    except Exception as e:
+        logger.warning("swarms: run_tracker failed: %s", e)
 
     return SwarmResultResponse(
         output=result.output,

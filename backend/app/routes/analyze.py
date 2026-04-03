@@ -11,6 +11,8 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
+from ..utils.run_tracker import start_run, record_step, complete_run
+
 router = APIRouter(tags=["Analyze"])
 logger = logging.getLogger(__name__)
 
@@ -343,6 +345,16 @@ async def analyze_document(
     except Exception:
         pass
 
+    # Track in workflow_runs for Executions page
+    try:
+        tracker_id = await start_run("AI Analyze", metadata={"file": file.filename or "upload", "language": language})
+        agents = doc_data.get("agents_used", ["DocumentRAG", "Summarizer", "QAGenerator"])
+        for agent in agents:
+            await record_step(tracker_id, agent, agent.lower(), tokens_used=doc_data.get("total_tokens", 0) // max(len(agents), 1), cost_usd=doc_data.get("cost_usd", 0) / max(len(agents), 1), duration_ms=int(processing_time) // max(len(agents), 1))
+        await complete_run(tracker_id, status=doc_data["status"], total_tokens=doc_data.get("total_tokens", 0), total_cost_usd=float(doc_data.get("cost_usd", 0)))
+    except Exception as e:
+        logger.warning("analyze: run_tracker failed: %s", e)
+
     return {
         "status": doc_data["status"],
         "run_id": run_id,
@@ -467,6 +479,16 @@ async def analyze_text(
         )
     except Exception:
         pass
+
+    # Track in workflow_runs for Executions page
+    try:
+        tracker_id = await start_run("AI Analyze (Text)", metadata={"language": language})
+        agents = doc_data.get("agents_used", ["DocumentRAG", "Summarizer", "QAGenerator"])
+        for agent in agents:
+            await record_step(tracker_id, agent, agent.lower(), tokens_used=doc_data.get("total_tokens", 0) // max(len(agents), 1), cost_usd=doc_data.get("cost_usd", 0) / max(len(agents), 1), duration_ms=int(processing_time) // max(len(agents), 1))
+        await complete_run(tracker_id, status=doc_data["status"], total_tokens=doc_data.get("total_tokens", 0), total_cost_usd=float(doc_data.get("cost_usd", 0)))
+    except Exception as e:
+        logger.warning("analyze-text: run_tracker failed: %s", e)
 
     return {
         "status": doc_data["status"],
