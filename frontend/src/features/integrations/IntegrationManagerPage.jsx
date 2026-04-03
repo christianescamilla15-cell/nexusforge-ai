@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { fetchAPI } from '../../services/api'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -78,13 +78,21 @@ const HELP = {
 
 function HelpBadge({ id, lang = 'en' }) {
   const [show, setShow] = useState(false)
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const ref = useRef(null)
   const text = HELP[id]?.[lang] || HELP[id]?.en || ''
   if (!text) return null
 
   return (
-    <div style={{ position: 'relative', display: 'inline-flex' }}>
+    <div style={{ display: 'inline-flex' }} ref={ref}>
       <div
-        onMouseEnter={() => setShow(true)}
+        onMouseEnter={() => {
+          if (ref.current) {
+            const r = ref.current.getBoundingClientRect()
+            setPos({ x: r.left + r.width / 2, y: r.top - 8 })
+          }
+          setShow(true)
+        }}
         onMouseLeave={() => setShow(false)}
         style={{
           width: 18, height: 18, borderRadius: '50%', background: '#F3F4F6',
@@ -96,8 +104,9 @@ function HelpBadge({ id, lang = 'en' }) {
       </div>
       {show && (
         <div style={{
-          position: 'absolute', bottom: '130%', left: '50%', transform: 'translateX(-50%)',
-          width: 260, zIndex: 100, padding: '10px 12px', borderRadius: 10,
+          position: 'fixed', left: pos.x, top: pos.y,
+          transform: 'translate(-50%, -100%)',
+          width: 260, zIndex: 9999, padding: '10px 12px', borderRadius: 10,
           background: '#1F2937', color: '#F9FAFB', fontSize: 12, lineHeight: 1.5,
           boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
           textAlign: 'left',
@@ -265,7 +274,7 @@ function ServiceCard({ service, onSaved }) {
     <div style={{
       background: '#fff', borderRadius: 12,
       border: `1px solid ${service.configured ? '#BBF7D0' : '#E5E7EB'}`,
-      overflow: 'hidden', transition: 'box-shadow 0.15s',
+      transition: 'box-shadow 0.15s',
     }}>
       {/* Header row */}
       <div
