@@ -60,7 +60,7 @@ function AgentNode({ node, selected, connecting, onMouseDown, onDelete, onPortMo
   const border = selected ? '#6366F1' : connecting ? '#F59E0B' : '#E5E7EB'
 
   return (
-    <g transform={`translate(${node.x},${node.y})`}>
+    <g transform={`translate(${node.x},${node.y})`} data-node="true">
       {/* shadow */}
       <rect x="2" y="4" width={NODE_W} height={NODE_H} rx="10" fill="rgba(0,0,0,0.08)" />
       {/* card */}
@@ -197,43 +197,6 @@ function SidebarAgent({ agent, onDragStart, lang = 'en' }) {
 
 // ── Demo workflows for edit fallback ─────────────────────────────────────────
 
-const DEMO_WORKFLOW_STEPS = {
-  'wf-1': { name: 'Análisis de Documentos', steps: [
-    { name: 'ingest', type: 'extractor', depends_on: [] },
-    { name: 'classify', type: 'classifier', depends_on: ['ingest'] },
-    { name: 'summarize', type: 'summarizer', depends_on: ['classify'] },
-    { name: 'validate', type: 'validator', depends_on: ['summarize'] },
-  ]},
-  'wf-2': { name: 'Clasificación de Datos', steps: [
-    { name: 'load_data', type: 'extractor', depends_on: [] },
-    { name: 'preprocess', type: 'normalizer', depends_on: ['load_data'] },
-    { name: 'classify_a', type: 'classifier', depends_on: ['preprocess'] },
-    { name: 'classify_b', type: 'classifier', depends_on: ['preprocess'] },
-    { name: 'merge', type: 'enricher', depends_on: ['classify_a', 'classify_b'] },
-    { name: 'export', type: 'validator', depends_on: ['merge'] },
-  ]},
-  'wf-3': { name: 'Resumen Ejecutivo', steps: [
-    { name: 'extract', type: 'extractor', depends_on: [] },
-    { name: 'summarize', type: 'summarizer', depends_on: ['extract'] },
-  ]},
-  'wf-4': { name: 'Extracción de Entidades', steps: [
-    { name: 'ingest', type: 'extractor', depends_on: [] },
-    { name: 'ner', type: 'extractor', depends_on: ['ingest'] },
-    { name: 'validate', type: 'validator', depends_on: ['ner'] },
-  ]},
-  'wf-5': { name: 'Pipeline RAG', steps: [
-    { name: 'upload', type: 'extractor', depends_on: [] },
-    { name: 'chunk', type: 'normalizer', depends_on: ['upload'] },
-    { name: 'embed', type: 'enricher', depends_on: ['chunk'] },
-    { name: 'index', type: 'validator', depends_on: ['embed'] },
-    { name: 'search', type: 'knowledge', depends_on: ['index'] },
-  ]},
-  'wf-6': { name: 'Traducción Masiva', steps: [
-    { name: 'extract', type: 'extractor', depends_on: [] },
-    { name: 'translate', type: 'translator', depends_on: ['extract'] },
-    { name: 'review', type: 'critic', depends_on: ['translate'] },
-  ]},
-}
 
 /** Convert a steps array into nodes + edges with consistent field names. */
 function stepsToGraph(steps) {
@@ -272,15 +235,20 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   // Edge-drawing state
   const connectingFrom = useRef(null) // nodeId
   const [pendingLine, setPendingLine] = useState(null) // {x1,y1,x2,y2}
+  const [connectingId, setConnectingId] = useState(null)
 
   const canvasRef = useRef(null)
   const svgRef = useRef(null)
   const nodeCounter = useRef(0)
 
+  // Canvas pan state
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 })
+  const panState = useRef({ active: false, startX: 0, startY: 0 })
+
   // ── Load agents + existing workflow (if editing) ────────────────────────────
 
   useEffect(() => {
-    fetchAPI('/agents').then((res) => {
+    fetchAPI('/agents/').then((res) => {
       if (!res.error && res.data) {
         setAgents(Array.isArray(res.data) ? res.data : [])
       }
@@ -291,18 +259,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   useEffect(() => {
     if (!editWorkflowId) return
 
-    // Demo workflow — load from local data immediately, no API call needed
-    if (DEMO_WORKFLOW_STEPS[editWorkflowId]) {
-      const demo = DEMO_WORKFLOW_STEPS[editWorkflowId]
-      setWorkflowName(demo.name)
-      const { nodes: n, edges: e } = stepsToGraph(demo.steps)
-      nodeCounter.current = n.length
-      setNodes(n)
-      setEdges(e)
-      return
-    }
-
-    // Real workflow — fetch from API
+    // Fetch from API
     fetchAPI(`/workflows/${editWorkflowId}`).then((res) => {
       if (!res.error && res.data) {
         const wf = res.data
@@ -337,8 +294,8 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     if (!agent_type) return
 
     const rect = canvasRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left - NODE_W / 2
-    const y = e.clientY - rect.top - NODE_H / 2
+    const x = e.clientX - rect.left - NODE_W / 2 - canvasOffset.x
+    const y = e.clientY - rect.top - NODE_H / 2 - canvasOffset.y
 
     nodeCounter.current += 1
     const id = `node_${nodeCounter.current}`
@@ -355,10 +312,10 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
 
   const handleNodeMouseDown = (e, nodeId) => {
     e.stopPropagation()
-    setSelected(nodeId)
+    setSelected(prev => prev === nodeId ? null : nodeId)
     const node = nodes.find((n) => n.id === nodeId)
     draggingNode.current = nodeId
-    dragOffset.current = { x: e.clientX - node.x, y: e.clientY - node.y }
+    dragOffset.current = { x: e.clientX - node.x - canvasOffset.x, y: e.clientY - node.y - canvasOffset.y }
   }
 
   const handleCanvasMouseMove = useCallback((e) => {
@@ -366,7 +323,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
       const x = e.clientX - dragOffset.current.x
       const y = e.clientY - dragOffset.current.y
       setNodes((prev) => prev.map((n) =>
-        n.id === draggingNode.current ? { ...n, x: Math.max(0, x), y: Math.max(0, y) } : n
+        n.id === draggingNode.current ? { ...n, x, y } : n
       ))
     }
     if (connectingFrom.current && svgRef.current) {
@@ -378,7 +335,28 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   const handleCanvasMouseUp = useCallback(() => {
     draggingNode.current = null
     connectingFrom.current = null
+    setConnectingId(null)
     setPendingLine(null)
+  }, [])
+
+  // Global pan handlers (window-level so mouse can leave canvas)
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!panState.current.active) return
+      setCanvasOffset({
+        x: e.clientX - panState.current.startX,
+        y: e.clientY - panState.current.startY,
+      })
+    }
+    const onUp = () => {
+      panState.current.active = false
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
   }, [])
 
   // ── Port interactions (draw edges) ─────────────────────────────────────────
@@ -386,6 +364,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   const handlePortMouseDown = (e, nodeId) => {
     e.preventDefault()
     connectingFrom.current = nodeId
+    setConnectingId(nodeId)
     const node = nodes.find((n) => n.id === nodeId)
     const rect = svgRef.current.getBoundingClientRect()
     setPendingLine({
@@ -436,8 +415,9 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   const handleSave = async () => {
     if (nodes.length === 0) { showToast(lang === 'es' ? 'Agrega al menos un nodo' : 'Add at least one agent node', 'error'); return }
 
+    const saveName = workflowName.trim() || 'Untitled Workflow'
     const body = {
-      name: workflowName,
+      name: saveName,
       description: lang === 'es' ? `Flujo de ${nodes.length} pasos` : `${nodes.length} steps workflow`,
       dag_definition: { steps: buildSteps() },
     }
@@ -461,7 +441,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     }
 
     setSaving(true)
-    const res = await fetchAPI('/workflows', { method: 'POST', body: JSON.stringify(body) })
+    const res = await fetchAPI('/workflows/', { method: 'POST', body: JSON.stringify(body) })
     setSaving(false)
     if (res.error) {
       showToast(`${lang === 'es' ? 'Error al guardar' : 'Save failed'}: ${res.error}`, 'error')
@@ -477,7 +457,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     if (nodes.length === 0) { showToast(lang === 'es' ? 'Agrega al menos un nodo' : 'Add at least one agent node', 'error'); return }
     setExecuting(true)
     // Save first, then execute with workflow_id
-    const saveRes = await fetchAPI('/workflows', {
+    const saveRes = await fetchAPI('/workflows/', {
       method: 'POST',
       body: JSON.stringify({
         name: workflowName,
@@ -522,7 +502,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     setWorkflowName(newName)
 
     // Save immediately as new workflow
-    const res = await fetchAPI('/workflows', {
+    const res = await fetchAPI('/workflows/', {
       method: 'POST',
       body: JSON.stringify({
         name: newName,
@@ -637,7 +617,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   const BUILDER_MENU_ITEMS = [
     { icon: '📋', label: lang === 'es' ? 'Duplicar flujo' : 'Duplicate workflow', action: handleDuplicate },
     { icon: '📤', label: lang === 'es' ? 'Exportar JSON' : 'Export JSON', action: handleExportJSON },
-    { icon: '📥', label: lang === 'es' ? 'Importar JSON' : 'Import JSON', action: () => fileInputRef.current?.click() },
+    { icon: '📥', label: lang === 'es' ? 'Importar JSON' : 'Import JSON', action: () => { const el = document.querySelector('input[type="file"][accept=".json"]'); if (el) el.click() } },
     { divider: true },
     { icon: '🔄', label: lang === 'es' ? 'Regenerar con IA' : 'Regenerate with AI', action: handleRegenerate },
     { icon: '📊', label: lang === 'es' ? 'Ver historial' : 'View history', action: handleViewHistory },
@@ -732,7 +712,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
         <div style={{
           width: 200, flexShrink: 0, background: '#fff',
           borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column',
-          overflow: 'hidden',
+          overflow: 'hidden', height: '100%',
         }}>
           <div style={{ padding: '12px 10px 8px', borderBottom: '1px solid #F3F4F6' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -748,7 +728,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
               }}
             />
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', minHeight: 0 }}>
             {filteredAgents.length === 0 && (
               <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 20 }}>
                 {agents.length === 0
@@ -783,12 +763,21 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
           onDrop={handleCanvasDrop}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelected(null) }}
+          onMouseDown={(e) => {
+            // Start pan if clicking on canvas background (not on a node)
+            const isNode = e.target.closest('[data-node]')
+            if (!isNode) {
+              setSelected(null)
+              panState.current = { active: true, startX: e.clientX - canvasOffset.x, startY: e.clientY - canvasOffset.y }
+              e.preventDefault()
+            }
+          }}
           style={{
-            flex: 1, position: 'relative', overflow: 'auto',
+            flex: 1, position: 'relative', overflow: 'hidden',
             backgroundImage: 'radial-gradient(circle, #D1D5DB 1px, transparent 1px)',
             backgroundSize: '24px 24px',
-            cursor: 'default',
+            backgroundPosition: `${canvasOffset.x}px ${canvasOffset.y}px`,
+            cursor: 'grab',
           }}
         >
           {nodes.length === 0 && (
@@ -805,6 +794,8 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
             </div>
           )}
 
+          {/* Pannable layer */}
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)` }}>
           {/* SVG layer for edges */}
           <svg
             ref={svgRef}
@@ -850,7 +841,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
                 key={node.id}
                 node={node}
                 selected={selected === node.id}
-                connecting={connectingFrom.current === node.id}
+                connecting={connectingId === node.id}
                 onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                 onDelete={(e) => { e.stopPropagation(); deleteNode(node.id) }}
                 onPortMouseDown={handlePortMouseDown}
@@ -858,6 +849,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
               />
             ))}
           </svg>
+          </div>{/* close pannable layer */}
         </div>
 
         {/* Right panel — selected node details */}

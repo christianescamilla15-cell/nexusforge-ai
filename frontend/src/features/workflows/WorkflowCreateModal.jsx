@@ -107,7 +107,7 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
     }
 
     try {
-      const res = await fetchAPI('/workflows', {
+      const res = await fetchAPI('/workflows/', {
         method: 'POST',
         body: JSON.stringify(payload),
       })

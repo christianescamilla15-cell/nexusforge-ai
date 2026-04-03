@@ -78,7 +78,7 @@ export default function CostTokenDashboard({ lang = 'en', embedded = false }) {
     async function load() {
       const [healthRes, runsRes] = await Promise.all([
         fetchAPI('/runs/reliability/health'),
-        fetchAPI('/runs'),
+        fetchAPI('/runs/'),
       ])
 
       if (healthRes.error || runsRes.error) {

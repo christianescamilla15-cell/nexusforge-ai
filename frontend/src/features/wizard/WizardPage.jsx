@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import SwarmExecuteModal from '../swarms/SwarmExecuteModal'
 
@@ -564,7 +564,12 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         }),
       })
       if (res.error) { setError(res.error); setStep(1); return }
-      setWorkflow(res.data?.workflow || null)
+      const wf = res.data?.workflow || null
+      // Use user's description as workflow name if LLM generated a generic snake_case name
+      if (wf && description.trim()) {
+        wf.name = description.trim().slice(0, 60)
+      }
+      setWorkflow(wf)
       setWarning(res.data?.warning || null)
       setStep(3)
       return
@@ -625,13 +630,18 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
 
   const [savingDraft, setSavingDraft] = useState(false)
 
+  // Keep a ref to always have the latest workflow name (avoids stale closure)
+  const workflowRef = useRef(workflow)
+  useEffect(() => { workflowRef.current = workflow }, [workflow])
+
   // Save or update workflow — reuses existing ID if already saved
   const saveOrUpdateWorkflow = async () => {
+    const currentWorkflow = workflowRef.current || workflow
     const body = {
-      name: workflow.name || 'AI Generated Workflow',
-      description: workflow.description || description,
+      name: currentWorkflow.name || description.trim().slice(0, 60) || 'AI Generated Workflow',
+      description: currentWorkflow.description || description,
       dag_definition: {
-        steps: (workflow.steps || []).map(s => ({
+        steps: (currentWorkflow.steps || []).map(s => ({
           name: s.name,
           type: s.agent_type || s.type,
           depends_on: s.depends_on || [],
@@ -648,7 +658,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
       return res.error ? null : savedWorkflowId
     } else {
       // Create new
-      const res = await fetchAPI('/workflows', {
+      const res = await fetchAPI('/workflows/', {
         method: 'POST',
         body: JSON.stringify(body),
       })
@@ -721,7 +731,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         {step === 0 && <StepDescribe description={description} onChange={setDescription} lang={lang} />}
         {step === 1 && <StepClarify questions={questions} answers={answers} onChange={handleAnswer} lang={lang} />}
         {step === 2 && <StepGenerating lang={lang} />}
-        {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} onUpdateName={handleUpdateName} onSaveDraft={handleSaveDraft} onOpenBuilder={handleOpenBuilder} savingDraft={savingDraft} onCreateSwarm={(topology) => setSwarmTopology(topology)} />}
+        {step === 3 && <StepPreview workflow={workflow} warning={warning} lang={lang} onUpdateName={handleUpdateName} onSaveDraft={handleSaveDraft} onOpenBuilder={handleOpenBuilder} savingDraft={savingDraft} onCreateSwarm={(topology) => setSwarmTopology({ topology, agents: (workflow?.steps || []).map(s => s.agent_type || s.type).filter(Boolean), task: description })} />}
         {step === 4 && (
           <StepLaunch
             workflow={workflow}
@@ -778,7 +788,9 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
       {/* Swarm execute modal — opened when user clicks "Create as Swarm" */}
       {swarmTopology && (
         <SwarmExecuteModal
-          topology={swarmTopology}
+          topology={swarmTopology.topology}
+          initialAgents={swarmTopology.agents || []}
+          initialTask={swarmTopology.task || ''}
           onClose={() => setSwarmTopology(null)}
           lang={lang}
         />

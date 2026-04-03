@@ -759,9 +759,11 @@ function PulseStyle() {
 
 // --- Main Modal ---
 
-export default function SwarmExecuteModal({ topology, onClose, lang = 'es' }) {
-  const [selectedAgents, setSelectedAgents] = useState([])
-  const [inputData, setInputData] = useState('{\n  "task": "Analizar documentos del Q4",\n  "documents": ["doc_1.pdf", "doc_2.pdf"]\n}')
+export default function SwarmExecuteModal({ topology, onClose, lang = 'es', initialAgents = [], initialTask = '' }) {
+  const [selectedAgents, setSelectedAgents] = useState(initialAgents)
+  const [inputData, setInputData] = useState(initialTask
+    ? `{\n  "task": ${JSON.stringify(initialTask)}\n}`
+    : '{\n  "task": "Analizar documentos del Q4",\n  "documents": ["doc_1.pdf", "doc_2.pdf"]\n}')
   const [executing, setExecuting] = useState(false)
   const [simulationRunning, setSimulationRunning] = useState(false)
 

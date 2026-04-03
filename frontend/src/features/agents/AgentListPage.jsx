@@ -177,7 +177,7 @@ export default function AgentListPage({ lang = 'en' }) {
   // Fetch real agents from API and merge with demo enrichment
   useEffect(() => {
     import('../../services/api.js').then(({ fetchAPI }) => {
-      fetchAPI('/agents').then((res) => {
+      fetchAPI('/agents/').then((res) => {
         if (!res.error && res.data && Array.isArray(res.data) && res.data.length > 0) {
           const realAgents = res.data.map((a, i) => {
             // Find matching demo agent for enriched stats

@@ -48,7 +48,7 @@ export default function DashboardPage({ lang = 'en' }) {
 
   useEffect(() => {
     Promise.all([
-      fetchAPI('/runs'),
+      fetchAPI('/runs/'),
       fetchAPI('/runs/reliability/health'),
     ]).then(([runsResult, healthResult]) => {
       // Check for errors in Real mode
