@@ -3,126 +3,126 @@ import { useState } from 'react'
 const STEPS = {
   es: [
     {
-      icon: '{ }',
+      icon: '⚡',
       title: 'NexusForge AI',
-      description: 'Plataforma de Orquestación Multi-Agente Empresarial. Coordina 22 agentes IA especializados a través de 6 topologías de ejecución con memoria de 3 niveles, auto-reparación y observabilidad completa. Construida con FastAPI, React 18 y respaldada por PostgreSQL, Redis y pgvector.',
+      description: 'Plataforma SaaS de orquestación IA con 24 agentes, auth + billing Stripe (Free/Pro/Team/Enterprise), AI Workflow Wizard, drag-and-drop builder, 10 integraciones y 4 proveedores LLM (Groq, Claude, GPT-4o, GPT-4o-mini). 260 tests automatizados.',
+    },
+    {
+      icon: '🔐',
+      title: 'Autenticación y Billing',
+      description: 'Registro por email o Google. Planes: Free (5 ejecuciones/día), Pro $29/mes (100/día), Team $99/mes (500/día), Enterprise (ilimitado). Stripe Checkout integrado, API keys para acceso programático, y modo trial de 10 ejecuciones sin registro.',
+    },
+    {
+      icon: '🧙',
+      title: 'Asistente IA de Workflows',
+      description: 'Describe lo que quieres automatizar en lenguaje natural y la IA genera el flujo óptimo. 5 pasos: descripción → preguntas → generación → vista previa (editable) → lanzamiento. Guarda como borrador, edita en el Builder, o ejecuta en modo demo.',
+    },
+    {
+      icon: '🔧',
+      title: 'Constructor Visual de Flujos',
+      description: 'Arrastra agentes al lienzo, conecta puertos de entrada/salida con curvas bezier. 24 agentes con tooltips descriptivos, panel de detalle por nodo, guardar/sobreescribir/crear nuevo. Edita flujos existentes desde la lista de workflows.',
+    },
+    {
+      icon: '🔌',
+      title: '10 Integraciones',
+      description: 'Entradas: Gmail, Google Drive, Webhook. Salidas: Email (Resend), Notion, Slack, WhatsApp, Webhook, Google Calendar. Cada usuario configura sus propias keys desde el panel de Integraciones. Los flujos se conectan a servicios reales.',
+    },
+    {
+      icon: '🤖',
+      title: '4 Proveedores LLM',
+      description: 'Groq (Llama 3.3 70B — rápido, $0.59/M tokens), Claude (Sonnet — alta calidad, $3/M), GPT-4o ($2.50/M), GPT-4o-mini ($0.15/M). Cada usuario trae sus propias keys. Circuit breaker con failover automático entre proveedores.',
     },
     {
       icon: 'DAG',
-      title: 'Ejecución de Workflows',
-      description: 'Define flujos de trabajo como Grafos Acíclicos Dirigidos (DAGs) que encadenan agentes especializados. Elige entre 6 topologías de enjambre — secuencial, paralelo, jerárquico, debate, consenso y adaptivo — según tu caso de uso. El motor DAG usa el algoritmo de Kahn para ordenamiento topológico con ejecución paralela automática.',
+      title: 'Motor de Ejecución DAG',
+      description: 'Grafos Acíclicos Dirigidos con algoritmo de Kahn. 6 topologías de enjambre: secuencial, paralelo, jerárquico, debate, consenso y adaptivo. Retry con backoff exponencial, checkpoint/resume, y auto-reparación con 5 estrategias.',
     },
     {
-      icon: 'MEM',
-      title: 'Arquitectura de Memoria',
-      description: 'Sistema de 3 niveles: Memoria de Trabajo (en proceso, sub-milisegundo), Memoria Episódica (Redis, TTL 30 días, aprende de ejecuciones pasadas) y Memoria Semántica (pgvector, permanente, vectores de 512 dimensiones). El intercambio de conocimiento entre agentes permite decisiones más inteligentes con el tiempo.',
+      icon: '🧠',
+      title: 'Memoria de 3 Niveles',
+      description: 'Trabajo (en proceso, sub-milisegundo), Episódica (Redis, TTL 30 días), Semántica (pgvector, permanente). Los agentes recuerdan entre ejecuciones y comparten conocimiento para decisiones más inteligentes.',
     },
     {
-      icon: 'RLB',
-      title: 'Confiabilidad',
-      description: 'Auto-reparación con 5 estrategias: Reintento con backoff exponencial, Omitir con salida por defecto, Reparar vía el Agente de Reparación, Escalar a revisión humana y Respaldo desde caché. Cada fallo es detectado, clasificado en 6 tipos y recuperado automáticamente. Circuit breaker entre proveedores LLM.',
+      icon: '📊',
+      title: 'Observabilidad y Costos',
+      description: 'Dashboard en tiempo real con ejecuciones, tokens, costos. Timeline paso a paso tipo LangSmith. Email automático a Gmail tras cada ejecución con resumen de tokens y costos. Audit trail completo por usuario.',
     },
     {
-      icon: 'OBS',
-      title: 'Observabilidad',
-      description: 'Timeline tipo LangSmith con trazas paso a paso de cada ejecución. Iconos de estado: éxito, reintento, fallback y fallo. Detalle expandible por paso: entrada/salida, tokens (entrada y salida), latencia en ms, costo en USD y proveedor LLM. Actualizaciones en tiempo real vía WebSocket mientras los workflows se ejecutan.',
+      icon: '🎯',
+      title: 'Agentes Personalizados',
+      description: 'Crea tus propios agentes con prompts personalizados (máximo 10 por cuenta). Elige modelo, proveedor, temperatura y tokens. Los agentes custom se ejecutan con tus propias keys y aparecen en el Builder.',
     },
     {
-      icon: 'EVL',
-      title: 'Evaluación',
-      description: '16 escenarios de evaluación distribuidos en 3 suites: Operaciones Empresariales (6), Inteligencia Documental (5) y Copiloto de Portafolio (5). Métricas de calidad (0-100), latencia (p50/p95/p99), uso de tokens, costo por escenario, tasa de éxito y conteos de reintentos/fallbacks. Comparación lado a lado entre ejecuciones.',
+      icon: '📋',
+      title: '3 Casos de Uso Reales',
+      description: 'Operaciones Empresariales (8 agentes: intake, clasificación, CRM, calendario, notificaciones), Inteligencia Documental (7 agentes: clasificar, extraer, validar, resumir) y Copiloto de Portafolio (6 agentes: RAG, comparación, skills mapping).',
     },
     {
-      icon: 'OPS',
-      title: 'Caso Real: Operaciones Empresariales',
-      description: '8 agentes especializados procesan solicitudes de clientes: IntakeAgent normaliza, IntentClassifierAgent clasifica la intención, CustomerContextAgent recupera historial, DocumentRAGAgent busca en documentos, SchedulerAgent reprograma citas, CRMUpdateAgent actualiza el CRM, NotificationAgent envía confirmaciones y SupervisorAgent orquesta todo. Bilingüe ES/EN.',
-    },
-    {
-      icon: 'DOC',
-      title: 'Caso Real: Inteligencia Documental',
-      description: '7 agentes clasifican, extraen y validan documentos de extremo a extremo: DocumentIngestionAgent recibe y normaliza, DocumentClassifierAgent clasifica (contrato, factura, currículum, política, informe), SchemaExtractionAgent extrae campos estructurados, ValidationAgent valida contra reglas de negocio, SummaryAgent genera resumen, StorageAgent almacena en la base de conocimiento y SupervisorAgent coordina.',
-    },
-    {
-      icon: 'CPL',
-      title: 'Caso Real: Copiloto de Portafolio',
-      description: '6 agentes responden preguntas sobre proyectos y habilidades: RouterAgent analiza y enruta la pregunta, PortfolioRAGAgent recupera información relevante, ProjectComparisonAgent compara proyectos, SkillsMapperAgent mapea habilidades y niveles de expertise, ResponseFormatterAgent formatea la respuesta con markdown enriquecido y SupervisorAgent asegura la calidad.',
-    },
-    {
-      icon: 'PLY',
-      title: 'Playground Interactivo',
-      description: 'Ejecuta workflows en tiempo real desde la interfaz. 3 workflows disponibles: Operaciones Empresariales, Inteligencia Documental y Copiloto de Portafolio. Visualiza el timeline de agentes paso a paso, resultados estructurados finales y métricas de tokens, costo y latencia. Funciona tanto en modo Demo como en modo Real.',
-    },
-    {
-      icon: 'CST',
-      title: 'Métricas de Costos',
-      description: 'Tracking completo de tokens, costos y rendimiento por agente. Uso de tokens por ejecución y por agente, costos en USD (Groq: $0.59/$0.79 por M tokens, Claude: $3/$15 por M tokens), tasa de éxito, conteo de reintentos y fallbacks. Gráficos de tendencias, barras por agente y distribución por proveedor LLM.',
-    },
-    {
-      icon: 'GO',
+      icon: '🚀',
       title: 'Cómo Empezar',
-      description: 'Explora el Dashboard para ver el estado del sistema. Usa el Playground para ejecutar los 3 workflows interactivamente. Revisa el Timeline para entender la ejecución paso a paso. Consulta el Dashboard de Costos para monitorear tokens y gastos. Cambia entre modo Demo (sin backend) y modo Real (con FastAPI) desde Configuración. El Asistente IA siempre está disponible.',
+      description: 'Regístrate o prueba sin cuenta (10 ejecuciones gratis). Usa el AI Wizard para generar tu primer flujo. Configura tus integraciones (Email, Notion, Slack). Ejecuta en modo demo para probar, luego conecta tus keys reales. El dashboard muestra todo en tiempo real.',
     },
   ],
   en: [
     {
-      icon: '{ }',
+      icon: '⚡',
       title: 'NexusForge AI',
-      description: 'Enterprise Multi-Agent Orchestration Platform. Coordinates 22 specialized AI agents across 6 execution topologies with 3-tier memory, self-healing, and full observability. Built with FastAPI, React 18, backed by PostgreSQL, Redis, and pgvector.',
+      description: 'AI SaaS orchestration platform with 24 agents, auth + Stripe billing (Free/Pro/Team/Enterprise), AI Workflow Wizard, drag-and-drop builder, 10 integrations, and 4 LLM providers (Groq, Claude, GPT-4o, GPT-4o-mini). 260 automated tests.',
+    },
+    {
+      icon: '🔐',
+      title: 'Authentication & Billing',
+      description: 'Register with email or Google. Plans: Free (5 runs/day), Pro $29/mo (100/day), Team $99/mo (500/day), Enterprise (unlimited). Stripe Checkout integrated, API keys for programmatic access, and trial mode with 10 runs without registration.',
+    },
+    {
+      icon: '🧙',
+      title: 'AI Workflow Wizard',
+      description: 'Describe what you want to automate in plain language and the AI generates the optimal workflow. 5 steps: describe → clarify → generate → preview (editable) → launch. Save as draft, edit in the Builder, or execute in demo mode.',
+    },
+    {
+      icon: '🔧',
+      title: 'Visual Workflow Builder',
+      description: 'Drag agents to canvas, connect input/output ports with bezier curves. 24 agents with descriptive tooltips, detail panel per node, save/overwrite/create new. Edit existing workflows from the workflow list.',
+    },
+    {
+      icon: '🔌',
+      title: '10 Integrations',
+      description: 'Inputs: Gmail, Google Drive, Webhook. Outputs: Email (Resend), Notion, Slack, WhatsApp, Webhook, Google Calendar. Each user configures their own keys from the Integrations panel. Workflows connect to real services.',
+    },
+    {
+      icon: '🤖',
+      title: '4 LLM Providers',
+      description: 'Groq (Llama 3.3 70B — fast, $0.59/M tokens), Claude (Sonnet — high quality, $3/M), GPT-4o ($2.50/M), GPT-4o-mini ($0.15/M). Each user brings their own keys. Circuit breaker with automatic failover between providers.',
     },
     {
       icon: 'DAG',
-      title: 'Workflow Execution',
-      description: 'Define workflows as Directed Acyclic Graphs (DAGs) that chain specialized agents. Choose from 6 swarm topologies — sequential, parallel, hierarchical, debate, consensus, and adaptive — to match your use case. The DAG engine uses Kahn\'s algorithm for topological sorting with automatic parallel execution.',
+      title: 'DAG Execution Engine',
+      description: 'Directed Acyclic Graphs with Kahn\'s algorithm. 6 swarm topologies: sequential, parallel, hierarchical, debate, consensus, and adaptive. Retry with exponential backoff, checkpoint/resume, and self-healing with 5 strategies.',
     },
     {
-      icon: 'MEM',
-      title: 'Memory Architecture',
-      description: '3-tier system: Working Memory (in-process, sub-millisecond), Episodic Memory (Redis, 30-day TTL, learns from past executions), and Semantic Memory (pgvector, permanent, 512-dimensional vectors). Cross-agent knowledge sharing enables smarter decisions over time.',
+      icon: '🧠',
+      title: '3-Tier Memory',
+      description: 'Working (in-process, sub-millisecond), Episodic (Redis, 30-day TTL), Semantic (pgvector, permanent). Agents remember across executions and share knowledge for smarter decisions over time.',
     },
     {
-      icon: 'RLB',
-      title: 'Reliability',
-      description: 'Self-healing with 5 strategies: Retry with exponential backoff, Skip with default output, Repair via the Repair Agent, Escalate to human review, and Fallback from cache. Every failure is detected, classified into 6 types, and recovered automatically. Circuit breaker between LLM providers.',
+      icon: '📊',
+      title: 'Observability & Costs',
+      description: 'Real-time dashboard with executions, tokens, costs. LangSmith-style step-by-step timeline. Automatic email to Gmail after each execution with token and cost summary. Complete audit trail per user.',
     },
     {
-      icon: 'OBS',
-      title: 'Observability',
-      description: 'LangSmith-style timeline with step-by-step traces for every execution. Status icons: success, retry, fallback, and failure. Expandable detail per step: input/output, tokens (input and output), latency in ms, cost in USD, and LLM provider. Real-time updates via WebSocket as workflows execute.',
+      icon: '🎯',
+      title: 'Custom Agents',
+      description: 'Create your own agents with custom prompts (max 10 per account). Choose model, provider, temperature, and tokens. Custom agents run with your own keys and appear in the Builder.',
     },
     {
-      icon: 'EVL',
-      title: 'Evaluation',
-      description: '16 evaluation scenarios across 3 suites: Enterprise Operations (6), Document Intelligence (5), and Portfolio Copilot (5). Quality scoring (0-100), latency metrics (p50/p95/p99), token usage, cost per scenario, success rate, and retry/fallback counts. Side-by-side run comparisons.',
+      icon: '📋',
+      title: '3 Real Use Cases',
+      description: 'Enterprise Operations (8 agents: intake, classification, CRM, calendar, notifications), Document Intelligence (7 agents: classify, extract, validate, summarize), and Portfolio Copilot (6 agents: RAG, comparison, skills mapping).',
     },
     {
-      icon: 'OPS',
-      title: 'Use Case: Enterprise Operations Assistant',
-      description: '8 specialized agents process customer requests: IntakeAgent normalizes, IntentClassifierAgent classifies intent, CustomerContextAgent retrieves history, DocumentRAGAgent searches documents, SchedulerAgent reschedules meetings, CRMUpdateAgent updates CRM, NotificationAgent sends confirmations, and SupervisorAgent orchestrates the flow. Bilingual ES/EN.',
-    },
-    {
-      icon: 'DOC',
-      title: 'Use Case: Document Intelligence',
-      description: '7 agents classify, extract, and validate documents end-to-end: DocumentIngestionAgent receives and normalizes, DocumentClassifierAgent classifies (contract, invoice, resume, policy, report), SchemaExtractionAgent extracts structured fields, ValidationAgent validates against business rules, SummaryAgent generates summary, StorageAgent stores in knowledge base, and SupervisorAgent coordinates.',
-    },
-    {
-      icon: 'CPL',
-      title: 'Use Case: Portfolio Copilot',
-      description: '6 agents answer questions about projects and skills: RouterAgent analyzes and routes the question, PortfolioRAGAgent retrieves relevant information, ProjectComparisonAgent compares projects, SkillsMapperAgent maps skills and expertise levels, ResponseFormatterAgent formats with rich markdown, and SupervisorAgent ensures quality.',
-    },
-    {
-      icon: 'PLY',
-      title: 'Interactive Playground',
-      description: 'Execute workflows in real-time from the interface. 3 workflows available: Enterprise Operations, Document Intelligence, and Portfolio Copilot. Watch the agent timeline step by step, view structured final results, and track token, cost, and latency metrics. Works in both Demo and Real mode.',
-    },
-    {
-      icon: 'CST',
-      title: 'Cost Metrics',
-      description: 'Comprehensive token, cost, and performance tracking per agent. Token usage per run and per agent, costs in USD (Groq: $0.59/$0.79 per M tokens, Claude: $3/$15 per M tokens), success rate, retry count, and fallback count. Trend line charts, per-agent bar charts, and LLM provider distribution.',
-    },
-    {
-      icon: 'GO',
+      icon: '🚀',
       title: 'Getting Started',
-      description: 'Explore the Dashboard for system health at a glance. Use the Playground to run all 3 workflows interactively. Check the Timeline to understand step-by-step execution. Monitor the Cost Dashboard for tokens and spending. Switch between Demo mode (no backend) and Real mode (with FastAPI) in Settings. The AI Assistant is always available.',
+      description: 'Register or try without an account (10 free runs). Use the AI Wizard to generate your first workflow. Configure integrations (Email, Notion, Slack). Execute in demo mode to test, then connect your real keys. The dashboard shows everything in real-time.',
     },
   ],
 }
@@ -184,16 +184,16 @@ export default function Onboarding({ lang = 'es', setLang, onDismiss }) {
           lineHeight: 1.2, marginBottom: 12, letterSpacing: '-0.02em',
         }}>
           {currentLang === 'es'
-            ? 'Plataforma de Orquestación Multi-Agente Empresarial'
-            : 'Enterprise Multi-Agent Orchestration Platform'}
+            ? 'Plataforma SaaS de Orquestación IA'
+            : 'AI SaaS Orchestration Platform'}
         </h1>
         <p style={{
           fontSize: 16, color: '#4B5563', maxWidth: 640,
           margin: '0 auto', lineHeight: 1.6,
         }}>
           {currentLang === 'es'
-            ? 'Ejecución de workflows de IA observable, resiliente y extensible. 22 agentes, 6 topologías, memoria de 3 niveles, auto-reparación, 3 casos de uso reales, Playground interactivo y evaluación con 16 escenarios.'
-            : 'Observable, resilient, and extensible AI workflow execution. 22 agents, 6 topologies, 3-tier memory, self-healing, 3 real use cases, interactive Playground, and evaluation with 16 scenarios.'}
+            ? '24 agentes IA, auth + billing Stripe, AI Wizard, 10 integraciones, 4 proveedores LLM. Crea flujos de trabajo con IA, configura tus integraciones, y ejecuta en producción.'
+            : '24 AI agents, auth + Stripe billing, AI Wizard, 10 integrations, 4 LLM providers. Create workflows with AI, configure your integrations, and execute in production.'}
         </p>
       </div>
 
