@@ -488,7 +488,22 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
       }}>
         <div>
           <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#111827' }}>
-            {t('dashboard', lang)}
+            {(() => {
+              try {
+                const user = JSON.parse(localStorage.getItem('nf_user') || '{}')
+                const name = user.name?.split(' ')[0]
+                if (name && name !== 'Guest' && name !== 'Invitado') {
+                  const hour = new Date().getHours()
+                  const greeting = hour < 12
+                    ? (lang === 'es' ? 'Buenos dias' : 'Good morning')
+                    : hour < 18
+                      ? (lang === 'es' ? 'Buenas tardes' : 'Good afternoon')
+                      : (lang === 'es' ? 'Buenas noches' : 'Good evening')
+                  return `${greeting}, ${name}`
+                }
+              } catch {}
+              return t('dashboard', lang)
+            })()}
           </h1>
           <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF', marginTop: 4 }}>
             {t('dashboardSubtitle', lang)}

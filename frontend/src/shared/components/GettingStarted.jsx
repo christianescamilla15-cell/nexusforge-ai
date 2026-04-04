@@ -32,7 +32,32 @@ export default function GettingStarted({ lang = 'en', onNavigate }) {
   }, [])
 
   const allDone = completed.length >= STEPS.length
-  if (allDone || dismissed) return null
+
+  // Celebration when all done
+  if (allDone && !dismissed) {
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(16,185,129,0.08))',
+        borderRadius: 14, border: '1px solid rgba(99,102,241,0.2)',
+        padding: 24, marginBottom: 20, textAlign: 'center',
+        animation: 'fadeIn 0.5s ease-out',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>&#x1F389;</div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
+          {lang === 'es' ? 'Felicidades! Completaste los primeros pasos' : 'Congratulations! You completed Getting Started'}
+        </h3>
+        <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+          {lang === 'es' ? 'Ya estas listo para automatizar como un pro.' : "You're ready to automate like a pro."}
+        </p>
+        <button onClick={() => setDismissed(true)} style={{
+          padding: '8px 20px', borderRadius: 8, border: 'none',
+          background: '#6366F1', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        }}>{lang === 'es' ? 'Cerrar' : 'Dismiss'}</button>
+      </div>
+    )
+  }
+
+  if (dismissed) return null
 
   // Don't show if user has >3 automations (not a new user)
   const user = (() => { try { return JSON.parse(localStorage.getItem('nf_user') || '{}') } catch { return {} } })()

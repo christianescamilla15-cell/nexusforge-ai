@@ -92,9 +92,12 @@ function AppRoutes() {
     return () => { window.removeEventListener('nxf-notification', update); clearInterval(interval) }
   }, [])
 
-  // Scroll to top on route change
+  // Scroll to top on route change + remember last page
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (location.pathname !== '/') {
+      try { localStorage.setItem('nxf_last_page', location.pathname) } catch {}
+    }
   }, [location.pathname])
 
   const [showTour, setShowTour] = useState(() => {
@@ -111,7 +114,9 @@ function AppRoutes() {
 
   const handleLogin = useCallback((userData) => {
     setUser(userData)
-    routerNavigate('/')
+    // Redirect to last visited page or dashboard
+    const lastPage = (() => { try { return localStorage.getItem('nxf_last_page') } catch { return null } })()
+    routerNavigate(lastPage || '/')
   }, [routerNavigate])
 
   const handleLogout = useCallback(() => {
