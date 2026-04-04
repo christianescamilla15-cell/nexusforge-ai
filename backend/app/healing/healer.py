@@ -60,10 +60,10 @@ class SelfHealer:
         agent_name = failed_step.get("agent_type", step_name)
 
         # Record failure in circuit breaker
-        self.circuit_breaker.record_failure(agent_name, error_message)
+        await self.circuit_breaker.record_failure(agent_name, error_message)
 
         # Step 0: Check circuit breaker — if agent is unhealthy, skip to fallback
-        if not self.circuit_breaker.is_available(agent_name):
+        if not await self.circuit_breaker.is_available(agent_name):
             logger.warning("SelfHealer: circuit open for '%s', skipping to fallback", agent_name)
             fallback = get_strategy("fallback") if "fallback" in STRATEGY_REGISTRY else get_strategy("escalate")
             result = await fallback.apply(failed_step, {
@@ -119,7 +119,7 @@ class SelfHealer:
 
                 if result.success:
                     # Reset circuit breaker on successful healing
-                    self.circuit_breaker.record_success(agent_name)
+                    await self.circuit_breaker.record_success(agent_name)
                     logger.info(
                         "SelfHealer: step '%s' healed via '%s': %s",
                         step_name, strategy_name, result.message,

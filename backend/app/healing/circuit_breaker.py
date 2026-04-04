@@ -1,123 +1,177 @@
-"""Per-agent circuit breaker with adaptive health scoring.
+"""Per-agent circuit breaker with Redis-backed shared state.
 
-Prevents hammering a failing agent/provider and tracks health over time
-using an exponential moving average.
+State is stored in Redis so it's shared across all Uvicorn workers.
+Falls back to in-memory if Redis is unavailable.
 """
 
+import json
 import logging
 import time
-from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-# Defaults
-_FAILURE_THRESHOLD = 3       # consecutive failures to open the circuit
-_RECOVERY_TIMEOUT = 30       # seconds before half-open probe
-_HEALTH_ALPHA = 0.3          # EMA smoothing factor (higher = more reactive)
-_LATENCY_PENALTY_MS = 5000   # latency beyond this penalizes health
+_FAILURE_THRESHOLD = 3
+_RECOVERY_TIMEOUT = 30
+_HEALTH_ALPHA = 0.3
+_LATENCY_PENALTY_MS = 5000
+_REDIS_PREFIX = "nxf:cb:"
+_REDIS_TTL = 300  # 5 min TTL per key
 
 
-@dataclass
-class AgentHealthRecord:
-    """Tracks health for a single agent."""
-    agent_name: str
-    health_score: float = 1.0       # 0.0 = dead, 1.0 = perfect
-    consecutive_failures: int = 0
-    total_successes: int = 0
-    total_failures: int = 0
-    circuit_open_until: float = 0.0  # monotonic timestamp
-    last_error: str = ""
-    last_success_time: float = field(default_factory=time.monotonic)
+async def _get_redis():
+    """Get Redis connection (best-effort)."""
+    try:
+        from app.db.client import get_redis
+        return await get_redis()
+    except Exception:
+        return None
 
-    @property
-    def is_circuit_open(self) -> bool:
-        return time.monotonic() < self.circuit_open_until
 
-    @property
-    def success_rate(self) -> float:
-        total = self.total_successes + self.total_failures
-        return self.total_successes / total if total > 0 else 1.0
+async def _read_state(redis, agent_name: str) -> dict:
+    """Read agent state from Redis."""
+    try:
+        data = await redis.get(f"{_REDIS_PREFIX}{agent_name}")
+        if data:
+            return json.loads(data)
+    except Exception:
+        pass
+    return {
+        "health_score": 1.0,
+        "consecutive_failures": 0,
+        "total_successes": 0,
+        "total_failures": 0,
+        "circuit_open_until": 0,
+        "last_error": "",
+    }
+
+
+async def _write_state(redis, agent_name: str, state: dict):
+    """Write agent state to Redis with TTL."""
+    try:
+        await redis.setex(
+            f"{_REDIS_PREFIX}{agent_name}",
+            _REDIS_TTL,
+            json.dumps(state),
+        )
+    except Exception:
+        pass
 
 
 class AgentCircuitBreaker:
-    """Manages circuit breakers and health scores for all agents."""
+    """Manages circuit breakers and health scores for all agents.
+    Uses Redis for shared state across workers. Falls back to in-memory."""
 
-    def __init__(
-        self,
-        failure_threshold: int = _FAILURE_THRESHOLD,
-        recovery_timeout: int = _RECOVERY_TIMEOUT,
-    ):
-        self._threshold = failure_threshold
-        self._recovery = recovery_timeout
-        self._agents: dict[str, AgentHealthRecord] = {}
+    def __init__(self):
+        self._local: dict[str, dict] = {}  # fallback if Redis unavailable
 
-    def _get_record(self, agent_name: str) -> AgentHealthRecord:
-        if agent_name not in self._agents:
-            self._agents[agent_name] = AgentHealthRecord(agent_name=agent_name)
-        return self._agents[agent_name]
+    def _local_state(self, agent_name: str) -> dict:
+        if agent_name not in self._local:
+            self._local[agent_name] = {
+                "health_score": 1.0, "consecutive_failures": 0,
+                "total_successes": 0, "total_failures": 0,
+                "circuit_open_until": 0, "last_error": "",
+            }
+        return self._local[agent_name]
 
-    def is_available(self, agent_name: str) -> bool:
-        """Check if agent is available (circuit not open)."""
-        record = self._get_record(agent_name)
-        if record.is_circuit_open:
-            logger.info("Circuit open for '%s', skipping (reopens in %.0fs)",
-                        agent_name, record.circuit_open_until - time.monotonic())
+    async def is_available(self, agent_name: str) -> bool:
+        """Check if agent circuit is closed (available)."""
+        redis = await _get_redis()
+        if redis:
+            state = await _read_state(redis, agent_name)
+        else:
+            state = self._local_state(agent_name)
+
+        if state["circuit_open_until"] > time.time():
+            logger.info("Circuit open for '%s', skipping", agent_name)
             return False
         return True
 
-    def record_success(self, agent_name: str, latency_ms: float = 0):
-        """Record a successful execution. Resets failure counter, updates health."""
-        record = self._get_record(agent_name)
-        record.consecutive_failures = 0
-        record.total_successes += 1
-        record.last_success_time = time.monotonic()
+    async def record_success(self, agent_name: str, latency_ms: float = 0):
+        """Record successful execution."""
+        redis = await _get_redis()
+        if redis:
+            state = await _read_state(redis, agent_name)
+        else:
+            state = self._local_state(agent_name)
 
-        # EMA health update with latency penalty
+        state["consecutive_failures"] = 0
+        state["total_successes"] += 1
+
         latency_penalty = min(latency_ms / _LATENCY_PENALTY_MS, 0.5)
         new_score = 1.0 - latency_penalty
-        record.health_score = _HEALTH_ALPHA * new_score + (1 - _HEALTH_ALPHA) * record.health_score
-        record.health_score = max(0.0, min(1.0, record.health_score))
+        state["health_score"] = _HEALTH_ALPHA * new_score + (1 - _HEALTH_ALPHA) * state["health_score"]
+        state["health_score"] = max(0.0, min(1.0, state["health_score"]))
 
-    def record_failure(self, agent_name: str, error: str = ""):
-        """Record a failure. May open the circuit."""
-        record = self._get_record(agent_name)
-        record.consecutive_failures += 1
-        record.total_failures += 1
-        record.last_error = error[:200]
+        if redis:
+            await _write_state(redis, agent_name, state)
 
-        # EMA health update
-        record.health_score = _HEALTH_ALPHA * 0.0 + (1 - _HEALTH_ALPHA) * record.health_score
-        record.health_score = max(0.0, record.health_score)
+    async def record_failure(self, agent_name: str, error: str = ""):
+        """Record failure. May open circuit."""
+        redis = await _get_redis()
+        if redis:
+            state = await _read_state(redis, agent_name)
+        else:
+            state = self._local_state(agent_name)
 
-        # Trip circuit if threshold reached
-        if record.consecutive_failures >= self._threshold:
-            record.circuit_open_until = time.monotonic() + self._recovery
+        state["consecutive_failures"] += 1
+        state["total_failures"] += 1
+        state["last_error"] = error[:200]
+        state["health_score"] = _HEALTH_ALPHA * 0.0 + (1 - _HEALTH_ALPHA) * state["health_score"]
+        state["health_score"] = max(0.0, state["health_score"])
+
+        if state["consecutive_failures"] >= _FAILURE_THRESHOLD:
+            state["circuit_open_until"] = time.time() + _RECOVERY_TIMEOUT
             logger.warning(
                 "Circuit breaker OPEN for '%s' (failures=%d, health=%.2f) — cooldown %ds",
-                agent_name, record.consecutive_failures, record.health_score, self._recovery,
+                agent_name, state["consecutive_failures"], state["health_score"], _RECOVERY_TIMEOUT,
             )
 
-    def get_health(self, agent_name: str) -> float:
-        """Get current health score for an agent (0.0-1.0)."""
-        return self._get_record(agent_name).health_score
+        if redis:
+            await _write_state(redis, agent_name, state)
 
-    def get_all_health(self) -> dict[str, dict]:
-        """Get health status for all tracked agents."""
+    def get_health(self, agent_name: str) -> float:
+        """Get health score (sync, from local cache only)."""
+        state = self._local.get(agent_name, {})
+        return state.get("health_score", 1.0)
+
+    async def get_all_health(self) -> dict[str, dict]:
+        """Get health for all tracked agents."""
+        redis = await _get_redis()
+        if redis:
+            try:
+                keys = []
+                async for key in redis.scan_iter(f"{_REDIS_PREFIX}*"):
+                    keys.append(key)
+                result = {}
+                for key in keys:
+                    name = key.replace(_REDIS_PREFIX, "") if isinstance(key, str) else key.decode().replace(_REDIS_PREFIX, "")
+                    state = await _read_state(redis, name)
+                    result[name] = {
+                        "health_score": round(state["health_score"], 3),
+                        "circuit_open": state["circuit_open_until"] > time.time(),
+                        "consecutive_failures": state["consecutive_failures"],
+                        "total_successes": state["total_successes"],
+                        "total_failures": state["total_failures"],
+                        "last_error": state["last_error"],
+                    }
+                return result
+            except Exception:
+                pass
+
+        # Fallback to local
         return {
             name: {
-                "health_score": round(r.health_score, 3),
-                "success_rate": round(r.success_rate, 3),
-                "circuit_open": r.is_circuit_open,
-                "consecutive_failures": r.consecutive_failures,
-                "total_successes": r.total_successes,
-                "total_failures": r.total_failures,
-                "last_error": r.last_error,
+                "health_score": round(s.get("health_score", 1.0), 3),
+                "circuit_open": s.get("circuit_open_until", 0) > time.time(),
+                "consecutive_failures": s.get("consecutive_failures", 0),
+                "total_successes": s.get("total_successes", 0),
+                "total_failures": s.get("total_failures", 0),
+                "last_error": s.get("last_error", ""),
             }
-            for name, r in self._agents.items()
+            for name, s in self._local.items()
         }
 
 
-# Module-level singleton
 _breaker: AgentCircuitBreaker | None = None
 
 

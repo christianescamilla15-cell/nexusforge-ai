@@ -79,7 +79,7 @@ async def health_check():
     agent_health = {}
     try:
         from app.healing.circuit_breaker import get_circuit_breaker
-        agent_health = get_circuit_breaker().get_all_health()
+        agent_health = await get_circuit_breaker().get_all_health()
     except Exception:
         pass
 

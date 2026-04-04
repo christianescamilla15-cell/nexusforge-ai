@@ -81,7 +81,7 @@ class BaseAgent(ABC):
         try:
             from app.healing.circuit_breaker import get_circuit_breaker
             cb = get_circuit_breaker()
-            if not cb.is_available(self.name):
+            if not await cb.is_available(self.name):
                 logger.warning("Agent '%s' circuit open — returning degraded result", self.name)
                 return AgentResult(
                     output={"error": f"Agent {self.name} temporarily unavailable (circuit open)", "_degraded": True},
@@ -113,7 +113,7 @@ class BaseAgent(ABC):
             cb = get_circuit_breaker()
             is_fallback = result.provider == "local" and result.model in ("fallback", "circuit-breaker")
             if not is_fallback:
-                cb.record_success(self.name)
+                await cb.record_success(self.name)
         except Exception:
             pass
 
