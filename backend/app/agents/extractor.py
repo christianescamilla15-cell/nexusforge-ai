@@ -3,7 +3,7 @@
 import json
 import logging
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 from app.agents.output_schemas import ExtractionResult
 
@@ -45,7 +45,7 @@ class ExtractorAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=1024)
-            raw = json.loads(resp.text)
+            raw = clean_llm_json(resp.text)
             # Validate with Pydantic schema
             validated = ExtractionResult.model_validate(raw)
             return AgentResult(

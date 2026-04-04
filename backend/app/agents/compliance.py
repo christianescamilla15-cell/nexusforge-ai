@@ -4,7 +4,7 @@ import json
 import logging
 import re
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ class ComplianceAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             # Merge PII findings as authoritative
             parsed["pii_detected"] = pii_findings
             parsed["risk_score"] = max(parsed.get("risk_score", 0), pii_risk)

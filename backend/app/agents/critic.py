@@ -3,7 +3,7 @@
 import json
 import logging
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ class CriticAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.3, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
 
             # Recompute weighted score from criteria (don't trust LLM math)
             criteria = parsed.get("criteria_scores", [])
@@ -129,11 +129,11 @@ class CriticAgent(BaseAgent):
             logger.warning("CriticAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={
-                    "overall_score": 50,
+                    "overall_score": 0,
                     "criteria_scores": [],
                     "strengths": [],
                     "improvements": [f"Evaluation unavailable: {exc}"],
-                    "pass": True,
+                    "pass": False,  # fail-closed: never approve when critic is unavailable
                 },
                 tokens_used=0, cost_usd=0.0,
                 provider="local", model="fallback",

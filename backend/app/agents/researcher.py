@@ -3,7 +3,7 @@
 import json
 import logging
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ class ResearcherAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.4, max_tokens=2048)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             total_tokens += resp.tokens_input + resp.tokens_output
             total_cost += getattr(resp, "cost_usd", 0.0)
 

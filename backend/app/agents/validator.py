@@ -3,7 +3,7 @@
 import json
 import logging
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 from app.agents.output_schemas import ValidationResult
 
@@ -61,7 +61,7 @@ class ValidatorAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=512)
-            raw = json.loads(resp.text)
+            raw = clean_llm_json(resp.text)
             validated = ValidationResult.model_validate(raw)
             result = validated.model_dump()
             # Merge structural issues from Layer 1

@@ -5,7 +5,7 @@ import json
 import logging
 import time
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import get_agent, register_agent
 from app.swarms.base import BaseSwarm, SwarmResult
 
@@ -96,7 +96,7 @@ class JudgeAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.2, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
 
             # Compute Weighted Borda scores from LLM ranking
             ranking = parsed.get("ranking", [])

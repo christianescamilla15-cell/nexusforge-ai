@@ -5,7 +5,7 @@ import json
 import logging
 import re
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ class RepairAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.2, max_tokens=512)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             parsed["_repair_method"] = "llm"
             parsed["_fingerprint"] = fingerprint
             # Record for future fingerprint cache

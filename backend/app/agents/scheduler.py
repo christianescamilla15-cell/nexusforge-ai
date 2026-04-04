@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ class SchedulerAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.2, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             parsed["_scheduling_method"] = "llm"
             return AgentResult(
                 output=parsed,

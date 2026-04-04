@@ -3,7 +3,7 @@
 import json
 import logging
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent, list_agents
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class PlannerAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.3, max_tokens=2048)
-            plan = json.loads(resp.text)
+            plan = clean_llm_json(resp.text)
             total_tokens += resp.tokens_input + resp.tokens_output
             total_cost += getattr(resp, "cost_usd", 0.0)
         except Exception as exc:
@@ -134,7 +134,7 @@ class PlannerAgent(BaseAgent):
                     )},
                 ]
                 verify_resp = await self._resilient_llm_call(verify_messages, temperature=0.1, max_tokens=512)
-                verification = json.loads(verify_resp.text)
+                verification = clean_llm_json(verify_resp.text)
                 total_tokens += verify_resp.tokens_input + verify_resp.tokens_output
                 total_cost += getattr(verify_resp, "cost_usd", 0.0)
 

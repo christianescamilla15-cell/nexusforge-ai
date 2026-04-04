@@ -4,7 +4,7 @@ import json
 import logging
 import math
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,8 @@ def _update_baseline(metric_name: str, value: float) -> dict:
     b = _BASELINES[metric_name]
     old_mean = b["mean"]
     b["mean"] = _EMA_ALPHA * value + (1 - _EMA_ALPHA) * old_mean
-    b["variance"] = _EMA_ALPHA * (value - b["mean"]) ** 2 + (1 - _EMA_ALPHA) * b["variance"]
+    # Use old_mean for variance (Welford online algorithm)
+    b["variance"] = _EMA_ALPHA * (value - old_mean) ** 2 + (1 - _EMA_ALPHA) * b["variance"]
     b["count"] += 1
 
     std = math.sqrt(b["variance"]) if b["variance"] > 0 else 0.001
@@ -162,7 +163,7 @@ class MonitorAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.2, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             # Override with our deterministic health score
             parsed["health_score"] = health_score
             parsed["_metrics_summary"] = summary

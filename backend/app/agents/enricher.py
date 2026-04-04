@@ -3,7 +3,7 @@
 import json
 import logging
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ class EnricherAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.3, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             parsed["_enrichment_method"] = "web+llm" if web_context_parts else "llm_only"
             parsed["_web_sources_found"] = len(web_context_parts)
             return AgentResult(

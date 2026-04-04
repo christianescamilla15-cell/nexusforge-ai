@@ -5,7 +5,7 @@ import logging
 import re
 import math
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -171,7 +171,7 @@ class AnalyzerAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.2, max_tokens=512)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             # Ensure our deterministic stats are authoritative
             parsed["statistics"] = combined_stats
             parsed["_analysis_method"] = "deterministic+llm"

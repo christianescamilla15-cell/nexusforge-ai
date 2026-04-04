@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -20,10 +20,13 @@ Respond ONLY with valid JSON (no markdown):
 Raw data (after basic normalization):
 {data}"""
 
-# Common date format patterns
+# Date format patterns — DD/MM/YYYY convention (Latin America / Europe default)
 _DATE_PATTERNS = [
-    (r'(\d{1,2})/(\d{1,2})/(\d{4})', lambda m: f"{m.group(3)}-{m.group(1).zfill(2)}-{m.group(2).zfill(2)}"),
-    (r'(\d{1,2})-(\d{1,2})-(\d{4})', lambda m: f"{m.group(3)}-{m.group(1).zfill(2)}-{m.group(2).zfill(2)}"),
+    # DD/MM/YYYY → YYYY-MM-DD (LatAm convention: day first)
+    (r'(\d{1,2})/(\d{1,2})/(\d{4})', lambda m: f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"),
+    # DD-MM-YYYY → YYYY-MM-DD
+    (r'(\d{1,2})-(\d{1,2})-(\d{4})', lambda m: f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"),
+    # YYYY/MM/DD → YYYY-MM-DD (ISO-like, keep as-is)
     (r'(\d{4})/(\d{1,2})/(\d{1,2})', lambda m: f"{m.group(1)}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}"),
 ]
 
@@ -181,7 +184,7 @@ class NormalizerAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=2048)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             parsed["_normalization_method"] = "deterministic+llm"
             parsed["_fields_changed"] = changed_fields
             return AgentResult(

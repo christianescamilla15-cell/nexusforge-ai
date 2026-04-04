@@ -9,7 +9,7 @@ import json
 import logging
 import time
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ class ScraperAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.2, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             # Enrich with scraping metadata
             parsed["_scraping"] = {
                 "method": "crawl4ai" if "crawl4ai" not in str(fetch_result.get("error", "")) else "httpx",

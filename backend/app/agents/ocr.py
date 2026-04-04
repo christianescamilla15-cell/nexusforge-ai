@@ -3,7 +3,7 @@
 import json
 import logging
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import BaseAgent, AgentResult, clean_llm_json
 from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ class OCRAgent(BaseAgent):
                 ]
                 try:
                     resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=2048)
-                    parsed = json.loads(resp.text)
+                    parsed = clean_llm_json(resp.text)
                     parsed["page_count"] = page_count
                     parsed["_extraction_method"] = "pypdf2+llm"
                     return AgentResult(
@@ -145,7 +145,7 @@ class OCRAgent(BaseAgent):
 
         try:
             resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=2048)
-            parsed = json.loads(resp.text)
+            parsed = clean_llm_json(resp.text)
             parsed["_extraction_method"] = "llm_from_description"
             return AgentResult(
                 output=parsed,
