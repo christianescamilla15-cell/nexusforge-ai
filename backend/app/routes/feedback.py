@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from ..services.feedback_service import (
@@ -28,7 +28,7 @@ async def submit_run_feedback(fb: FeedbackInput):
     try:
         _uuid.UUID(fb.run_id)
     except (ValueError, AttributeError):
-        return {"error": "Invalid run_id format — must be a valid UUID"}
+        raise HTTPException(status_code=400, detail="Invalid run_id format — must be a valid UUID")
 
     # In-memory (backwards compat)
     result = submit_feedback(

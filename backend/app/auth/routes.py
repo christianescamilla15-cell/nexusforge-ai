@@ -110,14 +110,16 @@ _verify_codes: dict[str, dict] = {}
 async def register(req: RegisterRequest):
     """Register with email + password. Sends verification code via email."""
     import random, time
+
+    # Validate password length BEFORE DB call (avoids email enumeration via error order)
+    if len(req.password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         existing = await conn.fetchrow("SELECT id FROM nf_users WHERE email = $1", req.email)
         if existing:
             raise HTTPException(409, "Email already registered")
-
-    if len(req.password) < 6:
-        raise HTTPException(400, "Password must be at least 6 characters")
 
     user = await _get_or_create_user(
         email=req.email,
