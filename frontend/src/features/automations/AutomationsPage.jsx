@@ -179,7 +179,12 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
       </div>
 
       {/* Templates */}
-      <TemplatesLibrary lang={lang} isMobile={isMobile} onDeployed={() => loadUserAutomations()} />
+      <TemplatesLibrary lang={lang} isMobile={isMobile} onDeployed={(data) => {
+        loadUserAutomations()
+        if (data?.automation_id) {
+          setDashboardId(data.automation_id)
+        }
+      }} />
 
       {/* User automations */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

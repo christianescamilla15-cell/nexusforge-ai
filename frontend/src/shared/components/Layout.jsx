@@ -4,14 +4,17 @@ import { getApiUrl } from '../../services/api'
 
 const NAV_ITEMS = [
   { key: 'dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
+  { key: 'automations', icon: 'M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z' },
   { key: 'wizard', icon: 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM12 6v6h4.5' },
+  { key: 'integrations', icon: 'M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244' },
+  { key: 'settings', icon: 'M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93s.844.126 1.197-.094l.758-.474a1.12 1.12 0 011.37.15l.773.773a1.12 1.12 0 01.15 1.37l-.474.758c-.22.353-.254.804-.094 1.197.16.396.506.71.93.78l.894.15c.542.09.94.56.94 1.109v1.094c0 .55-.398 1.02-.94 1.11l-.894.149c-.424.07-.764.384-.93.78s-.126.844.094 1.197l.474.758a1.12 1.12 0 01-.15 1.37l-.773.773a1.12 1.12 0 01-1.37.15l-.758-.474c-.353-.22-.804-.254-1.197-.094-.396.16-.71.506-.78.93l-.15.894c-.09.542-.56.94-1.109.94h-1.094c-.55 0-1.02-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93s-.844-.126-1.197.094l-.757.474a1.12 1.12 0 01-1.37-.15l-.774-.773a1.12 1.12 0 01-.15-1.37l.474-.758c.22-.353.254-.804.094-1.197a2.25 2.25 0 00-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.764-.384.93-.78s.126-.844-.094-1.197l-.474-.758a1.12 1.12 0 01.15-1.37l.773-.774a1.12 1.12 0 011.37-.15l.758.474c.353.22.804.254 1.197.094.396-.16.71-.506.78-.93l.15-.894zM15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+]
+
+const ADVANCED_ITEMS = [
   { key: 'workflows', icon: 'M4 6h16M4 12h8m-8 6h16' },
   { key: 'executions', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
   { key: 'agents', icon: 'M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-2.47 3.71a.75.75 0 01-.625.334H8.095a.75.75 0 01-.625-.334L5 14.5m14 0H5' },
   { key: 'swarms', icon: 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' },
-  { key: 'automations', icon: 'M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z' },
-  { key: 'integrations', icon: 'M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244' },
-  { key: 'settings', icon: 'M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93s.844.126 1.197-.094l.758-.474a1.12 1.12 0 011.37.15l.773.773a1.12 1.12 0 01.15 1.37l-.474.758c-.22.353-.254.804-.094 1.197.16.396.506.71.93.78l.894.15c.542.09.94.56.94 1.109v1.094c0 .55-.398 1.02-.94 1.11l-.894.149c-.424.07-.764.384-.93.78s-.126.844.094 1.197l.474.758a1.12 1.12 0 01-.15 1.37l-.773.773a1.12 1.12 0 01-1.37.15l-.758-.474c-.353-.22-.804-.254-1.197-.094-.396.16-.71.506-.78.93l-.15.894c-.09.542-.56.94-1.109.94h-1.094c-.55 0-1.02-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93s-.844-.126-1.197.094l-.757.474a1.12 1.12 0 01-1.37-.15l-.774-.773a1.12 1.12 0 01-.15-1.37l.474-.758c.22-.353.254-.804.094-1.197a2.25 2.25 0 00-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.764-.384.93-.78s.126-.844-.094-1.197l-.474-.758a1.12 1.12 0 01.15-1.37l.773-.774a1.12 1.12 0 011.37-.15l.758.474c.353.22.804.254 1.197.094.396-.16.71-.506.78-.93l.15-.894zM15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ]
 
 const sidebarWidth = 240
@@ -24,12 +27,32 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(() => {
+    try { return localStorage.getItem('nxf-advanced-open') === '1' } catch { return false }
+  })
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  const toggleAdvanced = () => {
+    setAdvancedOpen(prev => {
+      const next = !prev
+      try { localStorage.setItem('nxf-advanced-open', next ? '1' : '0') } catch { /* */ }
+      return next
+    })
+  }
+
+  // If currently on an advanced page, ensure advanced section is open
+  useEffect(() => {
+    const advancedKeys = ADVANCED_ITEMS.map(i => i.key)
+    if (advancedKeys.includes(currentPage) && !advancedOpen) {
+      setAdvancedOpen(true)
+      try { localStorage.setItem('nxf-advanced-open', '1') } catch { /* */ }
+    }
+  }, [currentPage, advancedOpen])
 
   const w = isMobile ? sidebarWidth : (collapsed ? collapsedWidth : sidebarWidth)
 
@@ -102,13 +125,14 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
           {NAV_ITEMS.map((item) => {
             const active = currentPage === item.key
             const showLabel = !collapsed || isMobile
             return (
               <button
                 key={item.key}
+                data-nav={item.key}
                 onClick={() => { onNavigate(item.key); setMobileOpen(false) }}
                 aria-label={t(item.key, lang)}
                 title={(!showLabel) ? t(item.key, lang) : undefined}
@@ -139,6 +163,75 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               </button>
             )
           })}
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Advanced section - collapsible */}
+          <div style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6'}`, paddingTop: 8, marginTop: 4 }}>
+            <button
+              onClick={toggleAdvanced}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: (!collapsed || isMobile) ? '8px 12px' : '8px 0',
+                justifyContent: (!collapsed || isMobile) ? 'flex-start' : 'center',
+                borderRadius: 8, border: 'none', width: '100%',
+                background: 'transparent',
+                color: isDark ? '#6B7280' : '#9CA3AF',
+                fontSize: 11, fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.05em',
+                cursor: 'pointer', transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = isDark ? '#9CA3AF' : '#6B7280'}
+              onMouseLeave={(e) => e.currentTarget.style.color = isDark ? '#6B7280' : '#9CA3AF'}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ flexShrink: 0, transform: advancedOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                <path d="M9 5l7 7-7 7" />
+              </svg>
+              {(!collapsed || isMobile) && <span>{lang === 'es' ? 'Avanzado' : 'Advanced'}</span>}
+            </button>
+
+            {advancedOpen && ADVANCED_ITEMS.map((item) => {
+              const active = currentPage === item.key
+              const showLabel = !collapsed || isMobile
+              return (
+                <button
+                  key={item.key}
+                  data-nav={item.key}
+                  onClick={() => { onNavigate(item.key); setMobileOpen(false) }}
+                  aria-label={t(item.key, lang)}
+                  title={(!showLabel) ? t(item.key, lang) : undefined}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: showLabel ? '10px 12px 10px 20px' : '10px 0',
+                    justifyContent: showLabel ? 'flex-start' : 'center',
+                    borderRadius: 8, border: 'none', width: '100%',
+                    background: active ? (isDark ? 'rgba(99,102,241,0.15)' : 'rgba(37,99,235,0.08)') : 'transparent',
+                    color: active ? (isDark ? '#818CF8' : '#2563EB') : (isDark ? '#9CA3AF' : '#4B5563'),
+                    fontSize: 13, fontWeight: active ? 600 : 400,
+                    transition: 'all 0.15s', cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ flexShrink: 0 }}>
+                    <path d={item.icon} />
+                  </svg>
+                  {showLabel && <span>{t(item.key, lang)}</span>}
+                </button>
+              )
+            })}
+          </div>
         </nav>
 
         {/* Collapse toggle -- hidden on mobile */}
@@ -378,7 +471,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         {[
           { key: 'dashboard', label: t('dashboard', lang), icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
           { key: 'automations', label: t('automations', lang) || 'Automations', icon: 'M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z' },
-          { key: 'agents', label: t('agents', lang) || 'Agents', icon: 'M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-2.47 3.71a.75.75 0 01-.625.334H8.095a.75.75 0 01-.625-.334L5 14.5m14 0H5' },
+          { key: 'wizard', label: 'AI Wizard', icon: 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM12 6v6h4.5' },
           { key: 'settings', label: t('settings', lang), icon: 'M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93s.844.126 1.197-.094l.758-.474a1.12 1.12 0 011.37.15l.773.773a1.12 1.12 0 01.15 1.37l-.474.758c-.22.353-.254.804-.094 1.197.16.396.506.71.93.78l.894.15c.542.09.94.56.94 1.109v1.094c0 .55-.398 1.02-.94 1.11l-.894.149c-.424.07-.764.384-.93.78s-.126.844.094 1.197l.474.758a1.12 1.12 0 01-.15 1.37l-.773.773a1.12 1.12 0 01-1.37.15l-.758-.474c-.353-.22-.804-.254-1.197-.094-.396.16-.71.506-.78.93l-.15.894c-.09.542-.56.94-1.109.94h-1.094c-.55 0-1.02-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93s-.844-.126-1.197.094l-.757.474a1.12 1.12 0 01-1.37-.15l-.774-.773a1.12 1.12 0 01-.15-1.37l.474-.758c.22-.353.254-.804.094-1.197a2.25 2.25 0 00-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.764-.384.93-.78s.126-.844-.094-1.197l-.474-.758a1.12 1.12 0 01.15-1.37l.773-.774a1.12 1.12 0 011.37-.15l.758.474c.353.22.804.254 1.197.094.396-.16.71-.506.78-.93l.15-.894zM15 12a3 3 0 11-6 0 3 3 0 016 0z' },
         ].map((item) => {
           const active = currentPage === item.key

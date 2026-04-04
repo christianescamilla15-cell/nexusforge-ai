@@ -119,6 +119,16 @@ const QUICK_TYPES = [
   },
 ]
 
+// ── Quick-type smart defaults ────────────────────────────────────────────────
+
+const QUICK_TYPE_DEFAULTS = {
+  ticket:   { input: 'text',   outputs: ['dashboard', 'slack'] },
+  document: { input: 'file',   outputs: ['dashboard', 'export'] },
+  email:    { input: 'text',   outputs: ['dashboard', 'email'] },
+  report:   { input: 'form',   outputs: ['dashboard', 'export'] },
+  custom:   { input: null,     outputs: [] },
+}
+
 // ── Input options ────────────────────────────────────────────────────────────
 
 const INPUT_OPTIONS = [
@@ -563,7 +573,7 @@ function DashboardPreviewMockup({ type, lang = 'en' }) {
 
 // ── Step 3: Preview ──────────────────────────────────────────────────────────
 
-function StepPreview({ workflow, inputType, outputTypes, automationType, onUpdateName, lang = 'en' }) {
+function StepPreview({ workflow, inputType, outputTypes, automationType, onUpdateName, onChangeInputOutput, skippedInputOutput, lang = 'en' }) {
   if (!workflow) return null
   const { name, steps = [], recommended_topology, topology_reason, estimated_tokens, estimated_cost_usd } = workflow
   const dashType = DASHBOARD_TYPE_MAP[automationType] || 'generic'
@@ -611,8 +621,18 @@ function StepPreview({ workflow, inputType, outputTypes, automationType, onUpdat
         <div style={{
           padding: '12px 14px', borderRadius: 10, background: '#F0F9FF', border: '1px solid #BAE6FD',
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#0284C7', textTransform: 'uppercase', marginBottom: 6 }}>
-            {t('inputType', lang)}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#0284C7', textTransform: 'uppercase' }}>
+              {t('inputType', lang)}
+            </div>
+            {skippedInputOutput && onChangeInputOutput && (
+              <button onClick={onChangeInputOutput} style={{
+                background: 'none', border: 'none', fontSize: 11, fontWeight: 600,
+                color: '#0284C7', cursor: 'pointer', textDecoration: 'underline', padding: 0,
+              }}>
+                {lang === 'es' ? 'Cambiar' : 'Change'}
+              </button>
+            )}
           </div>
           <div style={{ fontSize: 20, marginBottom: 2 }}>{inputLabel?.icon || '\uD83D\uDCDD'}</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{inputLabel?.label[lang] || inputType}</div>
@@ -621,8 +641,18 @@ function StepPreview({ workflow, inputType, outputTypes, automationType, onUpdat
         <div style={{
           padding: '12px 14px', borderRadius: 10, background: '#F0FDF4', border: '1px solid #BBF7D0',
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', textTransform: 'uppercase', marginBottom: 6 }}>
-            {t('outputDest', lang)}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', textTransform: 'uppercase' }}>
+              {t('outputDest', lang)}
+            </div>
+            {skippedInputOutput && onChangeInputOutput && (
+              <button onClick={onChangeInputOutput} style={{
+                background: 'none', border: 'none', fontSize: 11, fontWeight: 600,
+                color: '#16A34A', cursor: 'pointer', textDecoration: 'underline', padding: 0,
+              }}>
+                {lang === 'es' ? 'Cambiar' : 'Change'}
+              </button>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {selectedOutputs.map(o => (
@@ -776,6 +806,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const [isGenerating, setIsGenerating] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState(null)
+  const [skippedInputOutput, setSkippedInputOutput] = useState(false) // true when defaults were auto-applied
 
   const workflowRef = useRef(workflow)
   useEffect(() => { workflowRef.current = workflow }, [workflow])
@@ -846,7 +877,19 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
       }
       // Generate workflow
       const ok = await generateWorkflow()
-      if (ok) setStep(1)
+      if (!ok) return
+
+      // Smart defaults: if predefined type, auto-fill input/output and skip to preview
+      const defaults = QUICK_TYPE_DEFAULTS[automationType]
+      if (defaults && defaults.input && automationType !== 'custom') {
+        setInputType(defaults.input)
+        setOutputTypes(defaults.outputs.length > 0 ? defaults.outputs : ['dashboard'])
+        setSkippedInputOutput(true)
+        setStep(3) // Jump directly to Preview
+      } else {
+        setSkippedInputOutput(false)
+        setStep(1)
+      }
       return
     }
 
@@ -871,7 +914,19 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   }
 
   const handleBack = () => {
+    if (step === 3 && skippedInputOutput) {
+      // Go back to step 0 if we skipped input/output
+      setStep(0)
+      setSkippedInputOutput(false)
+      return
+    }
     if (step > 0) setStep(s => s - 1)
+  }
+
+  // Handler: user wants to change auto-selected input/output from Preview
+  const handleChangeInputOutput = () => {
+    setSkippedInputOutput(false)
+    setStep(1) // Go to input selection step
   }
 
   // Publish: create workflow + automation, then navigate to dashboard
@@ -1013,6 +1068,8 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
             outputTypes={outputTypes}
             automationType={automationType}
             onUpdateName={handleUpdateName}
+            onChangeInputOutput={handleChangeInputOutput}
+            skippedInputOutput={skippedInputOutput}
             lang={lang}
           />
         )}

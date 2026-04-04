@@ -1,40 +1,39 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { t } from '../i18n/translations'
 
-// --- Tour Steps ---
+// --- Tour Steps (simplified: 3 steps, no auto-actions) ---
 const TOUR_STEPS = [
-  { id: 'welcome', page: null, target: null, action: null, wait: 0 },
-  { id: 'dashboard', page: 'dashboard', target: '[data-tour="dashboard-kpis"]', action: null, wait: 1200 },
-  { id: 'workflows', page: 'workflows', target: '[data-tour="workflow-table"]', action: 'clickFirstWorkflowRow', wait: 1000 },
-  { id: 'executions', page: 'executions', target: '[data-tour="execution-table"]', action: 'clickFirstExecutionRow', wait: 1000 },
-  { id: 'agents', page: 'agents', target: '[data-tour="agent-grid"]', action: 'clickFirstAgent', wait: 1000 },
-  { id: 'swarms', page: 'swarms', target: '[data-tour="swarm-grid"]', action: null, wait: 500 },
-  { id: 'memory', page: 'memory', target: '[data-tour="memory-input"]', action: 'storeMemory', wait: 4000 },
-  { id: 'healing', page: 'healing', target: '[data-tour="healing-simulator"]', action: 'simulateFailure', wait: 7000 },
-  { id: 'documents', page: 'documents', target: '[data-tour="semantic-search"]', action: 'searchDocs', wait: 1500 },
-  { id: 'chat', page: null, target: '[data-tour="chat-button"]', action: 'openChat', wait: 2000 },
-  { id: 'final', page: 'dashboard', target: null, action: 'scrollTop', wait: 500 },
+  {
+    id: 'welcome',
+    page: 'dashboard',
+    target: '.nxf-main-content main',
+    title: { es: '!Bienvenido a NexusForge!', en: 'Welcome to NexusForge!' },
+    desc: {
+      es: 'Este es tu dashboard principal. Aqui veras el resumen de tus automatizaciones, ejecuciones y agentes.',
+      en: 'This is your main dashboard. Here you\'ll see a summary of your automations, executions and agents.',
+    },
+  },
+  {
+    id: 'wizard',
+    page: null,
+    target: '[data-nav="wizard"]',
+    title: { es: 'Crea automatizaciones con AI Wizard', en: 'Create automations with AI Wizard' },
+    desc: {
+      es: 'Describe lo que quieres automatizar en lenguaje natural y la IA diseñara el flujo optimo para ti.',
+      en: 'Describe what you want to automate in plain language and the AI will design the optimal workflow for you.',
+    },
+  },
+  {
+    id: 'automations',
+    page: null,
+    target: '[data-nav="automations"]',
+    title: { es: 'O usa plantillas listas para usar', en: 'Or use ready-made templates' },
+    desc: {
+      es: 'Elige entre plantillas predefinidas como Ticket Triage, Analisis de Documentos o Auto-Respuesta de Email. Un clic para desplegar.',
+      en: 'Choose from pre-built templates like Ticket Triage, Document Analysis or Email Auto-Responder. One click to deploy.',
+    },
+  },
 ]
-
-// --- Helper: type into a React-controlled input ---
-function typeIntoInput(selector, text) {
-  const el = document.querySelector(selector)
-  if (!el) return false
-  const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-  if (nativeSetter) {
-    nativeSetter.call(el, text)
-    el.dispatchEvent(new Event('input', { bubbles: true }))
-  }
-  el.dispatchEvent(new Event('change', { bubbles: true }))
-  return true
-}
-
-function clickElement(selector) {
-  const el = document.querySelector(selector)
-  if (!el) return false
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-  return true
-}
 
 // --- Spotlight Overlay ---
 function TourSpotlight({ targetRect, padding = 12 }) {
@@ -46,7 +45,7 @@ function TourSpotlight({ targetRect, padding = 12 }) {
     }}>
       <div style={{
         position: 'absolute', inset: 0,
-        background: '#E5E7EB',
+        background: 'rgba(0,0,0,0.45)',
         clipPath: `polygon(
           0% 0%, 100% 0%, 100% 100%, 0% 100%,
           0% ${top - padding}px,
@@ -61,7 +60,7 @@ function TourSpotlight({ targetRect, padding = 12 }) {
         position: 'absolute',
         top: top - padding, left: left - padding,
         width: width + padding * 2, height: height + padding * 2,
-        border: '2px solid rgba(37,99,235,0.5)',
+        border: '2px solid rgba(99,102,241,0.6)',
         borderRadius: 12,
         animation: 'tourPulse 2s ease-in-out infinite',
         pointerEvents: 'none',
@@ -71,36 +70,7 @@ function TourSpotlight({ targetRect, padding = 12 }) {
 }
 
 // --- Tooltip ---
-function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang, actionRunning, onNext, onPrev, onSkip }) {
-  const stepTitles = {
-    welcome: 'tourStepWelcome',
-    dashboard: 'tourStepDashboard',
-    workflows: 'tourStepWorkflows',
-    executions: 'tourStepExecutions',
-    'execution-detail': 'tourStepExecutionDetail',
-    agents: 'tourStepAgents',
-    swarms: 'tourStepSwarms',
-    memory: 'tourStepMemory',
-    healing: 'tourStepHealing',
-    documents: 'tourStepDocuments',
-    chat: 'tourStepChat',
-    final: 'tourStepFinal',
-  }
-  const stepDescs = {
-    welcome: 'tourStepWelcomeDesc',
-    dashboard: 'tourStepDashboardDesc',
-    workflows: 'tourStepWorkflowsDesc',
-    executions: 'tourStepExecutionsDesc',
-    'execution-detail': 'tourStepExecutionDetailDesc',
-    agents: 'tourStepAgentsDesc',
-    swarms: 'tourStepSwarmsDesc',
-    memory: 'tourStepMemoryDesc',
-    healing: 'tourStepHealingDesc',
-    documents: 'tourStepDocumentsDesc',
-    chat: 'tourStepChatDesc',
-    final: 'tourStepFinalDesc',
-  }
-
+function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang, onNext, onPrev, onSkip }) {
   let tooltipStyle = {
     position: 'fixed',
     zIndex: 9999,
@@ -110,7 +80,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang,
     padding: '20px 22px',
     width: 360,
     maxWidth: 'calc(100vw - 32px)',
-    boxShadow: '0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px rgba(37,99,235,0.08)',
+    boxShadow: '0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px rgba(99,102,241,0.08)',
     animation: 'tourTooltipIn 0.3s ease-out',
     pointerEvents: 'auto',
   }
@@ -147,7 +117,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang,
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
         padding: '3px 10px', borderRadius: 12,
-        background: 'rgba(37,99,235,0.06)', color: '#2563EB',
+        background: 'rgba(99,102,241,0.06)', color: '#6366F1',
         fontSize: 11, fontWeight: 600, marginBottom: 10,
       }}>
         {stepIndex + 1} / {totalSteps}
@@ -158,7 +128,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang,
         fontSize: 18, fontWeight: 700, color: '#111827',
         marginBottom: 6, lineHeight: 1.3,
       }}>
-        {t(stepTitles[step.id], lang)}
+        {step.title[lang] || step.title.en}
       </h3>
 
       {/* Description */}
@@ -166,51 +136,32 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang,
         fontSize: 14, color: '#4B5563', lineHeight: 1.5,
         marginBottom: 16,
       }}>
-        {t(stepDescs[step.id], lang)}
+        {step.desc[lang] || step.desc.en}
       </p>
 
-      {/* Language selector on welcome step */}
-      {step.id === 'welcome' && onSetLang && (
+      {/* Language selector on first step */}
+      {stepIndex === 0 && onSetLang && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
           {[{ key: 'es', label: 'Español' }, { key: 'en', label: 'English' }].map(opt => (
             <button key={opt.key} onClick={() => onSetLang(opt.key)} style={{
               padding: '6px 16px', borderRadius: 100, fontSize: 13, fontWeight: 600,
               border: '1px solid', cursor: 'pointer',
-              borderColor: lang === opt.key ? '#2563EB' : '#E5E7EB',
-              background: lang === opt.key ? '#2563EB' : '#FFFFFF',
+              borderColor: lang === opt.key ? '#6366F1' : '#E5E7EB',
+              background: lang === opt.key ? '#6366F1' : '#FFFFFF',
               color: lang === opt.key ? '#FFFFFF' : '#6B7280',
             }}>{opt.label}</button>
           ))}
         </div>
       )}
 
-      {/* Action running indicator */}
-      {actionRunning && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 8, marginBottom: 14,
-          background: 'rgba(37,99,235,0.04)',
-          border: '1px solid rgba(37,99,235,0.12)',
-        }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: '#2563EB',
-            animation: 'tourActionPulse 1s ease-in-out infinite',
-          }} />
-          <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 500 }}>
-            {t('watchingDemo', lang)}
-          </span>
-        </div>
-      )}
-
       {/* Progress dots */}
       <div style={{
-        display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap',
+        display: 'flex', gap: 4, marginBottom: 14,
       }}>
         {TOUR_STEPS.map((_, i) => (
           <div key={i} style={{
             width: i === stepIndex ? 20 : 6, height: 6, borderRadius: 3,
-            background: i < stepIndex ? '#2563EB' : i === stepIndex ? '#60A5FA' : '#E5E7EB',
+            background: i < stepIndex ? '#6366F1' : i === stepIndex ? '#818CF8' : '#E5E7EB',
             transition: 'all 0.3s',
           }} />
         ))}
@@ -218,7 +169,7 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang,
 
       {/* Buttons */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        {stepIndex > 0 && !actionRunning && (
+        {stepIndex > 0 && (
           <button
             onClick={onPrev}
             style={{
@@ -229,140 +180,46 @@ function TourTooltip({ step, stepIndex, totalSteps, targetRect, lang, onSetLang,
               transition: 'all 0.15s',
             }}
           >
-            {t('prev', lang)}
+            {lang === 'es' ? 'Anterior' : 'Previous'}
           </button>
         )}
 
         <div style={{ flex: 1 }} />
 
-        {!actionRunning && (
-          <button
-            onClick={onSkip}
-            style={{
-              padding: '8px 16px', borderRadius: 8, border: 'none',
-              background: 'transparent', color: '#9CA3AF',
-              fontSize: 12, cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            {t('skip', lang)}
-          </button>
-        )}
+        <button
+          onClick={onSkip}
+          style={{
+            padding: '8px 16px', borderRadius: 8, border: 'none',
+            background: 'transparent', color: '#9CA3AF',
+            fontSize: 12, cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {lang === 'es' ? 'Omitir' : 'Skip'}
+        </button>
 
-        {!actionRunning && (
-          <button
-            onClick={onNext}
-            style={{
-              padding: '8px 20px', borderRadius: 8, border: 'none',
-              background: '#2563EB',
-              color: '#fff', fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}
-          >
-            {stepIndex === totalSteps - 1 ? t('finish', lang) : t('next', lang)}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// --- Completion Modal ---
-function CompletionModal({ lang, onRestart, onExplore }) {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 10000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#F3F4F6',
-      animation: 'tourFadeIn 0.4s ease-out',
-      cursor: 'pointer',
-    }} onClick={(e) => {
-      if (e.target.closest('[data-tour-completion]') || e.target.closest('button')) return;
-      onExplore();
-    }}>
-      <div data-tour-completion style={{
-        background: '#FFFFFF',
-        border: '1px solid #E5E7EB',
-        borderRadius: 20, padding: '36px 40px',
-        maxWidth: 460, width: '90%',
-        textAlign: 'center',
-        animation: 'tourScaleIn 0.4s ease-out',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.12)',
-      }}>
-        {/* Success icon */}
-        <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          background: '#2563EB',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 20px',
-          boxShadow: '0 0 30px rgba(37,99,235,0.2)',
-        }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-          {t('tourComplete', lang)}
-        </h2>
-        <p style={{ fontSize: 14, color: '#4B5563', lineHeight: 1.6, marginBottom: 24 }}>
-          {t('tourCompleteDesc', lang)}
-        </p>
-
-        {/* Stats row */}
-        <div style={{
-          display: 'flex', justifyContent: 'center', gap: 24,
-          marginBottom: 28, flexWrap: 'wrap',
-        }}>
-          {[
-            { value: '10', label: t('pagesVisited', lang), color: '#2563EB' },
-            { value: '5', label: t('demosPlayed', lang), color: '#059669' },
-            { value: '22', label: t('featuresExplored', lang), color: '#D97706' },
-          ].map((s) => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-          <button
-            onClick={onRestart}
-            style={{
-              padding: '10px 24px', borderRadius: 10,
-              border: '1px solid #E5E7EB',
-              background: '#FFFFFF', color: '#2563EB',
-              fontSize: 14, fontWeight: 500, cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            {t('restartTour', lang)}
-          </button>
-          <button
-            onClick={onExplore}
-            style={{
-              padding: '10px 28px', borderRadius: 10, border: 'none',
-              background: '#2563EB',
-              color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            {t('explore', lang)}
-          </button>
-        </div>
+        <button
+          onClick={onNext}
+          style={{
+            padding: '8px 20px', borderRadius: 8, border: 'none',
+            background: '#6366F1',
+            color: '#fff', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', transition: 'all 0.15s',
+          }}
+        >
+          {stepIndex === totalSteps - 1
+            ? (lang === 'es' ? 'Comenzar' : 'Get Started')
+            : (lang === 'es' ? 'Siguiente' : 'Next')}
+        </button>
       </div>
     </div>
   )
 }
 
 // --- Main OnboardingTour Component ---
-export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete, onSelectWorkflow, onSelectExecution }) {
+export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete }) {
   const [stepIndex, setStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState(null)
-  const [actionRunning, setActionRunning] = useState(false)
-  const [showCompletion, setShowCompletion] = useState(false)
   const timeoutsRef = useRef([])
 
   const clearAllTimeouts = useCallback(() => {
@@ -421,177 +278,33 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
     return () => window.removeEventListener('resize', handler)
   }, [measureTarget])
 
-  const executeAction = useCallback(() => {
-    if (!currentStep?.action) return
-
-    setActionRunning(true)
-
-    switch (currentStep.action) {
-      case 'clickFirstWorkflowRow':
-      case 'clickFirstExecutionRow':
-      case 'clickFirstAgent': {
-        addTimeout(() => setActionRunning(false), 800)
-        break
-      }
-
-      case 'storeMemory': {
-        addTimeout(() => {
-          const input = document.querySelector('[data-tour="memory-input"] input[type="text"]')
-          if (input) {
-            typeIntoInput('[data-tour="memory-input"] input[type="text"]', 'Classify financial report')
-          }
-        }, 500)
-        addTimeout(() => {
-          const btns = document.querySelectorAll('[data-tour="memory-input"] button')
-          for (const btn of btns) {
-            if (btn.textContent.includes('Store') || btn.textContent.includes('Almacenar')) {
-              btn.click()
-              break
-            }
-          }
-        }, 1000)
-        addTimeout(() => {
-          setActionRunning(false)
-          measureTarget()
-        }, currentStep.wait)
-        break
-      }
-
-      case 'simulateFailure': {
-        addTimeout(() => {
-          const btns = document.querySelectorAll('[data-tour="healing-simulator"] button')
-          for (const btn of btns) {
-            const text = btn.textContent || ''
-            if (text.includes('Simulate') || text.includes('Simular')) {
-              btn.click()
-              break
-            }
-          }
-        }, 500)
-        addTimeout(() => {
-          setActionRunning(false)
-          measureTarget()
-        }, currentStep.wait)
-        break
-      }
-
-      case 'searchDocs': {
-        addTimeout(() => {
-          const input = document.querySelector('[data-tour="semantic-search"] input[type="text"]')
-          if (input) {
-            typeIntoInput('[data-tour="semantic-search"] input[type="text"]', 'NexusForge architecture')
-          }
-        }, 300)
-        addTimeout(() => {
-          setActionRunning(false)
-          measureTarget()
-        }, currentStep.wait)
-        break
-      }
-
-      case 'openChat': {
-        addTimeout(() => {
-          const chatBtn = document.querySelector('[data-tour="chat-button"]')
-          if (chatBtn) chatBtn.click()
-        }, 300)
-        addTimeout(() => {
-          const chatInput = document.querySelector('.nf-chat-panel input[type="text"]')
-          if (chatInput) {
-            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-            if (nativeSetter) {
-              nativeSetter.call(chatInput, 'What is NexusForge?')
-              chatInput.dispatchEvent(new Event('input', { bubbles: true }))
-              chatInput.dispatchEvent(new Event('change', { bubbles: true }))
-            }
-          }
-        }, 800)
-        addTimeout(() => {
-          const sendBtn = document.querySelector('.nf-chat-panel button[type="submit"]')
-          if (sendBtn) sendBtn.click()
-        }, 1200)
-        addTimeout(() => setActionRunning(false), currentStep.wait)
-        break
-      }
-
-      case 'scrollTop': {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-        addTimeout(() => setActionRunning(false), currentStep.wait)
-        break
-      }
-
-      default:
-        setActionRunning(false)
-    }
-  }, [currentStep, addTimeout, measureTarget])
-
   const goToStep = useCallback((idx) => {
     if (idx < 0 || idx >= TOUR_STEPS.length) return
     clearAllTimeouts()
-    setActionRunning(false)
     setTargetRect(null)
     setStepIndex(idx)
   }, [clearAllTimeouts])
 
   const handleNext = useCallback(() => {
-    if (actionRunning) return
-
-    if (currentStep?.action && !actionRunning) {
-      executeAction()
-      addTimeout(() => {
-        if (stepIndex < TOUR_STEPS.length - 1) {
-          goToStep(stepIndex + 1)
-        } else {
-          window.scrollTo({ top: 0, behavior: 'smooth' })
-          onNavigate('dashboard')
-          setShowCompletion(true)
-        }
-      }, (currentStep.wait || 0) + 200)
-      return
-    }
-
     if (stepIndex < TOUR_STEPS.length - 1) {
       goToStep(stepIndex + 1)
     } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
       onNavigate('dashboard')
-      setShowCompletion(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      onComplete()
     }
-  }, [stepIndex, currentStep, actionRunning, executeAction, goToStep, onNavigate, addTimeout])
+  }, [stepIndex, goToStep, onNavigate, onComplete])
 
   const handlePrev = useCallback(() => {
-    if (actionRunning) return
     goToStep(stepIndex - 1)
-  }, [stepIndex, actionRunning, goToStep])
+  }, [stepIndex, goToStep])
 
   const handleSkip = useCallback(() => {
     clearAllTimeouts()
-    setActionRunning(false)
     onNavigate('dashboard')
     window.scrollTo({ top: 0, behavior: 'smooth' })
     onComplete()
   }, [clearAllTimeouts, onNavigate, onComplete])
-
-  const handleRestart = useCallback(() => {
-    setShowCompletion(false)
-    setTargetRect(null)
-    setActionRunning(false)
-    clearAllTimeouts()
-    setStepIndex(0)
-  }, [clearAllTimeouts])
-
-  const handleExplore = useCallback(() => {
-    setShowCompletion(false)
-    onComplete()
-  }, [onComplete])
-
-  if (showCompletion) {
-    return (
-      <>
-        <style>{tourKeyframes}</style>
-        <CompletionModal lang={lang} onRestart={handleRestart} onExplore={handleExplore} />
-      </>
-    )
-  }
 
   return (
     <>
@@ -602,14 +315,14 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
       ) : (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9998,
-          background: '#E5E7EB',
+          background: 'rgba(0,0,0,0.45)',
           pointerEvents: 'none',
         }} />
       )}
 
       <div style={{
         position: 'fixed', inset: 0, zIndex: 9998,
-        pointerEvents: actionRunning ? 'none' : 'auto',
+        pointerEvents: 'auto',
         background: 'transparent',
         cursor: 'pointer',
       }} onClick={(e) => {
@@ -623,7 +336,6 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
           targetRect={targetRect}
           lang={lang}
           onSetLang={onSetLang}
-          actionRunning={actionRunning}
           onNext={handleNext}
           onPrev={handlePrev}
           onSkip={handleSkip}
@@ -636,23 +348,15 @@ export default function OnboardingTour({ lang, onNavigate, onSetLang, onComplete
 // --- Keyframes ---
 const tourKeyframes = `
 @keyframes tourPulse {
-  0%, 100% { border-color: rgba(37,99,235,0.5); box-shadow: 0 0 0 0 rgba(37,99,235,0.15); }
-  50% { border-color: rgba(37,99,235,0.8); box-shadow: 0 0 20px 4px rgba(37,99,235,0.1); }
+  0%, 100% { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 0 rgba(99,102,241,0.15); }
+  50% { border-color: rgba(99,102,241,0.8); box-shadow: 0 0 20px 4px rgba(99,102,241,0.1); }
 }
 @keyframes tourTooltipIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes tourActionPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
-}
 @keyframes tourFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-@keyframes tourScaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
 }
 `

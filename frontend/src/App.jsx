@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import AuthPage from './features/auth/AuthPage'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
-import Onboarding from './shared/components/Onboarding'
 import { useLanguage } from './shared/hooks/useLanguage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import WorkflowListPage from './features/workflows/WorkflowListPage'
@@ -32,10 +31,6 @@ export default function App() {
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem('nxf-tour-done') } catch { return false }
   })
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    try { return !localStorage.getItem('nxf-onboarding-done') } catch { return false }
-  })
-
   // Auth state
   const [user, setUser] = useState(() => {
     try {
@@ -111,21 +106,7 @@ export default function App() {
 
     switch (currentPage) {
       case 'dashboard':
-        return (
-          <>
-            {showOnboarding && (
-              <Onboarding
-                lang={lang}
-                setLang={setLang}
-                onDismiss={() => {
-                  setShowOnboarding(false)
-                  try { localStorage.setItem('nxf-onboarding-done', '1') } catch { /* */ }
-                }}
-              />
-            )}
-            <DashboardPage lang={lang} />
-          </>
-        )
+        return <DashboardPage lang={lang} onNavigate={navigate} />
       case 'integrations':
         return <IntegrationManagerPage lang={lang} />
       case 'wizard':
@@ -187,9 +168,7 @@ export default function App() {
             setTheme={setTheme}
             onResetTour={() => {
               try { localStorage.removeItem('nxf-tour-done') } catch { /* */ }
-              try { localStorage.removeItem('nxf-onboarding-done') } catch { /* */ }
               setShowTour(true)
-              setShowOnboarding(true)
               setCurrentPage('dashboard')
             }}
           />
@@ -210,8 +189,6 @@ export default function App() {
           onSetLang={setLang}
           onNavigate={navigate}
           onComplete={() => { setShowTour(false); try { localStorage.setItem('nxf-tour-done', '1') } catch {} }}
-          onSelectWorkflow={(id) => { setCurrentPage('workflows'); setSelectedWorkflow(id) }}
-          onSelectExecution={(id) => { setCurrentPage('executions'); setSelectedExecution(id) }}
         />
       )}
       <ChatAssistant lang={lang} />

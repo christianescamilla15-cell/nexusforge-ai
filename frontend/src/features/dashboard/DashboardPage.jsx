@@ -31,7 +31,7 @@ function KPIIcon({ type }) {
   )
 }
 
-export default function DashboardPage({ lang = 'en' }) {
+export default function DashboardPage({ lang = 'en', onNavigate }) {
   const [isMobile, setIsMobile] = useState(false)
   const [runs, setRuns] = useState([])
   const [health, setHealth] = useState(null)
@@ -91,7 +91,27 @@ export default function DashboardPage({ lang = 'en' }) {
     )
   }
 
-  const hasData = runs.length > 0 || health
+  const hasData = (runs.length > 0) || (health && (health.total_runs > 0 || health.total_agents_tracked > 0))
+
+  const primaryButtonStyle = {
+    padding: '12px 28px', borderRadius: 10, border: 'none',
+    background: 'linear-gradient(135deg, #6366F1, #818CF8)',
+    color: '#fff', fontSize: 15, fontWeight: 700,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+    boxShadow: '0 4px 14px rgba(99,102,241,0.3)',
+    transition: 'all 0.2s',
+  }
+  const secondaryButtonStyle = {
+    padding: '12px 28px', borderRadius: 10, border: '2px solid #E5E7EB',
+    background: '#fff', color: '#374151', fontSize: 15, fontWeight: 600,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+    transition: 'all 0.2s',
+  }
+  const quickCardStyle = {
+    padding: '20px 16px', borderRadius: 14, border: '1px solid #E5E7EB',
+    background: '#fff', cursor: 'pointer', textAlign: 'center',
+    transition: 'all 0.2s',
+  }
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -118,16 +138,6 @@ export default function DashboardPage({ lang = 'en' }) {
             {lang === 'es' ? 'Modo Demo' : 'Demo Mode'}
           </span>
         )}
-        {!hasData && !isDemo && !error && (
-          <span style={{
-            padding: '4px 12px', borderRadius: 6, fontSize: 12,
-            background: 'rgba(37,99,235,0.06)', color: '#2563EB',
-            border: '1px solid rgba(37,99,235,0.15)',
-            fontWeight: 500,
-          }}>
-            {lang === 'es' ? 'Sin datos aun' : 'No data yet'}
-          </span>
-        )}
       </div>
 
       {/* Error banner for Real mode failures */}
@@ -145,52 +155,120 @@ export default function DashboardPage({ lang = 'en' }) {
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="nxf-kpi-grid" data-tour="dashboard-kpis" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
-        gap: 16,
-        marginBottom: 24,
-      }}>
-        <KPICard
-          icon={<KPIIcon type="runs" />}
-          value={kpis.totalRuns}
-          label="Ejecuciones Totales"
-        />
-        <KPICard
-          icon={<KPIIcon type="workflows" />}
-          value={kpis.successRate}
-          label="Tasa de Éxito"
-        />
-        <KPICard
-          icon={<KPIIcon type="agents" />}
-          value={kpis.agentsTracked}
-          label="Agentes Rastreados"
-        />
-        <KPICard
-          icon={<KPIIcon type="docs" />}
-          value={kpis.failedRuns}
-          label="Ejecuciones Fallidas"
-        />
-      </div>
+      {/* Empty state — shown when no data */}
+      {!hasData && !isDemo && !error && (
+        <div style={{
+          textAlign: 'center', padding: isMobile ? '40px 16px' : '60px 20px',
+          background: '#fff', borderRadius: 20, border: '1px solid #E5E7EB',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}>
+          <span style={{ fontSize: 64, display: 'block', marginBottom: 16 }}>🚀</span>
+          <h2 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
+            {lang === 'es' ? '!Bienvenido a NexusForge!' : 'Welcome to NexusForge!'}
+          </h2>
+          <p style={{ fontSize: 16, color: '#6B7280', marginBottom: 0, maxWidth: 500, margin: '0 auto', lineHeight: 1.6 }}>
+            {lang === 'es'
+              ? 'Crea tu primera automatizacion en menos de 1 minuto'
+              : 'Create your first automation in less than 1 minute'}
+          </p>
 
-      {/* Main content grid */}
-      <div className="nxf-two-col-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 380px',
-        gap: 16,
-        alignItems: 'start',
-      }}>
-        {/* Recent runs */}
-        <div style={{ overflowX: 'auto' }}>
-          <RecentRuns runs={runs} />
-        </div>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 32, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => onNavigate && onNavigate('wizard')}
+              style={primaryButtonStyle}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+            >
+              {'✨'} {lang === 'es' ? 'Crear con AI Wizard' : 'Create with AI Wizard'}
+            </button>
+            <button
+              onClick={() => onNavigate && onNavigate('automations')}
+              style={secondaryButtonStyle}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366F1'; e.currentTarget.style.color = '#6366F1' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151' }}
+            >
+              {'📋'} {lang === 'es' ? 'Usar una plantilla' : 'Use a template'}
+            </button>
+          </div>
 
-        {/* Right sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <AgentActivity agents={agents} />
+          {/* Quick-select cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 12, marginTop: 40, maxWidth: 800, margin: '40px auto 0',
+          }}>
+            {[
+              { icon: '🎫', title: 'Ticket Triage', desc: lang === 'es' ? 'Clasificar tickets por urgencia' : 'Classify tickets by urgency' },
+              { icon: '📄', title: 'Document Analyzer', desc: lang === 'es' ? 'Extraer datos de PDFs' : 'Extract data from PDFs' },
+              { icon: '📧', title: 'Email Responder', desc: lang === 'es' ? 'Responder emails automaticamente' : 'Auto-respond to emails' },
+              { icon: '📊', title: 'Report Generator', desc: lang === 'es' ? 'Generar reportes ejecutivos' : 'Generate executive reports' },
+            ].map(card => (
+              <div
+                key={card.title}
+                onClick={() => onNavigate && onNavigate('wizard')}
+                style={quickCardStyle}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366F1'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.1)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none' }}
+              >
+                <span style={{ fontSize: 32, display: 'block', marginBottom: 8 }}>{card.icon}</span>
+                <strong style={{ fontSize: 14, color: '#111827', display: 'block', marginBottom: 4 }}>{card.title}</strong>
+                <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, lineHeight: 1.4 }}>{card.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* KPI Cards — only when there IS data */}
+      {(hasData || isDemo) && (
+        <>
+          <div className="nxf-kpi-grid" data-tour="dashboard-kpis" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
+            gap: 16,
+            marginBottom: 24,
+          }}>
+            <KPICard
+              icon={<KPIIcon type="runs" />}
+              value={kpis.totalRuns}
+              label="Ejecuciones Totales"
+            />
+            <KPICard
+              icon={<KPIIcon type="workflows" />}
+              value={kpis.successRate}
+              label="Tasa de Exito"
+            />
+            <KPICard
+              icon={<KPIIcon type="agents" />}
+              value={kpis.agentsTracked}
+              label="Agentes Rastreados"
+            />
+            <KPICard
+              icon={<KPIIcon type="docs" />}
+              value={kpis.failedRuns}
+              label="Ejecuciones Fallidas"
+            />
+          </div>
+
+          {/* Main content grid */}
+          <div className="nxf-two-col-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 380px',
+            gap: 16,
+            alignItems: 'start',
+          }}>
+            {/* Recent runs */}
+            <div style={{ overflowX: 'auto' }}>
+              <RecentRuns runs={runs} />
+            </div>
+
+            {/* Right sidebar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <AgentActivity agents={agents} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
