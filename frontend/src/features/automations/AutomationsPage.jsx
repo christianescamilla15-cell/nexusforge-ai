@@ -3,6 +3,9 @@ import { fetchAPI } from '../../services/api'
 import PublishModal from './PublishModal'
 import RunInputModal from './RunInputModal'
 import TemplatesLibrary from '../templates/TemplatesLibrary'
+import ConfirmModal from '../../shared/components/ConfirmModal'
+import Skeleton from '../../shared/components/Skeleton'
+import { useConfirm } from '../../shared/hooks/useConfirm'
 import { useToast } from '../../shared/hooks/useToast'
 import { addNotification } from '../../shared/components/NotificationBell'
 
@@ -194,6 +197,7 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   const [editTarget, setEditTarget] = useState(null)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
+  const [confirmState, showConfirm] = useConfirm()
   const toast = useToast()
 
   useEffect(() => {
@@ -262,7 +266,11 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   }
 
   const handleDelete = async (id) => {
-    if (!confirm(lang === 'es' ? '\u00BFDespublicar esta automatizacion?' : 'Unpublish this automation?')) return
+    const ok = await showConfirm(
+      lang === 'es' ? '\u00BFDespublicar esta automatizacion?' : 'Unpublish this automation?',
+      { confirmLabel: lang === 'es' ? 'Despublicar' : 'Unpublish' }
+    )
+    if (!ok) return
     await fetchAPI(`/automations/${id}`, { method: 'DELETE' })
     setUserAutomations(prev => prev.filter(a => a.id !== id))
   }
@@ -329,9 +337,7 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
       </div>
 
       {loadingUser ? (
-        <div style={{ padding: 24, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>
-          {lang === 'es' ? 'Cargando...' : 'Loading...'}
-        </div>
+        <Skeleton.Grid count={3} />
       ) : userAutomations.length === 0 ? (
         <div onClick={() => setShowPublish(true)} style={{
           padding: 32, borderRadius: 14, border: '2px dashed #E5E7EB',
@@ -426,6 +432,8 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
           onSaved={loadUserAutomations}
         />
       )}
+
+      {confirmState && <ConfirmModal {...confirmState} />}
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>

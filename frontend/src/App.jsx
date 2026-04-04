@@ -22,6 +22,7 @@ import IntegrationManagerPage from './features/integrations/IntegrationManagerPa
 import WizardPage from './features/wizard/WizardPage'
 import AutomationsPage from './features/automations/AutomationsPage'
 import SmartDashboardPage from './pages/SmartDashboardPage'
+import CommandPalette from './shared/components/CommandPalette'
 import ConnectorHubPage from './features/connectors/ConnectorHubPage'
 import AuditLog from './features/audit/AuditLog'
 import IntelligenceHubPage from './features/intelligence/IntelligenceHubPage'
@@ -207,6 +208,7 @@ function AppRoutes() {
           onComplete={() => { setShowTour(false); try { localStorage.setItem('nxf-tour-done', '1') } catch {} }}
         />
       )}
+      <CommandPalette onNavigate={navigate} lang={lang} />
       <ChatAssistant lang={lang} />
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
     </ToastContext.Provider>
