@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.agents.registry import list_agents, get_agent
+from app.agents.schemas import get_triggers, get_transforms, get_actions, AGENT_SCHEMAS
 from app.auth.jwt_handler import verify_token
 from app.db.client import get_db_pool
 
@@ -146,6 +147,17 @@ AGENT_METADATA = {
         "tools": ["http_client", "retry_logic"],
     },
 }
+
+
+@router.get("/blocks")
+async def list_composable_blocks():
+    """Return all available triggers, transforms, and actions for the visual builder."""
+    return {
+        "triggers": get_triggers(),
+        "transforms": get_transforms(),
+        "actions": get_actions(),
+        "total": len(AGENT_SCHEMAS),
+    }
 
 
 @router.get("/")

@@ -171,6 +171,14 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
               ? 'Crea tu primera automatizacion en menos de 1 minuto'
               : 'Create your first automation in less than 1 minute'}
           </p>
+          <p style={{
+            fontSize: 13, color: '#818CF8', marginTop: 12,
+            fontWeight: 600, letterSpacing: '0.01em',
+          }}>
+            {lang === 'es'
+              ? '5 triggers \u00D7 15 transforms \u00D7 6 actions = 450+ automaciones posibles'
+              : '5 triggers \u00D7 15 transforms \u00D7 6 actions = 450+ possible automations'}
+          </p>
 
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 32, flexWrap: 'wrap' }}>
             <button

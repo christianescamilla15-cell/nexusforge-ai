@@ -7,6 +7,41 @@ import ReportDashboard from './ReportDashboard'
 import GenericDashboard from './GenericDashboard'
 import AutomationDashboard from '../AutomationDashboard'
 
+const STEP_LABELS = {
+  classifier: { es: 'clasifica', en: 'classifies' },
+  extractor: { es: 'extrae datos', en: 'extracts data' },
+  summarizer: { es: 'resume', en: 'summarizes' },
+  sentiment: { es: 'analiza sentimiento', en: 'analyzes sentiment' },
+  translator: { es: 'traduce', en: 'translates' },
+  ocr: { es: 'lee documento', en: 'reads document' },
+  normalizer: { es: 'normaliza datos', en: 'normalizes data' },
+  analyzer: { es: 'analiza', en: 'analyzes' },
+  enricher: { es: 'enriquece datos', en: 'enriches data' },
+  compliance: { es: 'verifica cumplimiento', en: 'checks compliance' },
+  knowledge: { es: 'busca en base de conocimiento', en: 'searches knowledge base' },
+  router: { es: 'asigna equipo', en: 'routes to team' },
+  validator: { es: 'valida', en: 'validates' },
+  reporter: { es: 'genera reporte', en: 'generates report' },
+  critic: { es: 'revisa calidad', en: 'reviews quality' },
+  repair: { es: 'repara errores', en: 'repairs errors' },
+  email_action: { es: 'envia email', en: 'sends email' },
+  slack_action: { es: 'notifica por Slack', en: 'notifies via Slack' },
+  webhook_action: { es: 'envia webhook', en: 'sends webhook' },
+  notion_action: { es: 'guarda en Notion', en: 'saves to Notion' },
+  drive_action: { es: 'guarda en Drive', en: 'saves to Drive' },
+  database_action: { es: 'guarda en BD', en: 'saves to DB' },
+}
+
+function describePipeline(steps, lang) {
+  if (!steps || steps.length === 0) return ''
+  const descriptions = steps.map(s => {
+    const labels = STEP_LABELS[s.type]
+    return labels ? labels[lang] || labels.en : s.type
+  })
+  const trigger = lang === 'es' ? 'recibe datos' : 'receives data'
+  return `${trigger} \u2192 ${descriptions.join(' \u2192 ')}`
+}
+
 function detectAutomationType(automation) {
   const steps = automation.dag_definition?.steps || []
   const types = steps.map(s => s.type)
@@ -133,6 +168,22 @@ export default function SmartDashboard({ automationId, lang, onBack, onRun }) {
           )
         })}
       </div>
+
+      {/* Natural language pipeline description */}
+      {automation.dag_definition?.steps?.length > 0 && (
+        <div style={{
+          padding: '10px 16px', marginBottom: 16, borderRadius: 10,
+          background: '#F5F3FF', border: '1px solid #E0E7FF',
+          fontSize: 13, color: '#4338CA', lineHeight: 1.5,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ flexShrink: 0 }}>{'\uD83D\uDCCB'}</span>
+          <span>
+            <strong>{lang === 'es' ? 'Este flujo:' : 'This flow:'}</strong>{' '}
+            {describePipeline(automation.dag_definition.steps, lang)}
+          </span>
+        </div>
+      )}
 
       {/* Tab content */}
       {activeTab === 'dashboard' && renderDashboard()}

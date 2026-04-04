@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
+import AutoDashboardGenerator from './AutoDashboardGenerator'
 
 function formatDate(iso, lang) {
   if (!iso) return '--'
@@ -227,7 +228,7 @@ export default function GenericDashboard({ automation, lang, onBack }) {
     }
   }
 
-  // Detail view
+  // Detail view — uses AutoDashboardGenerator for dynamic visualization
   if (selectedResult) {
     return (
       <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
@@ -236,12 +237,12 @@ export default function GenericDashboard({ automation, lang, onBack }) {
           padding: '8px 16px', cursor: 'pointer', fontSize: 13,
           color: '#6B7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          <span>←</span> {lang === 'es' ? 'Volver a resultados' : 'Back to results'}
+          <span>\u2190</span> {lang === 'es' ? 'Volver a resultados' : 'Back to results'}
         </button>
 
         <div style={{
           background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-          padding: 24,
+          padding: 24, marginBottom: 16,
         }}>
           <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #E5E7EB' }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>
@@ -253,7 +254,19 @@ export default function GenericDashboard({ automation, lang, onBack }) {
           </div>
 
           <JsonViewer data={selectedResult.input_data} label="Input" />
-          <JsonViewer data={selectedResult.output_data} label="Output" />
+        </div>
+
+        {/* Auto-generated dashboard from output data */}
+        <div style={{ marginBottom: 16 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: '0 0 12px' }}>
+            {lang === 'es' ? 'Visualizacion automatica' : 'Auto visualization'}
+          </h4>
+          <AutoDashboardGenerator outputData={selectedResult.output_data} lang={lang} />
+        </div>
+
+        {/* Raw output fallback */}
+        <div style={{ marginTop: 16 }}>
+          <JsonViewer data={selectedResult.output_data} label={lang === 'es' ? 'Datos crudos' : 'Raw data'} />
         </div>
       </div>
     )
