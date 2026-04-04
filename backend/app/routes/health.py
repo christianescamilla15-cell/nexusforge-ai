@@ -27,12 +27,14 @@ async def health_check():
         logger.warning("Health check — DB unreachable: %s", exc)
 
     # Redis check
+    redis_error = None
     try:
         redis = await get_redis()
         await redis.ping()
         redis_ok = True
     except Exception as exc:
-        logger.warning("Health check — Redis unreachable: %s", exc)
+        redis_error = f"{type(exc).__name__}: {exc}"
+        logger.warning("Health check — Redis unreachable: %s", redis_error)
 
     # Agent count
     try:
@@ -67,7 +69,7 @@ async def health_check():
         "service": "NexusForge AI",
         "components": {
             "database": "up" if db_ok else "down",
-            "redis": "up" if redis_ok else "down",
+            "redis": "up" if redis_ok else ("down: " + (redis_error or "unknown")),
         },
         "migrations_applied": migration_count,
         "agent_count": agent_count,
