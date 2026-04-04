@@ -573,7 +573,7 @@ function DashboardPreviewMockup({ type, lang = 'en' }) {
 
 // ── Step 3: Preview ──────────────────────────────────────────────────────────
 
-function StepPreview({ workflow, inputType, outputTypes, automationType, onUpdateName, onChangeInputOutput, skippedInputOutput, lang = 'en' }) {
+function StepPreview({ workflow, inputType, outputTypes, automationType, onUpdateName, onChangeInputOutput, skippedInputOutput, requiresApproval, onToggleApproval, lang = 'en' }) {
   if (!workflow) return null
   const { name, steps = [], recommended_topology, topology_reason, estimated_tokens, estimated_cost_usd } = workflow
   const dashType = DASHBOARD_TYPE_MAP[automationType] || 'generic'
@@ -740,6 +740,48 @@ function StepPreview({ workflow, inputType, outputTypes, automationType, onUpdat
         </div>
       )}
 
+      {/* Human-in-the-loop toggle */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '14px 16px', borderRadius: 12, marginBottom: 20,
+        background: requiresApproval ? 'rgba(245,158,11,0.06)' : '#F9FAFB',
+        border: `1px solid ${requiresApproval ? 'rgba(245,158,11,0.3)' : '#E5E7EB'}`,
+        cursor: 'pointer', transition: 'all 0.2s',
+      }} onClick={onToggleApproval}>
+        {/* Toggle switch */}
+        <div style={{
+          width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+          background: requiresApproval ? '#F59E0B' : '#D1D5DB',
+          position: 'relative', transition: 'background 0.2s',
+        }}>
+          <div style={{
+            width: 20, height: 20, borderRadius: '50%', background: '#fff',
+            position: 'absolute', top: 2,
+            left: requiresApproval ? 22 : 2,
+            transition: 'left 0.2s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+          }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+            {lang === 'es' ? 'Requiere aprobaci\u00F3n antes de enviar' : 'Require approval before sending'}
+          </div>
+          <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2, lineHeight: 1.4 }}>
+            {lang === 'es'
+              ? 'La automatizaci\u00F3n pausar\u00E1 antes del \u00FAltimo paso y esperar\u00E1 tu revisi\u00F3n.'
+              : 'The automation will pause before the final step and wait for your review.'}
+          </div>
+        </div>
+        {requiresApproval && (
+          <span style={{
+            padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+            background: '#FEF3C7', color: '#92400E',
+          }}>
+            {lang === 'es' ? 'Activo' : 'Active'}
+          </span>
+        )}
+      </div>
+
       {/* Dashboard preview mockup */}
       <div style={{ marginBottom: 8 }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 10 }}>
@@ -807,6 +849,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState(null)
   const [skippedInputOutput, setSkippedInputOutput] = useState(false) // true when defaults were auto-applied
+  const [requiresApproval, setRequiresApproval] = useState(false)
 
   const workflowRef = useRef(workflow)
   useEffect(() => { workflowRef.current = workflow }, [workflow])
@@ -978,6 +1021,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         input_config: { type: inputType },
         output_config: { destinations: outputTypes },
         dashboard_type: DASHBOARD_TYPE_MAP[automationType] || 'generic',
+        requires_approval: requiresApproval,
       }
 
       const autoRes = await fetchAPI('/automations/', {
@@ -1070,6 +1114,8 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
             onUpdateName={handleUpdateName}
             onChangeInputOutput={handleChangeInputOutput}
             skippedInputOutput={skippedInputOutput}
+            requiresApproval={requiresApproval}
+            onToggleApproval={() => setRequiresApproval(v => !v)}
             lang={lang}
           />
         )}

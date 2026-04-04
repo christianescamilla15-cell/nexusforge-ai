@@ -131,3 +131,6 @@ app.include_router(templates_router, prefix="/api", tags=["templates"])
 app.include_router(rules_router, prefix="/api", tags=["rules"])
 app.include_router(variables_router, prefix="/api", tags=["variables"])
 app.include_router(audit_log_router, prefix="/api", tags=["audit-log"])
+
+from app.routes.demo import router as demo_router
+app.include_router(demo_router, prefix="/api", tags=["demo"])

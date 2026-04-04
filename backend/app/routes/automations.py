@@ -97,6 +97,7 @@ class PublishRequest(BaseModel):
     trigger_type: str = "manual"
     schedule_cron: Optional[str] = None
     input_config: dict = {"type": "none"}
+    requires_approval: bool = False
 
 
 class UpdateRequest(BaseModel):
@@ -108,6 +109,7 @@ class UpdateRequest(BaseModel):
     schedule_cron: Optional[str] = None
     is_active: Optional[bool] = None
     input_config: Optional[dict] = None
+    requires_approval: Optional[bool] = None
 
 
 class RunRequest(BaseModel):
@@ -161,12 +163,13 @@ async def publish_automation(body: PublishRequest, request: Request):
             row = await conn.fetchrow(
                 """INSERT INTO automations
                        (user_id, workflow_id, name, description, icon, color,
-                        trigger_type, schedule_cron, input_config, webhook_secret)
-                   VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
+                        trigger_type, schedule_cron, input_config, webhook_secret,
+                        requires_approval)
+                   VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
                    RETURNING id, created_at, webhook_secret""",
                 user_id, body.workflow_id, body.name, body.description,
                 body.icon, body.color, body.trigger_type, body.schedule_cron,
-                json.dumps(body.input_config), webhook_secret,
+                json.dumps(body.input_config), webhook_secret, body.requires_approval,
             )
         return {
             "id": str(row["id"]),
@@ -533,4 +536,5 @@ def _row_to_dict(r) -> dict:
         "total_runs": r["total_runs"],
         "last_run_at": r["last_run_at"].isoformat() if r.get("last_run_at") else None,
         "created_at": r["created_at"].isoformat(),
+        "requires_approval": r.get("requires_approval", False),
     }

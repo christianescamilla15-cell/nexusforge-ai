@@ -179,6 +179,93 @@ async def save_result(body: SaveResultRequest, request: Request):
         raise HTTPException(500, str(exc))
 
 
+class ApprovalRequest(BaseModel):
+    """Request to approve or reject a result."""
+    action: str  # "approved" or "rejected"
+
+
+@router.post("/{result_id}/approval")
+async def approve_or_reject_result(result_id: UUID, body: ApprovalRequest, request: Request):
+    """Approve or reject a pending result (human-in-the-loop)."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        raise HTTPException(401, "Login required")
+
+    if body.action not in ("approved", "rejected"):
+        raise HTTPException(400, "Action must be 'approved' or 'rejected'")
+
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            # Verify ownership via automation
+            row = await conn.fetchrow(
+                """SELECT ar.id, ar.approval_status FROM automation_results ar
+                   JOIN automations a ON a.id = ar.automation_id
+                   WHERE ar.id = $1 AND a.user_id = $2::uuid""",
+                result_id, user_id,
+            )
+            if not row:
+                raise HTTPException(404, "Result not found")
+            if row["approval_status"] != "pending":
+                raise HTTPException(400, f"Result is not pending approval (current: {row['approval_status']})")
+
+            await conn.execute(
+                "UPDATE automation_results SET approval_status = $1 WHERE id = $2",
+                body.action, result_id,
+            )
+        return {"id": str(result_id), "approval_status": body.action}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to update approval status")
+        raise HTTPException(500, str(exc))
+
+
+@router.get("/pending-approvals")
+async def list_pending_approvals(request: Request):
+    """List all results pending approval for the current user."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        return {"items": [], "total": 0}
+
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT ar.id, ar.automation_id, ar.input_data, ar.output_data,
+                          ar.processing_time_ms, ar.created_at, a.name AS automation_name,
+                          a.icon AS automation_icon
+                   FROM automation_results ar
+                   JOIN automations a ON a.id = ar.automation_id
+                   WHERE a.user_id = $1::uuid AND ar.approval_status = 'pending'
+                   ORDER BY ar.created_at DESC
+                   LIMIT 50""",
+                user_id,
+            )
+        items = []
+        for r in rows:
+            inp = r["input_data"]
+            if isinstance(inp, str):
+                inp = json.loads(inp)
+            out = r["output_data"]
+            if isinstance(out, str):
+                out = json.loads(out)
+            items.append({
+                "id": str(r["id"]),
+                "automation_id": str(r["automation_id"]),
+                "automation_name": r["automation_name"],
+                "automation_icon": r["automation_icon"],
+                "input_data": inp,
+                "output_data": out,
+                "processing_time_ms": r["processing_time_ms"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            })
+        return {"items": items, "total": len(items)}
+    except Exception as exc:
+        logger.exception("Failed to list pending approvals")
+        raise HTTPException(500, str(exc))
+
+
 @router.delete("/{result_id}")
 async def delete_result(result_id: UUID, request: Request):
     """Delete a result."""
