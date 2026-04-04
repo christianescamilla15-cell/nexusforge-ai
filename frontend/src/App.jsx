@@ -143,6 +143,21 @@ function AppRoutes() {
     return 'dashboard'
   }, [location.pathname])
 
+  // Dynamic page title
+  useEffect(() => {
+    const PAGE_TITLES = {
+      dashboard: 'Dashboard', automations: 'Automations', wizard: 'AI Wizard',
+      intelligence: 'Intelligence', integrations: 'Integrations', settings: 'Settings',
+      workflows: 'Workflows', executions: 'Executions', agents: 'Agents',
+      swarms: 'Swarms', connectors: 'Connectors', audit: 'Audit', metrics: 'Metrics', status: 'Status',
+    }
+    const title = PAGE_TITLES[currentPage] || 'NexusForge AI'
+    // Preserve notification count prefix if present
+    const existing = document.title
+    const match = existing.match(/^\(\d+\)\s/)
+    document.title = match ? `${match[0]}${title} — NexusForge AI` : `${title} — NexusForge AI`
+  }, [currentPage])
+
   // Auth gate
   if (!user) {
     return (

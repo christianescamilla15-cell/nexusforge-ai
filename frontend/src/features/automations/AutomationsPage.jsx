@@ -69,6 +69,7 @@ function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onClone, onDashbo
                   { label: 'Dashboard', icon: '\uD83D\uDCCA', action: () => { onDashboard(auto.id); setMenuOpen(false) } },
                   { label: lang === 'es' ? 'Editar' : 'Edit', icon: '\u270F\uFE0F', action: () => { onEdit(auto); setMenuOpen(false) } },
                   { label: lang === 'es' ? 'Duplicar' : 'Clone', icon: '\uD83D\uDCCB', action: () => { onClone?.(auto); setMenuOpen(false) } },
+                  { label: lang === 'es' ? 'Compartir' : 'Share', icon: '\uD83D\uDD17', action: () => { navigator.clipboard?.writeText(`${window.location.origin}/automations/${auto.id}`); setMenuOpen(false) } },
                   { label: lang === 'es' ? 'Despublicar' : 'Unpublish', icon: '\uD83D\uDDD1\uFE0F', action: () => { onDelete(auto.id); setMenuOpen(false) }, color: '#EF4444' },
                 ].map((item, i) => (
                   <div key={i} onClick={item.action} style={{

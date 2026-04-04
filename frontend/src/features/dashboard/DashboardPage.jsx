@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
+import { useRefreshOnFocus } from '../../shared/hooks/useRefreshOnFocus'
 import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
@@ -405,6 +406,9 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
   }
 
   useEffect(() => { wrappedLoad() }, [])
+
+  // Refetch when tab regains focus after 30s
+  useRefreshOnFocus(wrappedLoad)
 
   // Update "ago" label every 5s
   useEffect(() => {
