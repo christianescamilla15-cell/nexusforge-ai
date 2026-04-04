@@ -10,6 +10,19 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+@router.get("/version")
+async def version():
+    """Build info and version."""
+    return {
+        "version": "2.5.0",
+        "agents": 24,
+        "topologies": 6,
+        "integrations": 8,
+        "modules": 108,
+        "components": 43,
+    }
+
+
 @router.get("/health")
 async def health_check():
     """Check DB, Redis connectivity and return agent count."""

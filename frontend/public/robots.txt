@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Sitemap: https://frontend-silk-three-66.vercel.app/sitemap.xml

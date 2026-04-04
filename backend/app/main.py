@@ -94,6 +94,19 @@ app = FastAPI(
     redirect_slashes=True,
 )
 
+# Request ID middleware — adds X-Request-ID header for debugging
+import uuid as _uuid
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        request_id = request.headers.get("X-Request-ID", str(_uuid.uuid4())[:8])
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+app.add_middleware(RequestIDMiddleware)
+
 # CORS — use ALLOWED_ORIGINS env var; fallback to permissive for dev
 _origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
 app.add_middleware(
