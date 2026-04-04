@@ -169,6 +169,10 @@ export default function TemplatesLibrary({ lang = 'en', onDeployed, isMobile = f
     setDeployTarget(null)
     if (res.data?.automation_id) {
       if (onDeployed) onDeployed(res.data)
+      // Show success feedback
+      alert(lang === 'es'
+        ? `✅ "${nameOverride || deployTarget.name}" desplegado exitosamente. Revisa "Mis Automatizaciones" abajo.`
+        : `✅ "${nameOverride || deployTarget.name}" deployed successfully. Check "My Automations" below.`)
     }
   }
 
