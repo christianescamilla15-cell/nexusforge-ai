@@ -154,9 +154,17 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
           })
           await loadResults()
           setProcessing(false)
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Documento procesado' : 'Document processed', 'success')
+          } catch {}
         } else if (status === 'failed') {
           setError(execRes.data?.error || (lang === 'es' ? 'La ejecucion fallo' : 'Execution failed'))
           setProcessing(false)
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Error al procesar documento' : 'Document processing failed', 'error')
+          } catch {}
         } else {
           setTimeout(poll, 2000)
         }

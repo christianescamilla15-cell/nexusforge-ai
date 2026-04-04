@@ -7,6 +7,7 @@ import ConfirmModal from '../../shared/components/ConfirmModal'
 import Skeleton from '../../shared/components/Skeleton'
 import { useConfirm } from '../../shared/hooks/useConfirm'
 import { useToast } from '../../shared/hooks/useToast'
+import { timeAgo } from '../../shared/utils/timeAgo'
 import { addNotification } from '../../shared/components/NotificationBell'
 
 const TRIGGER_BADGE = {
@@ -93,7 +94,7 @@ function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, runn
       <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
         <span>&#x1F504; {auto.total_runs} {lang === 'es' ? 'ejecuciones' : 'runs'}</span>
         {auto.last_run_at && (
-          <span>&#x1F550; {new Date(auto.last_run_at).toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US')}</span>
+          <span>&#x1F550; {timeAgo(auto.last_run_at, lang)}</span>
         )}
       </div>
 

@@ -162,9 +162,17 @@ export default function ReportDashboard({ automation, lang, onBack }) {
           setTopic('')
           await loadResults()
           setProcessing(false)
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Reporte generado' : 'Report generated', 'success')
+          } catch {}
         } else if (status === 'failed') {
           setError(execRes.data?.error || (lang === 'es' ? 'La ejecucion fallo' : 'Execution failed'))
           setProcessing(false)
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Error al generar reporte' : 'Report generation failed', 'error')
+          } catch {}
         } else {
           setTimeout(poll, 2000)
         }

@@ -201,7 +201,7 @@ export const translations = {
     search: 'Search',
 
     // Dashboard misc
-    dashboardSubtitle: 'NexusForge AI system overview',
+    dashboardSubtitle: '24 AI agents \u00B7 6 swarm topologies \u00B7 8 integrations',
     demoMode: 'Demo mode — API unavailable',
     today: 'Today',
     thisWeek: 'This week',
@@ -492,7 +492,7 @@ export const translations = {
     search: 'Buscar',
 
     // Dashboard misc
-    dashboardSubtitle: 'Vista general del sistema NexusForge AI',
+    dashboardSubtitle: '24 agentes IA \u00B7 6 topologias de enjambre \u00B7 8 integraciones',
     demoMode: 'Modo demo — API no disponible',
     today: 'Hoy',
     thisWeek: 'Esta semana',

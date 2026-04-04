@@ -163,9 +163,17 @@ export default function GenericDashboard({ automation, lang, onBack }) {
           setFormValues({})
           await loadResults()
           setProcessing(false)
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Procesamiento completado' : 'Processing complete', 'success')
+          } catch {}
         } else if (status === 'failed') {
           setError(execRes.data?.error || (lang === 'es' ? 'La ejecucion fallo' : 'Execution failed'))
           setProcessing(false)
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Error en procesamiento' : 'Processing failed', 'error')
+          } catch {}
         } else {
           setTimeout(poll, 2000)
         }

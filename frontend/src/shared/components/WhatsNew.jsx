@@ -46,6 +46,11 @@ export default function WhatsNew({ lang = 'en' }) {
   if (!show) return null
 
   const entry = CHANGELOG[0]
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  const bg = isDark ? '#1E1F33' : '#fff'
+  const text = isDark ? '#E5E7EB' : '#111827'
+  const muted = isDark ? '#6B7280' : '#9CA3AF'
+  const border = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'
 
   return (
     <div onClick={dismiss} style={{
@@ -54,19 +59,20 @@ export default function WhatsNew({ lang = 'en' }) {
       animation: 'fadeIn 0.2s ease-out',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', borderRadius: 16, padding: 28, maxWidth: 500,
-        width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+        background: bg, borderRadius: 16, padding: 28, maxWidth: 500,
+        width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        border: `1px solid ${border}`,
         maxHeight: '80vh', overflowY: 'auto',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 2 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: text, marginBottom: 2 }}>
               {lang === 'es' ? 'Novedades' : "What's New"}
             </h2>
-            <span style={{ fontSize: 12, color: '#9CA3AF' }}>v{entry.version} &middot; {entry.date}</span>
+            <span style={{ fontSize: 12, color: muted }}>v{entry.version} &middot; {entry.date}</span>
           </div>
           <button onClick={dismiss} style={{
-            background: '#F3F4F6', border: 'none', borderRadius: 8,
+            background: isDark ? '#2D2E42' : '#F3F4F6', border: 'none', borderRadius: 8,
             width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: '#9CA3AF',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>&times;</button>
@@ -81,7 +87,7 @@ export default function WhatsNew({ lang = 'en' }) {
                   padding: '2px 6px', borderRadius: 4, fontSize: 9, fontWeight: 700,
                   background: badge.bg, color: badge.color, whiteSpace: 'nowrap', marginTop: 2,
                 }}>{badge.label}</span>
-                <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
+                <span style={{ fontSize: 13, color: isDark ? '#D1D5DB' : '#374151', lineHeight: 1.5 }}>
                   {item.text[lang] || item.text.en}
                 </span>
               </div>
