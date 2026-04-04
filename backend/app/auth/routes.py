@@ -111,6 +111,12 @@ async def register(req: RegisterRequest):
     """Register with email + password. Sends verification code via email."""
     import random, time
 
+    # Cleanup expired verification codes (simple sweep)
+    now = time.time()
+    expired = [email for email, data in _verify_codes.items() if data["expires"] < now]
+    for email in expired:
+        del _verify_codes[email]
+
     # Validate password length BEFORE DB call (avoids email enumeration via error order)
     if len(req.password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
@@ -244,11 +250,24 @@ async def export_account_data(request: Request):
     user_id = token_data["sub"]
 
     pool = await get_db_pool()
+    automations = []
+    workflows = []
+    results_count = 0
+    user = None
     async with pool.acquire() as conn:
         user = await conn.fetchrow("SELECT * FROM nf_users WHERE id = $1::uuid", user_id)
-        automations = await conn.fetch("SELECT id, name, description, trigger_type, created_at FROM automations WHERE user_id = $1::uuid", user_id)
-        workflows = await conn.fetch("SELECT id, name, status, created_at FROM workflows WHERE user_id = $1::uuid", user_id)
-        results_count = await conn.fetchval("SELECT count(*) FROM automation_results WHERE user_id = $1::uuid", user_id)
+        try:
+            automations = await conn.fetch("SELECT id, name, description, trigger_type, created_at FROM automations WHERE user_id = $1::uuid", user_id)
+        except Exception:
+            pass
+        try:
+            workflows = await conn.fetch("SELECT id, name, status, created_at FROM workflows WHERE user_id = $1::uuid", user_id)
+        except Exception:
+            pass
+        try:
+            results_count = await conn.fetchval("SELECT count(*) FROM automation_results WHERE user_id = $1::uuid", user_id)
+        except Exception:
+            pass
 
     return {
         "user": _user_to_safe(dict(user)) if user else {},
@@ -317,6 +336,12 @@ _reset_codes: dict[str, dict] = {}
 async def forgot_password(body: ForgotPasswordRequest):
     """Send a 6-digit reset code to the user's email via Resend."""
     import random, time
+    # Cleanup expired reset codes (simple sweep)
+    now = time.time()
+    expired = [email for email, data in _reset_codes.items() if data["expires"] < now]
+    for email in expired:
+        del _reset_codes[email]
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         user = await conn.fetchrow("SELECT id, email FROM nf_users WHERE email = $1", body.email)

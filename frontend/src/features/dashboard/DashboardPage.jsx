@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import { useRefreshOnFocus } from '../../shared/hooks/useRefreshOnFocus'
@@ -408,6 +408,10 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
     setLastRefresh(Date.now())
   }
 
+  // Keep a ref so the interval always calls the latest wrappedLoad
+  const wrappedLoadRef = useRef(wrappedLoad)
+  useEffect(() => { wrappedLoadRef.current = wrappedLoad })
+
   useEffect(() => { wrappedLoad() }, [])
 
   // Refetch when tab regains focus after 30s
@@ -428,7 +432,7 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
-    const interval = setInterval(wrappedLoad, 30000)
+    const interval = setInterval(() => wrappedLoadRef.current(), 30000)
     return () => clearInterval(interval)
   }, [])
 

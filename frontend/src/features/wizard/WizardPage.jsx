@@ -892,8 +892,9 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   }, [])
 
   const handleUpdateName = (newName) => {
-    setCustomName(newName)
-    if (workflow) setWorkflow({ ...workflow, name: newName })
+    const trimmed = newName.trim()
+    setCustomName(trimmed || customName)
+    if (workflow) setWorkflow({ ...workflow, name: trimmed || workflow.name })
   }
 
   // Generate workflow via API (between step 0 and step 1)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
@@ -36,6 +36,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState('executions')
   const [confirmState, showConfirm] = useConfirm()
+  const mountTimeRef = useRef(Date.now())
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -72,9 +73,8 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   // Auto-refresh: always poll every 10s for the first 60s after mount,
   // then only continue if there are active runs.
   useEffect(() => {
-    const mountTime = Date.now()
     const interval = setInterval(() => {
-      const elapsed = Date.now() - mountTime
+      const elapsed = Date.now() - mountTimeRef.current
       const hasActive = executions.some(e => e.status === 'running' || e.status === 'pending')
       if (elapsed < 60_000 || hasActive) {
         loadExecutions()

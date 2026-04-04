@@ -15,7 +15,12 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
   }
 
   const handleApiUrlBlur = () => {
-    persistApiUrl(apiUrl)
+    try {
+      persistApiUrl(apiUrl)
+    } catch (e) {
+      // localStorage may be full or unavailable — silently ignore
+      console.warn('Failed to persist API URL:', e)
+    }
   }
 
   const testConnection = async () => {

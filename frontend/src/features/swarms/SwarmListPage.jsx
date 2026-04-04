@@ -46,8 +46,12 @@ export default function SwarmListPage({ lang = 'en' }) {
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: 16,
       }}>
-        {topologies.map((topology) => (
-          <SwarmCard key={topology} topology={topology} onExecute={(top) => setExecuting(top)} />
+        {topologies.map((topology, i) => (
+          <SwarmCard
+            key={typeof topology === 'string' ? topology : topology?.name || topology?.id || i}
+            topology={typeof topology === 'string' ? topology : topology?.name || topology}
+            onExecute={(top) => setExecuting(top)}
+          />
         ))}
       </div>
 
