@@ -17,7 +17,7 @@ const TRIGGER_BADGE = {
 
 const PAGE_SIZE = 12
 
-function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, running }) {
+function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, running, isFavorite, onToggleFavorite }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const trigger = TRIGGER_BADGE[auto.trigger_type] || TRIGGER_BADGE.manual
   const bg = auto.color ? `${auto.color}12` : 'rgba(99,102,241,0.08)'
@@ -38,6 +38,12 @@ function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, runn
           {auto.icon}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={(e) => { e.stopPropagation(); onToggleFavorite?.() }} style={{
+            background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2,
+            color: isFavorite ? '#F59E0B' : '#D1D5DB', transition: 'color 0.15s',
+          }} title={isFavorite ? 'Unfavorite' : 'Favorite'}>
+            {isFavorite ? '\u2605' : '\u2606'}
+          </button>
           <span style={{
             padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600,
             background: trigger.bg, color: trigger.color,
@@ -198,6 +204,9 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [confirmState, showConfirm] = useConfirm()
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nxf_fav_automations') || '[]') } catch { return [] }
+  })
   const toast = useToast()
 
   useEffect(() => {
@@ -223,9 +232,24 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
 
   useEffect(() => { loadUserAutomations() }, [])
 
-  // Filtered + paginated
+  const toggleFavorite = (id) => {
+    setFavorites(prev => {
+      const next = prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+      try { localStorage.setItem('nxf_fav_automations', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
+
+  // Filtered + paginated (favorites first)
   const filtered = useMemo(() => {
-    if (!search.trim()) return userAutomations
+    let list = userAutomations
+    // Sort: favorites first
+    list = [...list].sort((a, b) => {
+      const aFav = favorites.includes(a.id) ? 0 : 1
+      const bFav = favorites.includes(b.id) ? 0 : 1
+      return aFav - bFav
+    })
+    if (!search.trim()) return list
     const q = search.toLowerCase()
     return userAutomations.filter(a =>
       (a.name || '').toLowerCase().includes(q) ||
@@ -369,7 +393,8 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
           <div style={gridStyle}>
             {paginated.map(auto => (
               <AutomationCard key={auto.id} auto={auto} lang={lang} onRun={handleRun}
-                onDelete={handleDelete} onEdit={setEditTarget} onDashboard={handleOpenDashboard} running={running} />
+                onDelete={handleDelete} onEdit={setEditTarget} onDashboard={handleOpenDashboard} running={running}
+                isFavorite={favorites.includes(auto.id)} onToggleFavorite={() => toggleFavorite(auto.id)} />
             ))}
             {!search && (
               <div onClick={() => setShowPublish(true)} style={{

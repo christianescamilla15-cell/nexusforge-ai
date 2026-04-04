@@ -16,6 +16,18 @@ const PAGES = [
   { key: 'settings', label: { en: 'Settings', es: 'Configuracion' }, icon: '\u2699\uFE0F', path: '/settings' },
 ]
 
+const RECENTS_KEY = 'nxf_recent_pages'
+const MAX_RECENTS = 5
+
+function getRecentPages() {
+  try { return JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]') } catch { return [] }
+}
+function addRecentPage(key) {
+  const recents = getRecentPages().filter(k => k !== key)
+  recents.unshift(key)
+  try { localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS))) } catch {}
+}
+
 export default function CommandPalette({ onNavigate, lang = 'en' }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -44,7 +56,13 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
   }, [open])
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return PAGES
+    if (!query.trim()) {
+      // Show recents first, then all pages
+      const recentKeys = getRecentPages()
+      const recents = recentKeys.map(k => PAGES.find(p => p.key === k)).filter(Boolean)
+      const rest = PAGES.filter(p => !recentKeys.includes(p.key))
+      return [...recents, ...rest]
+    }
     const q = query.toLowerCase()
     return PAGES.filter(p =>
       p.label.en.toLowerCase().includes(q) ||
@@ -58,6 +76,7 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
   const handleSelect = (page) => {
     setOpen(false)
     setQuery('')
+    addRecentPage(page.key)
     onNavigate(page.key)
   }
 
@@ -118,25 +137,40 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
             <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 14 }}>
               {lang === 'es' ? 'Sin resultados' : 'No results'}
             </div>
-          ) : filtered.map((page, i) => (
-            <div
-              key={page.key}
-              onClick={() => handleSelect(page)}
-              style={{
-                padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 12,
-                background: i === selected ? hover : 'transparent',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={() => setSelected(i)}
-            >
-              <span style={{ fontSize: 18 }}>{page.icon}</span>
-              <span style={{ fontSize: 14, color: text, fontWeight: i === selected ? 600 : 400 }}>
-                {page.label[lang]}
-              </span>
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#D1D5DB' }}>{page.path}</span>
-            </div>
-          ))}
+          ) : (() => {
+            const recentKeys = !query.trim() ? getRecentPages() : []
+            const recentCount = recentKeys.length
+            return filtered.map((page, i) => (
+              <div key={page.key}>
+                {!query.trim() && i === 0 && recentCount > 0 && (
+                  <div style={{ padding: '6px 14px', fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {lang === 'es' ? 'Recientes' : 'Recent'}
+                  </div>
+                )}
+                {!query.trim() && i === recentCount && recentCount > 0 && (
+                  <div style={{ padding: '6px 14px', fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: `1px solid ${border}`, marginTop: 4, paddingTop: 10 }}>
+                    {lang === 'es' ? 'Todas las paginas' : 'All pages'}
+                  </div>
+                )}
+                <div
+                  onClick={() => handleSelect(page)}
+                  style={{
+                    padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    background: i === selected ? hover : 'transparent',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={() => setSelected(i)}
+                >
+                  <span style={{ fontSize: 18 }}>{page.icon}</span>
+                  <span style={{ fontSize: 14, color: text, fontWeight: i === selected ? 600 : 400 }}>
+                    {page.label[lang]}
+                  </span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: '#D1D5DB' }}>{page.path}</span>
+                </div>
+              </div>
+            ))
+          })()}
         </div>
       </div>
     </div>
