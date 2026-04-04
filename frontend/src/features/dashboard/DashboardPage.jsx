@@ -4,6 +4,7 @@ import { fetchAPI } from '../../services/api'
 import { useRefreshOnFocus } from '../../shared/hooks/useRefreshOnFocus'
 import GettingStarted from '../../shared/components/GettingStarted'
 import MiniBarChart from '../../shared/components/MiniBarChart'
+import TipOfTheDay from '../../shared/components/TipOfTheDay'
 import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
@@ -653,6 +654,7 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
 
           {/* Plan usage bar */}
           <PlanUsageBar lang={lang} totalRuns={kpis.totalRuns} />
+          <TipOfTheDay lang={lang} />
 
           {/* Getting Started checklist */}
           <GettingStarted lang={lang} onNavigate={onNavigate} />

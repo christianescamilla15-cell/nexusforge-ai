@@ -1,22 +1,32 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
-function AnimatedValue({ value, duration = 800 }) {
+function AnimatedValue({ value, duration = 1000 }) {
   const [displayed, setDisplayed] = useState(0)
+  const startTime = useRef(null)
+  const animRef = useRef(null)
 
   useEffect(() => {
     if (typeof value !== 'number') { setDisplayed(value); return }
-    let start = 0
-    const step = value / (duration / 16)
-    const timer = setInterval(() => {
-      start += step
-      if (start >= value) {
-        setDisplayed(value)
-        clearInterval(timer)
-      } else {
-        setDisplayed(Math.floor(start))
+
+    const from = 0
+    const to = value
+
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3) // cubic ease-out
+
+    const animate = (timestamp) => {
+      if (!startTime.current) startTime.current = timestamp
+      const elapsed = timestamp - startTime.current
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = easeOut(progress)
+      setDisplayed(Math.round(from + (to - from) * eased))
+      if (progress < 1) {
+        animRef.current = requestAnimationFrame(animate)
       }
-    }, 16)
-    return () => clearInterval(timer)
+    }
+
+    startTime.current = null
+    animRef.current = requestAnimationFrame(animate)
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
   }, [value, duration])
 
   return <span>{typeof displayed === 'number' ? displayed.toLocaleString() : displayed}</span>
@@ -27,6 +37,7 @@ export default function KPICard({ icon, value, label, trend }) {
 
   return (
     <div
+      className="nxf-card-hover"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -56,14 +67,15 @@ export default function KPICard({ icon, value, label, trend }) {
           <span style={{
             fontSize: 12, fontWeight: 500,
             color: trend >= 0 ? '#059669' : '#DC2626',
+            display: 'flex', alignItems: 'center', gap: 2,
           }}>
-            {trend >= 0 ? '+' : ''}{trend}%
+            {trend >= 0 ? '\u2191' : '\u2193'} {Math.abs(trend)}%
           </span>
         )}
       </div>
       <div style={{
         fontSize: 28, fontWeight: 700, color: '#111827',
-        marginBottom: 4, animation: 'countUp 0.4s ease-out',
+        marginBottom: 4,
       }}>
         <AnimatedValue value={value} />
       </div>
