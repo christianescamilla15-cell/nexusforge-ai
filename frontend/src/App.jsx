@@ -36,6 +36,8 @@ const CostTokenDashboard = lazy(() => import('./features/metrics/CostTokenDashbo
 const StatusPage = lazy(() => import('./features/status/StatusPage'))
 const AnalyzePage = lazy(() => import('./features/analyze/AnalyzePage'))
 
+import TopLoadingBar from './shared/components/TopLoadingBar'
+
 // Suspense fallback
 const PageLoader = () => <div style={{ padding: 40 }}><Skeleton.Grid count={3} /></div>
 
@@ -137,6 +139,7 @@ function AppRoutes() {
 
   return (
     <ToastContext.Provider value={toast}>
+      <TopLoadingBar />
       <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme} user={user} onLogout={handleLogout}>
         <Suspense fallback={<PageLoader />}>
         <Routes>

@@ -18,7 +18,7 @@ const TRIGGER_BADGE = {
 
 const PAGE_SIZE = 12
 
-function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, running, isFavorite, onToggleFavorite, isSelected, onToggleSelect }) {
+function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onClone, onDashboard, running, isFavorite, onToggleFavorite, isSelected, onToggleSelect }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const trigger = TRIGGER_BADGE[auto.trigger_type] || TRIGGER_BADGE.manual
   const bg = auto.color ? `${auto.color}12` : 'rgba(99,102,241,0.08)'
@@ -68,6 +68,7 @@ function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, runn
                 {[
                   { label: 'Dashboard', icon: '\uD83D\uDCCA', action: () => { onDashboard(auto.id); setMenuOpen(false) } },
                   { label: lang === 'es' ? 'Editar' : 'Edit', icon: '\u270F\uFE0F', action: () => { onEdit(auto); setMenuOpen(false) } },
+                  { label: lang === 'es' ? 'Duplicar' : 'Clone', icon: '\uD83D\uDCCB', action: () => { onClone?.(auto); setMenuOpen(false) } },
                   { label: lang === 'es' ? 'Despublicar' : 'Unpublish', icon: '\uD83D\uDDD1\uFE0F', action: () => { onDelete(auto.id); setMenuOpen(false) }, color: '#EF4444' },
                 ].map((item, i) => (
                   <div key={i} onClick={item.action} style={{
@@ -327,6 +328,24 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
     toast.show(lang === 'es' ? `${selected.size} despublicadas` : `${selected.size} unpublished`, 'success')
   }
 
+  const handleClone = async (auto) => {
+    const res = await fetchAPI('/automations/', {
+      method: 'POST',
+      body: JSON.stringify({
+        workflow_id: auto.workflow_id,
+        name: `${auto.name} (${lang === 'es' ? 'copia' : 'copy'})`,
+        description: auto.description,
+        trigger_type: 'manual',
+        icon: auto.icon,
+        color: auto.color,
+      }),
+    })
+    if (!res.error) {
+      loadUserAutomations()
+      toast.show(lang === 'es' ? 'Automatizacion duplicada' : 'Automation cloned', 'success')
+    }
+  }
+
   const handleOpenDashboard = (id) => {
     if (onOpenDashboard) onOpenDashboard(id)
   }
@@ -396,9 +415,19 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           animation: 'fadeIn 0.15s ease-out',
         }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>
-            {selected.size} {lang === 'es' ? 'seleccionadas' : 'selected'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input type="checkbox"
+              checked={selected.size === filtered.length && filtered.length > 0}
+              onChange={() => {
+                if (selected.size === filtered.length) setSelected(new Set())
+                else setSelected(new Set(filtered.map(a => a.id)))
+              }}
+              style={{ width: 16, height: 16, accentColor: '#6366F1', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>
+              {selected.size} {lang === 'es' ? 'seleccionadas' : 'selected'}
+            </span>
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setSelected(new Set())} style={{
               padding: '5px 12px', borderRadius: 6, border: '1px solid #BFDBFE',
@@ -445,7 +474,7 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
           <div style={gridStyle}>
             {paginated.map(auto => (
               <AutomationCard key={auto.id} auto={auto} lang={lang} onRun={handleRun}
-                onDelete={handleDelete} onEdit={setEditTarget} onDashboard={handleOpenDashboard} running={running}
+                onDelete={handleDelete} onEdit={setEditTarget} onClone={handleClone} onDashboard={handleOpenDashboard} running={running}
                 isFavorite={favorites.includes(auto.id)} onToggleFavorite={() => toggleFavorite(auto.id)}
                 isSelected={selected.has(auto.id)} onToggleSelect={() => toggleSelect(auto.id)} />
             ))}

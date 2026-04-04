@@ -479,6 +479,18 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           minHeight: isMobile ? 'auto' : `calc(100vh - ${topBarHeight}px)`,
         }}>
           {children}
+
+          {/* Footer stats */}
+          {!isMobile && (
+            <footer style={{
+              padding: '8px 24px', borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#F3F4F6'}`,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              fontSize: 11, color: isDark ? '#4B5563' : '#D1D5DB',
+            }}>
+              <span>NexusForge AI v2.5</span>
+              <span>24 {t('agents', lang)} &middot; 6 {t('swarms', lang) || 'topologies'} &middot; 8 {lang === 'es' ? 'integraciones' : 'integrations'}</span>
+            </footer>
+          )}
         </main>
       </div>
 
