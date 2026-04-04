@@ -59,6 +59,7 @@
 /* Dark mode overrides for inline styles */
 [data-theme="dark"] .nxf-card,
 [data-theme="dark"] [style*="background: #FFFFFF"],
+[data-theme="dark"] [style*="background: #fff"],
 [data-theme="dark"] [style*="background: rgb(255"] {
   background: #1E1F33 !important;
   border-color: rgba(255,255,255,0.08) !important;
