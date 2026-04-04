@@ -3,6 +3,7 @@ import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
 import Skeleton from '../../shared/components/Skeleton'
+import { timeAgo } from '../../shared/utils/timeAgo'
 import CostTokenDashboard from '../metrics/CostTokenDashboard'
 import ConfirmModal from '../../shared/components/ConfirmModal'
 import { useConfirm } from '../../shared/hooks/useConfirm'
@@ -361,7 +362,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
                 </td>
                 <td style={{ padding: '12px 16px' }}><StatusBadge status={exec.status} /></td>
                 <td style={{ padding: '12px 16px', color: '#111827', fontSize: 14, fontWeight: 500 }}>{exec.workflow_name}</td>
-                <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13, whiteSpace: 'nowrap' }}>{formatDate(exec.started_at, lang)}</td>
+                <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13, whiteSpace: 'nowrap' }} title={formatDate(exec.started_at, lang)}>{timeAgo(exec.started_at, lang)}</td>
                 <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13 }}>{formatDuration(exec.duration_ms)}</td>
                 <td style={{ padding: '12px 16px', color: '#10B981', fontSize: 13, fontWeight: 500 }}>${Number(exec.total_cost || 0) > 0 ? Number(exec.total_cost || 0).toFixed(5) : '0.00'}</td>
                 <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13 }}>{exec.steps_count}</td>

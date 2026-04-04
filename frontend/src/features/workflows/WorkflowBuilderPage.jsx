@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { fetchAPI } from '../../services/api'
+import ConfirmModal from '../../shared/components/ConfirmModal'
+import { useConfirm } from '../../shared/hooks/useConfirm'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -227,6 +229,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
   const [executing, setExecuting] = useState(false)
   const [toast, setToast] = useState(null)
   const [search, setSearch] = useState('')
+  const [confirmState, showConfirm] = useConfirm()
 
   // Drag-node state
   const draggingNode = useRef(null)
@@ -423,10 +426,11 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
     }
 
     if (currentSavedId) {
-      const overwrite = confirm(
+      const overwrite = await showConfirm(
         lang === 'es'
-          ? '¿Sobreescribir el flujo existente?\n\nAceptar = Sobreescribir\nCancelar = Guardar como nuevo'
-          : 'Overwrite existing workflow?\n\nOK = Overwrite\nCancel = Save as new'
+          ? '¿Sobreescribir el flujo existente o guardar como nuevo?'
+          : 'Overwrite existing workflow or save as new?',
+        { confirmLabel: lang === 'es' ? 'Sobreescribir' : 'Overwrite', cancelLabel: lang === 'es' ? 'Guardar nuevo' : 'Save new', danger: false }
       )
       if (overwrite) {
         setSaving(true)
@@ -998,6 +1002,7 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
           {toast.msg}
         </div>
       )}
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   )
 }
