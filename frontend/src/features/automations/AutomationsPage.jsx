@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import PublishModal from './PublishModal'
 import RunInputModal from './RunInputModal'
-import AutomationDashboard from './AutomationDashboard'
+import SmartDashboard from './dashboards/SmartDashboard'
 import TemplatesLibrary from '../templates/TemplatesLibrary'
 
 const TRIGGER_BADGE = {
@@ -262,10 +262,10 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution }) 
         }} onClick={() => setDashboardId(null)}>
           <div onClick={e => e.stopPropagation()} style={{
             background: '#F9FAFB', borderRadius: 16, padding: 24,
-            width: '100%', maxWidth: 800,
+            width: '100%', maxWidth: 960,
             border: '1px solid #E5E7EB', boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
           }}>
-            <AutomationDashboard
+            <SmartDashboard
               automationId={dashboardId}
               lang={lang}
               onBack={() => setDashboardId(null)}
