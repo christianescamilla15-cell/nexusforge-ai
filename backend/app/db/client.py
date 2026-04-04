@@ -14,7 +14,14 @@ async def get_db_pool():
 async def get_redis():
     global _redis
     if _redis is None:
-        _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+        url = settings.redis_url
+        # Upstash and other cloud Redis providers use TLS (rediss://)
+        ssl = url.startswith("rediss://") if url else False
+        _redis = aioredis.from_url(
+            url,
+            decode_responses=True,
+            ssl_cert_reqs=None if ssl else None,  # accept Upstash self-signed certs
+        )
     return _redis
 
 async def close_connections():
