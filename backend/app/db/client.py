@@ -14,18 +14,11 @@ async def get_db_pool():
 async def get_redis():
     global _redis
     if _redis is None:
-        import ssl as _ssl
         url = settings.redis_url
         if not url:
             raise ConnectionError("REDIS_URL not configured")
-        # Upstash requires TLS — rediss:// URLs need ssl context
-        if url.startswith("rediss://"):
-            ctx = _ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = _ssl.CERT_NONE
-            _redis = aioredis.from_url(url, decode_responses=True, ssl=ctx)
-        else:
-            _redis = aioredis.from_url(url, decode_responses=True)
+        # rediss:// (double S) handles TLS automatically — no extra ssl param needed
+        _redis = aioredis.from_url(url, decode_responses=True)
     return _redis
 
 async def close_connections():
