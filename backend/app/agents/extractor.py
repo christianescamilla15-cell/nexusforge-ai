@@ -25,7 +25,7 @@ class ExtractorAgent(BaseAgent):
     description = "Extracts named entities (people, orgs, dates, amounts, locations) from text."
 
     async def execute(self, input_data: dict, config: dict = None) -> AgentResult:
-        text = input_data.get("text", "")
+        text = self._extract_text(input_data)
         config = config or {}
 
         if config.get("demo") or not text:

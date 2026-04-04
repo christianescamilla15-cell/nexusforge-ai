@@ -114,7 +114,7 @@ class AnalyzerAgent(BaseAgent):
     description = "Deterministic statistics + LLM-powered sentiment, topic, and insight analysis."
 
     async def execute(self, input_data: dict, config: dict = None) -> AgentResult:
-        text = input_data.get("text", "")
+        text = self._extract_text(input_data)
         data = input_data.get("data", None)
         config = config or {}
 

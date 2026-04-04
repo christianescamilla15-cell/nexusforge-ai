@@ -128,7 +128,7 @@ class NormalizerAgent(BaseAgent):
     description = "Deterministic data normalization (dates, names, amounts, dedup) with LLM for ambiguous cases."
 
     async def execute(self, input_data: dict, config: dict = None) -> AgentResult:
-        data = input_data.get("data", input_data.get("text", ""))
+        data = input_data.get("data") or self._extract_text(input_data)
         config = config or {}
 
         if config.get("demo") or not data:

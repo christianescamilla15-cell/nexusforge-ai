@@ -24,7 +24,7 @@ class SentimentAgent(BaseAgent):
     description = "Analyzes sentiment, emotional tone, and opinion in text."
 
     async def execute(self, input_data: dict, config: dict = None) -> AgentResult:
-        text = input_data.get("text", "")
+        text = self._extract_text(input_data)
         config = config or {}
 
         if config.get("demo") or not text:

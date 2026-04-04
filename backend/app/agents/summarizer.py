@@ -26,7 +26,7 @@ class SummarizerAgent(BaseAgent):
     description = "Generates concise summaries with configurable length (short/medium/long)."
 
     async def execute(self, input_data: dict, config: dict = None) -> AgentResult:
-        text = input_data.get("text", "")
+        text = self._extract_text(input_data)
         config = config or {}
         length = config.get("length", "medium")
 

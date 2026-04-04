@@ -162,6 +162,27 @@ class BaseAgent(ABC):
         router = get_router()
         return await router.chat(messages, **kwargs)
 
+    @staticmethod
+    def _extract_text(input_data: dict) -> str:
+        """Extract usable text from input_data, checking multiple common keys.
+        Agents use different key names — this ensures we find content regardless."""
+        for key in ("text", "task", "question", "topic", "description", "data", "content", "input"):
+            val = input_data.get(key, "")
+            if val and isinstance(val, str) and val.strip():
+                return val.strip()
+        # Check dependency outputs from previous steps
+        for key, val in input_data.items():
+            if key.startswith("_") and key.endswith("_output") and isinstance(val, dict):
+                # Extract text from previous step's output
+                for sub_key in ("summary", "extracted_text", "answer", "report_markdown", "translated_text"):
+                    sub_val = val.get(sub_key, "")
+                    if sub_val and isinstance(sub_val, str) and sub_val.strip():
+                        return sub_val.strip()[:3000]
+        # Last resort: serialize the whole input as text
+        import json
+        raw = json.dumps({k: v for k, v in input_data.items() if not k.startswith("_")}, default=str)
+        return raw[:3000] if len(raw) > 10 else ""
+
     def _build_system_prompt(self, task_description: str) -> str:
         return (
             f"You are {self.name}, a specialized AI agent. "

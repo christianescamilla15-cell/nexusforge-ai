@@ -27,7 +27,7 @@ class ClassifierAgent(BaseAgent):
     description = "Classifies documents into categories: legal, financial, technical, medical, general."
 
     async def execute(self, input_data: dict, config: dict = None) -> AgentResult:
-        text = input_data.get("text", "")[:500]
+        text = self._extract_text(input_data)[:500]
         config = config or {}
 
         if config.get("demo") or not text:
