@@ -247,6 +247,9 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
         {/* Account */}
         <AccountSection lang={lang} />
 
+        {/* Billing / Plan */}
+        <BillingSection lang={lang} />
+
         {/* Reset Tour */}
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
@@ -293,6 +296,69 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
           </div>
         </div>
 
+      </div>
+    </div>
+  )
+}
+
+const PLANS = [
+  { id: 'free', name: 'Free', price: '$0', limit: '5 runs/day', color: '#6B7280' },
+  { id: 'pro', name: 'Pro', price: '$29/mo', limit: '100 runs/day', color: '#6366F1' },
+  { id: 'team', name: 'Team', price: '$99/mo', limit: '500 runs/day', color: '#8B5CF6' },
+  { id: 'enterprise', name: 'Enterprise', price: 'Custom', limit: 'Unlimited', color: '#059669' },
+]
+
+function BillingSection({ lang }) {
+  const user = (() => { try { return JSON.parse(localStorage.getItem('nf_user') || '{}') } catch { return {} } })()
+  if (user.isGuest) return null
+  const currentPlan = user.plan || 'free'
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20 }}>
+      <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
+        {lang === 'es' ? 'Plan y Facturacion' : 'Plan & Billing'}
+      </label>
+      <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 16px' }}>
+        {lang === 'es' ? 'Tu plan actual y opciones de upgrade.' : 'Your current plan and upgrade options.'}
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+        {PLANS.map(plan => {
+          const isCurrent = plan.id === currentPlan
+          return (
+            <div key={plan.id} style={{
+              padding: 14, borderRadius: 10,
+              border: `2px solid ${isCurrent ? plan.color : '#E5E7EB'}`,
+              background: isCurrent ? `${plan.color}08` : '#fff',
+              textAlign: 'center', position: 'relative',
+            }}>
+              {isCurrent && (
+                <div style={{
+                  position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+                  background: plan.color, color: '#fff', fontSize: 9, fontWeight: 700,
+                  padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase',
+                }}>
+                  {lang === 'es' ? 'Actual' : 'Current'}
+                </div>
+              )}
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 4, marginTop: isCurrent ? 4 : 0 }}>
+                {plan.name}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: plan.color, marginBottom: 4 }}>
+                {plan.price}
+              </div>
+              <div style={{ fontSize: 11, color: '#9CA3AF' }}>{plan.limit}</div>
+              {!isCurrent && plan.id !== 'free' && (
+                <button style={{
+                  marginTop: 8, padding: '5px 12px', borderRadius: 6, border: `1px solid ${plan.color}`,
+                  background: 'transparent', color: plan.color, fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer',
+                }}>
+                  {lang === 'es' ? 'Upgrade' : 'Upgrade'}
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

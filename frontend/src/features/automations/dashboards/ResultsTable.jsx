@@ -88,9 +88,40 @@ export default function ResultsTable({
     )
   }
 
+  const exportCSV = () => {
+    if (!results.length) return
+    const keys = columns.map(c => c.key || c.label || String(c))
+    const header = keys.join(',')
+    const rows = results.map(r =>
+      keys.map(k => {
+        const val = r[k] ?? r.output_data?.[k] ?? ''
+        const str = typeof val === 'object' ? JSON.stringify(val) : String(val)
+        return `"${str.replace(/"/g, '""')}"`
+      }).join(',')
+    )
+    const csv = [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `results-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // Desktop: table layout
   return (
     <div>
+      {/* Export button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button onClick={exportCSV} style={{
+          padding: '5px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
+          background: '#fff', fontSize: 12, cursor: 'pointer', color: '#6B7280',
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          {lang === 'es' ? 'Exportar CSV' : 'Export CSV'}
+        </button>
+      </div>
       <div style={{
         background: '#fff',
         borderRadius: 12,

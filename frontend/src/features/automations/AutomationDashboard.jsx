@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
+import { CopyButton } from '../../shared/hooks/useCopyClipboard.jsx'
 import RulesPanel from '../rules/RulesPanel'
 import VariablesPanel from '../variables/VariablesPanel'
 import AuditLog from '../audit/AuditLog'
@@ -193,12 +194,7 @@ export default function AutomationDashboard({ automationId, onBack, onRun, lang 
                 }}>
                   {webhookUrl}
                 </div>
-                <button onClick={() => navigator.clipboard?.writeText(webhookUrl)} style={{
-                  padding: '5px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
-                  background: '#fff', fontSize: 12, color: '#6B7280', cursor: 'pointer',
-                }}>
-                  {lang === 'es' ? 'Copiar URL' : 'Copy URL'}
-                </button>
+                <CopyButton text={webhookUrl} lang={lang} />
               </div>
             )}
           </div>
