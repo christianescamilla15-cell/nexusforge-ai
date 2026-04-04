@@ -923,6 +923,9 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
         wf.name = customName.trim() || description.trim().slice(0, 60) || wf.name
       }
       setWorkflow(wf)
+      if (res.data?.warning || res.data?._fallback) {
+        setError(res.data.warning || (lang === 'es' ? 'Se usó una plantilla genérica. Revisa y ajusta los pasos.' : 'A generic template was used. Review and adjust the steps.'))
+      }
       setIsGenerating(false)
       return true
     } catch (e) {

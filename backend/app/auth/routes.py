@@ -287,6 +287,9 @@ async def change_password(body: ChangePasswordRequest, request: Request):
         if not row:
             raise HTTPException(404, "User not found")
 
+        if not row["password_hash"]:
+            raise HTTPException(400, "This account uses Google login — password cannot be changed here")
+
         if not _verify_password(body.current_password, row["password_hash"]):
             raise HTTPException(400, "Current password is incorrect")
 

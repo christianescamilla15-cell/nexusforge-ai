@@ -136,7 +136,7 @@ function EditAutomationModal({ automation, lang, onClose, onSaved }) {
   const handleSave = async () => {
     setSaving(true)
     const body = { name, description, trigger_type: triggerType }
-    if (triggerType === 'schedule' && scheduleCron) body.schedule_cron = scheduleCron
+    body.schedule_cron = triggerType === 'schedule' ? (scheduleCron || null) : null
     const res = await fetchAPI(`/automations/${automation.id}`, {
       method: 'PUT',
       body: JSON.stringify(body),

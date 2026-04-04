@@ -43,6 +43,7 @@ function EnterpriseOpsTab({ lang }) {
   const [text, setText] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [health, setHealth] = useState(null)
 
   useEffect(() => {
@@ -60,6 +61,8 @@ function EnterpriseOpsTab({ lang }) {
       body: JSON.stringify({ text, language: lang }),
     })
     setLoading(false)
+    if (res.error) { setError(res.error); return }
+    setError(null)
     if (res.data) setResult(res.data)
   }
 
@@ -98,6 +101,12 @@ function EnterpriseOpsTab({ lang }) {
         {loading ? t.running : t.run}
       </button>
 
+      {error && (
+        <div style={{ padding: 12, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#DC2626', fontSize: 13, marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+
       {result && (
         <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 20, border: '1px solid #E5E7EB' }}>
           <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: '#111827' }}>{t.results}</h4>
@@ -127,6 +136,7 @@ function DocIntelTab({ lang }) {
   const [text, setText] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [examples, setExamples] = useState([])
 
   useEffect(() => {
@@ -144,6 +154,8 @@ function DocIntelTab({ lang }) {
       body: JSON.stringify({ text, language: lang }),
     })
     setLoading(false)
+    if (res.error) { setError(res.error); return }
+    setError(null)
     if (res.data) setResult(res.data)
   }
 
@@ -182,6 +194,12 @@ function DocIntelTab({ lang }) {
         {loading ? t.running : t.run}
       </button>
 
+      {error && (
+        <div style={{ padding: 12, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#DC2626', fontSize: 13, marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+
       {result && (
         <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 20, border: '1px solid #E5E7EB' }}>
           <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: '#111827' }}>{t.results}</h4>
@@ -206,6 +224,7 @@ function AnalyzeTab({ lang }) {
   const [text, setText] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [history, setHistory] = useState([])
 
   useEffect(() => {
@@ -224,6 +243,8 @@ function AnalyzeTab({ lang }) {
       body: JSON.stringify({ text, language: lang }),
     })
     setLoading(false)
+    if (res.error) { setError(res.error); return }
+    setError(null)
     if (res.data) setResult(res.data)
   }
 
@@ -244,6 +265,12 @@ function AnalyzeTab({ lang }) {
       }}>
         {loading ? t.running : t.run}
       </button>
+
+      {error && (
+        <div style={{ padding: 12, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#DC2626', fontSize: 13, marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
 
       {result && (
         <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 20, border: '1px solid #E5E7EB', marginBottom: 20 }}>

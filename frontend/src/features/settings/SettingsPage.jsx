@@ -353,7 +353,7 @@ function BillingSection({ lang }) {
               </div>
               <div style={{ fontSize: 11, color: '#9CA3AF' }}>{plan.limit}</div>
               {!isCurrent && plan.id !== 'free' && (
-                <button style={{
+                <button onClick={() => alert(lang === 'es' ? 'Contactanos para upgrade: support@nexusforge.ai' : 'Contact us to upgrade: support@nexusforge.ai')} style={{
                   marginTop: 8, padding: '5px 12px', borderRadius: 6, border: `1px solid ${plan.color}`,
                   background: 'transparent', color: plan.color, fontSize: 11, fontWeight: 600,
                   cursor: 'pointer',
@@ -381,12 +381,7 @@ function AccountSection({ lang }) {
     setSaving(true)
     setMsg('')
     try {
-      // Update name
-      if (name !== user.name) {
-        const updated = { ...user, name }
-        localStorage.setItem('nf_user', JSON.stringify(updated))
-      }
-      // Change password
+      // Change password first (may fail, so don't save name yet)
       if (currentPw && newPw && newPw.length >= 6) {
         const { fetchAPI } = await import('../../services/api')
         const res = await fetchAPI('/auth/change-password', {
@@ -398,6 +393,11 @@ function AccountSection({ lang }) {
           setSaving(false)
           return
         }
+      }
+      // Update name only after password check succeeds
+      if (name !== user.name) {
+        const updated = { ...user, name }
+        localStorage.setItem('nf_user', JSON.stringify(updated))
       }
       setMsg(lang === 'es' ? 'Guardado' : 'Saved')
       setCurrentPw('')
