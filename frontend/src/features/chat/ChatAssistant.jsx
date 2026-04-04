@@ -1,21 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { generateResponse } from './chatEngine'
+import { getApiUrl } from '../../services/api'
 
 const QUICK_ACTIONS = [
-  { label: 'What is NexusForge?', labelEs: '¿Qué es NexusForge?' },
-  { label: 'How does it work?', labelEs: '¿Cómo funciona?' },
-  { label: 'Agents', labelEs: 'Agentes' },
-  { label: 'Topologies', labelEs: 'Topologías' },
-  { label: 'Self-Healing', labelEs: 'Auto-Reparación' },
-  { label: 'What real use cases does NexusForge have?', labelEs: '¿Qué casos de uso reales tiene NexusForge?' },
-  { label: 'Explain the Operations Assistant', labelEs: 'Explica el Asistente de Operaciones' },
-  { label: 'How does Document Intelligence work?', labelEs: '¿Cómo funciona la Inteligencia Documental?' },
-  { label: 'What is the Portfolio Copilot?', labelEs: '¿Qué es el Copiloto de Portafolio?' },
-  { label: 'How does the Playground work?', labelEs: '¿Cómo funciona el Playground?' },
-  { label: 'What cost metrics are tracked?', labelEs: '¿Qué métricas de costos se rastrean?' },
-  { label: 'RAG Pipeline', labelEs: 'Pipeline RAG' },
-  { label: 'Architecture', labelEs: 'Arquitectura' },
-  { label: 'Help', labelEs: 'Ayuda completa' },
+  { label: 'Ticket Triage', labelEs: 'Triage de Tickets', icon: '\uD83C\uDFAB' },
+  { label: 'Document Analysis', labelEs: 'Analisis de Documentos', icon: '\uD83D\uDCC4' },
+  { label: 'Email Auto-Responder', labelEs: 'Auto-respuesta de Emails', icon: '\uD83D\uDCE7' },
+  { label: 'Report Generator', labelEs: 'Generador de Reportes', icon: '\uD83D\uDCCA' },
+  { label: 'Show me the agents', labelEs: 'Muestrame los agentes', icon: '\uD83E\uDD16' },
+  { label: 'Explain topologies', labelEs: 'Explica las topologias', icon: '\uD83D\uDD00' },
 ]
 
 function formatMessage(text) {
@@ -118,10 +110,12 @@ export default function ChatAssistant({ lang = 'en' }) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
-  const [typing, setTyping] = useState(false)
+  const [streaming, setStreaming] = useState(false)
+  const [currentResponse, setCurrentResponse] = useState('')
   const [hasUnread, setHasUnread] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const abortRef = useRef(null)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -129,7 +123,7 @@ export default function ChatAssistant({ lang = 'en' }) {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, typing, scrollToBottom])
+  }, [messages, streaming, currentResponse, scrollToBottom])
 
   useEffect(() => {
     if (open && inputRef.current) {
@@ -163,39 +157,106 @@ export default function ChatAssistant({ lang = 'en' }) {
         id: 'welcome',
         role: 'system',
         text: lang === 'es'
-          ? 'Bienvenido al asistente de NexusForge AI'
-          : 'Welcome to the NexusForge AI assistant',
+          ? 'Conectado al Arquitecto AI de NexusForge'
+          : 'Connected to NexusForge AI Architect',
       }])
     }
   }, [open, messages.length, lang])
 
-  const sendMessage = useCallback((text) => {
-    if (!text.trim()) return
+  const sendMessage = useCallback(async (text) => {
+    if (!text.trim() || streaming) return
 
     const userMsg = { id: `u-${Date.now()}`, role: 'user', text: text.trim() }
     setMessages((prev) => [...prev, userMsg])
     setInput('')
-    setTyping(true)
+    setStreaming(true)
+    setCurrentResponse('')
 
-    setTimeout(() => {
-      const response = generateResponse(text, lang)
-      const assistantMsg = {
-        id: `a-${Date.now()}`,
+    // Build conversation history for the API (exclude system messages)
+    const history = [...messages, userMsg]
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({ role: m.role, content: m.text }))
+
+    const apiUrl = getApiUrl()
+    const token = typeof window !== 'undefined' ? localStorage.getItem('nf_token') : null
+    const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {}
+
+    try {
+      abortRef.current = new AbortController()
+
+      const response = await fetch(`${apiUrl}/wizard/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ messages: history, language: lang }),
+        signal: abortRef.current.signal,
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let fullText = ''
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        // Keep the last potentially incomplete line in the buffer
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          try {
+            const data = JSON.parse(trimmed.slice(6))
+            if (data.type === 'text') {
+              fullText += data.content
+              setCurrentResponse(fullText)
+            }
+            if (data.type === 'done') {
+              setMessages((prev) => [...prev, {
+                id: `a-${Date.now()}`,
+                role: 'assistant',
+                text: fullText,
+              }])
+              setCurrentResponse('')
+              setStreaming(false)
+            }
+          } catch {
+            // skip malformed JSON chunks
+          }
+        }
+      }
+
+      // If we exit the loop without a 'done' event, finalize
+      if (fullText && streaming) {
+        setMessages((prev) => [...prev, {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: fullText,
+        }])
+        setCurrentResponse('')
+        setStreaming(false)
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') return
+      console.error('Wizard chat error:', err)
+      setMessages((prev) => [...prev, {
+        id: `e-${Date.now()}`,
         role: 'assistant',
-        text: response.text,
-        topic: response.topic,
-        confidence: response.confidence,
-        sources: response.sources,
-        suggestedFollowups: response.suggestedFollowups,
-      }
-      setMessages((prev) => [...prev, assistantMsg])
-      setTyping(false)
-
-      if (!open) {
-        setHasUnread(true)
-      }
-    }, 300 + Math.random() * 400)
-  }, [lang, open])
+        text: lang === 'es'
+          ? 'Error de conexion con el servidor. Verifica que el backend este activo e intenta de nuevo.'
+          : 'Connection error. Please verify the backend is running and try again.',
+      }])
+      setCurrentResponse('')
+      setStreaming(false)
+    }
+  }, [lang, messages, streaming])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -211,8 +272,6 @@ export default function ChatAssistant({ lang = 'en' }) {
     if (!open) setHasUnread(false)
   }
 
-  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
-  const followups = lastAssistant?.suggestedFollowups || []
   const showQuickActions = messages.length <= 1
 
   return (
@@ -279,8 +338,8 @@ export default function ChatAssistant({ lang = 'en' }) {
           className="nf-chat-fab"
           data-tour="chat-button"
           onClick={toggleOpen}
-          aria-label="AI Assistant"
-          title="AI Assistant"
+          aria-label="AI Architect"
+          title="AI Architect"
           style={{
             position: 'fixed',
             bottom: 24,
@@ -326,7 +385,7 @@ export default function ChatAssistant({ lang = 'en' }) {
         <div
           className="nf-chat-panel"
           role="dialog"
-          aria-label="NexusForge Assistant"
+          aria-label="NexusForge AI Architect"
           style={{
             position: 'fixed',
             bottom: 24,
@@ -357,7 +416,7 @@ export default function ChatAssistant({ lang = 'en' }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: '#2563EB',
+                background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -368,10 +427,12 @@ export default function ChatAssistant({ lang = 'en' }) {
               </div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>
-                  NexusForge Assistant
+                  AI Architect
                 </div>
-                <div style={{ fontSize: 11, color: '#9CA3AF' }}>
-                  {lang === 'es' ? 'Siempre disponible' : 'Always available'}
+                <div style={{ fontSize: 11, color: streaming ? '#2563EB' : '#9CA3AF', transition: 'color 0.2s' }}>
+                  {streaming
+                    ? (lang === 'es' ? 'Pensando...' : 'Thinking...')
+                    : (lang === 'es' ? 'Powered by LLM' : 'Powered by LLM')}
                 </div>
               </div>
             </div>
@@ -442,18 +503,36 @@ export default function ChatAssistant({ lang = 'en' }) {
                   }}>
                     {formatMessage(msg.text)}
                   </div>
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div style={{
-                      fontSize: 11, color: '#9CA3AF', marginTop: 4, paddingLeft: 4,
-                    }}>
-                      Fuente: {msg.sources.join(', ')}
-                    </div>
-                  )}
                 </div>
               )
             })}
 
-            {typing && (
+            {/* Streaming response in progress */}
+            {streaming && currentResponse && (
+              <div style={{
+                alignSelf: 'flex-start', maxWidth: '90%',
+                animation: 'chatFadeIn 0.3s ease',
+              }}>
+                <div style={{
+                  background: '#FFFFFF', color: '#374151',
+                  padding: '12px 14px', borderRadius: '14px 14px 14px 4px',
+                  fontSize: 14, lineHeight: 1.6,
+                  border: '1px solid #E5E7EB',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}>
+                  {formatMessage(currentResponse)}
+                  <span style={{
+                    display: 'inline-block', width: 2, height: 16,
+                    background: '#2563EB', marginLeft: 2,
+                    animation: 'chatTypingBounce 1s ease-in-out infinite',
+                    verticalAlign: 'text-bottom',
+                  }} />
+                </div>
+              </div>
+            )}
+
+            {/* Typing indicator before first token */}
+            {streaming && !currentResponse && (
               <div style={{
                 alignSelf: 'flex-start',
                 background: '#FFFFFF',
@@ -467,42 +546,8 @@ export default function ChatAssistant({ lang = 'en' }) {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Suggested followups */}
-          {!typing && followups.length > 0 && !showQuickActions && (
-            <div className="nf-chat-chips" style={{
-              padding: '4px 12px 4px', display: 'flex', flexWrap: 'wrap', gap: 6,
-              background: '#FFFFFF',
-            }}>
-              {followups.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => handleChipClick(f)}
-                  aria-label={f}
-                  style={{
-                    padding: '5px 10px', borderRadius: 12,
-                    border: '1px solid rgba(37,99,235,0.2)',
-                    background: 'rgba(37,99,235,0.04)',
-                    color: '#2563EB', fontSize: 12,
-                    cursor: 'pointer', transition: 'all 0.15s',
-                    whiteSpace: 'nowrap',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(37,99,235,0.08)'
-                    e.currentTarget.style.borderColor = 'rgba(37,99,235,0.35)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(37,99,235,0.04)'
-                    e.currentTarget.style.borderColor = 'rgba(37,99,235,0.2)'
-                  }}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Quick action chips */}
-          {showQuickActions && !typing && (
+          {showQuickActions && !streaming && (
             <div className="nf-chat-chips" style={{
               padding: '4px 12px 4px', display: 'flex', flexWrap: 'wrap', gap: 6,
               background: '#FFFFFF',
@@ -529,7 +574,7 @@ export default function ChatAssistant({ lang = 'en' }) {
                     e.currentTarget.style.borderColor = 'rgba(37,99,235,0.2)'
                   }}
                 >
-                  {lang === 'es' ? action.labelEs : action.label}
+                  {action.icon} {lang === 'es' ? action.labelEs : action.label}
                 </button>
               ))}
             </div>
@@ -551,9 +596,9 @@ export default function ChatAssistant({ lang = 'en' }) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={lang === 'es' ? 'Pregúntame sobre NexusForge...' : 'Ask about NexusForge...'}
+              placeholder={lang === 'es' ? 'Describe tu automatizacion...' : 'Describe your automation...'}
               aria-label={lang === 'es' ? 'Escribir mensaje' : 'Type a message'}
-              disabled={typing}
+              disabled={streaming}
               style={{
                 flex: 1, padding: '10px 14px', borderRadius: 10,
                 border: '1px solid #E5E7EB',
@@ -566,16 +611,16 @@ export default function ChatAssistant({ lang = 'en' }) {
             />
             <button
               type="submit"
-              disabled={!input.trim() || typing}
+              disabled={!input.trim() || streaming}
               aria-label={lang === 'es' ? 'Enviar mensaje' : 'Send message'}
               style={{
                 width: 40, height: 40, borderRadius: 10,
                 border: 'none',
-                background: input.trim() && !typing
+                background: input.trim() && !streaming
                   ? '#2563EB'
                   : '#F3F4F6',
-                color: input.trim() && !typing ? '#fff' : '#9CA3AF',
-                cursor: input.trim() && !typing ? 'pointer' : 'default',
+                color: input.trim() && !streaming ? '#fff' : '#9CA3AF',
+                cursor: input.trim() && !streaming ? 'pointer' : 'default',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.15s', flexShrink: 0,
               }}

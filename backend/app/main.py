@@ -102,6 +102,9 @@ app.include_router(slack_routes, prefix="/api")
 from app.routes.wizard import router as wizard_routes
 app.include_router(wizard_routes, prefix="/api")
 
+from app.routes.wizard_chat import router as wizard_chat_router
+app.include_router(wizard_chat_router, prefix="/api", tags=["wizard-chat"])
+
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
 app.include_router(executions.router, prefix="/api/executions", tags=["executions"])
