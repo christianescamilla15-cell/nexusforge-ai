@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../services/api'
+import ConfirmModal from '../../shared/components/ConfirmModal'
+import { useConfirm } from '../../shared/hooks/useConfirm'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -336,6 +338,7 @@ export default function RulesPanel({ automationId, lang = 'en' }) {
   const [editing, setEditing] = useState(null) // null | 'new' | rule object
   const [showTest, setShowTest] = useState(false)
   const [error, setError] = useState(null)
+  const [confirmState, showConfirm] = useConfirm()
 
   const loadRules = useCallback(async () => {
     if (!automationId) return
@@ -357,7 +360,8 @@ export default function RulesPanel({ automationId, lang = 'en' }) {
   }
 
   const handleDelete = async (ruleId) => {
-    if (!confirm(t(lang, 'Delete this rule?', 'Eliminar esta regla?'))) return
+    const ok = await showConfirm(t(lang, 'Delete this rule?', 'Eliminar esta regla?'))
+    if (!ok) return
     await fetchAPI(`/rules/${ruleId}`, { method: 'DELETE' })
     loadRules()
   }
@@ -524,6 +528,7 @@ export default function RulesPanel({ automationId, lang = 'en' }) {
           )}
         </div>
       ))}
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   )
 }

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
+import ConfirmModal from '../../shared/components/ConfirmModal'
+import { useConfirm } from '../../shared/hooks/useConfirm'
 
 const CONNECTOR_ICONS = {
   gmail: '📧', slack: '💬', notion: '📝', drive: '📁', rest: '🌐', postgres: '🐘',
@@ -15,6 +17,7 @@ export default function ConnectorHubPage({ lang = 'en' }) {
   const [testing, setTesting] = useState(null)
   const [testResult, setTestResult] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
+  const [confirmState, showConfirm] = useConfirm()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -69,7 +72,8 @@ export default function ConnectorHubPage({ lang = 'en' }) {
   }
 
   const handleDelete = async (connectorId) => {
-    if (!confirm(lang === 'es' ? '¿Eliminar este conector?' : 'Delete this connector?')) return
+    const ok = await showConfirm(lang === 'es' ? '¿Eliminar este conector?' : 'Delete this connector?')
+    if (!ok) return
     await fetchAPI(`/connectors/${connectorId}`, { method: 'DELETE' })
     load()
   }
@@ -315,6 +319,7 @@ export default function ConnectorHubPage({ lang = 'en' }) {
           </div>
         </div>
       )}
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   )
 }

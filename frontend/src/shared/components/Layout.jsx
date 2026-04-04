@@ -240,6 +240,24 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           </div>
         </nav>
 
+        {/* Keyboard shortcut hint */}
+        {!collapsed && !isMobile && (
+          <div style={{
+            padding: '6px 16px', fontSize: 11, color: '#9CA3AF',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <kbd style={{
+              padding: '1px 5px', borderRadius: 3, background: isDark ? '#2D2E42' : '#F3F4F6',
+              border: `1px solid ${isDark ? '#3D3E52' : '#E5E7EB'}`, fontSize: 10,
+            }}>{navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}</kbd>
+            <kbd style={{
+              padding: '1px 5px', borderRadius: 3, background: isDark ? '#2D2E42' : '#F3F4F6',
+              border: `1px solid ${isDark ? '#3D3E52' : '#E5E7EB'}`, fontSize: 10,
+            }}>K</kbd>
+            <span>{lang === 'es' ? 'Buscar' : 'Search'}</span>
+          </div>
+        )}
+
         {/* Collapse toggle -- hidden on mobile */}
         {!isMobile && (
           <div style={{

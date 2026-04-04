@@ -3,6 +3,8 @@ import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
 import CostTokenDashboard from '../metrics/CostTokenDashboard'
+import ConfirmModal from '../../shared/components/ConfirmModal'
+import { useConfirm } from '../../shared/hooks/useConfirm'
 
 function formatDuration(ms) {
   if (!ms && ms !== 0) return '--'
@@ -31,6 +33,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   const [menuOpen, setMenuOpen] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState('executions')
+  const [confirmState, showConfirm] = useConfirm()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -116,7 +119,8 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   }
 
   const handleDelete = async (runId) => {
-    if (!confirm(lang === 'es' ? `¿Eliminar esta ejecución?` : `Delete this execution?`)) return
+    const ok = await showConfirm(lang === 'es' ? `¿Eliminar esta ejecución?` : `Delete this execution?`)
+    if (!ok) return
     setDeleting(true)
     const res = await fetchAPI(`/executions/${runId}`, { method: 'DELETE' })
     if (res.error) {
@@ -135,7 +139,8 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
     const msg = lang === 'es'
       ? `¿Eliminar ${selected.size} ejecuciones seleccionadas?`
       : `Delete ${selected.size} selected executions?`
-    if (!confirm(msg)) return
+    const ok = await showConfirm(msg)
+    if (!ok) return
     setDeleting(true)
     const results = await Promise.all([...selected].map(id =>
       fetchAPI(`/executions/${id}`, { method: 'DELETE' })
@@ -434,6 +439,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
         </table>
       </div>}
       </>}
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   )
 }

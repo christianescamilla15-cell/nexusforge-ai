@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Reusable confirm dialog replacing browser confirm().
@@ -13,6 +13,10 @@ export default function ConfirmModal({
   onCancel,
 }) {
   const confirmRef = useRef(null)
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  const bg = isDark ? '#1E1F33' : '#fff'
+  const text = isDark ? '#E5E7EB' : '#111827'
+  const border = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'
 
   // Auto-focus confirm button + Escape to cancel
   useEffect(() => {
@@ -36,20 +40,21 @@ export default function ConfirmModal({
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#fff', borderRadius: 14, padding: 24,
+          background: bg, borderRadius: 14, padding: 24,
           maxWidth: 400, width: '100%',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          border: `1px solid ${border}`,
         }}
       >
-        <p style={{ fontSize: 15, color: '#111827', lineHeight: 1.5, marginBottom: 20, fontWeight: 500 }}>
+        <p style={{ fontSize: 15, color: text, lineHeight: 1.5, marginBottom: 20, fontWeight: 500 }}>
           {message}
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button
             onClick={onCancel}
             style={{
-              padding: '9px 18px', borderRadius: 8, border: '1px solid #E5E7EB',
-              background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#6B7280',
+              padding: '9px 18px', borderRadius: 8, border: `1px solid ${border}`,
+              background: bg, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: isDark ? '#D1D5DB' : '#6B7280',
             }}
           >
             {cancelLabel}

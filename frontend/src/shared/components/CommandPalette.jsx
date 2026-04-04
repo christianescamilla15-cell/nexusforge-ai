@@ -73,6 +73,13 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
     }
   }
 
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  const bg = isDark ? '#1E1F33' : '#fff'
+  const text = isDark ? '#E5E7EB' : '#111827'
+  const border = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'
+  const hover = isDark ? '#2D2E42' : '#F3F4F6'
+  const muted = isDark ? '#6B7280' : '#9CA3AF'
+
   if (!open) return null
 
   return (
@@ -82,11 +89,12 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
       animation: 'fadeIn 0.1s ease-out',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
+        background: bg, borderRadius: 16, width: '100%', maxWidth: 520,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden',
+        border: `1px solid ${border}`,
       }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2" strokeLinecap="round">
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
           </svg>
           <input
@@ -96,18 +104,18 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
             onKeyDown={handleKeyDown}
             placeholder={lang === 'es' ? 'Buscar pagina...' : 'Search pages...'}
             style={{
-              flex: 1, border: 'none', outline: 'none', fontSize: 15, color: '#111827',
+              flex: 1, border: 'none', outline: 'none', fontSize: 15, color: text,
               background: 'transparent',
             }}
           />
           <kbd style={{
-            padding: '2px 6px', borderRadius: 4, background: '#F3F4F6',
-            fontSize: 11, color: '#9CA3AF', border: '1px solid #E5E7EB',
+            padding: '2px 6px', borderRadius: 4, background: hover,
+            fontSize: 11, color: muted, border: `1px solid ${border}`,
           }}>ESC</kbd>
         </div>
         <div style={{ maxHeight: 320, overflowY: 'auto', padding: 4 }}>
           {filtered.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+            <div style={{ padding: 24, textAlign: 'center', color: muted, fontSize: 14 }}>
               {lang === 'es' ? 'Sin resultados' : 'No results'}
             </div>
           ) : filtered.map((page, i) => (
@@ -117,13 +125,13 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
               style={{
                 padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 12,
-                background: i === selected ? '#F3F4F6' : 'transparent',
+                background: i === selected ? hover : 'transparent',
                 transition: 'background 0.1s',
               }}
               onMouseEnter={() => setSelected(i)}
             >
               <span style={{ fontSize: 18 }}>{page.icon}</span>
-              <span style={{ fontSize: 14, color: '#111827', fontWeight: i === selected ? 600 : 400 }}>
+              <span style={{ fontSize: 14, color: text, fontWeight: i === selected ? 600 : 400 }}>
                 {page.label[lang]}
               </span>
               <span style={{ marginLeft: 'auto', fontSize: 11, color: '#D1D5DB' }}>{page.path}</span>

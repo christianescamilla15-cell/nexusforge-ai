@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../services/api'
+import ConfirmModal from '../../shared/components/ConfirmModal'
+import { useConfirm } from '../../shared/hooks/useConfirm'
 
 const MASK = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'
 
@@ -45,6 +47,7 @@ export default function VariablesPanel({ automationId, lang = 'en' }) {
   const [form, setForm] = useState({ key: '', value: '', is_secret: false })
   const [revealed, setRevealed] = useState({}) // id -> true if user revealed
   const [copiedId, setCopiedId] = useState(null)
+  const [confirmState, showConfirm] = useConfirm()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -81,7 +84,8 @@ export default function VariablesPanel({ automationId, lang = 'en' }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm(t.confirmDelete)) return
+    const ok = await showConfirm(t.confirmDelete)
+    if (!ok) return
     await fetchAPI(`/variables/${id}`, { method: 'DELETE' })
     load()
   }
@@ -263,6 +267,7 @@ export default function VariablesPanel({ automationId, lang = 'en' }) {
           </tbody>
         </table>
       )}
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   )
 }

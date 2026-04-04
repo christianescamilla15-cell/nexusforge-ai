@@ -4,6 +4,8 @@ import { fetchAPI } from '../../services/api'
 import DataTable from '../../shared/components/DataTable'
 import StatusBadge from '../../shared/components/StatusBadge'
 import EmptyState from '../../shared/components/EmptyState'
+import ConfirmModal from '../../shared/components/ConfirmModal'
+import { useConfirm } from '../../shared/hooks/useConfirm'
 import WorkflowCreateModal from './WorkflowCreateModal'
 
 
@@ -13,6 +15,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
   const [isMobile, setIsMobile] = useState(false)
   const [apiWorkflows, setApiWorkflows] = useState([])
   const [localWorkflows, setLocalWorkflows] = useState([])
+  const [confirmState, showConfirm] = useConfirm()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -44,7 +47,8 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
   const [renameValue, setRenameValue] = useState('')
 
   const handleDelete = async (wf) => {
-    if (!confirm(lang === 'es' ? `¿Eliminar "${wf.name}"?` : `Delete "${wf.name}"?`)) return
+    const ok = await showConfirm(lang === 'es' ? `¿Eliminar "${wf.name}"?` : `Delete "${wf.name}"?`)
+    if (!ok) return
     await fetchAPI(`/workflows/${wf.id}`, { method: 'DELETE' })
     setApiWorkflows(prev => prev.filter(w => w.id !== wf.id))
     setMenuOpen(null)
@@ -239,6 +243,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
         onClose={() => setShowCreate(false)}
         onCreated={(wf) => { if (wf) setLocalWorkflows(prev => [wf, ...prev]); setShowCreate(false) }}
       />
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   )
 }

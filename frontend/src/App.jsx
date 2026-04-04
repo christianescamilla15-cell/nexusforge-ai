@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
+import ErrorBoundary from './shared/components/ErrorBoundary'
 import AuthPage from './features/auth/AuthPage'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
@@ -263,8 +264,10 @@ function ExecutionDetailRoute({ lang }) {
 // Root component wraps everything in BrowserRouter
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
