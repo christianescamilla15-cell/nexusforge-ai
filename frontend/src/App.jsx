@@ -35,6 +35,7 @@ const AuditLog = lazy(() => import('./features/audit/AuditLog'))
 const CostTokenDashboard = lazy(() => import('./features/metrics/CostTokenDashboard'))
 const StatusPage = lazy(() => import('./features/status/StatusPage'))
 const AnalyzePage = lazy(() => import('./features/analyze/AnalyzePage'))
+const ApiDocsPage = lazy(() => import('./features/docs/ApiDocsPage'))
 
 import TopLoadingBar from './shared/components/TopLoadingBar'
 import OfflineIndicator from './shared/components/OfflineIndicator'
@@ -62,6 +63,7 @@ const PAGE_TO_PATH = {
   analyze: '/analyze',
   metrics: '/metrics',
   status: '/status',
+  docs: '/docs',
   'workflow-builder': '/workflows/builder',
 }
 
@@ -237,6 +239,7 @@ function AppRoutes() {
           <Route path="/analyze" element={<AnalyzePage lang={lang} />} />
           <Route path="/metrics" element={<CostTokenDashboard lang={lang} />} />
           <Route path="/status" element={<StatusPage lang={lang} />} />
+          <Route path="/docs" element={<ApiDocsPage lang={lang} />} />
 
           {/* Config */}
           <Route path="/integrations" element={<IntegrationManagerPage lang={lang} />} />
