@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
 import AuthPage from './features/auth/AuthPage'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
@@ -24,19 +25,36 @@ import SmartDashboardPage from './pages/SmartDashboardPage'
 import ConnectorHubPage from './features/connectors/ConnectorHubPage'
 import AuditLog from './features/audit/AuditLog'
 
-export default function App() {
-  const [currentPage, setCurrentPage] = useState('dashboard')
-  const [selectedWorkflow, setSelectedWorkflow] = useState(null)
-  const [selectedExecution, setSelectedExecution] = useState(null)
-  const [editWorkflowId, setEditWorkflowId] = useState(null)
-  const [initialDashboardId, setInitialDashboardId] = useState(null)
-  const [selectedAutomationId, setSelectedAutomationId] = useState(null)
+// Map old page keys → URL paths (backwards compat for onNavigate callbacks)
+const PAGE_TO_PATH = {
+  dashboard: '/',
+  automations: '/automations',
+  wizard: '/wizard',
+  integrations: '/integrations',
+  settings: '/settings',
+  workflows: '/workflows',
+  executions: '/executions',
+  agents: '/agents',
+  swarms: '/swarms',
+  connectors: '/connectors',
+  audit: '/audit',
+  analyze: '/analyze',
+  'cost-metrics': '/metrics',
+  'workflow-builder': '/workflows/builder',
+}
+
+const PATH_TO_PAGE = Object.fromEntries(
+  Object.entries(PAGE_TO_PATH).map(([k, v]) => [v, k])
+)
+
+function AppRoutes() {
+  const routerNavigate = useNavigate()
+  const location = useLocation()
   const { lang, setLang, toggle: toggleLang } = useLanguage()
   const [theme, setTheme] = useState(() => localStorage.getItem('nexusforge_theme') || 'light')
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem('nxf-tour-done') } catch { return false }
   })
-  // Auth state
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('nf_user')
@@ -44,44 +62,54 @@ export default function App() {
     } catch { return null }
   })
 
-  // Toast system
   const toast = useToastState()
 
   const handleLogin = useCallback((userData) => {
     setUser(userData)
-    setCurrentPage('dashboard')
-  }, [])
+    routerNavigate('/')
+  }, [routerNavigate])
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('nf_token')
     localStorage.removeItem('nf_user')
     setUser(null)
-  }, [])
+    routerNavigate('/')
+  }, [routerNavigate])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('nexusforge_theme', theme)
   }, [theme])
 
-  const navigate = (page) => {
-    setCurrentPage(page)
-    setSelectedWorkflow(null)
-    setSelectedExecution(null)
-    if (page !== 'workflow-builder') setEditWorkflowId(null)
-    if (page !== 'automations') {
-      setInitialDashboardId(null)
-      setSelectedAutomationId(null)
+  // Bridge: old navigate(pageKey) → React Router push
+  const navigate = useCallback((page) => {
+    const path = PAGE_TO_PATH[page] || '/'
+    routerNavigate(path)
+  }, [routerNavigate])
+
+  const navigateToBuilder = useCallback((workflowId = null) => {
+    if (workflowId) {
+      routerNavigate(`/workflows/builder/${workflowId}`)
+    } else {
+      routerNavigate('/workflows/builder')
     }
-  }
+  }, [routerNavigate])
 
-  const navigateToBuilder = (workflowId = null) => {
-    setEditWorkflowId(workflowId)
-    setCurrentPage('workflow-builder')
-    setSelectedWorkflow(null)
-    setSelectedExecution(null)
-  }
+  // Derive currentPage from URL for Layout sidebar highlighting
+  const currentPage = useMemo(() => {
+    const path = location.pathname
+    if (path === '/') return 'dashboard'
+    // Check exact matches first
+    const exact = PATH_TO_PAGE[path]
+    if (exact) return exact
+    // Check prefix matches
+    if (path.startsWith('/automations')) return 'automations'
+    if (path.startsWith('/workflows')) return 'workflows'
+    if (path.startsWith('/executions')) return 'executions'
+    return 'dashboard'
+  }, [location.pathname])
 
-  // Auth gate — must be AFTER all hooks
+  // Auth gate
   if (!user) {
     return (
       <ToastContext.Provider value={toast}>
@@ -91,128 +119,82 @@ export default function App() {
     )
   }
 
-  const renderPage = () => {
-    if (currentPage === 'workflows' && selectedWorkflow) {
-      return (
-        <WorkflowDetailPage
-          workflowId={selectedWorkflow}
-          onBack={() => setSelectedWorkflow(null)}
-          onEdit={() => {
-            navigateToBuilder(selectedWorkflow)
-          }}
-          onNavigateToExecution={(runId) => {
-            setCurrentPage('executions')
-            setSelectedWorkflow(null)
-            setSelectedExecution(runId)
-          }}
-          lang={lang}
-        />
-      )
-    }
-
-    if (currentPage === 'executions' && selectedExecution) {
-      return (
-        <ExecutionDetailPage
-          runId={selectedExecution}
-          onBack={() => setSelectedExecution(null)}
-          lang={lang}
-        />
-      )
-    }
-
-    switch (currentPage) {
-      case 'dashboard':
-        return <DashboardPage lang={lang} onNavigate={navigate} />
-      case 'integrations':
-        return <IntegrationManagerPage lang={lang} />
-      case 'wizard':
-        return (
-          <WizardPage
-            lang={lang}
-            onNavigate={navigate}
-            onNavigateToBuilder={navigateToBuilder}
-            onNavigateToAutomation={(autoId) => {
-              setInitialDashboardId(autoId)
-              setCurrentPage('automations')
-            }}
-          />
-        )
-      case 'workflow-builder':
-        return <WorkflowBuilderPage lang={lang} editWorkflowId={editWorkflowId} onNavigate={navigate} />
-      case 'workflows':
-        return (
-          <WorkflowListPage
-            onSelectWorkflow={(id) => setSelectedWorkflow(id)}
-            onEditWorkflow={(id) => navigateToBuilder(id)}
-            lang={lang}
-          />
-        )
-      case 'executions':
-        return (
-          <ExecutionListPage
-            onSelectExecution={(id) => setSelectedExecution(id)}
-            lang={lang}
-          />
-        )
-      case 'agents':
-        return <AgentListPage lang={lang} />
-      case 'swarms':
-        return <SwarmListPage lang={lang} />
-      case 'automations':
-        if (selectedAutomationId) {
-          return (
-            <SmartDashboardPage
-              automationId={selectedAutomationId}
-              onBack={() => setSelectedAutomationId(null)}
-              onRun={(auto) => {
-                setSelectedAutomationId(null)
-              }}
-              lang={lang}
-            />
-          )
-        }
-        return (
-          <AutomationsPage
-            lang={lang}
-            initialDashboardId={initialDashboardId}
-            onNavigateToExecution={(runId) => {
-              setCurrentPage('executions')
-              setSelectedExecution(runId)
-            }}
-            onOpenDashboard={(id) => setSelectedAutomationId(id)}
-          />
-        )
-      case 'connectors':
-        return <ConnectorHubPage lang={lang} />
-      case 'audit':
-        return <AuditLog lang={lang} />
-      case 'analyze':
-        return <AnalyzePage lang={lang} />
-      case 'cost-metrics':
-        return <CostTokenDashboard lang={lang} />
-      case 'settings':
-        return (
-          <SettingsPage
-            lang={lang}
-            setLang={setLang}
-            theme={theme}
-            setTheme={setTheme}
-            onResetTour={() => {
-              try { localStorage.removeItem('nxf-tour-done') } catch { /* */ }
-              setShowTour(true)
-              setCurrentPage('dashboard')
-            }}
-          />
-        )
-      default:
-        return <DashboardPage lang={lang} />
-    }
-  }
-
   return (
     <ToastContext.Provider value={toast}>
       <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme} user={user} onLogout={handleLogout}>
-        {renderPage()}
+        <Routes>
+          <Route path="/" element={<DashboardPage lang={lang} onNavigate={navigate} />} />
+
+          {/* Automations */}
+          <Route path="/automations" element={
+            <AutomationsPage
+              lang={lang}
+              onNavigateToExecution={(runId) => routerNavigate(`/executions/${runId}`)}
+              onOpenDashboard={(id) => routerNavigate(`/automations/${id}`)}
+            />
+          } />
+          <Route path="/automations/:automationId" element={<AutomationDashboardRoute lang={lang} navigate={navigate} />} />
+
+          {/* Wizard */}
+          <Route path="/wizard" element={
+            <WizardPage
+              lang={lang}
+              onNavigate={navigate}
+              onNavigateToBuilder={navigateToBuilder}
+              onNavigateToAutomation={(autoId) => routerNavigate(`/automations/${autoId}`)}
+            />
+          } />
+
+          {/* Workflows */}
+          <Route path="/workflows" element={
+            <WorkflowListPage
+              onSelectWorkflow={(id) => routerNavigate(`/workflows/${id}`)}
+              onEditWorkflow={(id) => navigateToBuilder(id)}
+              lang={lang}
+            />
+          } />
+          <Route path="/workflows/builder" element={<WorkflowBuilderPage lang={lang} editWorkflowId={null} onNavigate={navigate} />} />
+          <Route path="/workflows/builder/:workflowId" element={<WorkflowBuilderRoute lang={lang} navigate={navigate} />} />
+          <Route path="/workflows/:workflowId" element={<WorkflowDetailRoute lang={lang} navigate={navigate} navigateToBuilder={navigateToBuilder} />} />
+
+          {/* Executions */}
+          <Route path="/executions" element={
+            <ExecutionListPage
+              onSelectExecution={(id) => routerNavigate(`/executions/${id}`)}
+              lang={lang}
+            />
+          } />
+          <Route path="/executions/:runId" element={<ExecutionDetailRoute lang={lang} />} />
+
+          {/* Intelligence */}
+          <Route path="/agents" element={<AgentListPage lang={lang} />} />
+          <Route path="/swarms" element={<SwarmListPage lang={lang} />} />
+
+          {/* Advanced */}
+          <Route path="/connectors" element={<ConnectorHubPage lang={lang} />} />
+          <Route path="/audit" element={<AuditLog lang={lang} />} />
+          <Route path="/analyze" element={<AnalyzePage lang={lang} />} />
+          <Route path="/metrics" element={<CostTokenDashboard lang={lang} />} />
+
+          {/* Config */}
+          <Route path="/integrations" element={<IntegrationManagerPage lang={lang} />} />
+          <Route path="/settings" element={
+            <SettingsPage
+              lang={lang}
+              setLang={setLang}
+              theme={theme}
+              setTheme={setTheme}
+              onResetTour={() => {
+                try { localStorage.removeItem('nxf-tour-done') } catch { /* */ }
+                setShowTour(true)
+                routerNavigate('/')
+              }}
+            />
+          } />
+
+          {/* Catch-all → Dashboard */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Layout>
       {showTour && (
         <OnboardingTour
@@ -225,5 +207,59 @@ export default function App() {
       <ChatAssistant lang={lang} />
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
     </ToastContext.Provider>
+  )
+}
+
+// Route wrappers that extract URL params and pass to components
+function AutomationDashboardRoute({ lang, navigate }) {
+  const { automationId } = useParams()
+  const routerNavigate = useNavigate()
+  return (
+    <SmartDashboardPage
+      automationId={automationId}
+      onBack={() => routerNavigate('/automations')}
+      onRun={() => routerNavigate('/automations')}
+      lang={lang}
+    />
+  )
+}
+
+function WorkflowDetailRoute({ lang, navigate, navigateToBuilder }) {
+  const { workflowId } = useParams()
+  const routerNavigate = useNavigate()
+  return (
+    <WorkflowDetailPage
+      workflowId={workflowId}
+      onBack={() => routerNavigate('/workflows')}
+      onEdit={() => navigateToBuilder(workflowId)}
+      onNavigateToExecution={(runId) => routerNavigate(`/executions/${runId}`)}
+      lang={lang}
+    />
+  )
+}
+
+function WorkflowBuilderRoute({ lang, navigate }) {
+  const { workflowId } = useParams()
+  return <WorkflowBuilderPage lang={lang} editWorkflowId={workflowId} onNavigate={navigate} />
+}
+
+function ExecutionDetailRoute({ lang }) {
+  const { runId } = useParams()
+  const routerNavigate = useNavigate()
+  return (
+    <ExecutionDetailPage
+      runId={runId}
+      onBack={() => routerNavigate('/executions')}
+      lang={lang}
+    />
+  )
+}
+
+// Root component wraps everything in BrowserRouter
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   )
 }

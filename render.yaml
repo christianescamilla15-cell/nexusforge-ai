@@ -13,11 +13,19 @@ services:
           name: nexusforge-db
           property: connectionURI
       - key: REDIS_URL
-        value: ""
+        sync: false  # Set manually: Upstash Redis URL (free tier)
       - key: GROQ_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: DEBUG
+        value: "false"
+      - key: ALLOWED_ORIGINS
+        value: "https://frontend-silk-three-66.vercel.app,https://nexusforge.vercel.app"
 
 databases:
   - name: nexusforge-db
