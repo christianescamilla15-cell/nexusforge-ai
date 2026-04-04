@@ -106,14 +106,14 @@ function AutomationCard({ auto, lang, onRun, onDelete, onDashboard, running }) {
   )
 }
 
-export default function AutomationsPage({ lang = 'en', onNavigateToExecution }) {
+export default function AutomationsPage({ lang = 'en', onNavigateToExecution, initialDashboardId = null }) {
   const [isMobile, setIsMobile] = useState(false)
   const [userAutomations, setUserAutomations] = useState([])
   const [loadingUser, setLoadingUser] = useState(true)
   const [showPublish, setShowPublish] = useState(false)
   const [running, setRunning] = useState(null)
   const [runInputTarget, setRunInputTarget] = useState(null) // automation needing input
-  const [dashboardId, setDashboardId] = useState(null) // automation id for dashboard view
+  const [dashboardId, setDashboardId] = useState(initialDashboardId) // automation id for dashboard view
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)

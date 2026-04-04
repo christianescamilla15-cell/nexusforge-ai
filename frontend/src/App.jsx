@@ -26,6 +26,7 @@ export default function App() {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null)
   const [selectedExecution, setSelectedExecution] = useState(null)
   const [editWorkflowId, setEditWorkflowId] = useState(null)
+  const [initialDashboardId, setInitialDashboardId] = useState(null)
   const { lang, setLang, toggle: toggleLang } = useLanguage()
   const [theme, setTheme] = useState(() => localStorage.getItem('nexusforge_theme') || 'light')
   const [showTour, setShowTour] = useState(() => {
@@ -64,6 +65,7 @@ export default function App() {
     setSelectedWorkflow(null)
     setSelectedExecution(null)
     if (page !== 'workflow-builder') setEditWorkflowId(null)
+    if (page !== 'automations') setInitialDashboardId(null)
   }
 
   const navigateToBuilder = (workflowId = null) => {
@@ -127,7 +129,17 @@ export default function App() {
       case 'integrations':
         return <IntegrationManagerPage lang={lang} />
       case 'wizard':
-        return <WizardPage lang={lang} onNavigate={navigate} onNavigateToBuilder={navigateToBuilder} />
+        return (
+          <WizardPage
+            lang={lang}
+            onNavigate={navigate}
+            onNavigateToBuilder={navigateToBuilder}
+            onNavigateToAutomation={(autoId) => {
+              setInitialDashboardId(autoId)
+              setCurrentPage('automations')
+            }}
+          />
+        )
       case 'workflow-builder':
         return <WorkflowBuilderPage lang={lang} editWorkflowId={editWorkflowId} onNavigate={navigate} />
       case 'workflows':
@@ -153,6 +165,7 @@ export default function App() {
         return (
           <AutomationsPage
             lang={lang}
+            initialDashboardId={initialDashboardId}
             onNavigateToExecution={(runId) => {
               setCurrentPage('executions')
               setSelectedExecution(runId)
