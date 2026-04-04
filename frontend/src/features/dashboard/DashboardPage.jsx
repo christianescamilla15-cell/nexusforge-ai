@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import { useRefreshOnFocus } from '../../shared/hooks/useRefreshOnFocus'
+import GettingStarted from '../../shared/components/GettingStarted'
 import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
@@ -636,6 +637,9 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
 
           {/* Plan usage bar */}
           <PlanUsageBar lang={lang} totalRuns={kpis.totalRuns} />
+
+          {/* Getting Started checklist */}
+          <GettingStarted lang={lang} onNavigate={onNavigate} />
 
           {/* Quick Actions */}
           <div style={{

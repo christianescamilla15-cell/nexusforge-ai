@@ -1,7 +1,29 @@
 import { useState, useEffect } from 'react'
 import { t } from '../i18n/translations'
-import { getApiUrl } from '../../services/api'
+import { getApiUrl, fetchAPI } from '../../services/api'
 import NotificationBell from './NotificationBell'
+
+function ConnectionDot({ lang }) {
+  const [status, setStatus] = useState('unknown') // healthy | degraded | down | unknown
+  useEffect(() => {
+    const check = () => {
+      fetchAPI('/health').then(res => {
+        if (res.error) setStatus('down')
+        else setStatus(res.data?.status || 'healthy')
+      }).catch(() => setStatus('down'))
+    }
+    check()
+    const interval = setInterval(check, 60000)
+    return () => clearInterval(interval)
+  }, [])
+  const color = status === 'healthy' ? '#10B981' : status === 'degraded' ? '#F59E0B' : status === 'down' ? '#EF4444' : '#9CA3AF'
+  const label = { healthy: lang === 'es' ? 'Conectado' : 'Connected', degraded: lang === 'es' ? 'Degradado' : 'Degraded', down: lang === 'es' ? 'Desconectado' : 'Disconnected', unknown: '...' }
+  return (
+    <div title={label[status] || ''} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block', boxShadow: `0 0 4px ${color}40` }} />
+    </div>
+  )
+}
 
 const NAV_ITEMS = [
   { key: 'dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
@@ -384,6 +406,9 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
                 </button>
               ))}
             </div>
+
+            {/* Connection status dot */}
+            <ConnectionDot lang={lang} />
 
             {/* Notification bell */}
             <NotificationBell lang={lang} isDark={isDark} />
