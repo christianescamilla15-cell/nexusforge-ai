@@ -11,22 +11,15 @@ import WorkflowBuilderPage from './features/workflows/WorkflowBuilderPage'
 import ExecutionListPage from './features/executions/ExecutionListPage'
 import ExecutionDetailPage from './features/executions/ExecutionDetailPage'
 import AgentListPage from './features/agents/AgentListPage'
-import MemoryPage from './features/memory/MemoryPage'
 import SwarmListPage from './features/swarms/SwarmListPage'
-import DocumentListPage from './features/documents/DocumentListPage'
 import SettingsPage from './features/settings/SettingsPage'
 import ChatAssistant from './features/chat/ChatAssistant'
-import EnterpriseOpsPage from './features/enterprise-ops/EnterpriseOpsPage'
-import PlaygroundPage from './features/playground/PlaygroundPage'
 import CostTokenDashboard from './features/metrics/CostTokenDashboard'
 import ExecutionTimelineViewer from './features/executions/ExecutionTimelineViewer'
-import EvaluationPage from './features/evaluations/EvaluationPage'
-import FeedbackPage from './features/feedback/FeedbackPage'
 import AnalyzePage from './features/analyze/AnalyzePage'
 import IntegrationManagerPage from './features/integrations/IntegrationManagerPage'
 import WizardPage from './features/wizard/WizardPage'
 import AutomationsPage from './features/automations/AutomationsPage'
-import UseCasesPage from './features/use-cases/UseCasesPage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -154,39 +147,24 @@ export default function App() {
         )
       case 'agents':
         return <AgentListPage lang={lang} />
-      case 'memory':
-        return <MemoryPage lang={lang} />
       case 'swarms':
         return <SwarmListPage lang={lang} />
-      case 'use-cases':
-        return <UseCasesPage lang={lang} onOpenCase={(key) => navigate(key)} />
       case 'automations':
         return (
           <AutomationsPage
             lang={lang}
-            onOpenCase={(key) => navigate(key)}
             onNavigateToExecution={(runId) => {
               setCurrentPage('executions')
               setSelectedExecution(runId)
             }}
           />
         )
-      case 'documents':
-        return <DocumentListPage lang={lang} />
-      case 'enterprise-ops':
-        return <EnterpriseOpsPage lang={lang} />
       case 'analyze':
         return <AnalyzePage lang={lang} />
-      case 'playground':
-        return <PlaygroundPage lang={lang} />
       case 'cost-metrics':
         return <CostTokenDashboard lang={lang} />
       case 'timeline':
         return <ExecutionTimelineViewer lang={lang} />
-      case 'evaluations':
-        return <EvaluationPage lang={lang} />
-      case 'feedback':
-        return <FeedbackPage lang={lang} />
       case 'settings':
         return (
           <SettingsPage

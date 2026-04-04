@@ -5,39 +5,6 @@ import RunInputModal from './RunInputModal'
 import AutomationDashboard from './AutomationDashboard'
 import TemplatesLibrary from '../templates/TemplatesLibrary'
 
-const PREBUILT = [
-  {
-    key: 'analyze', icon: '🔍', color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)', agents: 4,
-    name: { en: 'AI Analyze', es: 'IA Analizar' },
-    desc: { en: 'Upload documents or connect Google Drive — AI extracts entities, summarizes, and sends results via email.', es: 'Sube documentos o conecta Google Drive — la IA extrae entidades, resume y envía resultados por email.' },
-    tags: { en: ['RAG', 'Upload', 'Drive', 'Email'], es: ['RAG', 'Subida', 'Drive', 'Email'] },
-  },
-  {
-    key: 'enterprise-ops', icon: '🏢', color: '#6366F1', bg: 'rgba(99,102,241,0.08)', agents: 8,
-    name: { en: 'Enterprise Ops', es: 'Ops Empresariales' },
-    desc: { en: 'Multi-agent pipeline: intake, classify intent, CRM update, email, scheduling, notifications.', es: 'Pipeline multi-agente: recepción, clasificación de intención, actualización CRM, email, agenda, notificaciones.' },
-    tags: { en: ['CRM', 'Email', 'Scheduling', 'Supervisor'], es: ['CRM', 'Email', 'Agenda', 'Supervisor'] },
-  },
-  {
-    key: 'documents', icon: '📄', color: '#2563EB', bg: 'rgba(37,99,235,0.08)', agents: 3,
-    name: { en: 'Document Intelligence', es: 'Inteligencia Documental' },
-    desc: { en: 'RAG pipeline: upload documents, chunk & embed, then query with semantic search and summarization.', es: 'Pipeline RAG: sube documentos, fragmenta e indexa, luego consulta con búsqueda semántica y resumen.' },
-    tags: { en: ['RAG', 'Embeddings', 'Summary', 'NER'], es: ['RAG', 'Embeddings', 'Resumen', 'NER'] },
-  },
-  {
-    key: 'playground', icon: '⚡', color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', agents: 0,
-    name: { en: 'Playground', es: 'Playground' },
-    desc: { en: 'Sandbox to test any agent or chain freely with custom prompts and real-time results.', es: 'Sandbox para probar cualquier agente o cadena libremente con prompts personalizados.' },
-    tags: { en: ['Sandbox', 'Custom', 'Testing'], es: ['Sandbox', 'Personalizado', 'Pruebas'] },
-  },
-  {
-    key: 'swarms', icon: '🐝', color: '#EC4899', bg: 'rgba(236,72,153,0.08)', agents: 24,
-    name: { en: 'Swarm Execution', es: 'Ejecución en Enjambre' },
-    desc: { en: '6 topologies: Sequential, Parallel, Hierarchical, Debate, Consensus, Adaptive.', es: '6 topologías: Secuencial, Paralelo, Jerárquico, Debate, Consenso, Adaptativo.' },
-    tags: { en: ['Sequential', 'Parallel', 'Debate', 'Consensus'], es: ['Secuencial', 'Paralelo', 'Debate', 'Consenso'] },
-  },
-]
-
 const TRIGGER_BADGE = {
   manual: { en: 'Manual', es: 'Manual', color: '#6366F1', bg: 'rgba(99,102,241,0.1)' },
   schedule: { en: 'Scheduled', es: 'Programado', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
@@ -139,9 +106,8 @@ function AutomationCard({ auto, lang, onRun, onDelete, onDashboard, running }) {
   )
 }
 
-export default function AutomationsPage({ lang = 'en', onOpenCase, onNavigateToExecution }) {
+export default function AutomationsPage({ lang = 'en', onNavigateToExecution }) {
   const [isMobile, setIsMobile] = useState(false)
-  const [hoveredKey, setHoveredKey] = useState(null)
   const [userAutomations, setUserAutomations] = useState([])
   const [loadingUser, setLoadingUser] = useState(true)
   const [showPublish, setShowPublish] = useState(false)
@@ -210,50 +176,6 @@ export default function AutomationsPage({ lang = 'en', onOpenCase, onNavigateToE
             ? 'Flujos en producción listos para ejecutar. Publica tus propios workflows como automatizaciones.'
             : 'Production-ready workflows. Publish your own workflows as automations.'}
         </p>
-      </div>
-
-      {/* Pre-built */}
-      <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-        {lang === 'es' ? 'Pre-construidas' : 'Pre-built'}
-      </p>
-      <div style={{ ...gridStyle, marginBottom: 32 }}>
-        {PREBUILT.map(uc => (
-          <div key={uc.key} onClick={() => onOpenCase && onOpenCase(uc.key)}
-            onMouseEnter={() => setHoveredKey(uc.key)}
-            onMouseLeave={() => setHoveredKey(null)}
-            style={{
-              background: '#fff', borderRadius: 16, padding: 24, cursor: 'pointer',
-              border: `1px solid ${hoveredKey === uc.key ? uc.color : '#E5E7EB'}`,
-              transition: 'all 0.2s',
-              boxShadow: hoveredKey === uc.key ? `0 8px 24px ${uc.bg}` : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: uc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
-                {uc.icon}
-              </div>
-              <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: 'rgba(16,185,129,0.1)', color: '#10B981' }}>
-                {lang === 'es' ? 'En vivo' : 'Live'}
-              </span>
-            </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 8 }}>{uc.name[lang]}</h3>
-            <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5, marginBottom: 16, minHeight: 36 }}>{uc.desc[lang]}</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-              {uc.tags[lang].map(tag => (
-                <span key={tag} style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500, background: uc.bg, color: uc.color }}>{tag}</span>
-              ))}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid #F3F4F6' }}>
-              <span style={{ fontSize: 12, color: '#9CA3AF' }}>
-                {uc.agents > 0 ? `${uc.agents} ${lang === 'es' ? 'agentes' : 'agents'}` : (lang === 'es' ? 'Personalizable' : 'Customizable')}
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: uc.color, display: 'flex', alignItems: 'center', gap: 4 }}>
-                {lang === 'es' ? 'Ejecutar' : 'Run'}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14m-7-7l7 7-7 7" /></svg>
-              </span>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* Templates */}
