@@ -289,10 +289,15 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
               <label style={labelStyle}>{t('versionLabel', lang)}</label>
               <p style={descStyle}>{t('versionDesc', lang)}</p>
             </div>
-            <span style={{
-              fontSize: 14, fontWeight: 600, color: '#6366F1',
-              fontFamily: 'monospace',
-            }}>v1.0.0</span>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{
+                fontSize: 14, fontWeight: 600, color: '#6366F1',
+                fontFamily: 'monospace',
+              }}>v2.5.0</span>
+              <p style={{ fontSize: 10, color: '#D1D5DB', margin: '2px 0 0' }}>
+                103 modules &middot; 24 agents &middot; 37 components
+              </p>
+            </div>
           </div>
         </div>
 

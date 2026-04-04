@@ -128,6 +128,15 @@ a:hover { color: var(--accent-hover); }
 button { cursor: pointer; font-family: inherit; }
 input, textarea, select { font-family: inherit; }
 
+/* Card hover lift */
+.nxf-card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.nxf-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
 /* Accessibility: visible focus outlines (keyboard navigation) */
 :focus-visible {
   outline: 2px solid var(--accent);

@@ -88,6 +88,12 @@ function AppRoutes() {
     const interval = setInterval(update, 10000)
     return () => { window.removeEventListener('nxf-notification', update); clearInterval(interval) }
   }, [])
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [location.pathname])
+
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem('nxf-tour-done') } catch { return false }
   })
