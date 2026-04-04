@@ -163,6 +163,22 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
             {[
               { label: lang === 'es' ? 'Editar' : 'Edit', icon: '✏️', action: () => { if (onEditWorkflow) onEditWorkflow(row.id); else onSelectWorkflow(row.id); setMenuOpen(null) } },
               { label: lang === 'es' ? 'Renombrar' : 'Rename', icon: '📝', action: () => { setRenaming(row.id); setRenameValue(row.name); setMenuOpen(null) } },
+              { label: lang === 'es' ? 'Duplicar' : 'Duplicate', icon: '📋', action: async () => {
+                const res = await fetchAPI(`/workflows/${row.id}`)
+                if (!res.error && res.data) {
+                  await fetchAPI('/workflows/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      name: `${row.name} (${lang === 'es' ? 'copia' : 'copy'})`,
+                      dag_definition: res.data.dag_definition || {},
+                      description: res.data.description || '',
+                    }),
+                  })
+                  loadWorkflows()
+                  toast.show(lang === 'es' ? 'Workflow duplicado' : 'Workflow duplicated', 'success')
+                }
+                setMenuOpen(null)
+              } },
               { label: lang === 'es' ? 'Exportar JSON' : 'Export JSON', icon: '📥', action: () => { exportWorkflow(row); setMenuOpen(null) } },
               { label: lang === 'es' ? 'Eliminar' : 'Delete', icon: '🗑️', action: () => handleDelete(row), color: '#EF4444' },
             ].map((item, i) => (

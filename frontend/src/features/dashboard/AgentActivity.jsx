@@ -1,4 +1,4 @@
-export default function AgentActivity({ agents }) {
+export default function AgentActivity({ agents, lang = 'en' }) {
   const max = Math.max(...agents.map((a) => a.count || 0), 1)
 
   return (
@@ -8,11 +8,11 @@ export default function AgentActivity({ agents }) {
       boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
     }}>
       <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 20 }}>
-        Actividad de Agentes
+        {lang === 'es' ? 'Actividad de Agentes' : 'Agent Activity'}
       </h3>
       {agents.length === 0 ? (
         <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 14, padding: 20 }}>
-          Sin datos de agentes
+          {lang === 'es' ? 'Sin datos de agentes' : 'No agent data yet'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -23,7 +23,9 @@ export default function AgentActivity({ agents }) {
                 fontSize: 13,
               }}>
                 <span style={{ color: '#111827', fontWeight: 500 }}>{agent.name}</span>
-                <span style={{ color: '#9CA3AF' }}>{agent.count} ejecuciones</span>
+                <span style={{ color: '#9CA3AF' }}>
+                  {agent.count} {lang === 'es' ? 'ejecuciones' : 'runs'}
+                </span>
               </div>
               <div style={{
                 height: 8, borderRadius: 4,
