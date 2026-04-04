@@ -364,11 +364,32 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
     }).catch(() => setLoading(false))
   }
 
-  useEffect(() => { loadDashboard() }, [])
+  const [lastRefresh, setLastRefresh] = useState(null)
+  const [refreshAgo, setRefreshAgo] = useState('')
+
+  const wrappedLoad = () => {
+    loadDashboard()
+    setLastRefresh(Date.now())
+  }
+
+  useEffect(() => { wrappedLoad() }, [])
+
+  // Update "ago" label every 5s
+  useEffect(() => {
+    const tick = setInterval(() => {
+      if (lastRefresh) {
+        const secs = Math.round((Date.now() - lastRefresh) / 1000)
+        if (secs < 5) setRefreshAgo(lang === 'es' ? 'ahora' : 'just now')
+        else if (secs < 60) setRefreshAgo(lang === 'es' ? `hace ${secs}s` : `${secs}s ago`)
+        else setRefreshAgo(lang === 'es' ? `hace ${Math.floor(secs / 60)}m` : `${Math.floor(secs / 60)}m ago`)
+      }
+    }, 5000)
+    return () => clearInterval(tick)
+  }, [lastRefresh, lang])
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
-    const interval = setInterval(loadDashboard, 30000)
+    const interval = setInterval(wrappedLoad, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -433,6 +454,11 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
           </h1>
           <p style={{ fontSize: isMobile ? 13 : 14, color: '#9CA3AF', marginTop: 4 }}>
             {t('dashboardSubtitle', lang)}
+            {refreshAgo && (
+              <span style={{ marginLeft: 8, fontSize: 11, color: '#D1D5DB' }}>
+                &bull; {lang === 'es' ? 'Actualizado' : 'Updated'} {refreshAgo}
+              </span>
+            )}
           </p>
         </div>
         {isDemo && (

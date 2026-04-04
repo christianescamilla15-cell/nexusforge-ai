@@ -182,6 +182,46 @@ async def get_me(request: Request):
     return _user_to_safe(dict(user))
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(body: ChangePasswordRequest, request: Request):
+    """Change password for the authenticated user."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Login required")
+    data = verify_token(auth[7:])
+    if not data:
+        raise HTTPException(401, "Invalid token")
+
+    user_id = data.get("sub")
+    if not user_id:
+        raise HTTPException(401, "Invalid token")
+
+    if len(body.new_password) < 6:
+        raise HTTPException(400, "New password must be at least 6 characters")
+
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT password_hash FROM nf_users WHERE id = $1::uuid", user_id)
+        if not row:
+            raise HTTPException(404, "User not found")
+
+        if not _verify_password(body.current_password, row["password_hash"]):
+            raise HTTPException(400, "Current password is incorrect")
+
+        new_hash = _hash_password(body.new_password)
+        await conn.execute(
+            "UPDATE nf_users SET password_hash = $1 WHERE id = $2::uuid",
+            new_hash, user_id,
+        )
+
+    return {"changed": True}
+
+
 @router.get("/plans")
 async def get_plans():
     """List available plans with limits."""

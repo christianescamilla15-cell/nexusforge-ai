@@ -18,6 +18,64 @@ const ALL_TOOLS = ['llm_chat', 'regex', 'web_search', 'rag_search', 'statistics'
 
 const label = (en, es, lang) => lang === 'es' ? es : en
 
+function TestAgentSection({ agentType, lang }) {
+  const [testInput, setTestInput] = useState('')
+  const [testResult, setTestResult] = useState(null)
+  const [testing, setTesting] = useState(false)
+
+  const handleTest = async () => {
+    if (!testInput.trim()) return
+    setTesting(true)
+    setTestResult(null)
+    const { fetchAPI } = await import('../../services/api')
+    const res = await fetchAPI('/executions/', {
+      method: 'POST',
+      body: JSON.stringify({
+        workflow_id: null,
+        agent_test: true,
+        agent_type: agentType,
+        input_data: { text: testInput },
+      }),
+    })
+    setTesting(false)
+    setTestResult(res.data || res.error || 'No response')
+  }
+
+  return (
+    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #F3F4F6' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 8 }}>
+        {lang === 'es' ? 'Probar Agente' : 'Test Agent'}
+      </div>
+      <textarea
+        value={testInput}
+        onChange={e => setTestInput(e.target.value)}
+        placeholder={lang === 'es' ? 'Texto de prueba...' : 'Test input text...'}
+        rows={3}
+        style={{
+          width: '100%', padding: 10, borderRadius: 8, border: '1px solid #E5E7EB',
+          fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 8,
+        }}
+      />
+      <button onClick={handleTest} disabled={testing || !testInput.trim()} style={{
+        padding: '7px 16px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: 600,
+        background: testing ? '#A5B4FC' : '#F59E0B', color: '#fff',
+        cursor: testing ? 'default' : 'pointer', marginBottom: 8,
+      }}>
+        {testing ? '...' : (lang === 'es' ? 'Probar' : 'Test')}
+      </button>
+      {testResult && (
+        <pre style={{
+          fontSize: 11, background: '#F9FAFB', borderRadius: 8, padding: 10,
+          border: '1px solid #E5E7EB', maxHeight: 150, overflow: 'auto',
+          whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#374151',
+        }}>
+          {typeof testResult === 'object' ? JSON.stringify(testResult, null, 2) : String(testResult)}
+        </pre>
+      )}
+    </div>
+  )
+}
+
 export default function AgentDetailPanel({ agent, onClose, lang = 'en' }) {
   const [tab, setTab] = useState('config')
   const [cfg, setCfg] = useState(null)
@@ -288,6 +346,9 @@ export default function AgentDetailPanel({ agent, onClose, lang = 'en' }) {
                 ? label('Saving...', 'Guardando...', lang)
                 : label('Save Configuration', 'Guardar Configuración', lang)}
           </button>
+
+          {/* Quick test */}
+          <TestAgentSection agentType={agent.agent_type || agent.type} lang={lang} />
         </div>
       )}
 

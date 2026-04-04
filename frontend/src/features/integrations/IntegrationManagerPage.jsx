@@ -244,10 +244,11 @@ function ProviderCard({ provider, savedKey, onSaved, lang = 'en' }) {
 
 // ── Service integration card ──────────────────────────────────────────────────
 
-function ServiceCard({ service, onSaved }) {
+function ServiceCard({ service, onSaved, lang }) {
   const [expanded, setExpanded] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [msg, setMsg] = useState(null)
 
   const handleSave = async () => {
@@ -260,9 +261,22 @@ function ServiceCard({ service, onSaved }) {
     if (res.error) {
       setMsg({ type: 'error', text: res.error })
     } else {
-      setMsg({ type: 'ok', text: 'Integration saved' })
+      setMsg({ type: 'ok', text: lang === 'es' ? 'Guardado' : 'Saved' })
       onSaved(service.id)
       setTimeout(() => { setMsg(null); setExpanded(false) }, 2000)
+    }
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    setMsg(null)
+    const res = await fetchAPI(`/integrations/status`)
+    setTesting(false)
+    const svc = res.data?.services?.[service.id]
+    if (svc?.connected) {
+      setMsg({ type: 'ok', text: lang === 'es' ? 'Conexion exitosa' : 'Connection successful' })
+    } else {
+      setMsg({ type: 'error', text: lang === 'es' ? 'Fallo la conexion' : 'Connection failed' })
     }
   }
 
@@ -360,7 +374,7 @@ function ServiceCard({ service, onSaved }) {
             }}>{msg.text}</div>
           )}
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
             <button
               onClick={handleSave}
               disabled={saving}
@@ -370,8 +384,21 @@ function ServiceCard({ service, onSaved }) {
                 fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
               }}
             >
-              {saving ? 'Saving…' : 'Save Integration'}
+              {saving ? '...' : (lang === 'es' ? 'Guardar' : 'Save')}
             </button>
+            {service.configured && (
+              <button
+                onClick={handleTest}
+                disabled={testing}
+                style={{
+                  padding: '8px 14px', borderRadius: 7, border: '1px solid #10B981',
+                  background: 'transparent', color: '#10B981', fontSize: 13, fontWeight: 600,
+                  cursor: testing ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {testing ? '...' : (lang === 'es' ? 'Probar' : 'Test')}
+              </button>
+            )}
             <button
               onClick={() => setExpanded(false)}
               style={{
@@ -379,8 +406,13 @@ function ServiceCard({ service, onSaved }) {
                 background: '#fff', color: '#6B7280', fontSize: 13, cursor: 'pointer',
               }}
             >
-              Cancel
+              {lang === 'es' ? 'Cancelar' : 'Cancel'}
             </button>
+            {msg && (
+              <span style={{ fontSize: 12, color: msg.type === 'ok' ? '#10B981' : '#EF4444' }}>
+                {msg.text}
+              </span>
+            )}
           </div>
         </div>
       )}
