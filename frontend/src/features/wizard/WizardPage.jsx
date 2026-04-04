@@ -837,19 +837,45 @@ function StepPublish({ workflow, publishing, automationType, lang = 'en' }) {
 
 // ── Main wizard ──────────────────────────────────────────────────────────────
 
+const WIZARD_STORAGE_KEY = 'nxf_wizard_draft'
+
+function loadWizardDraft() {
+  try {
+    const saved = localStorage.getItem(WIZARD_STORAGE_KEY)
+    return saved ? JSON.parse(saved) : null
+  } catch { return null }
+}
+
+function saveWizardDraft(data) {
+  try { localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(data)) } catch { /* */ }
+}
+
+function clearWizardDraft() {
+  try { localStorage.removeItem(WIZARD_STORAGE_KEY) } catch { /* */ }
+}
+
 export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilder, onNavigateToAutomation }) {
-  const [step, setStep] = useState(0)
-  const [description, setDescription] = useState('')
-  const [customName, setCustomName] = useState('')
-  const [automationType, setAutomationType] = useState('custom')
-  const [inputType, setInputType] = useState('text')
-  const [outputTypes, setOutputTypes] = useState(['dashboard'])
-  const [workflow, setWorkflow] = useState(null)
+  const draft = loadWizardDraft()
+  const [step, setStep] = useState(draft?.step || 0)
+  const [description, setDescription] = useState(draft?.description || '')
+  const [customName, setCustomName] = useState(draft?.customName || '')
+  const [automationType, setAutomationType] = useState(draft?.automationType || 'custom')
+  const [inputType, setInputType] = useState(draft?.inputType || 'text')
+  const [outputTypes, setOutputTypes] = useState(draft?.outputTypes || ['dashboard'])
+  const [workflow, setWorkflow] = useState(draft?.workflow || null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState(null)
-  const [skippedInputOutput, setSkippedInputOutput] = useState(false) // true when defaults were auto-applied
-  const [requiresApproval, setRequiresApproval] = useState(false)
+  const [skippedInputOutput, setSkippedInputOutput] = useState(false)
+  const [requiresApproval, setRequiresApproval] = useState(draft?.requiresApproval || false)
+  const [hasDraft] = useState(!!draft?.description)
+
+  // Save wizard state to localStorage on every change
+  useEffect(() => {
+    if (description || step > 0) {
+      saveWizardDraft({ step, description, customName, automationType, inputType, outputTypes, workflow, requiresApproval })
+    }
+  }, [step, description, customName, automationType, inputType, outputTypes, workflow, requiresApproval])
 
   const workflowRef = useRef(workflow)
   useEffect(() => { workflowRef.current = workflow }, [workflow])
@@ -1037,6 +1063,7 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
       const automationId = autoRes.data?.id
 
       setPublishing(false)
+      clearWizardDraft()
 
       // 3. Navigate to dashboard
       if (automationId && onNavigateToAutomation) {
@@ -1086,6 +1113,23 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
 
         {/* Generating overlay (shown during API call from step 0) */}
         {isGenerating && <StepGenerating lang={lang} />}
+
+        {/* Draft resume banner */}
+        {hasDraft && step === 0 && description && (
+          <div style={{
+            padding: '10px 16px', borderRadius: 10, marginBottom: 16,
+            background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13,
+          }}>
+            <span style={{ color: '#4F46E5' }}>
+              {lang === 'es' ? 'Tienes un borrador guardado' : 'You have a saved draft'}
+            </span>
+            <button onClick={() => { setStep(0); setDescription(''); setCustomName(''); setAutomationType('custom'); setWorkflow(null); clearWizardDraft() }}
+              style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>
+              {lang === 'es' ? 'Descartar' : 'Discard'}
+            </button>
+          </div>
+        )}
 
         {/* Step content */}
         {!isGenerating && step === 0 && (

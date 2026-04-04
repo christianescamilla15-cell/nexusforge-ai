@@ -86,6 +86,8 @@ export default function AuditLog({ entityType, entityId, lang = 'en' }) {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
   const [filterType, setFilterType] = useState(entityType || '')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const limit = 20
 
   const load = useCallback(async () => {
@@ -95,7 +97,9 @@ export default function AuditLog({ entityType, entityId, lang = 'en' }) {
       url = `/audit/entity/${entityType}/${entityId}?limit=${limit}&offset=${page * limit}`
     } else {
       const typeParam = filterType ? `&entity_type=${filterType}` : ''
-      url = `/audit/?limit=${limit}&offset=${page * limit}${typeParam}`
+      const fromParam = dateFrom ? `&from=${dateFrom}` : ''
+      const toParam = dateTo ? `&to=${dateTo}` : ''
+      url = `/audit/?limit=${limit}&offset=${page * limit}${typeParam}${fromParam}${toParam}`
     }
     const res = await fetchAPI(url)
     if (res.data) {
@@ -103,7 +107,7 @@ export default function AuditLog({ entityType, entityId, lang = 'en' }) {
       setTotal(res.data.total || 0)
     }
     setLoading(false)
-  }, [entityType, entityId, filterType, page])
+  }, [entityType, entityId, filterType, dateFrom, dateTo, page])
 
   useEffect(() => { load() }, [load])
 
@@ -153,16 +157,22 @@ export default function AuditLog({ entityType, entityId, lang = 'en' }) {
         </h3>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {!entityType && (
-            <select
-              style={selectStyle}
-              value={filterType}
-              onChange={e => { setFilterType(e.target.value); setPage(0) }}
-            >
-              <option value="">{t.allTypes}</option>
-              {ENTITY_TYPES.map(et => (
-                <option key={et} value={et}>{et}</option>
-              ))}
-            </select>
+            <>
+              <select
+                style={selectStyle}
+                value={filterType}
+                onChange={e => { setFilterType(e.target.value); setPage(0) }}
+              >
+                <option value="">{t.allTypes}</option>
+                {ENTITY_TYPES.map(et => (
+                  <option key={et} value={et}>{et}</option>
+                ))}
+              </select>
+              <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(0) }}
+                style={selectStyle} title={lang === 'es' ? 'Desde' : 'From'} />
+              <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(0) }}
+                style={selectStyle} title={lang === 'es' ? 'Hasta' : 'To'} />
+            </>
           )}
           <button
             onClick={handleExport}

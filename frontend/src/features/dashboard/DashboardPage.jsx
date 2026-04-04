@@ -347,12 +347,11 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  useEffect(() => {
+  const loadDashboard = () => {
     Promise.all([
       fetchAPI('/runs/'),
       fetchAPI('/runs/reliability/health'),
     ]).then(([runsResult, healthResult]) => {
-      // Check for errors in Real mode
       if (runsResult.error || healthResult.error) {
         setError(runsResult.error || healthResult.error)
         setLoading(false)
@@ -363,6 +362,14 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
       setIsDemo(runsResult.isDemo || healthResult.isDemo)
       setLoading(false)
     }).catch(() => setLoading(false))
+  }
+
+  useEffect(() => { loadDashboard() }, [])
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(loadDashboard, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   // Map health data to KPI values
