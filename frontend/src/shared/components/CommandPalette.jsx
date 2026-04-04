@@ -28,7 +28,7 @@ function addRecentPage(key) {
   try { localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS))) } catch {}
 }
 
-export default function CommandPalette({ onNavigate, lang = 'en' }) {
+export default function CommandPalette({ onNavigate, lang = 'en', onRunAutomation }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
@@ -51,31 +51,59 @@ export default function CommandPalette({ onNavigate, lang = 'en' }) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [open])
 
+  const [automations, setAutomations] = useState([])
+
   useEffect(() => {
-    if (open) inputRef.current?.focus()
+    if (open) {
+      inputRef.current?.focus()
+      // Fetch automations for quick run
+      import('../../services/api').then(({ fetchAPI }) => {
+        fetchAPI('/automations/').then(res => {
+          if (!res.error && Array.isArray(res.data)) setAutomations(res.data)
+        })
+      }).catch(() => {})
+    }
   }, [open])
 
   const filtered = useMemo(() => {
-    if (!query.trim()) {
-      // Show recents first, then all pages
+    const q = query.toLowerCase().trim()
+
+    // Build automation actions
+    const autoActions = automations
+      .filter(a => !q || (a.name || '').toLowerCase().includes(q))
+      .slice(0, 5)
+      .map(a => ({
+        key: `run-${a.id}`,
+        label: { en: `Run: ${a.name}`, es: `Ejecutar: ${a.name}` },
+        icon: a.icon || '\u25B6',
+        path: `/automations/${a.id}`,
+        _automation: a,
+        _isAction: true,
+      }))
+
+    if (!q) {
       const recentKeys = getRecentPages()
       const recents = recentKeys.map(k => PAGES.find(p => p.key === k)).filter(Boolean)
       const rest = PAGES.filter(p => !recentKeys.includes(p.key))
       return [...recents, ...rest]
     }
-    const q = query.toLowerCase()
-    return PAGES.filter(p =>
+    const pageResults = PAGES.filter(p =>
       p.label.en.toLowerCase().includes(q) ||
       p.label.es.toLowerCase().includes(q) ||
       p.key.includes(q)
     )
-  }, [query])
+    return [...pageResults, ...autoActions]
+  }, [query, automations])
 
   useEffect(() => { setSelected(0) }, [query])
 
   const handleSelect = (page) => {
     setOpen(false)
     setQuery('')
+    if (page._isAction && page._automation && onRunAutomation) {
+      onRunAutomation(page._automation)
+      return
+    }
     addRecentPage(page.key)
     onNavigate(page.key)
   }

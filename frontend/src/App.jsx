@@ -37,6 +37,7 @@ const StatusPage = lazy(() => import('./features/status/StatusPage'))
 const AnalyzePage = lazy(() => import('./features/analyze/AnalyzePage'))
 
 import TopLoadingBar from './shared/components/TopLoadingBar'
+import OfflineIndicator from './shared/components/OfflineIndicator'
 
 // Suspense fallback
 const PageLoader = () => <div style={{ padding: 40 }}><Skeleton.Grid count={3} /></div>
@@ -70,6 +71,21 @@ function AppRoutes() {
   const location = useLocation()
   const { lang, setLang, toggle: toggleLang } = useLanguage()
   const [theme, setTheme] = useState(() => localStorage.getItem('nexusforge_theme') || 'light')
+
+  // Tab title with notification count
+  useEffect(() => {
+    const update = () => {
+      try {
+        const notifs = JSON.parse(localStorage.getItem('nxf_notifications') || '[]')
+        const unread = notifs.filter(n => !n.read).length
+        document.title = unread > 0 ? `(${unread}) NexusForge AI` : 'NexusForge AI'
+      } catch { document.title = 'NexusForge AI' }
+    }
+    update()
+    window.addEventListener('nxf-notification', update)
+    const interval = setInterval(update, 10000)
+    return () => { window.removeEventListener('nxf-notification', update); clearInterval(interval) }
+  }, [])
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem('nxf-tour-done') } catch { return false }
   })
@@ -229,8 +245,9 @@ function AppRoutes() {
       )}
       <WhatsNew lang={lang} />
       <KeyboardShortcuts lang={lang} />
-      <CommandPalette onNavigate={navigate} lang={lang} />
+      <CommandPalette onNavigate={navigate} lang={lang} onRunAutomation={(auto) => routerNavigate(`/automations/${auto.id}`)} />
       <ChatAssistant lang={lang} />
+      <OfflineIndicator lang={lang} />
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
     </ToastContext.Provider>
   )
