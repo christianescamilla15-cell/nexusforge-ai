@@ -1,6 +1,6 @@
 """Auth code management — stored in PostgreSQL, shared across workers."""
 
-import random
+import secrets
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -13,7 +13,7 @@ TTL_MINUTES = 15
 
 async def create_code(email: str, purpose: str) -> str:
     """Generate a 6-digit code, store in DB, return it. Replaces any existing code for this email+purpose."""
-    code = str(random.randint(100000, 999999))
+    code = str(secrets.randbelow(900000) + 100000)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=TTL_MINUTES)
 
     try:

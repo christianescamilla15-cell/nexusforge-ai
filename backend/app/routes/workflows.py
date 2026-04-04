@@ -60,8 +60,9 @@ async def create_workflow(body: WorkflowCreate, request: Request):
 
 
 @router.get("/", response_model=list[WorkflowResponse])
-async def list_workflows(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+async def list_workflows(request: Request, skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
     """List workflows with pagination."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -69,8 +70,10 @@ async def list_workflows(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1
                 """SELECT id, name, description, dag_definition, version, status, created_at, updated_at
                    FROM workflows
                    WHERE status != 'archived'
+                     AND (user_id = $1::uuid OR user_id IS NULL)
                    ORDER BY created_at DESC
-                   OFFSET $1 LIMIT $2""",
+                   OFFSET $2 LIMIT $3""",
+                user_id,
                 skip,
                 limit,
             )
@@ -81,18 +84,22 @@ async def list_workflows(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1
 
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
-async def get_workflow(workflow_id: UUID):
+async def get_workflow(workflow_id: UUID, request: Request):
     """Get a single workflow by ID."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                """SELECT id, name, description, dag_definition, version, status, created_at, updated_at
+                """SELECT id, name, description, dag_definition, version, status, created_at, updated_at, user_id
                    FROM workflows WHERE id = $1""",
                 workflow_id,
             )
         if not row:
             raise HTTPException(status_code=404, detail="Workflow not found")
+        # Allow access if workflow has no owner (shared/legacy) or user owns it
+        if row["user_id"] and str(row["user_id"]) != user_id:
+            raise HTTPException(status_code=403, detail="You don't own this workflow")
         return _row_to_response(row)
     except HTTPException:
         raise
@@ -104,7 +111,7 @@ async def get_workflow(workflow_id: UUID):
 @router.put("/{workflow_id}", response_model=WorkflowResponse)
 async def update_workflow(workflow_id: UUID, body: WorkflowUpdate, request: Request):
     """Update an existing workflow. If dag_definition is provided, validate it first."""
-    _get_user_id(request)  # require auth
+    user_id = _get_user_id(request)
     if body.dag_definition is not None:
         try:
             validate_dag(body.dag_definition)
@@ -114,9 +121,11 @@ async def update_workflow(workflow_id: UUID, body: WorkflowUpdate, request: Requ
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            existing = await conn.fetchrow("SELECT id FROM workflows WHERE id = $1", workflow_id)
+            existing = await conn.fetchrow("SELECT id, user_id FROM workflows WHERE id = $1", workflow_id)
             if not existing:
                 raise HTTPException(status_code=404, detail="Workflow not found")
+            if existing["user_id"] and str(existing["user_id"]) != user_id:
+                raise HTTPException(status_code=403, detail="You don't own this workflow")
 
             sets = []
             params = []

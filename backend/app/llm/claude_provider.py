@@ -1,5 +1,6 @@
 """Claude LLM provider — Anthropic API via official SDK."""
 
+import httpx
 import anthropic
 from app.config import settings
 from app.llm.provider import BaseLLMProvider, LLMResponse
@@ -44,7 +45,7 @@ class ClaudeProvider(BaseLLMProvider):
         if system_text:
             kwargs["system"] = system_text
 
-        response = await client.messages.create(**kwargs)
+        response = await client.messages.create(**kwargs, timeout=httpx.Timeout(60.0))
 
         text = response.content[0].text if response.content else ""
         return LLMResponse(

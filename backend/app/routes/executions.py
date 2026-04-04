@@ -131,24 +131,31 @@ async def cleanup_zombie_runs(request: Request):
 
 @router.get("/", response_model=list[ExecutionResponse])
 async def list_executions(
+    request: Request,
     workflow_id: UUID | None = Query(None),
     status: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
     """List execution runs with optional filters."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         conditions = []
         params = []
         idx = 1
 
+        # Always filter by authenticated user
+        conditions.append(f"wr.user_id = ${idx}::uuid")
+        params.append(user_id)
+        idx += 1
+
         if workflow_id:
-            conditions.append(f"workflow_id = ${idx}")
+            conditions.append(f"wr.workflow_id = ${idx}")
             params.append(workflow_id)
             idx += 1
         if status:
-            conditions.append(f"status = ${idx}")
+            conditions.append(f"wr.status = ${idx}")
             params.append(status)
             idx += 1
 
@@ -165,7 +172,7 @@ async def list_executions(
                            (SELECT count(*) FROM step_executions se WHERE se.run_id = wr.id) AS steps_count
                     FROM workflow_runs wr
                     LEFT JOIN workflows w ON w.id = wr.workflow_id
-                    {where.replace('workflow_id', 'wr.workflow_id').replace('status', 'wr.status') if where else ''}
+                    {where}
                     ORDER BY wr.created_at DESC
                     OFFSET ${idx} LIMIT ${idx + 1}""",
                 *params,
@@ -204,8 +211,9 @@ async def list_executions(
 
 
 @router.get("/{run_id}", response_model=ExecutionResponse)
-async def get_execution(run_id: UUID):
+async def get_execution(run_id: UUID, request: Request):
     """Get a single execution run with all step details."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -213,7 +221,7 @@ async def get_execution(run_id: UUID):
                 """SELECT wr.id, wr.workflow_id, wr.status, wr.trigger_type,
                           wr.started_at, wr.completed_at, wr.error_message,
                           wr.total_tokens, wr.total_cost_usd, wr.metadata, wr.created_at,
-                          w.name AS workflow_name
+                          wr.user_id, w.name AS workflow_name
                    FROM workflow_runs wr
                    LEFT JOIN workflows w ON w.id = wr.workflow_id
                    WHERE wr.id = $1""",
@@ -221,6 +229,8 @@ async def get_execution(run_id: UUID):
             )
             if not row:
                 raise HTTPException(status_code=404, detail="Execution run not found")
+            if row["user_id"] and str(row["user_id"]) != user_id:
+                raise HTTPException(status_code=403, detail="Not your execution")
 
             step_rows = await conn.fetch(
                 """SELECT id, step_name, step_type, agent_type, status, input_data, output_data,
@@ -285,15 +295,17 @@ async def get_execution(run_id: UUID):
 @router.delete("/{run_id}", status_code=200)
 async def delete_or_cancel_execution(run_id: UUID, request: Request):
     """Cancel a running execution or permanently delete a finished one."""
-    _get_user_id(request)  # require auth
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT status FROM workflow_runs WHERE id = $1", run_id,
+                "SELECT status, user_id FROM workflow_runs WHERE id = $1", run_id,
             )
             if not row:
                 raise HTTPException(status_code=404, detail="Run not found")
+            if row["user_id"] and str(row["user_id"]) != user_id:
+                raise HTTPException(status_code=403, detail="Not your execution")
 
             if row["status"] in ("pending", "queued", "running"):
                 # Cancel active run
