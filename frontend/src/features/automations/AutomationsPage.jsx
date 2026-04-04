@@ -8,6 +8,7 @@ import Skeleton from '../../shared/components/Skeleton'
 import { useConfirm } from '../../shared/hooks/useConfirm'
 import { useToast } from '../../shared/hooks/useToast'
 import { timeAgo } from '../../shared/utils/timeAgo'
+import SchedulePicker from '../../shared/components/SchedulePicker'
 import { addNotification } from '../../shared/components/NotificationBell'
 
 const TRIGGER_BADGE = {
@@ -129,13 +130,16 @@ function EditAutomationModal({ automation, lang, onClose, onSaved }) {
   const [name, setName] = useState(automation.name || '')
   const [description, setDescription] = useState(automation.description || '')
   const [triggerType, setTriggerType] = useState(automation.trigger_type || 'manual')
+  const [scheduleCron, setScheduleCron] = useState(automation.schedule_cron || '')
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
+    const body = { name, description, trigger_type: triggerType }
+    if (triggerType === 'schedule' && scheduleCron) body.schedule_cron = scheduleCron
     const res = await fetchAPI(`/automations/${automation.id}`, {
       method: 'PUT',
-      body: JSON.stringify({ name, description, trigger_type: triggerType }),
+      body: JSON.stringify(body),
     })
     setSaving(false)
     if (!res.error) {
@@ -182,6 +186,12 @@ function EditAutomationModal({ automation, lang, onClose, onSaved }) {
           <option value="schedule">{lang === 'es' ? 'Programado' : 'Scheduled'}</option>
           <option value="webhook">Webhook</option>
         </select>
+
+        {triggerType === 'schedule' && (
+          <div style={{ marginBottom: 20 }}>
+            <SchedulePicker value={scheduleCron} onChange={setScheduleCron} lang={lang} />
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{

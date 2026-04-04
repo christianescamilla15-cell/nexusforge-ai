@@ -354,3 +354,13 @@ input, textarea, select { font-family: inherit; }
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Print styles */
+@media print {
+  .nxf-sidebar, .nxf-mobile-bottom-nav, .nf-chat-fab, .nf-chat-panel,
+  nav[role="navigation"], header, footer, button { display: none !important; }
+  .nxf-main-content { margin-left: 0 !important; max-width: 100% !important; }
+  body { background: #fff !important; color: #000 !important; font-size: 12pt; }
+  main { padding: 0 !important; }
+  * { box-shadow: none !important; }
+}

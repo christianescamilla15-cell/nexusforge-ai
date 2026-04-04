@@ -40,6 +40,7 @@ import TopLoadingBar from './shared/components/TopLoadingBar'
 import OfflineIndicator from './shared/components/OfflineIndicator'
 import SessionExpiry from './shared/components/SessionExpiry'
 import FeedbackWidget from './shared/components/FeedbackWidget'
+import NotFoundPage from './shared/components/NotFoundPage'
 
 // Suspense fallback
 const PageLoader = () => <div style={{ padding: 40 }}><Skeleton.Grid count={3} /></div>
@@ -253,8 +254,8 @@ function AppRoutes() {
             />
           } />
 
-          {/* Catch-all → Dashboard */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* 404 */}
+          <Route path="*" element={<NotFoundPage lang={lang} />} />
         </Routes>
         </Suspense>
       </Layout>
