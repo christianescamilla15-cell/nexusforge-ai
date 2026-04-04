@@ -126,13 +126,12 @@ async def deploy_template(slug: str, body: DeployRequest = DeployRequest(), requ
 
             # 2. Create workflow from dag_definition
             wf_row = await conn.fetchrow(
-                """INSERT INTO workflows (name, description, dag_definition, status, user_id)
-                   VALUES ($1, $2, $3::jsonb, 'active', $4::uuid)
+                """INSERT INTO workflows (name, description, dag_definition, status)
+                   VALUES ($1, $2, $3::jsonb, 'active')
                    RETURNING id""",
                 wf_name,
                 tpl["description"],
                 json.dumps(dag_def),
-                user_id,
             )
             workflow_id = wf_row["id"]
 
