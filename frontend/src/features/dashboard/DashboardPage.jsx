@@ -16,6 +16,38 @@ const AGENT_COLORS = [
   { color: '#DB2777', colorEnd: '#F472B6' },
 ]
 
+const PLAN_LIMITS = { free: 5, trial: 10, pro: 100, team: 500, enterprise: -1 }
+
+function PlanUsageBar({ lang, totalRuns }) {
+  const user = (() => { try { return JSON.parse(localStorage.getItem('nf_user') || '{}') } catch { return {} } })()
+  const plan = user.plan || 'free'
+  const limit = PLAN_LIMITS[plan] || 5
+  if (limit === -1) return null // enterprise = unlimited
+
+  const pct = Math.min(100, Math.round((totalRuns / limit) * 100))
+  const isNear = pct >= 80
+  const barColor = isNear ? '#EF4444' : '#6366F1'
+
+  return (
+    <div style={{
+      padding: '10px 16px', borderRadius: 10, marginBottom: 16,
+      background: isNear ? 'rgba(239,68,68,0.05)' : 'rgba(99,102,241,0.04)',
+      border: `1px solid ${isNear ? 'rgba(239,68,68,0.2)' : 'rgba(99,102,241,0.15)'}`,
+      display: 'flex', alignItems: 'center', gap: 12, fontSize: 13,
+    }}>
+      <span style={{ color: '#6B7280', whiteSpace: 'nowrap' }}>
+        {lang === 'es' ? 'Plan' : 'Plan'}: <strong style={{ color: '#111827', textTransform: 'capitalize' }}>{plan}</strong>
+      </span>
+      <div style={{ flex: 1, height: 6, background: '#E5E7EB', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ height: '100%', borderRadius: 3, background: barColor, width: `${pct}%`, transition: 'width 0.3s' }} />
+      </div>
+      <span style={{ color: isNear ? '#EF4444' : '#9CA3AF', whiteSpace: 'nowrap', fontSize: 12 }}>
+        {totalRuns}/{limit} {lang === 'es' ? 'ejecuciones' : 'runs'}
+      </span>
+    </div>
+  )
+}
+
 function KPIIcon({ type }) {
   const paths = {
     workflows: 'M4 6h16M4 12h8m-8 6h16',
@@ -597,6 +629,9 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
               label={lang === 'es' ? 'Ejecuciones Fallidas' : 'Failed Runs'}
             />
           </div>
+
+          {/* Plan usage bar */}
+          <PlanUsageBar lang={lang} totalRuns={kpis.totalRuns} />
 
           {/* Main content grid */}
           <div className="nxf-two-col-grid" style={{

@@ -57,7 +57,28 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: Scheduler not started: {e}")
 
+    # Start zombie cleanup (every 5 minutes)
+    import asyncio
+    async def _zombie_cleanup_loop():
+        while True:
+            await asyncio.sleep(300)  # 5 minutes
+            try:
+                pool = await get_db_pool()
+                async with pool.acquire() as conn:
+                    result = await conn.execute("""
+                        UPDATE workflow_runs SET status = 'failed'
+                        WHERE status IN ('pending', 'running')
+                        AND created_at < NOW() - INTERVAL '10 minutes'
+                    """)
+                    if result != "UPDATE 0":
+                        logger.info("Zombie cleanup: %s", result)
+            except Exception as exc:
+                logger.debug("Zombie cleanup skipped: %s", exc)
+    _zombie_task = asyncio.create_task(_zombie_cleanup_loop())
+    print("Zombie cleanup task started (every 5 min)")
+
     yield
+    _zombie_task.cancel()
     # Shutdown
     try:
         await close_connections()

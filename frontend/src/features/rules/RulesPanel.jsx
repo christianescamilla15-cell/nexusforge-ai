@@ -412,6 +412,38 @@ export default function RulesPanel({ automationId, lang = 'en' }) {
         <div style={{ padding: 8, borderRadius: 6, background: '#FEE2E2', color: '#DC2626', fontSize: 12, marginBottom: 12 }}>{error}</div>
       )}
 
+      {/* Quick templates */}
+      {rules.length === 0 && !editing && (
+        <div style={{ padding: 14, borderRadius: 10, background: '#F9FAFB', border: '1px dashed #D1D5DB', marginBottom: 12 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 8 }}>
+            {t(lang, 'Quick templates:', 'Plantillas rapidas:')}
+          </p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[
+              { label: lang === 'es' ? 'Si urgente → notificar' : 'If urgent → notify',
+                rule: { name: 'Urgent notification', conditions: [{ field: 'priority', operator: 'equals', value: 'high' }], actions: [{ type: 'notify', config: { message: 'Urgent item detected' } }], priority: 1, is_active: true } },
+              { label: lang === 'es' ? 'Si score < 50 → saltar' : 'If score < 50 → skip',
+                rule: { name: 'Low quality skip', conditions: [{ field: 'score', operator: 'less_than', value: '50' }], actions: [{ type: 'skip_step', config: { step: 'reporter' } }], priority: 2, is_active: true } },
+              { label: lang === 'es' ? 'Si vacio → redirigir' : 'If empty → route',
+                rule: { name: 'Empty input redirect', conditions: [{ field: 'text', operator: 'is_empty', value: '' }], actions: [{ type: 'route', config: { agent: 'classifier' } }], priority: 3, is_active: true } },
+            ].map((tmpl, i) => (
+              <button key={i} onClick={async () => {
+                await fetchAPI('/rules/', {
+                  method: 'POST',
+                  body: JSON.stringify({ automation_id: automationId, ...tmpl.rule }),
+                })
+                load()
+              }} style={{
+                padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
+                background: '#fff', fontSize: 12, cursor: 'pointer', color: '#374151',
+              }}>
+                {tmpl.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Test panel */}
       {showTest && <TestPanel automationId={automationId} lang={lang} onClose={() => setShowTest(false)} />}
 

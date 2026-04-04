@@ -161,11 +161,15 @@ async def update_workflow(workflow_id: UUID, body: WorkflowUpdate, request: Requ
 
 @router.delete("/{workflow_id}", status_code=200)
 async def delete_workflow(workflow_id: UUID, request: Request):
-    """Soft-delete a workflow by setting status to 'archived'."""
-    _get_user_id(request)  # require auth
+    """Soft-delete a workflow by setting status to 'archived'. Checks ownership."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Ownership check
+            owner = await conn.fetchval("SELECT user_id FROM workflows WHERE id = $1", workflow_id)
+            if owner and user_id and str(owner) != user_id:
+                raise HTTPException(status_code=403, detail="You don't own this workflow")
             result = await conn.execute(
                 "UPDATE workflows SET status = 'archived', updated_at = now() WHERE id = $1 AND status != 'archived'",
                 workflow_id,
