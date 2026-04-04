@@ -41,10 +41,31 @@ def _hash_password(password: str) -> str:
 
 
 def _verify_password(password: str, password_hash: str) -> bool:
+    """Verify password against hash. Supports bcrypt and legacy SHA-256."""
     try:
         return bcrypt.checkpw(password.encode(), password_hash.encode())
-    except Exception:
+    except (ValueError, Exception):
+        # Fallback: check legacy SHA-256 hash (pre-bcrypt migration)
+        import hashlib
+        if hashlib.sha256(password.encode()).hexdigest() == password_hash:
+            return True  # Legacy match — caller should re-hash
         return False
+
+
+async def _rehash_if_legacy(email: str, password: str, password_hash: str):
+    """If password was verified via legacy SHA-256, upgrade to bcrypt."""
+    try:
+        bcrypt.checkpw(password.encode(), password_hash.encode())
+        return  # Already bcrypt, no action needed
+    except (ValueError, Exception):
+        # Legacy hash — upgrade to bcrypt
+        new_hash = _hash_password(password)
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE nf_users SET password_hash = $1 WHERE email = $2",
+                new_hash, email,
+            )
 
 
 async def _get_or_create_user(email: str, name: str = None, provider: str = "email",
@@ -110,10 +131,13 @@ async def login(req: LoginRequest):
 
     if not user:
         raise HTTPException(401, "Invalid email or password")
-    if not _verify_password(req.password, user["password_hash"]):
+    if not user["password_hash"] or not _verify_password(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
     if not user["is_active"]:
         raise HTTPException(403, "Account disabled")
+
+    # Auto-migrate legacy SHA-256 passwords to bcrypt
+    await _rehash_if_legacy(req.email, req.password, user["password_hash"])
 
     token = create_token(str(user["id"]), user["email"], user["role"])
     return {"token": token, "user": _user_to_safe(dict(user))}
