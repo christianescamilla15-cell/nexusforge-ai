@@ -5,7 +5,6 @@ import logging
 
 from app.agents.base import BaseAgent, AgentResult
 from app.agents.registry import register_agent
-from app.llm.router import get_router
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +47,7 @@ class ComplianceAgent(BaseAgent):
         ]
 
         try:
-            router = get_router()
-            resp = await router.chat(messages, temperature=0.1, max_tokens=1024)
+            resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=1024)
             parsed = json.loads(resp.text)
             return AgentResult(
                 output=parsed,

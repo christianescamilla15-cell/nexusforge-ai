@@ -1,11 +1,11 @@
-"""SentimentAgent — sentiment and opinion analysis."""
+"""SentimentAgent — sentiment and opinion analysis with Pydantic validation."""
 
 import json
 import logging
 
 from app.agents.base import BaseAgent, AgentResult
 from app.agents.registry import register_agent
-from app.llm.router import get_router
+from app.agents.output_schemas import SentimentResult
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,8 @@ class SentimentAgent(BaseAgent):
                     "emotions": ["confidence", "satisfaction"],
                     "topics": ["product quality", "customer service"],
                 },
-                tokens_used=260, cost_usd=0.0016,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="demo",
             )
 
         messages = [
@@ -45,11 +45,11 @@ class SentimentAgent(BaseAgent):
         ]
 
         try:
-            router = get_router()
-            resp = await router.chat(messages, temperature=0.1, max_tokens=512)
-            parsed = json.loads(resp.text)
+            resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=512)
+            raw = json.loads(resp.text)
+            validated = SentimentResult.model_validate(raw)
             return AgentResult(
-                output=parsed,
+                output=validated.model_dump(),
                 tokens_used=resp.tokens_input + resp.tokens_output,
                 cost_usd=getattr(resp, "cost_usd", 0.0),
                 provider=resp.provider, model=resp.model,
@@ -58,8 +58,8 @@ class SentimentAgent(BaseAgent):
             logger.warning("SentimentAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"sentiment": "neutral", "score": 0.0, "emotions": [], "topics": []},
-                tokens_used=110, cost_usd=0.0007,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="fallback",
             )
 
 

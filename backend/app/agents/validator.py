@@ -1,11 +1,11 @@
-"""ValidatorAgent — quality gate that validates output from previous agents."""
+"""ValidatorAgent — quality gate with Pydantic schema validation."""
 
 import json
 import logging
 
 from app.agents.base import BaseAgent, AgentResult
 from app.agents.registry import register_agent
-from app.llm.router import get_router
+from app.agents.output_schemas import ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,20 @@ class ValidatorAgent(BaseAgent):
         context = input_data.get("context", "")
         config = config or {}
 
+        # Layer 1: Pydantic structural pre-validation (instant, free)
+        if isinstance(output_to_validate, dict):
+            structural_issues = self._structural_check(output_to_validate)
+        else:
+            structural_issues = []
+
         if config.get("demo"):
             return AgentResult(
                 output={"is_valid": True, "score": 85, "issues": [], "recommendations": ["Demo mode"]},
-                tokens_used=300, cost_usd=0.0018,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="demo",
             )
 
+        # Layer 2: LLM semantic validation
         messages = [
             {"role": "system", "content": self._build_system_prompt("Validate the agent output.")},
             {"role": "user", "content": VALIDATE_PROMPT.format(
@@ -53,11 +60,17 @@ class ValidatorAgent(BaseAgent):
         ]
 
         try:
-            router = get_router()
-            resp = await router.chat(messages, temperature=0.1, max_tokens=512)
-            parsed = json.loads(resp.text)
+            resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=512)
+            raw = json.loads(resp.text)
+            validated = ValidationResult.model_validate(raw)
+            result = validated.model_dump()
+            # Merge structural issues from Layer 1
+            if structural_issues:
+                result["issues"] = structural_issues + result["issues"]
+                result["score"] = max(0, result["score"] - len(structural_issues) * 10)
+                result["is_valid"] = result["score"] >= 50
             return AgentResult(
-                output=parsed,
+                output=result,
                 tokens_used=resp.tokens_input + resp.tokens_output,
                 cost_usd=getattr(resp, "cost_usd", 0.0),
                 provider=resp.provider,
@@ -68,14 +81,29 @@ class ValidatorAgent(BaseAgent):
             has_data = bool(output_to_validate) and output_to_validate != {}
             return AgentResult(
                 output={
-                    "is_valid": has_data,
+                    "is_valid": has_data and not structural_issues,
                     "score": 50 if has_data else 0,
-                    "issues": [] if has_data else ["No output data to validate"],
+                    "issues": structural_issues or ([] if has_data else ["No output data to validate"]),
                     "recommendations": [f"LLM unavailable: {exc}"],
                 },
-                tokens_used=200, cost_usd=0.0012,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="fallback",
             )
+
+    @staticmethod
+    def _structural_check(data: dict) -> list[str]:
+        """Layer 1: deterministic checks — free, instant, no LLM needed."""
+        issues = []
+        if not data:
+            issues.append("Output is empty")
+        for key, val in data.items():
+            if val is None:
+                issues.append(f"Field '{key}' is null")
+            elif isinstance(val, str) and not val.strip():
+                issues.append(f"Field '{key}' is empty string")
+            elif isinstance(val, list) and len(val) == 0:
+                issues.append(f"Field '{key}' is empty list")
+        return issues
 
 
 register_agent("validator", ValidatorAgent())

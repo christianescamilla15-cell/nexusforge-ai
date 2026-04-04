@@ -1,11 +1,11 @@
-"""ExtractorAgent — extracts named entities from text."""
+"""ExtractorAgent — extracts named entities from text with Pydantic validation."""
 
 import json
 import logging
 
 from app.agents.base import BaseAgent, AgentResult
 from app.agents.registry import register_agent
-from app.llm.router import get_router
+from app.agents.output_schemas import ExtractionResult
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +34,8 @@ class ExtractorAgent(BaseAgent):
                     {"type": "person", "value": "John Doe", "context": "Demo entity"},
                     {"type": "organization", "value": "Acme Corp", "context": "Demo entity"},
                 ]},
-                tokens_used=780, cost_usd=0.0046,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="demo",
             )
 
         messages = [
@@ -44,11 +44,12 @@ class ExtractorAgent(BaseAgent):
         ]
 
         try:
-            router = get_router()
-            resp = await router.chat(messages, temperature=0.1, max_tokens=1024)
-            parsed = json.loads(resp.text)
+            resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=1024)
+            raw = json.loads(resp.text)
+            # Validate with Pydantic schema
+            validated = ExtractionResult.model_validate(raw)
             return AgentResult(
-                output=parsed,
+                output=validated.model_dump(),
                 tokens_used=resp.tokens_input + resp.tokens_output,
                 cost_usd=getattr(resp, "cost_usd", 0.0),
                 provider=resp.provider,
@@ -58,8 +59,8 @@ class ExtractorAgent(BaseAgent):
             logger.warning("ExtractorAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"entities": [], "error": str(exc)},
-                tokens_used=240, cost_usd=0.0014,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="fallback",
             )
 
 

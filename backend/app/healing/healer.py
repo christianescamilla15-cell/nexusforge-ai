@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 from app.healing.detector import FailureDetector, ErrorClassification
 from app.healing.strategies import get_strategy, HealingResult, STRATEGY_REGISTRY
+from app.healing.circuit_breaker import get_circuit_breaker
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class SelfHealer:
 
     def __init__(self):
         self.detector = FailureDetector()
+        self.circuit_breaker = get_circuit_breaker()
 
     async def attempt_heal(
         self,
@@ -55,6 +57,22 @@ class SelfHealer:
         execution_context = execution_context or {}
         error_message = error_info.get("error_message", str(error_info.get("error", "Unknown")))
         step_name = failed_step.get("step_name", "unknown")
+        agent_name = failed_step.get("agent_type", step_name)
+
+        # Record failure in circuit breaker
+        self.circuit_breaker.record_failure(agent_name, error_message)
+
+        # Step 0: Check circuit breaker — if agent is unhealthy, skip to fallback
+        if not self.circuit_breaker.is_available(agent_name):
+            logger.warning("SelfHealer: circuit open for '%s', skipping to fallback", agent_name)
+            fallback = get_strategy("fallback") if "fallback" in STRATEGY_REGISTRY else get_strategy("escalate")
+            result = await fallback.apply(failed_step, {
+                "error_type": "circuit_open",
+                "severity": "high",
+                "error_message": f"Circuit breaker open for {agent_name}",
+            }, execution_context)
+            self._log_attempt(step_name, "circuit_open", "fallback", result.success, result.message)
+            return result
 
         # Step 1: Classify the error
         classification = self.detector.classify(error_message, failed_step)
@@ -100,6 +118,8 @@ class SelfHealer:
                 )
 
                 if result.success:
+                    # Reset circuit breaker on successful healing
+                    self.circuit_breaker.record_success(agent_name)
                     logger.info(
                         "SelfHealer: step '%s' healed via '%s': %s",
                         step_name, strategy_name, result.message,

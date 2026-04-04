@@ -1,11 +1,11 @@
-"""SummarizerAgent — generates concise summaries of text."""
+"""SummarizerAgent — generates concise summaries with Pydantic validation."""
 
 import json
 import logging
 
 from app.agents.base import BaseAgent, AgentResult
 from app.agents.registry import register_agent
-from app.llm.router import get_router
+from app.agents.output_schemas import SummaryResult
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ class SummarizerAgent(BaseAgent):
         if config.get("demo") or not text:
             return AgentResult(
                 output={"summary": "Demo summary.", "key_points": ["Point A", "Point B"], "word_count": 2},
-                tokens_used=620, cost_usd=0.0037,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="demo",
             )
 
         max_tok = LENGTH_TOKENS.get(length, 300)
@@ -44,11 +44,11 @@ class SummarizerAgent(BaseAgent):
         ]
 
         try:
-            router = get_router()
-            resp = await router.chat(messages, temperature=0.3, max_tokens=max_tok + 200)
-            parsed = json.loads(resp.text)
+            resp = await self._resilient_llm_call(messages, temperature=0.3, max_tokens=max_tok + 200)
+            raw = json.loads(resp.text)
+            validated = SummaryResult.model_validate(raw)
             return AgentResult(
-                output=parsed,
+                output=validated.model_dump(),
                 tokens_used=resp.tokens_input + resp.tokens_output,
                 cost_usd=getattr(resp, "cost_usd", 0.0),
                 provider=resp.provider,
@@ -58,8 +58,8 @@ class SummarizerAgent(BaseAgent):
             logger.warning("SummarizerAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"summary": text[:200] + "...", "key_points": [], "word_count": len(text.split())},
-                tokens_used=240, cost_usd=0.0014,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="fallback",
             )
 
 

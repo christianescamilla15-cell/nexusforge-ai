@@ -54,6 +54,14 @@ async def health_check():
 
     overall = "healthy" if (db_ok and redis_ok) else "degraded"
 
+    # Agent health scores from circuit breaker
+    agent_health = {}
+    try:
+        from app.healing.circuit_breaker import get_circuit_breaker
+        agent_health = get_circuit_breaker().get_all_health()
+    except Exception:
+        pass
+
     return {
         "status": overall,
         "service": "NexusForge AI",
@@ -63,4 +71,5 @@ async def health_check():
         },
         "migrations_applied": migration_count,
         "agent_count": agent_count,
+        "agent_health": agent_health,
     }

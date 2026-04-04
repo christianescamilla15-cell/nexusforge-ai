@@ -1,11 +1,11 @@
-"""ClassifierAgent — classifies document type using LLM."""
+"""ClassifierAgent — classifies document type with Pydantic validation."""
 
 import json
 import logging
 
 from app.agents.base import BaseAgent, AgentResult
 from app.agents.registry import register_agent
-from app.llm.router import get_router
+from app.agents.output_schemas import ClassificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +30,11 @@ class ClassifierAgent(BaseAgent):
         text = input_data.get("text", "")[:500]
         config = config or {}
 
-        # Fallback / demo mode
         if config.get("demo") or not text:
             return AgentResult(
                 output={"category": "general", "confidence": 0.5, "reasoning": "Demo mode — no LLM call"},
-                tokens_used=420, cost_usd=0.0025,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="demo",
             )
 
         prompt = CLASSIFY_PROMPT.format(categories=", ".join(CATEGORIES), text=text)
@@ -45,11 +44,11 @@ class ClassifierAgent(BaseAgent):
         ]
 
         try:
-            router = get_router()
-            resp = await router.chat(messages, temperature=0.1, max_tokens=256)
-            parsed = json.loads(resp.text)
+            resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=256)
+            raw = json.loads(resp.text)
+            validated = ClassificationResult.model_validate(raw)
             return AgentResult(
-                output=parsed,
+                output=validated.model_dump(),
                 tokens_used=resp.tokens_input + resp.tokens_output,
                 cost_usd=getattr(resp, "cost_usd", 0.0),
                 provider=resp.provider,
@@ -59,10 +58,9 @@ class ClassifierAgent(BaseAgent):
             logger.warning("ClassifierAgent LLM fallback: %s", exc)
             return AgentResult(
                 output={"category": "general", "confidence": 0.3, "reasoning": f"LLM unavailable: {exc}"},
-                tokens_used=180, cost_usd=0.0011,
-                provider="groq", model="llama-3.3-70b-versatile",
+                tokens_used=0, cost_usd=0.0,
+                provider="local", model="fallback",
             )
 
 
-# Self-register
 register_agent("classifier", ClassifierAgent())

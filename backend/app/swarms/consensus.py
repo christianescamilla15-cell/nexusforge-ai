@@ -1,4 +1,4 @@
-"""ConsensusSwarm — N agents independently analyze, judge picks the best."""
+"""ConsensusSwarm — N agents independently analyze, judge uses Weighted Borda Count."""
 
 import asyncio
 import json
@@ -7,17 +7,16 @@ import time
 
 from app.agents.base import BaseAgent, AgentResult
 from app.agents.registry import get_agent, register_agent
-from app.llm.router import get_router
 from app.swarms.base import BaseSwarm, SwarmResult
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# JudgeAgent — picks the best output or synthesizes consensus
+# JudgeAgent — Weighted Borda Count + LLM ranking
 # ---------------------------------------------------------------------------
 
 JUDGE_PROMPT = """You are an impartial judge. Multiple agents have independently analyzed the same input.
-Review their outputs and either pick the best one or synthesize a consensus answer.
+RANK all outputs from best to worst. Do NOT just pick one — provide a full ranking.
 
 Task input:
 {task_input}
@@ -27,19 +26,43 @@ Agent outputs:
 
 Respond ONLY with valid JSON (no markdown):
 {{
-  "winner": "<agent_type that produced the best output, or 'consensus'>",
-  "consensus_output": {{<synthesized best answer>}},
-  "reasoning": "<why this was chosen>",
-  "votes": [
-    {{"agent": "<type>", "quality": <0-100>}}
-  ]
+  "ranking": [
+    {{"rank": 1, "agent": "<best agent_type>", "quality": <0-100>, "strengths": "<brief>"}},
+    {{"rank": 2, "agent": "<second best>", "quality": <0-100>, "strengths": "<brief>"}},
+    ...
+  ],
+  "consensus_output": {{<synthesized best answer combining top insights>}},
+  "reasoning": "<why this ranking was chosen>"
 }}"""
+
+
+def _weighted_borda_score(rankings: list[dict], n_agents: int) -> dict[str, float]:
+    """Compute Confidence-Weighted Borda scores from LLM rankings.
+
+    score(agent) = (N - rank_position) * (quality / 100)
+
+    Returns dict of agent_type -> score, sorted descending.
+    """
+    scores: dict[str, float] = {}
+    for entry in rankings:
+        agent = entry.get("agent", "")
+        rank = entry.get("rank", n_agents)
+        quality = entry.get("quality", 50) / 100.0
+        borda_points = max(0, n_agents - rank + 1)
+        scores[agent] = borda_points * quality
+
+    # Normalize to 0-100
+    max_score = max(scores.values()) if scores else 1
+    if max_score > 0:
+        scores = {k: round(v / max_score * 100, 1) for k, v in scores.items()}
+
+    return dict(sorted(scores.items(), key=lambda x: x[1], reverse=True))
 
 
 class JudgeAgent(BaseAgent):
     name = "JudgeAgent"
     agent_type = "judge"
-    description = "Evaluates multiple agent outputs and picks the best or synthesizes consensus."
+    description = "Evaluates multiple agent outputs using Weighted Borda Count ranking."
 
     async def execute(self, input_data: dict, config: dict = None) -> AgentResult:
         config = config or {}
@@ -48,21 +71,23 @@ class JudgeAgent(BaseAgent):
             {k: v for k, v in input_data.items() if not k.startswith("_")}, default=str
         )[:2000]
 
-        if config.get("demo"):
-            agents = list(agent_outputs.keys())
+        agents = list(agent_outputs.keys())
+
+        if config.get("demo") or not agents:
             winner = agents[0] if agents else "none"
             return AgentResult(
                 output={
                     "winner": winner,
                     "consensus_output": agent_outputs.get(winner, {}),
                     "reasoning": "Demo mode selection",
-                    "votes": [{"agent": a, "quality": 70} for a in agents],
+                    "ranking": [{"rank": i + 1, "agent": a, "quality": 70} for i, a in enumerate(agents)],
+                    "borda_scores": {a: 70 for a in agents},
                 },
-                provider="local", model="none",
+                provider="local", model="demo",
             )
 
         messages = [
-            {"role": "system", "content": self._build_system_prompt("Judge agent outputs fairly.")},
+            {"role": "system", "content": self._build_system_prompt("Judge and RANK agent outputs fairly.")},
             {"role": "user", "content": JUDGE_PROMPT.format(
                 task_input=task_input,
                 outputs=json.dumps(agent_outputs, default=str)[:4000],
@@ -70,11 +95,24 @@ class JudgeAgent(BaseAgent):
         ]
 
         try:
-            router = get_router()
-            resp = await router.chat(messages, temperature=0.2, max_tokens=1024)
+            resp = await self._resilient_llm_call(messages, temperature=0.2, max_tokens=1024)
             parsed = json.loads(resp.text)
+
+            # Compute Weighted Borda scores from LLM ranking
+            ranking = parsed.get("ranking", [])
+            borda_scores = _weighted_borda_score(ranking, len(agents))
+
+            # Winner is highest Borda score
+            winner = next(iter(borda_scores)) if borda_scores else (agents[0] if agents else "none")
+
             return AgentResult(
-                output=parsed,
+                output={
+                    "winner": winner,
+                    "consensus_output": parsed.get("consensus_output", agent_outputs.get(winner, {})),
+                    "reasoning": parsed.get("reasoning", ""),
+                    "ranking": ranking,
+                    "borda_scores": borda_scores,
+                },
                 tokens_used=resp.tokens_input + resp.tokens_output,
                 cost_usd=getattr(resp, "cost_usd", 0.0),
                 provider=resp.provider,
@@ -82,15 +120,14 @@ class JudgeAgent(BaseAgent):
             )
         except Exception as exc:
             logger.warning("JudgeAgent fallback: %s", exc)
-            # Fallback: pick the first agent's output
-            agents = list(agent_outputs.keys())
             winner = agents[0] if agents else "none"
             return AgentResult(
                 output={
                     "winner": winner,
                     "consensus_output": agent_outputs.get(winner, {}),
                     "reasoning": f"Fallback selection: {exc}",
-                    "votes": [{"agent": a, "quality": 50} for a in agents],
+                    "ranking": [{"rank": i + 1, "agent": a, "quality": 50} for i, a in enumerate(agents)],
+                    "borda_scores": {a: 50 for a in agents},
                 },
                 provider="local", model="fallback",
             )
@@ -146,7 +183,7 @@ class ConsensusSwarm(BaseSwarm):
                 agents_used.append(agent_type)
                 steps_executed += 1
 
-        # Step 2: Judge picks the best or synthesizes consensus
+        # Step 2: Judge ranks all outputs using Weighted Borda Count
         judge = get_agent("judge")
         judge_input = {**input_data, "_agent_outputs": agent_outputs}
         judge_result = await judge.execute(judge_input, config)
