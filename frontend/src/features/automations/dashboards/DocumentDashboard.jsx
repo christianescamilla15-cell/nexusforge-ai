@@ -48,8 +48,9 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
   const loadResults = useCallback(async () => {
     setLoading(true)
     const res = await fetchAPI(`/results/automation/${automation.id}`)
-    if (!res.error && Array.isArray(res.data)) {
-      setResults(res.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
+    if (!res.error) {
+      const items = res.data?.items || (Array.isArray(res.data) ? res.data : [])
+      setResults(items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
     }
     setLoading(false)
   }, [automation.id])
@@ -141,12 +142,13 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
 
         const status = execRes.data?.status
         if (status === 'completed') {
-          const output = execRes.data?.result || execRes.data?.output || {}
+          const steps = execRes.data?.steps || []
+          const output = steps.length > 0 ? (steps[steps.length - 1]?.output_data || steps[steps.length - 1]?.output || {}) : (execRes.data?.result || execRes.data?.output || {})
           await fetchAPI('/results/', {
             method: 'POST',
             body: JSON.stringify({
               automation_id: automation.id,
-              execution_id: runId,
+              run_id: runId,
               input_data: { filename: file.name, file_type: file.type, file_size: file.size },
               output_data: output,
               result_type: 'document',

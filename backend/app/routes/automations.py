@@ -257,6 +257,8 @@ async def run_automation(automation_id: UUID, body: RunRequest, request: Request
     # Rate limit check
     try:
         from app.auth.rate_limit import check_rate_limit
+        request.state.user_id = user_id
+        request.state.user_plan = "free"  # will be overridden by rate_limit from DB
         await check_rate_limit(request)
     except HTTPException:
         raise
@@ -288,6 +290,33 @@ async def run_automation(automation_id: UUID, body: RunRequest, request: Request
     except Exception as exc:
         logger.exception("Failed to run automation")
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Single automation ─────────────────────────────────────────────────────────
+
+@router.get("/{automation_id}")
+async def get_automation(automation_id: UUID, request: Request):
+    """Get single automation with workflow DAG."""
+    user_id = _get_user_id(request)
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """SELECT a.*, w.dag_definition, w.name AS workflow_name
+                   FROM automations a
+                   LEFT JOIN workflows w ON w.id = a.workflow_id
+                   WHERE a.id = $1""",
+                automation_id,
+            )
+        if not row:
+            raise HTTPException(404, "Automation not found")
+        if user_id and row.get("user_id") and str(row["user_id"]) != user_id:
+            raise HTTPException(403, "Access denied")
+        return _row_to_dict(row)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(500, str(exc))
 
 
 # ── Stats + Dashboard ─────────────────────────────────────────────────────────
@@ -529,7 +558,13 @@ def _row_to_dict(r) -> dict:
             ic = json.loads(ic)
         except Exception:
             ic = {"type": "none"}
-    return {
+    dag = r.get("dag_definition")
+    if isinstance(dag, str):
+        try:
+            dag = json.loads(dag)
+        except Exception:
+            dag = None
+    result = {
         "id": str(r["id"]),
         "workflow_id": str(r["workflow_id"]),
         "workflow_name": r.get("workflow_name"),
@@ -552,3 +587,6 @@ def _row_to_dict(r) -> dict:
         "created_at": r["created_at"].isoformat(),
         "requires_approval": r.get("requires_approval", False),
     }
+    if dag is not None:
+        result["dag_definition"] = dag
+    return result

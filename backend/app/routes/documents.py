@@ -41,13 +41,20 @@ async def upload_document(body: DocumentUpload):
             logger.warning("Indexing failed for document %s: %s", doc_id, exc)
             # Document is still saved; indexing can be retried later
 
+        # Read actual status from DB after indexing attempt
+        async with pool.acquire() as conn:
+            updated_row = await conn.fetchrow(
+                "SELECT status FROM documents WHERE id = $1", doc_id
+            )
+        actual_status = updated_row["status"] if updated_row else "pending"
+
         return DocumentResponse(
             id=row["id"],
             title=row["title"],
             content=row["content"],
             file_type=row["file_type"],
             language=row["language"],
-            status="indexed",
+            status=actual_status,
             created_at=row["created_at"],
         )
     except Exception as exc:

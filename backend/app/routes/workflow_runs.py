@@ -65,14 +65,17 @@ async def _get_db_health() -> dict:
                     COUNT(*) FILTER (WHERE status = 'completed') as successful,
                     COUNT(*) FILTER (WHERE status = 'failed') as failed,
                     COALESCE(SUM(total_tokens), 0) as total_tokens,
-                    COALESCE(SUM(cost_usd), 0) as total_cost,
-                    COALESCE(AVG(processing_time_ms), 0) as avg_latency
-                FROM pipeline_runs
+                    COALESCE(SUM(total_cost_usd), 0) as total_cost,
+                    COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
+                        FILTER (WHERE status = 'completed'), 0) as avg_latency,
+                    COUNT(DISTINCT COALESCE(workflow_id::text, 'unknown')) as total_agents_tracked
+                FROM workflow_runs
             """)
 
             agent_rows = await conn.fetch("""
-                SELECT agents_used, total_tokens, cost_usd, processing_time_ms, status
-                FROM pipeline_runs WHERE agents_used IS NOT NULL
+                SELECT agents_used, total_tokens, total_cost_usd as cost_usd,
+                       EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000 as processing_time_ms, status
+                FROM workflow_runs WHERE agents_used IS NOT NULL
             """)
 
             # Aggregate per-agent metrics
@@ -118,12 +121,12 @@ async def _get_db_health() -> dict:
             failed = stats["failed"] or 0
 
             return {
-                "status": "healthy" if total > 0 and failed / max(total, 1) < 0.3 else "degraded",
+                "status": "healthy" if total == 0 or (failed / max(total, 1) < 0.3) else "degraded",
                 "total_runs": total,
                 "successful_runs": successful,
                 "failed_runs": failed,
                 "system_success_rate": round(successful / max(total, 1), 3),
-                "total_agents_tracked": len(agents),
+                "total_agents_tracked": int(stats.get("total_agents_tracked") or 0) or len(agents),
                 "avg_latency_ms": round(float(stats["avg_latency"] or 0), 1),
                 "total_tokens": int(stats["total_tokens"] or 0),
                 "total_cost": round(float(stats["total_cost"] or 0), 6),
