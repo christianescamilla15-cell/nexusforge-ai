@@ -222,6 +222,74 @@ async def change_password(body: ChangePasswordRequest, request: Request):
     return {"changed": True}
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+# In-memory reset codes (TTL 15 min) — use Redis in production for multi-worker
+_reset_codes: dict[str, dict] = {}
+
+@router.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest):
+    """Send a 6-digit reset code to the user's email via Resend."""
+    import random, time
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow("SELECT id, email FROM nf_users WHERE email = $1", body.email)
+
+    if not user:
+        # Don't reveal if email exists — always return success
+        return {"sent": True}
+
+    code = str(random.randint(100000, 999999))
+    _reset_codes[body.email] = {"code": code, "expires": time.time() + 900}  # 15 min
+
+    # Send via Resend (best-effort)
+    try:
+        from app.integrations.email.client import send_email
+        await send_email(
+            to=body.email,
+            subject="NexusForge — Password Reset Code",
+            html=f"<h2>Your reset code: <strong>{code}</strong></h2><p>This code expires in 15 minutes.</p>",
+        )
+    except Exception as exc:
+        logger.warning("Failed to send reset email: %s", exc)
+
+    return {"sent": True}
+
+
+@router.post("/reset-password")
+async def reset_password(body: ResetPasswordRequest):
+    """Verify the 6-digit code and set a new password."""
+    import time
+    entry = _reset_codes.get(body.email)
+    if not entry or entry["code"] != body.code:
+        raise HTTPException(400, "Invalid or expired reset code")
+    if time.time() > entry["expires"]:
+        del _reset_codes[body.email]
+        raise HTTPException(400, "Reset code has expired")
+
+    if len(body.new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+
+    new_hash = _hash_password(body.new_password)
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE nf_users SET password_hash = $1 WHERE email = $2",
+            new_hash, body.email,
+        )
+    if result == "UPDATE 0":
+        raise HTTPException(404, "User not found")
+
+    del _reset_codes[body.email]
+    return {"reset": True}
+
+
 @router.get("/plans")
 async def get_plans():
     """List available plans with limits."""

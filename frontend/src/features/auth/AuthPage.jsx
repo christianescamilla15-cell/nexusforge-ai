@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { getApiUrl } from '../../services/api'
 
 export default function AuthPage({ onLogin, lang = 'es' }) {
-  const [mode, setMode] = useState('login') // login | register
+  const [mode, setMode] = useState('login') // login | register | forgot | reset
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [info, setInfo] = useState(null)
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
   const bg = isDark ? '#0F1117' : '#F8FAFC'
@@ -178,7 +181,83 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
                 : (lang === 'es' ? 'Crear Cuenta' : 'Create Account')
             }
           </button>
+          {mode === 'login' && (
+            <p style={{ textAlign: 'right', marginTop: 8 }}>
+              <span onClick={() => { setMode('forgot'); setError(null); setInfo(null) }}
+                style={{ fontSize: 12, color: accent, cursor: 'pointer' }}>
+                {lang === 'es' ? 'Olvidaste tu contraseña?' : 'Forgot password?'}
+              </span>
+            </p>
+          )}
         </form>
+
+        {/* Forgot password form */}
+        {mode === 'forgot' && (
+          <form onSubmit={async (e) => {
+            e.preventDefault(); setLoading(true); setError(null); setInfo(null)
+            const res = await fetch(`${getApiUrl()}/auth/forgot-password`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
+            })
+            setLoading(false)
+            if (res.ok) {
+              setInfo(lang === 'es' ? 'Codigo enviado a tu email' : 'Code sent to your email')
+              setMode('reset')
+            } else {
+              setError(lang === 'es' ? 'Error al enviar' : 'Failed to send')
+            }
+          }} style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: text, display: 'block', marginBottom: 4 }}>
+              Email
+            </label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${border}`, background: bg, color: text, fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+            <button type="submit" disabled={loading} style={{
+              width: '100%', padding: '12px 0', borderRadius: 8, border: 'none',
+              background: loading ? muted : accent, color: '#fff', fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+            }}>{loading ? '...' : (lang === 'es' ? 'Enviar Codigo' : 'Send Code')}</button>
+            <p style={{ textAlign: 'center', marginTop: 10 }}>
+              <span onClick={() => { setMode('login'); setError(null); setInfo(null) }} style={{ fontSize: 12, color: accent, cursor: 'pointer' }}>
+                {lang === 'es' ? 'Volver al login' : 'Back to login'}
+              </span>
+            </p>
+          </form>
+        )}
+
+        {/* Reset password form */}
+        {mode === 'reset' && (
+          <form onSubmit={async (e) => {
+            e.preventDefault(); setLoading(true); setError(null)
+            const res = await fetch(`${getApiUrl()}/auth/reset-password`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, code: resetCode, new_password: newPassword }),
+            })
+            setLoading(false)
+            if (res.ok) {
+              setInfo(lang === 'es' ? 'Contraseña cambiada! Inicia sesion.' : 'Password changed! Sign in.')
+              setMode('login'); setResetCode(''); setNewPassword('')
+            } else {
+              const d = await res.json().catch(() => ({}))
+              setError(d.detail || (lang === 'es' ? 'Codigo invalido' : 'Invalid code'))
+            }
+          }} style={{ marginBottom: 16 }}>
+            {info && <div style={{ padding: 10, borderRadius: 8, background: '#DCFCE7', color: '#166534', fontSize: 13, marginBottom: 12 }}>{info}</div>}
+            <label style={{ fontSize: 13, fontWeight: 600, color: text, display: 'block', marginBottom: 4 }}>
+              {lang === 'es' ? 'Codigo de 6 digitos' : '6-digit code'}
+            </label>
+            <input type="text" value={resetCode} onChange={e => setResetCode(e.target.value)} required maxLength={6} placeholder="123456"
+              style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${border}`, background: bg, color: text, fontSize: 18, fontWeight: 700, textAlign: 'center', letterSpacing: '0.3em', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+            <label style={{ fontSize: 13, fontWeight: 600, color: text, display: 'block', marginBottom: 4 }}>
+              {lang === 'es' ? 'Nueva contraseña' : 'New password'}
+            </label>
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6}
+              style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${border}`, background: bg, color: text, fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+            <button type="submit" disabled={loading} style={{
+              width: '100%', padding: '12px 0', borderRadius: 8, border: 'none',
+              background: loading ? muted : accent, color: '#fff', fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+            }}>{loading ? '...' : (lang === 'es' ? 'Cambiar Contraseña' : 'Reset Password')}</button>
+          </form>
+        )}
 
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>

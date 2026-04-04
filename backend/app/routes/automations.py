@@ -250,10 +250,18 @@ async def delete_automation(automation_id: UUID, request: Request):
 
 @router.post("/{automation_id}/run", status_code=201)
 async def run_automation(automation_id: UUID, body: RunRequest, request: Request):
-    """Execute an automation with optional input_data."""
+    """Execute an automation with optional input_data. Rate-limited per plan."""
     user_id = _get_user_id(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Login required")
+    # Rate limit check
+    try:
+        from app.auth.rate_limit import check_rate_limit
+        await check_rate_limit(request)
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # fail open
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
