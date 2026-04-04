@@ -16,6 +16,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
   const [isMobile, setIsMobile] = useState(false)
   const [apiWorkflows, setApiWorkflows] = useState([])
   const [localWorkflows, setLocalWorkflows] = useState([])
+  const [error, setError] = useState(null)
   const [confirmState, showConfirm] = useConfirm()
   const toast = useToast()
 
@@ -29,7 +30,8 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
   // Fetch real workflows from API
   useEffect(() => {
     fetchAPI('/workflows').then((res) => {
-      if (!res.error && res.data) {
+      if (res.error) { setError(res.error); return }
+      if (res.data) {
         const list = Array.isArray(res.data) ? res.data : res.data.workflows || []
         setApiWorkflows(list)
       }
@@ -260,6 +262,8 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
           {lang === 'es' ? 'Importar' : 'Import'}
         </label>
       </div>
+
+      {error && <div style={{ padding: 12, borderRadius: 8, background: '#FEE2E2', color: '#DC2626', fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>

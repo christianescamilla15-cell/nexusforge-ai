@@ -213,6 +213,7 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   const [isMobile, setIsMobile] = useState(false)
   const [userAutomations, setUserAutomations] = useState([])
   const [loadingUser, setLoadingUser] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [showPublish, setShowPublish] = useState(false)
   const [running, setRunning] = useState(null)
   const [runInputTarget, setRunInputTarget] = useState(null)
@@ -242,7 +243,8 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   const loadUserAutomations = () => {
     setLoadingUser(true)
     fetchAPI('/automations/').then(res => {
-      if (!res.error && Array.isArray(res.data)) setUserAutomations(res.data)
+      if (res.error) { setLoadError(res.error); setLoadingUser(false); return }
+      if (Array.isArray(res.data)) setUserAutomations(res.data)
       setLoadingUser(false)
     })
   }
@@ -458,6 +460,8 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
           </div>
         </div>
       )}
+
+      {loadError && <div style={{ padding: 12, borderRadius: 8, background: '#FEE2E2', color: '#DC2626', fontSize: 13, marginBottom: 16 }}>{loadError}</div>}
 
       {loadingUser ? (
         <Skeleton.Grid count={3} />

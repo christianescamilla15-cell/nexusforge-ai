@@ -14,13 +14,16 @@ export default function StatusPage({ lang = 'en' }) {
   const [providers, setProviders] = useState(null)
   const [loading, setLoading] = useState(true)
   const [lastCheck, setLastCheck] = useState(null)
+  const [error, setError] = useState(null)
 
   const load = async () => {
     setLoading(true)
+    setError(null)
     const [hRes, pRes] = await Promise.all([
       fetchAPI('/health'),
       fetchAPI('/providers/status'),
     ])
+    if (hRes.error) { setError(hRes.error); setLoading(false); return }
     if (hRes.data) setHealth(hRes.data)
     if (pRes.data) setProviders(pRes.data)
     setLastCheck(new Date().toLocaleTimeString())
@@ -59,6 +62,8 @@ export default function StatusPage({ lang = 'en' }) {
           background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#6B7280',
         }}>{loading ? '...' : t.refresh}</button>
       </div>
+
+      {error && <div style={{ padding: 12, borderRadius: 8, background: '#FEE2E2', color: '#DC2626', fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
       {health && (
         <>

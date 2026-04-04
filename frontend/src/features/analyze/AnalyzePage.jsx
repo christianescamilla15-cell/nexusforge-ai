@@ -4,7 +4,7 @@ import { t } from '../../shared/i18n/translations'
 
 const TABS = ['upload', 'drive', 'history']
 
-export default function AnalyzePage({ lang = 'es' }) {
+export default function AnalyzePage({ lang = 'en' }) {
   const [tab, setTab] = useState('upload')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)

@@ -11,6 +11,7 @@ export default function ConnectorHubPage({ lang = 'en' }) {
   const [types, setTypes] = useState([])
   const [connectors, setConnectors] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [configuring, setConfiguring] = useState(null)
   const [configValues, setConfigValues] = useState({})
   const [saving, setSaving] = useState(false)
@@ -32,6 +33,7 @@ export default function ConnectorHubPage({ lang = 'en' }) {
       fetchAPI('/connectors/types'),
       fetchAPI('/connectors/'),
     ])
+    if (typesRes.error && connRes.error) { setError(typesRes.error); setLoading(false); return }
     if (!typesRes.error && typesRes.data) setTypes(Array.isArray(typesRes.data) ? typesRes.data : typesRes.data.types || [])
     if (!connRes.error && connRes.data) setConnectors(connRes.data?.connectors || (Array.isArray(connRes.data) ? connRes.data : []))
     setLoading(false)
@@ -90,6 +92,8 @@ export default function ConnectorHubPage({ lang = 'en' }) {
             : 'Connect external services to use in your automations.'}
         </p>
       </div>
+
+      {error && <div style={{ padding: 12, borderRadius: 8, background: '#FEE2E2', color: '#DC2626', fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
       {loading && <p style={{ color: '#9CA3AF', textAlign: 'center', padding: 40 }}>{lang === 'es' ? 'Cargando...' : 'Loading...'}</p>}
 
