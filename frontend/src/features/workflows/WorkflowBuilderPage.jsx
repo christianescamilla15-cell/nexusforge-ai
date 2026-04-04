@@ -75,7 +75,7 @@ function AgentNode({ node, selected, connecting, onMouseDown, onDelete, onPortMo
       {/* agent type badge */}
       <rect x="14" y="10" width={NODE_W - 44} height="18" rx="4" fill={color + '18'} />
       <text x="20" y="23" fill={color} fontSize="10" fontWeight="700" fontFamily="monospace">
-        {node.agent_type.toUpperCase()}
+        {(node.agent_type || 'custom').toUpperCase()}
       </text>
       {/* name */}
       <text x="14" y="52" fill="#374151" fontSize="12" fontWeight="600">

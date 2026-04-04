@@ -30,7 +30,7 @@ export default function ConnectorHubPage({ lang = 'en' }) {
       fetchAPI('/connectors/'),
     ])
     if (!typesRes.error && typesRes.data) setTypes(Array.isArray(typesRes.data) ? typesRes.data : typesRes.data.types || [])
-    if (!connRes.error && connRes.data) setConnectors(Array.isArray(connRes.data) ? connRes.data : [])
+    if (!connRes.error && connRes.data) setConnectors(connRes.data?.connectors || (Array.isArray(connRes.data) ? connRes.data : []))
     setLoading(false)
   }
 
@@ -143,6 +143,7 @@ export default function ConnectorHubPage({ lang = 'en' }) {
                   <div key={conn.id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '12px 16px', borderRadius: 10, border: '1px solid #E5E7EB', background: '#fff',
+                    position: 'relative',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 20 }}>{CONNECTOR_ICONS[conn.connector_type] || '🔌'}</span>

@@ -16,7 +16,7 @@ export function useAPI(path, deps = []) {
     setLoading(true)
     api.get(path)
       .then((d) => {
-        if (!cancelled) { setData(d); setError(null) }
+        if (!cancelled) { setData(d?.data ?? d); setError(null) }
       })
       .catch((e) => {
         if (!cancelled) setError(e.message)

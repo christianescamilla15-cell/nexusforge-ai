@@ -118,7 +118,13 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   const handleDelete = async (runId) => {
     if (!confirm(lang === 'es' ? `¿Eliminar esta ejecución?` : `Delete this execution?`)) return
     setDeleting(true)
-    await fetchAPI(`/executions/${runId}`, { method: 'DELETE' })
+    const res = await fetchAPI(`/executions/${runId}`, { method: 'DELETE' })
+    if (res.error) {
+      setError(res.error)
+      setDeleting(false)
+      setMenuOpen(null)
+      return
+    }
     setExecutions(prev => prev.filter(e => e.run_id !== runId))
     setMenuOpen(null)
     setDeleting(false)
@@ -131,9 +137,13 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
       : `Delete ${selected.size} selected executions?`
     if (!confirm(msg)) return
     setDeleting(true)
-    await Promise.all([...selected].map(id =>
+    const results = await Promise.all([...selected].map(id =>
       fetchAPI(`/executions/${id}`, { method: 'DELETE' })
     ))
+    const firstError = results.find(r => r.error)
+    if (firstError) {
+      setError(firstError.error)
+    }
     setExecutions(prev => prev.filter(e => !selected.has(e.run_id)))
     setSelected(new Set())
     setDeleting(false)
@@ -143,8 +153,12 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
     setMenuOpen(null)
     // Find the workflow_id from the original execution
     const res = await fetchAPI(`/executions/${exec.run_id}`)
+    if (res.error) {
+      setError(res.error)
+      return
+    }
     if (res.data?.workflow_id) {
-      await fetchAPI('/executions/', {
+      const runRes = await fetchAPI('/executions/', {
         method: 'POST',
         body: JSON.stringify({
           workflow_id: res.data.workflow_id,
@@ -152,6 +166,10 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
           input_data: {},
         }),
       })
+      if (runRes.error) {
+        setError(runRes.error)
+        return
+      }
       loadExecutions()
     }
   }
@@ -343,7 +361,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
                 <td style={{ padding: '12px 16px', color: '#111827', fontSize: 14, fontWeight: 500 }}>{exec.workflow_name}</td>
                 <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13, whiteSpace: 'nowrap' }}>{formatDate(exec.started_at, lang)}</td>
                 <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13 }}>{formatDuration(exec.duration_ms)}</td>
-                <td style={{ padding: '12px 16px', color: '#10B981', fontSize: 13, fontWeight: 500 }}>${exec.total_cost > 0 ? exec.total_cost.toFixed(5) : '0.00'}</td>
+                <td style={{ padding: '12px 16px', color: '#10B981', fontSize: 13, fontWeight: 500 }}>${Number(exec.total_cost || 0) > 0 ? Number(exec.total_cost || 0).toFixed(5) : '0.00'}</td>
                 <td style={{ padding: '12px 16px', color: '#9CA3AF', fontSize: 13 }}>{exec.steps_count}</td>
                 <td style={{ padding: '12px 8px', position: 'relative' }} onClick={e => e.stopPropagation()}>
                   <button

@@ -112,6 +112,12 @@ export default function WorkflowCreateModal({ open, onClose, onCreated }) {
         body: JSON.stringify(payload),
       })
 
+      if (res.error) {
+        setError(res.error)
+        setSaving(false)
+        return
+      }
+
       const newWorkflow = {
         id: res.data?.id || 'wf-' + Date.now(),
         name: payload.name,

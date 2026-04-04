@@ -249,6 +249,8 @@ async def delete_automation(automation_id: UUID, request: Request):
 async def run_automation(automation_id: UUID, body: RunRequest, request: Request):
     """Execute an automation with optional input_data."""
     user_id = _get_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:

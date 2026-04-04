@@ -43,7 +43,7 @@ if not settings.database_url:
     )
 
 if not settings.jwt_secret or len(settings.jwt_secret.encode()) < 32:
-    _startup_logger.critical(
-        "JWT_SECRET is missing or too short (< 32 bytes). "
+    raise RuntimeError(
+        "CRITICAL: JWT_SECRET is missing or too short (< 32 bytes). "
         "Authentication tokens will be insecure. Set a strong JWT_SECRET in .env."
     )

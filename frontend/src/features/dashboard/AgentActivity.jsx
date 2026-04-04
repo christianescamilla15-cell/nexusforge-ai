@@ -1,5 +1,5 @@
 export default function AgentActivity({ agents }) {
-  const max = Math.max(...agents.map((a) => a.count), 1)
+  const max = Math.max(...agents.map((a) => a.count || 0), 1)
 
   return (
     <div style={{

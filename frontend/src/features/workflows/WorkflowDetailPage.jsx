@@ -91,7 +91,6 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, onNavig
   const statusCfg = STATUS_CONFIG[wf.status] || STATUS_CONFIG.active
 
   const handleRun = async () => {
-    alert('handleRun called! workflowId=' + workflowId)
     setRunning(true)
     setRunPhase('preparing')
     setRunError(null)
@@ -109,9 +108,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, onNavig
           input_data: {},
         }),
       })
-      alert('POST result: ' + JSON.stringify(res).slice(0, 200))
     } catch (err) {
-      alert('POST error: ' + err)
       setRunError(String(err))
       setRunPhase('error')
       setRunning(false)

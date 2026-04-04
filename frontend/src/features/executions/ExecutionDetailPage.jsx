@@ -136,7 +136,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
                 event_type: mapped.status === 'completed' ? 'step_completed' : 'step_failed',
                 step_name: '',
                 detail: mapped.status === 'completed'
-                  ? `Completado — costo: $${mapped.total_cost?.toFixed(3) || '0'}, tokens: ${mapped.total_tokens || 0}`
+                  ? `Completado — costo: $${Number(mapped.total_cost ?? 0).toFixed(3)}, tokens: ${mapped.total_tokens || 0}`
                   : (data.error_message || 'Ejecución falló'),
               })
             }
@@ -233,8 +233,8 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
         }}>
           {[
             { label: t('duration', lang), value: formatDuration(totalDuration) },
-            { label: t('cost', lang), value: `$${execution.total_cost?.toFixed(3) || '0.000'}`, color: '#10B981' },
-            { label: t('tokens', lang), value: execution.total_tokens?.toLocaleString() || '0' },
+            { label: t('cost', lang), value: `$${Number(execution.total_cost ?? 0).toFixed(3)}`, color: '#10B981' },
+            { label: t('tokens', lang), value: Number(execution.total_tokens ?? 0).toLocaleString() },
           ].map((m) => (
             <div key={m.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4 }}>{m.label}</div>
@@ -292,8 +292,8 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
           </h3>
           <div style={{ display: 'flex', gap: isMobile ? 12 : 24, flexWrap: 'wrap', fontSize: 13, color: '#374151' }}>
             <span>{t('totalTime', lang)}: <strong>{formatDuration(totalDuration)}</strong></span>
-            <span>{t('totalCost', lang)}: <strong style={{ color: '#10B981' }}>${execution.total_cost?.toFixed(3)}</strong></span>
-            <span>{t('tokensUsed', lang)}: <strong>{execution.total_tokens?.toLocaleString()}</strong></span>
+            <span>{t('totalCost', lang)}: <strong style={{ color: '#10B981' }}>${Number(execution.total_cost ?? 0).toFixed(3)}</strong></span>
+            <span>{t('tokensUsed', lang)}: <strong>{Number(execution.total_tokens ?? 0).toLocaleString()}</strong></span>
             <span>{t('start', lang)}: <strong>{formatDate(execution.started_at, lang)}</strong></span>
           </div>
         </div>

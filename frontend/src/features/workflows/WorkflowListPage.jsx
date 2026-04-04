@@ -52,10 +52,11 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
 
   const handleRename = async (wf) => {
     if (!renameValue.trim()) return
-    await fetchAPI(`/workflows/${wf.id}`, {
+    const res = await fetchAPI(`/workflows/${wf.id}`, {
       method: 'PUT',
       body: JSON.stringify({ name: renameValue }),
     })
+    if (res.error) return
     setApiWorkflows(prev => prev.map(w => w.id === wf.id ? { ...w, name: renameValue } : w))
     setRenaming(null)
     setMenuOpen(null)

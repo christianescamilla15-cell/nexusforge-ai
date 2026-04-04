@@ -16,7 +16,8 @@ export default function DocumentUpload({ onClose, onUploaded }) {
     setUploading(true)
     setError(null)
     try {
-      await api.post('/documents', { title, content, file_type: fileType, language })
+      const res = await api.post('/documents', { title, content, file_type: fileType, language })
+      if (res.error) throw new Error(res.error)
       setSuccess(true)
       setTimeout(() => {
         onUploaded?.()

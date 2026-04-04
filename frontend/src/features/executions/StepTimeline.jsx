@@ -103,10 +103,10 @@ export default function StepTimeline({ steps }) {
                   <StatusBadge status={step.status} />
                   <span style={{ fontSize: 12, color: '#9CA3AF' }}>{formatMs(step.duration_ms)}</span>
                   {step.tokens != null && (
-                    <span style={{ fontSize: 12, color: '#9CA3AF' }}>{step.tokens.toLocaleString()} tok</span>
+                    <span style={{ fontSize: 12, color: '#9CA3AF' }}>{Number(step.tokens ?? 0).toLocaleString()} tok</span>
                   )}
                   {step.cost != null && (
-                    <span style={{ fontSize: 12, color: '#10B981' }}>${step.cost.toFixed(4)}</span>
+                    <span style={{ fontSize: 12, color: '#10B981' }}>${Number(step.cost ?? 0).toFixed(4)}</span>
                   )}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"
                     strokeLinecap="round" strokeLinejoin="round"
@@ -152,7 +152,7 @@ export default function StepTimeline({ steps }) {
                       <MetricPill label="Total Tokens" value={step.tokens.toLocaleString()} mono />
                     )}
                     {step.cost != null && (
-                      <MetricPill label="Cost" value={`$${step.cost.toFixed(4)}`} color="#10B981" mono />
+                      <MetricPill label="Cost" value={`$${Number(step.cost ?? 0).toFixed(4)}`} color="#10B981" mono />
                     )}
                     {step.retries != null && step.retries > 0 && (
                       <MetricPill label="Retries" value={step.retries} color="#EF4444" />
