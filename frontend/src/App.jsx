@@ -39,6 +39,7 @@ const AnalyzePage = lazy(() => import('./features/analyze/AnalyzePage'))
 import TopLoadingBar from './shared/components/TopLoadingBar'
 import OfflineIndicator from './shared/components/OfflineIndicator'
 import SessionExpiry from './shared/components/SessionExpiry'
+import FeedbackWidget from './shared/components/FeedbackWidget'
 
 // Suspense fallback
 const PageLoader = () => <div style={{ padding: 40 }}><Skeleton.Grid count={3} /></div>
@@ -265,6 +266,7 @@ function AppRoutes() {
       <CommandPalette onNavigate={navigate} lang={lang} onRunAutomation={(auto) => routerNavigate(`/automations/${auto.id}`)} />
       <ChatAssistant lang={lang} />
       <OfflineIndicator lang={lang} />
+      <FeedbackWidget lang={lang} />
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
     </ToastContext.Provider>
   )

@@ -3,6 +3,7 @@ import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import { useRefreshOnFocus } from '../../shared/hooks/useRefreshOnFocus'
 import GettingStarted from '../../shared/components/GettingStarted'
+import MiniBarChart from '../../shared/components/MiniBarChart'
 import KPICard from './KPICard'
 import RecentRuns from './RecentRuns'
 import AgentActivity from './AgentActivity'
@@ -640,6 +641,35 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
 
           {/* Getting Started checklist */}
           <GettingStarted lang={lang} onNavigate={onNavigate} />
+
+          {/* Runs per day chart */}
+          {runs.length > 0 && (() => {
+            const days = {}
+            const dayNames = lang === 'es'
+              ? ['Dom','Lun','Mar','Mie','Jue','Vie','Sab']
+              : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date(); d.setDate(d.getDate() - i)
+              const key = d.toISOString().slice(0, 10)
+              days[key] = { label: dayNames[d.getDay()], value: 0 }
+            }
+            runs.forEach(r => {
+              const key = (r.created_at || r.started_at || '').slice(0, 10)
+              if (days[key]) days[key].value++
+            })
+            const chartData = Object.values(days)
+            return chartData.some(d => d.value > 0) ? (
+              <div style={{
+                background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+                padding: 16, marginBottom: 20,
+              }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, color: '#6B7280', marginBottom: 10 }}>
+                  {lang === 'es' ? 'Ejecuciones ultimos 7 dias' : 'Runs last 7 days'}
+                </h4>
+                <MiniBarChart data={chartData} lang={lang} />
+              </div>
+            ) : null
+          })()}
 
           {/* Quick Actions */}
           <div style={{
