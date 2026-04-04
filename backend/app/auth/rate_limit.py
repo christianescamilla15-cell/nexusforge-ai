@@ -54,10 +54,20 @@ async def check_rate_limit(request: Request) -> bool:
                 runs = 0
 
             user_limit = PLAN_LIMITS.get(user["plan"] or "free", 5)
+
+            # Store rate limit info in request state for response headers
+            request.state.rate_limit = user_limit
+            request.state.rate_remaining = max(0, user_limit - runs - 1)
+
             if user_limit != -1 and runs >= user_limit:
                 raise HTTPException(
                     429,
                     f"Daily limit reached ({user_limit} runs/day on {user['plan']} plan). Upgrade at /api/auth/plans",
+                    headers={
+                        "X-RateLimit-Limit": str(user_limit),
+                        "X-RateLimit-Remaining": "0",
+                        "X-RateLimit-Reset": "midnight UTC",
+                    },
                 )
 
             # Increment counter

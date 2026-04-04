@@ -98,14 +98,26 @@ app = FastAPI(
 import uuid as _uuid
 from starlette.middleware.base import BaseHTTPMiddleware
 
-class RequestIDMiddleware(BaseHTTPMiddleware):
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         request_id = request.headers.get("X-Request-ID", str(_uuid.uuid4())[:8])
         response = await call_next(request)
+        # Request tracing
         response.headers["X-Request-ID"] = request_id
+        # Security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        # Cache: API responses should not be cached by default
+        if "/api/" in str(request.url):
+            response.headers.setdefault("Cache-Control", "no-store, max-age=0")
+        # Version
+        response.headers["X-Powered-By"] = "NexusForge AI v2.5"
         return response
 
-app.add_middleware(RequestIDMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS — use ALLOWED_ORIGINS env var; fallback to permissive for dev
 _origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
