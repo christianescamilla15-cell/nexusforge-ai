@@ -18,7 +18,7 @@ const TRIGGER_BADGE = {
 
 const PAGE_SIZE = 12
 
-function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, running, isFavorite, onToggleFavorite }) {
+function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, running, isFavorite, onToggleFavorite, isSelected, onToggleSelect }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const trigger = TRIGGER_BADGE[auto.trigger_type] || TRIGGER_BADGE.manual
   const bg = auto.color ? `${auto.color}12` : 'rgba(99,102,241,0.08)'
@@ -32,11 +32,14 @@ function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, runn
       onMouseLeave={e => e.currentTarget.style.borderColor = '#E5E7EB'}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-        <div style={{
-          width: 52, height: 52, borderRadius: 14, background: bg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-        }}>
-          {auto.icon}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input type="checkbox" checked={!!isSelected} onChange={() => onToggleSelect?.()} style={{ width: 16, height: 16, accentColor: '#6366F1', cursor: 'pointer' }} />
+          <div style={{
+            width: 52, height: 52, borderRadius: 14, background: bg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+          }}>
+            {auto.icon}
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={(e) => { e.stopPropagation(); onToggleFavorite?.() }} style={{
@@ -204,6 +207,7 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   const [editTarget, setEditTarget] = useState(null)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
+  const [selected, setSelected] = useState(new Set())
   const [confirmState, showConfirm] = useConfirm()
   const [favorites, setFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem('nxf_fav_automations') || '[]') } catch { return [] }
@@ -300,6 +304,29 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
     setUserAutomations(prev => prev.filter(a => a.id !== id))
   }
 
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const handleBatchDelete = async () => {
+    if (selected.size === 0) return
+    const ok = await showConfirm(
+      lang === 'es'
+        ? `¿Despublicar ${selected.size} automatizacion(es)?`
+        : `Unpublish ${selected.size} automation(s)?`,
+      { confirmLabel: lang === 'es' ? 'Despublicar' : 'Unpublish' }
+    )
+    if (!ok) return
+    await Promise.all([...selected].map(id => fetchAPI(`/automations/${id}`, { method: 'DELETE' })))
+    setUserAutomations(prev => prev.filter(a => !selected.has(a.id)))
+    setSelected(new Set())
+    toast.show(lang === 'es' ? `${selected.size} despublicadas` : `${selected.size} unpublished`, 'success')
+  }
+
   const handleOpenDashboard = (id) => {
     if (onOpenDashboard) onOpenDashboard(id)
   }
@@ -361,6 +388,30 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
         </div>
       </div>
 
+      {/* Batch actions bar */}
+      {selected.size > 0 && (
+        <div style={{
+          padding: '8px 16px', borderRadius: 10, marginBottom: 12,
+          background: '#EFF6FF', border: '1px solid #BFDBFE',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          animation: 'fadeIn 0.15s ease-out',
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>
+            {selected.size} {lang === 'es' ? 'seleccionadas' : 'selected'}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setSelected(new Set())} style={{
+              padding: '5px 12px', borderRadius: 6, border: '1px solid #BFDBFE',
+              background: '#fff', fontSize: 12, cursor: 'pointer', color: '#6B7280',
+            }}>{lang === 'es' ? 'Deseleccionar' : 'Deselect all'}</button>
+            <button onClick={handleBatchDelete} style={{
+              padding: '5px 12px', borderRadius: 6, border: 'none',
+              background: '#EF4444', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>{lang === 'es' ? 'Despublicar' : 'Unpublish'}</button>
+          </div>
+        </div>
+      )}
+
       {loadingUser ? (
         <Skeleton.Grid count={3} />
       ) : userAutomations.length === 0 ? (
@@ -395,7 +446,8 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
             {paginated.map(auto => (
               <AutomationCard key={auto.id} auto={auto} lang={lang} onRun={handleRun}
                 onDelete={handleDelete} onEdit={setEditTarget} onDashboard={handleOpenDashboard} running={running}
-                isFavorite={favorites.includes(auto.id)} onToggleFavorite={() => toggleFavorite(auto.id)} />
+                isFavorite={favorites.includes(auto.id)} onToggleFavorite={() => toggleFavorite(auto.id)}
+                isSelected={selected.has(auto.id)} onToggleSelect={() => toggleSelect(auto.id)} />
             ))}
             {!search && (
               <div onClick={() => setShowPublish(true)} style={{

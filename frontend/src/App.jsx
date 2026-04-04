@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
 import ErrorBoundary from './shared/components/ErrorBoundary'
 import WhatsNew from './shared/components/WhatsNew'
@@ -9,27 +9,35 @@ import OnboardingTour from './shared/components/OnboardingTour'
 import ToastContainer from './shared/components/Toast'
 import { useLanguage } from './shared/hooks/useLanguage'
 import { useToastState, ToastContext } from './shared/hooks/useToast'
+import Skeleton from './shared/components/Skeleton'
+
+// Eager: Dashboard (first page users see) + Chat (always visible)
 import DashboardPage from './features/dashboard/DashboardPage'
-import WorkflowListPage from './features/workflows/WorkflowListPage'
-import WorkflowDetailPage from './features/workflows/WorkflowDetailPage'
-import WorkflowBuilderPage from './features/workflows/WorkflowBuilderPage'
-import ExecutionListPage from './features/executions/ExecutionListPage'
-import ExecutionDetailPage from './features/executions/ExecutionDetailPage'
-import AgentListPage from './features/agents/AgentListPage'
-import SwarmListPage from './features/swarms/SwarmListPage'
-import SettingsPage from './features/settings/SettingsPage'
 import ChatAssistant from './features/chat/ChatAssistant'
-import CostTokenDashboard from './features/metrics/CostTokenDashboard'
-import AnalyzePage from './features/analyze/AnalyzePage'
-import IntegrationManagerPage from './features/integrations/IntegrationManagerPage'
-import WizardPage from './features/wizard/WizardPage'
-import AutomationsPage from './features/automations/AutomationsPage'
-import SmartDashboardPage from './pages/SmartDashboardPage'
 import CommandPalette from './shared/components/CommandPalette'
-import ConnectorHubPage from './features/connectors/ConnectorHubPage'
-import AuditLog from './features/audit/AuditLog'
-import StatusPage from './features/status/StatusPage'
-import IntelligenceHubPage from './features/intelligence/IntelligenceHubPage'
+
+// Lazy: all other pages (loaded on navigation)
+const AutomationsPage = lazy(() => import('./features/automations/AutomationsPage'))
+const SmartDashboardPage = lazy(() => import('./pages/SmartDashboardPage'))
+const WizardPage = lazy(() => import('./features/wizard/WizardPage'))
+const WorkflowListPage = lazy(() => import('./features/workflows/WorkflowListPage'))
+const WorkflowDetailPage = lazy(() => import('./features/workflows/WorkflowDetailPage'))
+const WorkflowBuilderPage = lazy(() => import('./features/workflows/WorkflowBuilderPage'))
+const ExecutionListPage = lazy(() => import('./features/executions/ExecutionListPage'))
+const ExecutionDetailPage = lazy(() => import('./features/executions/ExecutionDetailPage'))
+const AgentListPage = lazy(() => import('./features/agents/AgentListPage'))
+const SwarmListPage = lazy(() => import('./features/swarms/SwarmListPage'))
+const IntegrationManagerPage = lazy(() => import('./features/integrations/IntegrationManagerPage'))
+const SettingsPage = lazy(() => import('./features/settings/SettingsPage'))
+const IntelligenceHubPage = lazy(() => import('./features/intelligence/IntelligenceHubPage'))
+const ConnectorHubPage = lazy(() => import('./features/connectors/ConnectorHubPage'))
+const AuditLog = lazy(() => import('./features/audit/AuditLog'))
+const CostTokenDashboard = lazy(() => import('./features/metrics/CostTokenDashboard'))
+const StatusPage = lazy(() => import('./features/status/StatusPage'))
+const AnalyzePage = lazy(() => import('./features/analyze/AnalyzePage'))
+
+// Suspense fallback
+const PageLoader = () => <div style={{ padding: 40 }}><Skeleton.Grid count={3} /></div>
 
 // Map old page keys → URL paths (backwards compat for onNavigate callbacks)
 const PAGE_TO_PATH = {
@@ -130,6 +138,7 @@ function AppRoutes() {
   return (
     <ToastContext.Provider value={toast}>
       <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme} user={user} onLogout={handleLogout}>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<DashboardPage lang={lang} onNavigate={navigate} />} />
 
@@ -205,6 +214,7 @@ function AppRoutes() {
           {/* Catch-all → Dashboard */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </Layout>
       {showTour && (
         <OnboardingTour
