@@ -70,6 +70,50 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
     toast.show(lang === 'es' ? 'Nombre actualizado' : 'Name updated', 'success')
   }
 
+  const exportWorkflow = async (wf) => {
+    const res = await fetchAPI(`/workflows/${wf.id}`)
+    if (res.error) return
+    const data = { ...res.data, _exported_at: new Date().toISOString(), _version: '1.0' }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${(wf.name || 'workflow').replace(/\s+/g, '_')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.show(lang === 'es' ? 'Workflow exportado' : 'Workflow exported', 'success')
+  }
+
+  const importWorkflow = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      const res = await fetchAPI('/workflows/', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name ? `${data.name} (imported)` : 'Imported Workflow',
+          dag_definition: data.dag_definition || data.dag || {},
+          description: data.description || '',
+        }),
+      })
+      if (!res.error) {
+        toast.show(lang === 'es' ? 'Workflow importado' : 'Workflow imported', 'success')
+        loadWorkflows()
+      }
+    } catch (err) {
+      toast.show(lang === 'es' ? 'Error al importar' : 'Import failed', 'error')
+    }
+    e.target.value = '' // reset file input
+  }
+
+  const loadWorkflows = () => {
+    fetchAPI('/workflows/').then(res => {
+      if (!res.error && Array.isArray(res.data)) setApiWorkflows(res.data)
+    })
+  }
+
   const columns = [
     { key: 'name', label: t('name', lang), render: (v, row) => {
       if (renaming === row.id) {
@@ -119,6 +163,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
             {[
               { label: lang === 'es' ? 'Editar' : 'Edit', icon: '✏️', action: () => { if (onEditWorkflow) onEditWorkflow(row.id); else onSelectWorkflow(row.id); setMenuOpen(null) } },
               { label: lang === 'es' ? 'Renombrar' : 'Rename', icon: '📝', action: () => { setRenaming(row.id); setRenameValue(row.name); setMenuOpen(null) } },
+              { label: lang === 'es' ? 'Exportar JSON' : 'Export JSON', icon: '📥', action: () => { exportWorkflow(row); setMenuOpen(null) } },
               { label: lang === 'es' ? 'Eliminar' : 'Delete', icon: '🗑️', action: () => handleDelete(row), color: '#EF4444' },
             ].map((item, i) => (
               <div
@@ -190,6 +235,14 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
           </svg>
           {t('newWorkflow', lang)}
         </button>
+        <label style={{
+          padding: '10px 16px', borderRadius: 8, border: '1px solid #E5E7EB',
+          background: '#fff', color: '#6B7280', fontSize: 13, fontWeight: 600,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <input type="file" accept=".json" onChange={importWorkflow} style={{ display: 'none' }} />
+          {lang === 'es' ? 'Importar' : 'Import'}
+        </label>
       </div>
 
       {/* Filters */}

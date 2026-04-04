@@ -26,6 +26,7 @@ import SmartDashboardPage from './pages/SmartDashboardPage'
 import CommandPalette from './shared/components/CommandPalette'
 import ConnectorHubPage from './features/connectors/ConnectorHubPage'
 import AuditLog from './features/audit/AuditLog'
+import StatusPage from './features/status/StatusPage'
 import IntelligenceHubPage from './features/intelligence/IntelligenceHubPage'
 
 // Map old page keys → URL paths (backwards compat for onNavigate callbacks)
@@ -44,6 +45,7 @@ const PAGE_TO_PATH = {
   audit: '/audit',
   analyze: '/analyze',
   metrics: '/metrics',
+  status: '/status',
   'workflow-builder': '/workflows/builder',
 }
 
@@ -180,6 +182,7 @@ function AppRoutes() {
           <Route path="/audit" element={<AuditLog lang={lang} />} />
           <Route path="/analyze" element={<AnalyzePage lang={lang} />} />
           <Route path="/metrics" element={<CostTokenDashboard lang={lang} />} />
+          <Route path="/status" element={<StatusPage lang={lang} />} />
 
           {/* Config */}
           <Route path="/integrations" element={<IntegrationManagerPage lang={lang} />} />

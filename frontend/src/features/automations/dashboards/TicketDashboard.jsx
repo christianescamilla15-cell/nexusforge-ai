@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
+import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 
@@ -55,6 +56,9 @@ export default function TicketDashboard({ automation, lang, onBack }) {
   }, [automation.id])
 
   useEffect(() => { loadResults() }, [loadResults])
+
+  // Ctrl+Enter to process
+  useCtrlEnter(() => { if (ticketText.trim() && !processing) handleProcess() }, !processing)
 
   const handleProcess = async () => {
     if (!ticketText.trim() || processing) return
