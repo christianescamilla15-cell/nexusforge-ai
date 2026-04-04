@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { fetchAPI } from '../../services/api'
 import PublishModal from './PublishModal'
 import RunInputModal from './RunInputModal'
@@ -12,7 +12,9 @@ const TRIGGER_BADGE = {
   webhook: { en: 'Webhook', es: 'Webhook', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
 }
 
-function AutomationCard({ auto, lang, onRun, onDelete, onDashboard, running }) {
+const PAGE_SIZE = 12
+
+function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onDashboard, running }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const trigger = TRIGGER_BADGE[auto.trigger_type] || TRIGGER_BADGE.manual
   const bg = auto.color ? `${auto.color}12` : 'rgba(99,102,241,0.08)'
@@ -51,7 +53,8 @@ function AutomationCard({ auto, lang, onRun, onDelete, onDashboard, running }) {
                 boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: 4,
               }}>
                 {[
-                  { label: lang === 'es' ? 'Dashboard' : 'Dashboard', icon: '\uD83D\uDCCA', action: () => { onDashboard(auto.id); setMenuOpen(false) } },
+                  { label: 'Dashboard', icon: '\uD83D\uDCCA', action: () => { onDashboard(auto.id); setMenuOpen(false) } },
+                  { label: lang === 'es' ? 'Editar' : 'Edit', icon: '\u270F\uFE0F', action: () => { onEdit(auto); setMenuOpen(false) } },
                   { label: lang === 'es' ? 'Despublicar' : 'Unpublish', icon: '\uD83D\uDDD1\uFE0F', action: () => { onDelete(auto.id); setMenuOpen(false) }, color: '#EF4444' },
                 ].map((item, i) => (
                   <div key={i} onClick={item.action} style={{
@@ -107,6 +110,80 @@ function AutomationCard({ auto, lang, onRun, onDelete, onDashboard, running }) {
   )
 }
 
+function EditAutomationModal({ automation, lang, onClose, onSaved }) {
+  const [name, setName] = useState(automation.name || '')
+  const [description, setDescription] = useState(automation.description || '')
+  const [triggerType, setTriggerType] = useState(automation.trigger_type || 'manual')
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    const res = await fetchAPI(`/automations/${automation.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, description, trigger_type: triggerType }),
+    })
+    setSaving(false)
+    if (!res.error) {
+      onSaved()
+      onClose()
+    }
+  }
+
+  const fieldStyle = {
+    width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
+    fontSize: 14, outline: 'none', boxSizing: 'border-box',
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+      }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: '#111827' }}>
+          {lang === 'es' ? 'Editar Automatizacion' : 'Edit Automation'}
+        </h2>
+
+        <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
+          {lang === 'es' ? 'Nombre' : 'Name'}
+        </label>
+        <input value={name} onChange={e => setName(e.target.value)} style={{ ...fieldStyle, marginBottom: 14 }} />
+
+        <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
+          {lang === 'es' ? 'Descripcion' : 'Description'}
+        </label>
+        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+          style={{ ...fieldStyle, marginBottom: 14, resize: 'vertical' }} />
+
+        <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
+          Trigger
+        </label>
+        <select value={triggerType} onChange={e => setTriggerType(e.target.value)}
+          style={{ ...fieldStyle, marginBottom: 20 }}>
+          <option value="manual">Manual</option>
+          <option value="schedule">{lang === 'es' ? 'Programado' : 'Scheduled'}</option>
+          <option value="webhook">Webhook</option>
+        </select>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{
+            padding: '9px 18px', borderRadius: 8, border: '1px solid #E5E7EB',
+            background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#6B7280',
+          }}>{lang === 'es' ? 'Cancelar' : 'Cancel'}</button>
+          <button onClick={handleSave} disabled={saving || !name.trim()} style={{
+            padding: '9px 18px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600,
+            background: saving ? '#A5B4FC' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+            color: '#fff', cursor: saving ? 'default' : 'pointer',
+          }}>{saving ? '...' : (lang === 'es' ? 'Guardar' : 'Save')}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AutomationsPage({ lang = 'en', onNavigateToExecution, initialDashboardId = null, onOpenDashboard }) {
   const [isMobile, setIsMobile] = useState(false)
   const [userAutomations, setUserAutomations] = useState([])
@@ -114,6 +191,9 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   const [showPublish, setShowPublish] = useState(false)
   const [running, setRunning] = useState(null)
   const [runInputTarget, setRunInputTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(0)
   const toast = useToast()
 
   useEffect(() => {
@@ -123,7 +203,6 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // If initialDashboardId is set, open it immediately
   useEffect(() => {
     if (initialDashboardId && onOpenDashboard) {
       onOpenDashboard(initialDashboardId)
@@ -139,6 +218,23 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   }
 
   useEffect(() => { loadUserAutomations() }, [])
+
+  // Filtered + paginated
+  const filtered = useMemo(() => {
+    if (!search.trim()) return userAutomations
+    const q = search.toLowerCase()
+    return userAutomations.filter(a =>
+      (a.name || '').toLowerCase().includes(q) ||
+      (a.description || '').toLowerCase().includes(q) ||
+      (a.workflow_name || '').toLowerCase().includes(q)
+    )
+  }, [userAutomations, search])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  // Reset page when search changes
+  useEffect(() => { setPage(0) }, [search])
 
   const handleRun = async (auto) => {
     const inputType = auto.input_config?.type || 'none'
@@ -172,9 +268,7 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   }
 
   const handleOpenDashboard = (id) => {
-    if (onOpenDashboard) {
-      onOpenDashboard(id)
-    }
+    if (onOpenDashboard) onOpenDashboard(id)
   }
 
   const gridStyle = {
@@ -204,19 +298,34 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
         }
       }} />
 
-      {/* User automations */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      {/* User automations header with search + publish */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
           {lang === 'es' ? 'Mis Automatizaciones' : 'My Automations'}
+          {filtered.length > 0 && <span style={{ fontWeight: 400 }}> ({filtered.length})</span>}
         </p>
-        <button onClick={() => setShowPublish(true)} style={{
-          padding: '7px 14px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600,
-          background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', color: '#fff', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          <span style={{ fontSize: 16 }}>+</span>
-          {lang === 'es' ? 'Publicar' : 'Publish'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {userAutomations.length > 4 && (
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={lang === 'es' ? 'Buscar...' : 'Search...'}
+              style={{
+                padding: '7px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
+                fontSize: 13, outline: 'none', width: isMobile ? 140 : 200,
+              }}
+            />
+          )}
+          <button onClick={() => setShowPublish(true)} style={{
+            padding: '7px 14px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600,
+            background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+          }}>
+            <span style={{ fontSize: 16 }}>+</span>
+            {lang === 'es' ? 'Publicar' : 'Publish'}
+          </button>
+        </div>
       </div>
 
       {loadingUser ? (
@@ -239,25 +348,57 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
             {lang === 'es' ? 'Crea un workflow en el Builder y publicalo aqui.' : 'Create a workflow in the Builder and publish it here.'}
           </p>
         </div>
-      ) : (
-        <div style={gridStyle}>
-          {userAutomations.map(auto => (
-            <AutomationCard key={auto.id} auto={auto} lang={lang} onRun={handleRun} onDelete={handleDelete} onDashboard={handleOpenDashboard} running={running} />
-          ))}
-          <div onClick={() => setShowPublish(true)} style={{
-            padding: 24, borderRadius: 16, border: '2px dashed #E5E7EB',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', minHeight: 180, transition: 'border-color 0.15s',
-          }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = '#6366F1'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = '#E5E7EB'}
-          >
-            <span style={{ fontSize: 28, marginBottom: 8 }}>+</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#9CA3AF' }}>
-              {lang === 'es' ? 'Publicar otra' : 'Publish another'}
-            </span>
-          </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: 32, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
+          {lang === 'es' ? 'No se encontraron automatizaciones' : 'No automations found'}
+          {search && (
+            <button onClick={() => setSearch('')} style={{
+              display: 'block', margin: '10px auto 0', padding: '6px 14px', borderRadius: 8,
+              border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#6366F1',
+            }}>{lang === 'es' ? 'Limpiar busqueda' : 'Clear search'}</button>
+          )}
         </div>
+      ) : (
+        <>
+          <div style={gridStyle}>
+            {paginated.map(auto => (
+              <AutomationCard key={auto.id} auto={auto} lang={lang} onRun={handleRun}
+                onDelete={handleDelete} onEdit={setEditTarget} onDashboard={handleOpenDashboard} running={running} />
+            ))}
+            {!search && (
+              <div onClick={() => setShowPublish(true)} style={{
+                padding: 24, borderRadius: 16, border: '2px dashed #E5E7EB',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', minHeight: 180, transition: 'border-color 0.15s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = '#6366F1'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = '#E5E7EB'}
+              >
+                <span style={{ fontSize: 28, marginBottom: 8 }}>+</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#9CA3AF' }}>
+                  {lang === 'es' ? 'Publicar otra' : 'Publish another'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 20 }}>
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, cursor: page === 0 ? 'default' : 'pointer', color: page === 0 ? '#D1D5DB' : '#374151' }}>
+                &larr;
+              </button>
+              <span style={{ fontSize: 13, color: '#6B7280' }}>
+                {page + 1} / {totalPages}
+              </span>
+              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, cursor: page >= totalPages - 1 ? 'default' : 'pointer', color: page >= totalPages - 1 ? '#D1D5DB' : '#374151' }}>
+                &rarr;
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {showPublish && (
@@ -274,6 +415,15 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
             setRunInputTarget(null)
             _executeRun(auto, input_data)
           }}
+        />
+      )}
+
+      {editTarget && (
+        <EditAutomationModal
+          automation={editTarget}
+          lang={lang}
+          onClose={() => setEditTarget(null)}
+          onSaved={loadUserAutomations}
         />
       )}
 

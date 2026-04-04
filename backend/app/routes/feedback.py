@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+import logging
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from typing import Optional
 from ..services.feedback_service import (
@@ -6,7 +7,9 @@ from ..services.feedback_service import (
     get_feedback_stats, get_agent_performance, get_top_agents,
     get_agent_recommendations, refresh_agent_performance,
 )
+from ..db.client import get_db_pool
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/feedback", tags=["Feedback Loop"])
 
 class FeedbackInput(BaseModel):
@@ -15,13 +18,27 @@ class FeedbackInput(BaseModel):
     approved: bool = False
     comments: str = ""
     reviewer: str = "anonymous"
+    agent_type: str = ""
+    workflow_type: str = ""
 
 @router.post("/submit")
 async def submit_run_feedback(fb: FeedbackInput):
+    # In-memory (backwards compat)
     result = submit_feedback(
         run_id=fb.run_id, rating=fb.rating, approved=fb.approved,
         comments=fb.comments, reviewer=fb.reviewer,
     )
+    # Persist to DB (survives restart)
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO run_feedback (run_id, rating, approved, comments, agent_type, workflow_type)
+                   VALUES ($1::uuid, $2, $3, $4, $5, $6)""",
+                fb.run_id, fb.rating, fb.approved, fb.comments, fb.agent_type, fb.workflow_type,
+            )
+    except Exception as exc:
+        logger.warning("Feedback DB persist failed (in-memory still saved): %s", exc)
     return result.model_dump()
 
 @router.get("/run/{run_id}")

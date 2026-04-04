@@ -546,22 +546,22 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
             <KPICard
               icon={<KPIIcon type="runs" />}
               value={kpis.totalRuns}
-              label="Ejecuciones Totales"
+              label={lang === 'es' ? 'Ejecuciones Totales' : 'Total Runs'}
             />
             <KPICard
               icon={<KPIIcon type="workflows" />}
               value={kpis.successRate}
-              label="Tasa de Exito"
+              label={lang === 'es' ? 'Tasa de Exito' : 'Success Rate'}
             />
             <KPICard
               icon={<KPIIcon type="agents" />}
               value={kpis.agentsTracked}
-              label="Agentes Rastreados"
+              label={lang === 'es' ? 'Agentes Rastreados' : 'Agents Tracked'}
             />
             <KPICard
               icon={<KPIIcon type="docs" />}
               value={kpis.failedRuns}
-              label="Ejecuciones Fallidas"
+              label={lang === 'es' ? 'Ejecuciones Fallidas' : 'Failed Runs'}
             />
           </div>
 

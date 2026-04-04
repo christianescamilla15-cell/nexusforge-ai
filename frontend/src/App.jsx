@@ -39,7 +39,7 @@ const PAGE_TO_PATH = {
   connectors: '/connectors',
   audit: '/audit',
   analyze: '/analyze',
-  'cost-metrics': '/metrics',
+  metrics: '/metrics',
   'workflow-builder': '/workflows/builder',
 }
 
