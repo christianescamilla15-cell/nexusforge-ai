@@ -94,7 +94,7 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
             }))
 
             # Build input for each step (merge workflow input + outputs from dependencies)
-            async def run_single_step(step_name=step_name):
+            async def run_single_step(step_name):
                 step = steps_by_name[step_name]
                 step_input = {**(input_data or {})}
 
