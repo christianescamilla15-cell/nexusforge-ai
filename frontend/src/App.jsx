@@ -24,6 +24,7 @@ import AutomationsPage from './features/automations/AutomationsPage'
 import SmartDashboardPage from './pages/SmartDashboardPage'
 import ConnectorHubPage from './features/connectors/ConnectorHubPage'
 import AuditLog from './features/audit/AuditLog'
+import IntelligenceHubPage from './features/intelligence/IntelligenceHubPage'
 
 // Map old page keys → URL paths (backwards compat for onNavigate callbacks)
 const PAGE_TO_PATH = {
@@ -36,6 +37,7 @@ const PAGE_TO_PATH = {
   executions: '/executions',
   agents: '/agents',
   swarms: '/swarms',
+  intelligence: '/intelligence',
   connectors: '/connectors',
   audit: '/audit',
   analyze: '/analyze',
@@ -171,6 +173,7 @@ function AppRoutes() {
           <Route path="/swarms" element={<SwarmListPage lang={lang} />} />
 
           {/* Advanced */}
+          <Route path="/intelligence" element={<IntelligenceHubPage lang={lang} />} />
           <Route path="/connectors" element={<ConnectorHubPage lang={lang} />} />
           <Route path="/audit" element={<AuditLog lang={lang} />} />
           <Route path="/analyze" element={<AnalyzePage lang={lang} />} />

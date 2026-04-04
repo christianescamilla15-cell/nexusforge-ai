@@ -244,6 +244,9 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
           </button>
         </div>
 
+        {/* Account */}
+        <AccountSection lang={lang} />
+
         {/* Reset Tour */}
         <div style={cardStyle}>
           <div style={{ marginBottom: 12 }}>
@@ -290,6 +293,90 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
           </div>
         </div>
 
+      </div>
+    </div>
+  )
+}
+
+function AccountSection({ lang }) {
+  const user = (() => { try { return JSON.parse(localStorage.getItem('nf_user') || '{}') } catch { return {} } })()
+  const [name, setName] = useState(user.name || '')
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const handleSave = async () => {
+    setSaving(true)
+    setMsg('')
+    try {
+      // Update name
+      if (name !== user.name) {
+        const updated = { ...user, name }
+        localStorage.setItem('nf_user', JSON.stringify(updated))
+      }
+      // Change password
+      if (currentPw && newPw && newPw.length >= 6) {
+        const { fetchAPI } = await import('../../services/api')
+        const res = await fetchAPI('/auth/change-password', {
+          method: 'POST',
+          body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
+        })
+        if (res.error) {
+          setMsg(res.error)
+          setSaving(false)
+          return
+        }
+      }
+      setMsg(lang === 'es' ? 'Guardado' : 'Saved')
+      setCurrentPw('')
+      setNewPw('')
+    } catch (e) {
+      setMsg(e.message)
+    }
+    setSaving(false)
+  }
+
+  if (user.isGuest) return null
+
+  const fieldStyle = {
+    width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
+    fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 12,
+  }
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20 }}>
+      <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
+        {lang === 'es' ? 'Cuenta' : 'Account'}
+      </label>
+      <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 16px' }}>
+        {user.email} &middot; {user.plan || 'free'}
+      </p>
+
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+        {lang === 'es' ? 'Nombre' : 'Name'}
+      </label>
+      <input value={name} onChange={e => setName(e.target.value)} style={fieldStyle} />
+
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+        {lang === 'es' ? 'Contraseña actual' : 'Current password'}
+      </label>
+      <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)}
+        placeholder="••••••" style={fieldStyle} />
+
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+        {lang === 'es' ? 'Nueva contraseña' : 'New password'}
+      </label>
+      <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+        placeholder={lang === 'es' ? 'Min 6 caracteres' : 'Min 6 characters'} style={fieldStyle} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={handleSave} disabled={saving} style={{
+          padding: '9px 20px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600,
+          background: saving ? '#A5B4FC' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+          color: '#fff', cursor: saving ? 'default' : 'pointer',
+        }}>{saving ? '...' : (lang === 'es' ? 'Guardar' : 'Save')}</button>
+        {msg && <span style={{ fontSize: 12, color: msg === 'Saved' || msg === 'Guardado' ? '#10B981' : '#EF4444' }}>{msg}</span>}
       </div>
     </div>
   )

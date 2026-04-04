@@ -45,6 +45,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
           const data = res.data || {}
           const mapped = {
             run_id: data.id || data.run_id || runId,
+            workflow_id: data.workflow_id || null,
             workflow_name: data.workflow_name || 'Workflow',
             status: data.status || 'completed',
             started_at: data.started_at || data.created_at,
@@ -226,6 +227,27 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
             <StatusBadge status={execution.status} />
           </div>
           <span style={{ fontSize: 13, color: '#9CA3AF', fontFamily: 'monospace' }}>{execution.run_id}</span>
+          {execution.status === 'failed' && execution.workflow_id && (
+            <button
+              onClick={async () => {
+                const res = await fetchAPI('/executions/', {
+                  method: 'POST',
+                  body: JSON.stringify({ workflow_id: execution.workflow_id }),
+                })
+                if (res.data?.run_id) {
+                  window.location.href = `/executions/${res.data.run_id}`
+                }
+              }}
+              style={{
+                marginTop: 8, padding: '7px 16px', borderRadius: 8, border: 'none',
+                background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#fff',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              &#x1F504; {lang === 'es' ? 'Reintentar' : 'Retry'}
+            </button>
+          )}
         </div>
         <div style={{
           display: 'flex', gap: isMobile ? 12 : 20,
