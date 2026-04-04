@@ -119,6 +119,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+# GZip compression — reduces response size for large JSON payloads
+from starlette.middleware.gzip import GZipMiddleware
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # CORS — use ALLOWED_ORIGINS env var; fallback to permissive for dev
 _origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
 app.add_middleware(

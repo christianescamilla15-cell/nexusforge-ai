@@ -10,6 +10,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+@router.get("/ping")
+async def ping():
+    """Lightweight ping for uptime monitors. No DB, instant."""
+    return {"pong": True}
+
+
 @router.get("/version")
 async def version():
     """Build info and version."""
