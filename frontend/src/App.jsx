@@ -38,6 +38,7 @@ const AnalyzePage = lazy(() => import('./features/analyze/AnalyzePage'))
 
 import TopLoadingBar from './shared/components/TopLoadingBar'
 import OfflineIndicator from './shared/components/OfflineIndicator'
+import SessionExpiry from './shared/components/SessionExpiry'
 
 // Suspense fallback
 const PageLoader = () => <div style={{ padding: 40 }}><Skeleton.Grid count={3} /></div>
@@ -250,6 +251,7 @@ function AppRoutes() {
         </Routes>
         </Suspense>
       </Layout>
+      <SessionExpiry lang={lang} onLogout={handleLogout} />
       {showTour && (
         <OnboardingTour
           lang={lang}

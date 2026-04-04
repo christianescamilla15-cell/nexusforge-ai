@@ -444,6 +444,28 @@ function AccountSection({ lang }) {
         }}>{saving ? '...' : (lang === 'es' ? 'Guardar' : 'Save')}</button>
         {msg && <span style={{ fontSize: 12, color: msg === 'Saved' || msg === 'Guardado' ? '#10B981' : '#EF4444' }}>{msg}</span>}
       </div>
+
+      {/* Data export */}
+      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #F3F4F6' }}>
+        <button onClick={async () => {
+          const { fetchAPI } = await import('../../services/api')
+          const res = await fetchAPI('/auth/export-data')
+          if (res.data) {
+            const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `nexusforge-data-${new Date().toISOString().slice(0, 10)}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+          }
+        }} style={{
+          padding: '8px 16px', borderRadius: 8, border: '1px solid #E5E7EB',
+          background: '#fff', fontSize: 12, color: '#6B7280', cursor: 'pointer', fontWeight: 600,
+        }}>
+          {lang === 'es' ? 'Exportar mis datos (JSON)' : 'Export my data (JSON)'}
+        </button>
+      </div>
     </div>
   )
 }

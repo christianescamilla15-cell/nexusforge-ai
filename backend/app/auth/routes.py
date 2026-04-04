@@ -103,9 +103,13 @@ def _user_to_safe(user: dict) -> dict:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+# In-memory verification codes (TTL 15 min)
+_verify_codes: dict[str, dict] = {}
+
 @router.post("/register", response_model=TokenResponse)
 async def register(req: RegisterRequest):
-    """Register with email + password."""
+    """Register with email + password. Sends verification code via email."""
+    import random, time
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         existing = await conn.fetchrow("SELECT id FROM nf_users WHERE email = $1", req.email)
@@ -118,8 +122,48 @@ async def register(req: RegisterRequest):
         provider="email",
         password_hash=_hash_password(req.password),
     )
+
+    # Send verification code (best-effort)
+    code = str(random.randint(100000, 999999))
+    _verify_codes[req.email] = {"code": code, "expires": time.time() + 900}
+    try:
+        from app.integrations.email.client import send_email
+        await send_email(
+            to=req.email,
+            subject="NexusForge — Verify your email",
+            html=f"<h2>Your verification code: <strong>{code}</strong></h2><p>Enter this code in NexusForge to verify your account.</p>",
+        )
+    except Exception as exc:
+        logger.warning("Verification email failed: %s", exc)
+
     token = create_token(str(user["id"]), user["email"], user["role"])
-    return {"token": token, "user": _user_to_safe(user)}
+    return {"token": token, "user": _user_to_safe(user), "needs_verification": True}
+
+
+class VerifyEmailRequest(BaseModel):
+    email: str
+    code: str
+
+@router.post("/verify-email")
+async def verify_email(body: VerifyEmailRequest):
+    """Verify email with 6-digit code sent during registration."""
+    import time
+    entry = _verify_codes.get(body.email)
+    if not entry or entry["code"] != body.code:
+        raise HTTPException(400, "Invalid verification code")
+    if time.time() > entry["expires"]:
+        del _verify_codes[body.email]
+        raise HTTPException(400, "Code expired — register again")
+
+    # Mark as verified
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE nf_users SET email_verified = true WHERE email = $1",
+            body.email,
+        )
+    del _verify_codes[body.email]
+    return {"verified": True}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -180,6 +224,34 @@ async def get_me(request: Request):
         raise HTTPException(404, "User not found")
 
     return _user_to_safe(dict(user))
+
+
+@router.get("/export-data")
+async def export_account_data(request: Request):
+    """Export all user data as JSON (GDPR compliance)."""
+    import json
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Missing token")
+    token_data = verify_token(auth[7:])
+    if not token_data:
+        raise HTTPException(401, "Invalid token")
+    user_id = token_data["sub"]
+
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow("SELECT * FROM nf_users WHERE id = $1::uuid", user_id)
+        automations = await conn.fetch("SELECT id, name, description, trigger_type, created_at FROM automations WHERE user_id = $1::uuid", user_id)
+        workflows = await conn.fetch("SELECT id, name, status, created_at FROM workflows WHERE user_id = $1::uuid", user_id)
+        results_count = await conn.fetchval("SELECT count(*) FROM automation_results WHERE user_id = $1::uuid", user_id)
+
+    return {
+        "user": _user_to_safe(dict(user)) if user else {},
+        "automations": [dict(a) for a in automations],
+        "workflows": [dict(w) for w in workflows],
+        "results_count": results_count or 0,
+        "exported_at": __import__('time').strftime("%Y-%m-%dT%H:%M:%SZ", __import__('time').gmtime()),
+    }
 
 
 class ChangePasswordRequest(BaseModel):
