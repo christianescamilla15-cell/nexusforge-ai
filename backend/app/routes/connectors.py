@@ -14,6 +14,22 @@ from app.db.client import get_db_pool
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 logger = logging.getLogger(__name__)
 
+# Fields whose values should be masked in API responses
+_SENSITIVE_KEYS = {"password", "secret", "token", "api_key", "apikey", "access_key", "private_key"}
+
+
+def _mask_config(cfg: dict) -> dict:
+    """Return a copy of config with sensitive fields masked."""
+    if not cfg or not isinstance(cfg, dict):
+        return cfg
+    masked = {}
+    for k, v in cfg.items():
+        if any(s in k.lower() for s in _SENSITIVE_KEYS) and v:
+            masked[k] = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+        else:
+            masked[k] = v
+    return masked
+
 
 # ── Auth helper ──────────────────────────────────────────────────────────────
 
@@ -88,7 +104,7 @@ async def list_connectors(request: Request):
             "id": str(r["id"]),
             "connector_type": r["connector_type"],
             "name": r["name"],
-            "config": cfg,
+            "config": _mask_config(cfg),
             "field_mapping": fm,
             "is_active": r["is_active"],
             "last_test_at": r["last_test_at"].isoformat() if r["last_test_at"] else None,

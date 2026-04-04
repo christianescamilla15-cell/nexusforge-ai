@@ -1,6 +1,6 @@
 """Auth routes — register, login, Google OAuth, profile."""
 
-import hashlib
+import bcrypt
 import logging
 import uuid
 from typing import Optional
@@ -37,7 +37,14 @@ class TokenResponse(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
+    except Exception:
+        return False
 
 
 async def _get_or_create_user(email: str, name: str = None, provider: str = "email",
@@ -103,7 +110,7 @@ async def login(req: LoginRequest):
 
     if not user:
         raise HTTPException(401, "Invalid email or password")
-    if _hash_password(req.password) != user["password_hash"]:
+    if not _verify_password(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
     if not user["is_active"]:
         raise HTTPException(403, "Account disabled")

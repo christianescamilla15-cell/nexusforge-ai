@@ -109,7 +109,7 @@ export default function AuditLog({ entityType, entityId, lang = 'en' }) {
 
   const handleExport = () => {
     const apiUrl = getApiUrl()
-    const token = typeof window !== 'undefined' ? localStorage.getItem('nexusforge_token') : ''
+    const token = typeof window !== 'undefined' ? localStorage.getItem('nf_token') : ''
     const typeParam = filterType ? `?entity_type=${filterType}` : ''
     // Open in new tab with auth header via fetch+blob
     fetch(`${apiUrl}/audit/export${typeParam}`, {

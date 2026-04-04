@@ -4,8 +4,9 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
+from app.auth.jwt_handler import verify_token
 from app.db.client import get_db_pool
 from app.engine.dag import validate_dag, DAGValidationError
 from app.models.workflow import (
@@ -19,9 +20,21 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _get_user_id(request: Request) -> str:
+    """Extract and verify user from JWT. Raises 401 if missing/invalid."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Login required")
+    token_data = verify_token(auth[7:])
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return token_data["sub"]
+
+
 @router.post("/", status_code=201, response_model=WorkflowResponse)
-async def create_workflow(body: WorkflowCreate):
+async def create_workflow(body: WorkflowCreate, request: Request):
     """Create a new workflow after validating its DAG definition."""
+    _get_user_id(request)  # require auth
     # Validate the DAG before persisting
     try:
         validate_dag(body.dag_definition)
@@ -89,8 +102,9 @@ async def get_workflow(workflow_id: UUID):
 
 
 @router.put("/{workflow_id}", response_model=WorkflowResponse)
-async def update_workflow(workflow_id: UUID, body: WorkflowUpdate):
+async def update_workflow(workflow_id: UUID, body: WorkflowUpdate, request: Request):
     """Update an existing workflow. If dag_definition is provided, validate it first."""
+    _get_user_id(request)  # require auth
     if body.dag_definition is not None:
         try:
             validate_dag(body.dag_definition)
@@ -146,8 +160,9 @@ async def update_workflow(workflow_id: UUID, body: WorkflowUpdate):
 
 
 @router.delete("/{workflow_id}", status_code=200)
-async def delete_workflow(workflow_id: UUID):
+async def delete_workflow(workflow_id: UUID, request: Request):
     """Soft-delete a workflow by setting status to 'archived'."""
+    _get_user_id(request)  # require auth
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:

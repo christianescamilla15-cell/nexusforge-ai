@@ -4,21 +4,11 @@
 // STRICT: Real mode NEVER falls back to demo data.
 // ---------------------------------------------------------------------------
 
-// ── Mode helpers ────────────────────────────────────────────────────────────
+// ── Mode helpers (deprecated — always real mode) ───────────────────────────
 
-/** Return the current mode: 'demo' or 'real'.
- *  Default is 'real' since the serverless backend is always available. */
+/** @deprecated Always returns 'real'. Kept for backward compatibility. */
 export function getMode() {
-  if (typeof window === 'undefined') return 'real'
-  return localStorage.getItem('nexusforge_mode') || 'real'
-}
-
-/** Persist mode to localStorage and notify listeners. */
-export function setMode(mode) {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('nexusforge_mode', mode)
-    window.dispatchEvent(new Event('nexusforge-mode-change'))
-  }
+  return 'real'
 }
 
 /** Return the user-configured API URL (only relevant in real mode). Empty string = not configured. */
@@ -62,24 +52,18 @@ export async function checkBackendHealth() {
 
 // ── Public helpers ──────────────────────────────────────────────────────────
 
-let _isDemoMode = true
-
-/** True when the last request(s) used demo data. */
+/** @deprecated Always returns false. Kept for backward compatibility. */
 export function isDemoMode() {
-  return _isDemoMode
+  return false
 }
 
 /**
- * Generic fetcher — STRICT mode behavior.
- * - Demo mode: returns demo data immediately (no network request).
- * - Real mode: calls backend. On failure returns { data: null, error: "..." }.
- *   NEVER falls back to demo data.
+ * Generic fetcher — calls backend, returns { data, error }.
+ * On failure returns { data: null, error: "..." }.
  */
 export async function fetchAPI(endpoint, options = {}) {
-  // Always connect to real backend
   const apiUrl = getApiUrl()
   if (!apiUrl) {
-    _isDemoMode = false
     return {
       data: null, isDemo: false,
       error: 'No API URL configured. Go to Settings to set the backend URL.',
@@ -105,16 +89,12 @@ export async function fetchAPI(endpoint, options = {}) {
       let errDetail = `HTTP ${res.status}`
       try { const body = await res.json(); errDetail = body.detail || body.error || errDetail } catch {}
       console.error('[fetchAPI] error response:', errDetail)
-      _isDemoMode = false
       return { data: null, isDemo: false, error: `Backend error: ${errDetail}` }
     }
 
-    _isDemoMode = false
     return { data: await res.json(), isDemo: false, error: null }
   } catch (err) {
     console.error('[fetchAPI] fetch threw:', err)
-    // STRICT: do NOT return demo data. Return error.
-    _isDemoMode = false
     return {
       data: null, isDemo: false,
       error: `Backend unreachable: ${err.message}. Check Settings or switch to Demo mode.`,
@@ -159,90 +139,7 @@ export function getGuestUsage() {
   return { used: runs, limit: GUEST_RUN_LIMIT, remaining: Math.max(0, GUEST_RUN_LIMIT - runs) }
 }
 
-// ── Demo data router ────────────────────────────────────────────────────────
-
-function getDemoData(endpoint) {
-  if (endpoint.includes('/reliability/health')) return DEMO_HEALTH
-  if (endpoint.includes('/runs'))              return DEMO_RUNS_RESPONSE
-  if (endpoint.includes('/enterprise-ops'))    return DEMO_ENTERPRISE_RESULT
-  if (endpoint.includes('/document-intelligence')) return DEMO_DOC_RESULT
-  if (endpoint.includes('/portfolio-copilot')) return DEMO_COPILOT_RESULT
-  return {}
-}
-
-// ── Demo datasets ───────────────────────────────────────────────────────────
-
-const DEMO_RUNS = [
-  {
-    id: 'run-demo-001',
-    workflow_name: 'Enterprise Ops Pipeline',
-    status: 'completed',
-    started_at: new Date(Date.now() - 3600000).toISOString(),
-    finished_at: new Date(Date.now() - 3540000).toISOString(),
-    latency_ms: 1240,
-    agents_used: ['IntakeAgent', 'IntentClassifierAgent', 'CRMUpdateAgent', 'SupervisorAgent'],
-  },
-  {
-    id: 'run-demo-002',
-    workflow_name: 'Document Intelligence',
-    status: 'completed',
-    started_at: new Date(Date.now() - 7200000).toISOString(),
-    finished_at: new Date(Date.now() - 7140000).toISOString(),
-    latency_ms: 890,
-    agents_used: ['DocumentRAGAgent', 'SummarizerAgent'],
-  },
-  {
-    id: 'run-demo-003',
-    workflow_name: 'Portfolio Copilot',
-    status: 'completed',
-    started_at: new Date(Date.now() - 10800000).toISOString(),
-    finished_at: new Date(Date.now() - 10740000).toISOString(),
-    latency_ms: 2100,
-    agents_used: ['PortfolioAnalyzer', 'RiskAgent', 'RecommenderAgent'],
-  },
-  {
-    id: 'run-demo-004',
-    workflow_name: 'Enterprise Ops Pipeline',
-    status: 'failed',
-    started_at: new Date(Date.now() - 14400000).toISOString(),
-    finished_at: new Date(Date.now() - 14380000).toISOString(),
-    latency_ms: 4500,
-    agents_used: ['IntakeAgent', 'IntentClassifierAgent'],
-    error: 'Timeout waiting for CRM response',
-  },
-  {
-    id: 'run-demo-005',
-    workflow_name: 'Document Intelligence',
-    status: 'completed',
-    started_at: new Date(Date.now() - 18000000).toISOString(),
-    finished_at: new Date(Date.now() - 17940000).toISOString(),
-    latency_ms: 750,
-    agents_used: ['DocumentRAGAgent', 'SummarizerAgent', 'TranslatorAgent'],
-  },
-]
-
-const DEMO_RUNS_RESPONSE = {
-  runs: DEMO_RUNS,
-  total: DEMO_RUNS.length,
-}
-
-const DEMO_HEALTH = {
-  status: 'healthy',
-  total_runs: 47,
-  failed_runs: 3,
-  system_success_rate: 0.936,
-  total_agents_tracked: 12,
-  avg_latency_ms: 1380,
-  agents: [
-    { agent: 'IntakeAgent',           executions: 47 },
-    { agent: 'IntentClassifierAgent', executions: 47 },
-    { agent: 'DocumentRAGAgent',      executions: 32 },
-    { agent: 'CRMUpdateAgent',        executions: 28 },
-    { agent: 'SupervisorAgent',       executions: 47 },
-    { agent: 'SchedulerAgent',        executions: 15 },
-    { agent: 'NotificationAgent',     executions: 22 },
-  ],
-}
+// ── Demo datasets (kept for Playground/EnterpriseOps pages) ─────────────────
 
 export const DEMO_ENTERPRISE_RESULT = {
   status: 'completed',

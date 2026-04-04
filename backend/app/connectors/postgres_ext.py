@@ -1,5 +1,6 @@
 """External PostgreSQL connector — query and write to remote databases."""
 import logging
+import re
 from datetime import datetime, timezone
 
 from .base import ConnectorBase, ConnectorResult
@@ -12,6 +13,15 @@ class PostgresExtConnector(ConnectorBase):
     name = "PostgreSQL (External)"
     description = "Connect to external PostgreSQL databases — run queries and insert records"
     icon = "🐘"
+    _IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+    @classmethod
+    def _validate_identifier(cls, name: str, label: str = "identifier") -> str:
+        """Validate that a name is a safe SQL identifier (no injection)."""
+        if not name or not cls._IDENTIFIER_RE.match(name):
+            raise ValueError(f"Invalid {label}: '{name}'. Only letters, digits, and underscores are allowed.")
+        return name
+
     config_schema = {
         "fields": [
             {"key": "host", "label": "Host", "type": "text",
@@ -78,9 +88,24 @@ class PostgresExtConnector(ConnectorBase):
         if not query and not table:
             return ConnectorResult(status="error", error="Provide 'query' (SQL) or 'table' name").to_dict()
 
+        # Validate identifiers to prevent SQL injection
+        try:
+            self._validate_identifier(schema, "schema")
+            if table:
+                self._validate_identifier(table, "table")
+        except ValueError as e:
+            return ConnectorResult(status="error", error=str(e)).to_dict()
+
         # Build query from table if no raw query
         if not query:
             query = f'SELECT * FROM "{schema}"."{table}" LIMIT {limit}'
+
+        # Block semicolons to prevent multi-statement injection
+        if ";" in query:
+            return ConnectorResult(
+                status="error",
+                error="Semicolons are not allowed in queries (multi-statement execution is blocked)",
+            ).to_dict()
 
         # Safety: block destructive statements
         normalized = query.strip().upper()
@@ -96,6 +121,8 @@ class PostgresExtConnector(ConnectorBase):
             dsn = self._dsn(config)
             conn = await asyncpg.connect(dsn, timeout=10)
             try:
+                # Run in a read-only transaction for safety
+                await conn.execute("SET TRANSACTION READ ONLY")
                 rows = await conn.fetch(query)
                 records = [dict(r) for r in rows]
                 # Serialize non-JSON types
@@ -140,8 +167,21 @@ class PostgresExtConnector(ConnectorBase):
         if not records:
             return ConnectorResult(status="error", error="'records' must be a non-empty list of objects").to_dict()
 
+        # Validate identifiers to prevent SQL injection
+        try:
+            self._validate_identifier(schema, "schema")
+            self._validate_identifier(table, "table")
+        except ValueError as e:
+            return ConnectorResult(status="error", error=str(e)).to_dict()
+
         # Build INSERT from first record's keys
         columns = list(records[0].keys())
+        # Validate column names
+        for col in columns:
+            try:
+                self._validate_identifier(col, "column")
+            except ValueError as e:
+                return ConnectorResult(status="error", error=str(e)).to_dict()
         col_str = ", ".join(f'"{c}"' for c in columns)
         placeholders = ", ".join(f"${i+1}" for i in range(len(columns)))
         insert_sql = f'INSERT INTO "{schema}"."{table}" ({col_str}) VALUES ({placeholders})'

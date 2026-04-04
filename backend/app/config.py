@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://nexus:nexus_dev_2026@postgres:5432/nexusforge"
+    database_url: str = ""
 
     # Redis
     redis_url: str = "redis://redis:6379"
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     voyage_api_key: str = ""
 
     # JWT
-    jwt_secret: str = "nexusforge-dev-secret-2026"
+    jwt_secret: str = ""
 
     # App
     app_name: str = "NexusForge AI"
@@ -30,3 +30,20 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 settings = Settings()
+
+# ── Startup validations ─────────────────────────────────────────────────────
+import logging as _logging
+
+_startup_logger = _logging.getLogger("nexusforge.config")
+
+if not settings.database_url:
+    raise RuntimeError(
+        "CRITICAL: DATABASE_URL environment variable is not set. "
+        "The application cannot start without a database connection."
+    )
+
+if not settings.jwt_secret or len(settings.jwt_secret.encode()) < 32:
+    _startup_logger.critical(
+        "JWT_SECRET is missing or too short (< 32 bytes). "
+        "Authentication tokens will be insecure. Set a strong JWT_SECRET in .env."
+    )

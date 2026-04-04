@@ -66,7 +66,23 @@ async def _launch_run(automation_id: UUID, workflow_id: UUID, wf_name: str,
 
     tracker = SafeExecutionTracker(MetricsCollectorTracker())
     ctx = ExecutionContext(run_id=str(run_id), workflow_name=wf_name or auto_name, tracker=tracker)
-    asyncio.create_task(execute_workflow(workflow_id, run_id, dag, input_data, ctx=ctx, user_id=user_id))
+
+    async def _safe_execute():
+        try:
+            await execute_workflow(workflow_id, run_id, dag, input_data, ctx=ctx, user_id=user_id)
+        except Exception as exc:
+            logger.exception("Background execution failed for run %s", run_id)
+            try:
+                p = await get_db_pool()
+                async with p.acquire() as c:
+                    await c.execute(
+                        "UPDATE workflow_runs SET status='failed', error_message=$1, completed_at=now() WHERE id=$2",
+                        str(exc), run_id,
+                    )
+            except Exception:
+                logger.exception("Failed to mark run %s as failed in DB", run_id)
+
+    asyncio.create_task(_safe_execute())
     return str(run_id)
 
 
@@ -507,7 +523,11 @@ def _row_to_dict(r) -> dict:
         "schedule_cron": r.get("schedule_cron"),
         "is_active": r["is_active"],
         "input_config": ic or {"type": "none"},
-        "webhook_secret": r.get("webhook_secret"),
+        "webhook_secret": (
+            "••••" + r["webhook_secret"][-4:]
+            if r.get("webhook_secret") and len(r["webhook_secret"]) > 4
+            else None
+        ),
         "total_runs": r["total_runs"],
         "last_run_at": r["last_run_at"].isoformat() if r.get("last_run_at") else None,
         "created_at": r["created_at"].isoformat(),

@@ -1,9 +1,10 @@
 """Swarm topology API routes."""
 
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app.auth.jwt_handler import verify_token
 from app.swarms.manager import get_swarm, list_topologies
 from app.db.client import get_db_pool
 from app.db.pipeline_store import save_pipeline_run
@@ -13,6 +14,17 @@ from app.utils.run_tracker import start_run, record_step, complete_run
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _get_user_id(request: Request) -> str:
+    """Extract and verify user from JWT. Raises 401 if missing/invalid."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Login required")
+    token_data = verify_token(auth[7:])
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return token_data["sub"]
 
 
 class SwarmExecuteRequest(BaseModel):
@@ -39,8 +51,9 @@ async def get_topologies():
 
 
 @router.post("/execute", response_model=SwarmResultResponse)
-async def execute_swarm(req: SwarmExecuteRequest):
+async def execute_swarm(req: SwarmExecuteRequest, request: Request):
     """Execute a swarm with given agents and input."""
+    _get_user_id(request)  # require auth
     try:
         swarm = get_swarm(req.topology)
     except ValueError as e:

@@ -3,7 +3,7 @@ import jwt
 import time
 from app.config import settings
 
-SECRET = settings.jwt_secret if hasattr(settings, 'jwt_secret') else 'nexusforge-dev-secret-2026'
+SECRET = settings.jwt_secret
 ALGORITHM = 'HS256'
 TOKEN_EXPIRY = 3600 * 8  # 8 hours
 

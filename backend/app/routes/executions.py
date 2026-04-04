@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 
+from app.auth.jwt_handler import verify_token
 from app.db.client import get_db_pool
 from app.domain.tracking.events import ExecutionContext
 from app.engine.executor import execute_workflow
@@ -16,6 +17,17 @@ from app.models.execution import ExecutionTrigger, ExecutionResponse, StepExecut
 from app.models.workflow import DAGDefinition
 from app.websocket.manager import manager
 
+
+def _get_user_id(request: Request) -> str:
+    """Extract and verify user from JWT. Raises 401 if missing/invalid."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Login required")
+    token_data = verify_token(auth[7:])
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return token_data["sub"]
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -23,6 +35,7 @@ logger = logging.getLogger(__name__)
 @router.post("/", status_code=201)
 async def trigger_execution(body: ExecutionTrigger, request: Request):
     """Create a workflow run and enqueue execution in the background."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -61,11 +74,26 @@ async def trigger_execution(body: ExecutionTrigger, request: Request):
             tracker=tracker,
         )
 
-        asyncio.create_task(execute_workflow(
-            body.workflow_id, run_id, dag, body.input_data,
-            ctx=ctx,
-            user_id=getattr(request.state, "user_id", None),
-        ))
+        async def _safe_execute():
+            try:
+                await execute_workflow(
+                    body.workflow_id, run_id, dag, body.input_data,
+                    ctx=ctx,
+                    user_id=user_id,
+                )
+            except Exception as exc:
+                logger.exception("Background execution failed for run %s", run_id)
+                try:
+                    p = await get_db_pool()
+                    async with p.acquire() as c:
+                        await c.execute(
+                            "UPDATE workflow_runs SET status='failed', error_message=$1, completed_at=now() WHERE id=$2",
+                            str(exc), run_id,
+                        )
+                except Exception:
+                    logger.exception("Failed to mark run %s as failed in DB", run_id)
+
+        asyncio.create_task(_safe_execute())
 
         return {
             "run_id": str(run_id),
@@ -80,8 +108,9 @@ async def trigger_execution(body: ExecutionTrigger, request: Request):
 
 
 @router.post("/cleanup-zombies", status_code=200)
-async def cleanup_zombie_runs():
+async def cleanup_zombie_runs(request: Request):
     """Mark all stuck pending/running runs (>10 min old) as failed."""
+    _get_user_id(request)  # require auth
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -254,8 +283,9 @@ async def get_execution(run_id: UUID):
 
 
 @router.delete("/{run_id}", status_code=200)
-async def delete_or_cancel_execution(run_id: UUID):
+async def delete_or_cancel_execution(run_id: UUID, request: Request):
     """Cancel a running execution or permanently delete a finished one."""
+    _get_user_id(request)  # require auth
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:

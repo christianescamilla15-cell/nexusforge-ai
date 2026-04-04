@@ -1,5 +1,6 @@
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
+from ..auth.jwt_handler import verify_token
 from ..use_cases.enterprise_ops.schemas import OperationsRequest, OperationsResponse
 from ..use_cases.enterprise_ops.workflow import run_enterprise_ops_workflow
 from ..integrations.email.notify import notify_workflow_complete
@@ -11,9 +12,22 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/enterprise-ops", tags=["Enterprise Operations"])
 
+
+def _get_user_id(req: Request) -> str:
+    """Extract and verify user from JWT. Raises 401 if missing/invalid."""
+    auth = req.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Login required")
+    token_data = verify_token(auth[7:])
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return token_data["sub"]
+
+
 @router.post("/process", response_model=OperationsResponse)
-async def process_operations_request(request: OperationsRequest):
+async def process_operations_request(request: OperationsRequest, req: Request):
     """Process an enterprise operations request through the 8-agent workflow."""
+    _get_user_id(req)  # require auth
     # Track in workflow_runs for Executions page
     tracker_run_id = None
     try:
