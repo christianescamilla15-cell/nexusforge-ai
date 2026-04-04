@@ -70,11 +70,20 @@ async def check_rate_limit(request: Request) -> bool:
                     },
                 )
 
-            # Increment counter
-            await conn.execute(
-                "UPDATE nf_users SET runs_today = runs_today + 1 WHERE id = $1::uuid",
-                user_id,
-            )
+            # Atomic increment — prevents race condition under concurrent requests
+            if user_limit != -1:
+                result = await conn.fetchval(
+                    "UPDATE nf_users SET runs_today = runs_today + 1 WHERE id = $1::uuid AND runs_today < $2 RETURNING runs_today",
+                    user_id, user_limit,
+                )
+                if result is None:
+                    raise HTTPException(429, f"Daily limit reached ({user_limit} runs/day). Upgrade at /api/auth/plans")
+                request.state.rate_remaining = max(0, user_limit - result)
+            else:
+                await conn.execute(
+                    "UPDATE nf_users SET runs_today = runs_today + 1 WHERE id = $1::uuid",
+                    user_id,
+                )
             return True
 
     except HTTPException:

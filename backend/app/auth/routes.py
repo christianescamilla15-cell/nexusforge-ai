@@ -103,21 +103,11 @@ def _user_to_safe(user: dict) -> dict:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-# In-memory verification codes (TTL 15 min)
-_verify_codes: dict[str, dict] = {}
-
 @router.post("/register", response_model=TokenResponse)
 async def register(req: RegisterRequest):
     """Register with email + password. Sends verification code via email."""
-    import random, time
+    from app.auth.codes import create_code
 
-    # Cleanup expired verification codes (simple sweep)
-    now = time.time()
-    expired = [email for email, data in _verify_codes.items() if data["expires"] < now]
-    for email in expired:
-        del _verify_codes[email]
-
-    # Validate password length BEFORE DB call (avoids email enumeration via error order)
     if len(req.password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
 
@@ -134,9 +124,8 @@ async def register(req: RegisterRequest):
         password_hash=_hash_password(req.password),
     )
 
-    # Send verification code (best-effort)
-    code = str(random.randint(100000, 999999))
-    _verify_codes[req.email] = {"code": code, "expires": time.time() + 900}
+    # Send verification code (stored in DB, shared across workers)
+    code = await create_code(req.email, "verify")
     try:
         from app.integrations.email.client import send_email
         await send_email(
@@ -157,23 +146,18 @@ class VerifyEmailRequest(BaseModel):
 
 @router.post("/verify-email")
 async def verify_email(body: VerifyEmailRequest):
-    """Verify email with 6-digit code sent during registration."""
-    import time
-    entry = _verify_codes.get(body.email)
-    if not entry or entry["code"] != body.code:
-        raise HTTPException(400, "Invalid verification code")
-    if time.time() > entry["expires"]:
-        del _verify_codes[body.email]
-        raise HTTPException(400, "Code expired — register again")
+    """Verify email with 6-digit code (stored in DB, shared across workers)."""
+    from app.auth.codes import verify_code
+    valid = await verify_code(body.email, "verify", body.code)
+    if not valid:
+        raise HTTPException(400, "Invalid or expired verification code")
 
-    # Mark as verified
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         await conn.execute(
             "UPDATE nf_users SET email_verified = true WHERE email = $1",
             body.email,
         )
-    del _verify_codes[body.email]
     return {"verified": True}
 
 
@@ -329,29 +313,19 @@ class ResetPasswordRequest(BaseModel):
     code: str
     new_password: str
 
-# In-memory reset codes (TTL 15 min) — use Redis in production for multi-worker
-_reset_codes: dict[str, dict] = {}
-
 @router.post("/forgot-password")
 async def forgot_password(body: ForgotPasswordRequest):
-    """Send a 6-digit reset code to the user's email via Resend."""
-    import random, time
-    # Cleanup expired reset codes (simple sweep)
-    now = time.time()
-    expired = [email for email, data in _reset_codes.items() if data["expires"] < now]
-    for email in expired:
-        del _reset_codes[email]
+    """Send a 6-digit reset code (stored in DB, shared across workers)."""
+    from app.auth.codes import create_code
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         user = await conn.fetchrow("SELECT id, email FROM nf_users WHERE email = $1", body.email)
 
     if not user:
-        # Don't reveal if email exists — always return success
         return {"sent": True}
 
-    code = str(random.randint(100000, 999999))
-    _reset_codes[body.email] = {"code": code, "expires": time.time() + 900}  # 15 min
+    code = await create_code(body.email, "reset")
 
     # Send via Resend (best-effort)
     try:
@@ -369,13 +343,11 @@ async def forgot_password(body: ForgotPasswordRequest):
 
 @router.post("/reset-password")
 async def reset_password(body: ResetPasswordRequest):
-    """Verify the 6-digit code and set a new password."""
-    import time
-    entry = _reset_codes.get(body.email)
-    if entry and time.time() > entry["expires"]:
-        del _reset_codes[body.email]
-        entry = None  # treat expired as missing
-    if not entry or entry["code"] != body.code:
+    """Verify the 6-digit code (from DB) and set a new password."""
+    from app.auth.codes import verify_code
+
+    valid = await verify_code(body.email, "reset", body.code)
+    if not valid:
         raise HTTPException(400, "Invalid or expired reset code")
 
     if len(body.new_password) < 6:
@@ -391,7 +363,6 @@ async def reset_password(body: ResetPasswordRequest):
     if result == "UPDATE 0":
         raise HTTPException(404, "User not found")
 
-    del _reset_codes[body.email]
     return {"reset": True}
 
 
