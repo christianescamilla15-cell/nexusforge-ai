@@ -268,17 +268,8 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
 
         {/* Google OAuth */}
         <button
-          onClick={async () => {
-            try {
-              // Google Identity Services popup
-              if (!window.google?.accounts?.id) {
-                setError(lang === 'es' ? 'Google SDK no disponible' : 'Google SDK not available')
-                return
-              }
-              // This will be triggered via Google's callback
-            } catch (e) {
-              setError(e.message)
-            }
+          onClick={() => {
+            setError(lang === 'es' ? 'Google OAuth proximamente. Usa email por ahora.' : 'Google OAuth coming soon. Use email for now.')
           }}
           style={{
             width: '100%', padding: '12px 0', borderRadius: 8,

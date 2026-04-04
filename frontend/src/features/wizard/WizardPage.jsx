@@ -1056,8 +1056,9 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
       })
 
       if (autoRes.error) {
-        // Automation creation failed, but workflow was created — still navigate
-        console.warn('Automation creation failed:', autoRes.error)
+        setError(autoRes.error)
+        setPublishing(false)
+        return
       }
 
       const automationId = autoRes.data?.id

@@ -131,7 +131,7 @@ function DocIntelTab({ lang }) {
 
   useEffect(() => {
     fetchAPI('/document-intelligence/examples').then(res => {
-      if (res.data?.examples) setExamples(res.data.examples)
+      if (res.data?.examples || res.data?.documents) setExamples(res.data.examples || res.data.documents || [])
     })
   }, [])
 

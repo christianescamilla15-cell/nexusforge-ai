@@ -40,6 +40,5 @@ def decrypt_api_key(encrypted: str) -> str:
         decrypted = bytes(b ^ key_stream[i % len(key_stream)] for i, b in enumerate(encrypted_bytes))
         return decrypted.decode()
     except Exception as exc:
-        logger.warning("Failed to decrypt API key, returning as-is: %s", exc)
-        # Fallback: return raw value (backwards compat with pre-encryption keys)
-        return encrypted
+        logger.warning("Failed to decrypt API key: %s", exc)
+        return ""

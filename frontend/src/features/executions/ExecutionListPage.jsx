@@ -144,15 +144,21 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
     const ok = await showConfirm(msg)
     if (!ok) return
     setDeleting(true)
-    const results = await Promise.all([...selected].map(id =>
-      fetchAPI(`/executions/${id}`, { method: 'DELETE' })
+    const ids = [...selected]
+    const results = await Promise.all(ids.map(id =>
+      fetchAPI(`/executions/${id}`, { method: 'DELETE' }).then(res => ({ id, ...res }))
     ))
-    const firstError = results.find(r => r.error)
-    if (firstError) {
-      setError(firstError.error)
+    const successIds = new Set(results.filter(r => !r.error).map(r => r.id))
+    const failures = results.filter(r => r.error)
+    if (failures.length > 0) {
+      setError(failures[0].error + (failures.length > 1 ? ` (+${failures.length - 1} more)` : ''))
     }
-    setExecutions(prev => prev.filter(e => !selected.has(e.run_id)))
-    setSelected(new Set())
+    setExecutions(prev => prev.filter(e => !successIds.has(e.run_id)))
+    setSelected(prev => {
+      const next = new Set(prev)
+      successIds.forEach(id => next.delete(id))
+      return next
+    })
     setDeleting(false)
   }
 

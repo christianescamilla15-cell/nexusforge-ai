@@ -436,7 +436,7 @@ export default function RulesPanel({ automationId, lang = 'en' }) {
                   method: 'POST',
                   body: JSON.stringify({ automation_id: automationId, ...tmpl.rule }),
                 })
-                load()
+                loadRules()
               }} style={{
                 padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB',
                 background: '#fff', fontSize: 12, cursor: 'pointer', color: '#374151',

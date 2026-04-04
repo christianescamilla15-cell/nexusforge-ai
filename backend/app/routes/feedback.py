@@ -23,6 +23,13 @@ class FeedbackInput(BaseModel):
 
 @router.post("/submit")
 async def submit_run_feedback(fb: FeedbackInput):
+    # Validate UUID format
+    import uuid as _uuid
+    try:
+        _uuid.UUID(fb.run_id)
+    except (ValueError, AttributeError):
+        return {"error": "Invalid run_id format — must be a valid UUID"}
+
     # In-memory (backwards compat)
     result = submit_feedback(
         run_id=fb.run_id, rating=fb.rating, approved=fb.approved,

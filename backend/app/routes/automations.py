@@ -268,8 +268,8 @@ async def run_automation(automation_id: UUID, body: RunRequest, request: Request
             auto = await conn.fetchrow(
                 """SELECT a.id, a.workflow_id, a.name, w.name AS wf_name
                    FROM automations a JOIN workflows w ON w.id = a.workflow_id
-                   WHERE a.id = $1""",
-                automation_id,
+                   WHERE a.id = $1 AND a.user_id = $2::uuid""",
+                automation_id, user_id,
             )
         if not auto:
             raise HTTPException(status_code=404, detail="Automation not found")
@@ -293,14 +293,17 @@ async def run_automation(automation_id: UUID, body: RunRequest, request: Request
 # ── Stats + Dashboard ─────────────────────────────────────────────────────────
 
 @router.get("/{automation_id}/stats")
-async def get_automation_stats(automation_id: UUID):
+async def get_automation_stats(automation_id: UUID, request: Request):
     """Return aggregated run stats for an automation."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        return {"total_runs": 0, "last_run_at": None, "completed": 0, "failed": 0, "avg_duration_ms": 0, "avg_cost_usd": 0}
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             auto = await conn.fetchrow(
-                "SELECT workflow_id, total_runs, last_run_at FROM automations WHERE id = $1",
-                automation_id,
+                "SELECT workflow_id, total_runs, last_run_at FROM automations WHERE id = $1 AND user_id = $2::uuid",
+                automation_id, user_id,
             )
             if not auto:
                 raise HTTPException(status_code=404, detail="Automation not found")
@@ -331,16 +334,19 @@ async def get_automation_stats(automation_id: UUID):
 
 
 @router.get("/{automation_id}/dashboard")
-async def get_automation_dashboard(automation_id: UUID):
+async def get_automation_dashboard(automation_id: UUID, request: Request):
     """Return full dashboard data: automation info + stats + recent runs."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        return {"automation": {}, "stats": {}, "recent_runs": []}
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             auto = await conn.fetchrow(
                 """SELECT a.*, w.name AS workflow_name
                    FROM automations a JOIN workflows w ON w.id = a.workflow_id
-                   WHERE a.id = $1""",
-                automation_id,
+                   WHERE a.id = $1 AND a.user_id = $2::uuid""",
+                automation_id, user_id,
             )
             if not auto:
                 raise HTTPException(status_code=404, detail="Automation not found")

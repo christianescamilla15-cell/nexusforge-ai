@@ -116,6 +116,9 @@ async def register(req: RegisterRequest):
         if existing:
             raise HTTPException(409, "Email already registered")
 
+    if len(req.password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+
     user = await _get_or_create_user(
         email=req.email,
         name=req.name,

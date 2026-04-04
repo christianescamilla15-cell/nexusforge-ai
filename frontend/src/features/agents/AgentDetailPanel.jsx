@@ -28,14 +28,9 @@ function TestAgentSection({ agentType, lang }) {
     setTesting(true)
     setTestResult(null)
     const { fetchAPI } = await import('../../services/api')
-    const res = await fetchAPI('/executions/', {
+    const res = await fetchAPI('/demo/analyze', {
       method: 'POST',
-      body: JSON.stringify({
-        workflow_id: null,
-        agent_test: true,
-        agent_type: agentType,
-        input_data: { text: testInput },
-      }),
+      body: JSON.stringify({ text: testInput }),
     })
     setTesting(false)
     setTestResult(res.data || res.error || 'No response')

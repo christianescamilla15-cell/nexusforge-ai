@@ -4,9 +4,10 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from ..auth.jwt_handler import verify_token
 from ..llm.router import get_router
 
 logger = logging.getLogger(__name__)
@@ -102,8 +103,11 @@ class WizardQuestionRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate_workflow(req: WizardRequest):
+async def generate_workflow(req: WizardRequest, request: Request):
     """Generate a workflow DAG from natural language description."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer ") or not verify_token(auth[7:]):
+        raise HTTPException(status_code=401, detail="Login required")
     agents_text = "\n".join(f"- {k}: {v}" for k, v in AGENT_CATALOG.items())
     prompt = SYSTEM_PROMPT.format(agents=agents_text)
 
