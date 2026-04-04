@@ -139,11 +139,15 @@ export default function TicketDashboard({ automation, lang, onBack }) {
     ? Math.round((results.filter(r => r.output_data?.urgency).length / results.length) * 100)
     : 0
 
+  const autoResolvedCount = results.filter(r => r.output_data?.auto_resolved).length
+  const autoResolveRate = totalProcessed > 0 ? Math.round((autoResolvedCount / totalProcessed) * 100) : 0
+  const urgentPending = results.filter(r => (r.output_data?.urgency === 'critical' || r.output_data?.urgency === 'high') && !r.output_data?.auto_resolved).length
+
   const stats = [
-    { label: lang === 'es' ? 'Tickets procesados' : 'Tickets processed', value: totalProcessed, color: '#6366F1' },
-    { label: lang === 'es' ? 'Tiempo prom.' : 'Avg time', value: avgTime ? `${avgTime}ms` : '--', color: '#F59E0B' },
-    { label: lang === 'es' ? 'Tasa de exito' : 'Success rate', value: `${successRate}%`, color: '#10B981' },
-    { label: lang === 'es' ? 'Criticos' : 'Critical', value: results.filter(r => r.output_data?.urgency === 'critical').length, color: '#DC2626' },
+    { label: lang === 'es' ? 'Tickets procesados hoy' : 'Tickets processed today', value: totalProcessed, color: '#6366F1' },
+    { label: lang === 'es' ? 'Tiempo promedio de respuesta' : 'Avg response time', value: avgTime ? `${avgTime}ms` : '--', color: '#F59E0B' },
+    { label: lang === 'es' ? 'Tasa de resolucion automatica' : 'Auto-resolution rate', value: `${autoResolveRate}%`, color: '#10B981' },
+    { label: lang === 'es' ? 'Tickets urgentes pendientes' : 'Urgent tickets pending', value: urgentPending, color: '#DC2626' },
   ]
 
   const columns = [

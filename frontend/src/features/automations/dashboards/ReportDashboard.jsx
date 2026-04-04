@@ -191,8 +191,8 @@ export default function ReportDashboard({ automation, lang, onBack }) {
   const stats = [
     { label: lang === 'es' ? 'Reportes generados' : 'Reports generated', value: totalReports, color: '#F59E0B' },
     { label: lang === 'es' ? 'Ultimo reporte' : 'Last report', value: lastReport ? formatDate(lastReport, lang) : '--', color: '#6366F1' },
-    { label: lang === 'es' ? 'Paginas totales' : 'Total pages', value: results.reduce((s, r) => s + (r.output_data?.pages || 1), 0), color: '#10B981' },
-    { label: lang === 'es' ? 'Fuentes usadas' : 'Sources used', value: [...new Set(results.flatMap(r => r.input_data?.sources || []))].length, color: '#8B5CF6' },
+    { label: lang === 'es' ? 'Paginas generadas' : 'Pages generated', value: results.reduce((s, r) => s + (r.output_data?.pages || 1), 0), color: '#10B981' },
+    { label: lang === 'es' ? 'Fuentes de datos' : 'Data sources', value: [...new Set(results.flatMap(r => r.input_data?.sources || []))].length, color: '#8B5CF6' },
   ]
 
   // Detail view

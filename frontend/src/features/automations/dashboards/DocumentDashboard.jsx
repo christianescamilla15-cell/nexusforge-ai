@@ -171,11 +171,13 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
     ? Math.round(results.reduce((sum, r) => sum + (r.output_data?.processing_time_ms || 1200), 0) / results.length)
     : 0
 
+  const totalFieldsExtracted = results.reduce((sum, r) => sum + (r.output_data?.fields?.length || 0), 0)
+
   const stats = [
-    { label: lang === 'es' ? 'Documentos' : 'Documents', value: totalDocs, color: '#10B981' },
-    { label: lang === 'es' ? 'Paginas totales' : 'Total pages', value: totalPages, color: '#6366F1' },
-    { label: lang === 'es' ? 'Tiempo prom.' : 'Avg time', value: avgTime ? `${(avgTime / 1000).toFixed(1)}s` : '--', color: '#F59E0B' },
-    { label: lang === 'es' ? 'Campos extraidos' : 'Fields extracted', value: results.reduce((sum, r) => sum + (r.output_data?.fields?.length || 0), 0), color: '#8B5CF6' },
+    { label: lang === 'es' ? 'Documentos analizados' : 'Documents analyzed', value: totalDocs, color: '#10B981' },
+    { label: lang === 'es' ? 'Paginas procesadas' : 'Pages processed', value: totalPages, color: '#6366F1' },
+    { label: lang === 'es' ? 'Campos extraidos correctamente' : 'Fields extracted correctly', value: totalFieldsExtracted, color: '#8B5CF6' },
+    { label: lang === 'es' ? 'Tiempo promedio' : 'Avg processing time', value: avgTime ? `${(avgTime / 1000).toFixed(1)}s` : '--', color: '#F59E0B' },
   ]
 
   // Detail view

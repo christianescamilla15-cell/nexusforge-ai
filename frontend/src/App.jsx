@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import AuthPage from './features/auth/AuthPage'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
+import ToastContainer from './shared/components/Toast'
 import { useLanguage } from './shared/hooks/useLanguage'
+import { useToastState, ToastContext } from './shared/hooks/useToast'
 import DashboardPage from './features/dashboard/DashboardPage'
 import WorkflowListPage from './features/workflows/WorkflowListPage'
 import WorkflowDetailPage from './features/workflows/WorkflowDetailPage'
@@ -19,6 +21,7 @@ import AnalyzePage from './features/analyze/AnalyzePage'
 import IntegrationManagerPage from './features/integrations/IntegrationManagerPage'
 import WizardPage from './features/wizard/WizardPage'
 import AutomationsPage from './features/automations/AutomationsPage'
+import SmartDashboardPage from './pages/SmartDashboardPage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -26,6 +29,7 @@ export default function App() {
   const [selectedExecution, setSelectedExecution] = useState(null)
   const [editWorkflowId, setEditWorkflowId] = useState(null)
   const [initialDashboardId, setInitialDashboardId] = useState(null)
+  const [selectedAutomationId, setSelectedAutomationId] = useState(null)
   const { lang, setLang, toggle: toggleLang } = useLanguage()
   const [theme, setTheme] = useState(() => localStorage.getItem('nexusforge_theme') || 'light')
   const [showTour, setShowTour] = useState(() => {
@@ -38,6 +42,9 @@ export default function App() {
       return saved ? JSON.parse(saved) : null
     } catch { return null }
   })
+
+  // Toast system
+  const toast = useToastState()
 
   const handleLogin = useCallback((userData) => {
     setUser(userData)
@@ -60,7 +67,10 @@ export default function App() {
     setSelectedWorkflow(null)
     setSelectedExecution(null)
     if (page !== 'workflow-builder') setEditWorkflowId(null)
-    if (page !== 'automations') setInitialDashboardId(null)
+    if (page !== 'automations') {
+      setInitialDashboardId(null)
+      setSelectedAutomationId(null)
+    }
   }
 
   const navigateToBuilder = (workflowId = null) => {
@@ -72,7 +82,12 @@ export default function App() {
 
   // Auth gate — must be AFTER all hooks
   if (!user) {
-    return <AuthPage onLogin={handleLogin} lang={lang} />
+    return (
+      <ToastContext.Provider value={toast}>
+        <AuthPage onLogin={handleLogin} lang={lang} />
+        <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
+      </ToastContext.Provider>
+    )
   }
 
   const renderPage = () => {
@@ -143,6 +158,18 @@ export default function App() {
       case 'swarms':
         return <SwarmListPage lang={lang} />
       case 'automations':
+        if (selectedAutomationId) {
+          return (
+            <SmartDashboardPage
+              automationId={selectedAutomationId}
+              onBack={() => setSelectedAutomationId(null)}
+              onRun={(auto) => {
+                setSelectedAutomationId(null)
+              }}
+              lang={lang}
+            />
+          )
+        }
         return (
           <AutomationsPage
             lang={lang}
@@ -151,6 +178,7 @@ export default function App() {
               setCurrentPage('executions')
               setSelectedExecution(runId)
             }}
+            onOpenDashboard={(id) => setSelectedAutomationId(id)}
           />
         )
       case 'analyze':
@@ -179,7 +207,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <ToastContext.Provider value={toast}>
       <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme} user={user} onLogout={handleLogout}>
         {renderPage()}
       </Layout>
@@ -192,6 +220,7 @@ export default function App() {
         />
       )}
       <ChatAssistant lang={lang} />
-    </>
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
+    </ToastContext.Provider>
   )
 }

@@ -127,10 +127,10 @@ export default function EmailDashboard({ automation, lang, onBack }) {
   const autoRate = totalEmails > 0 ? Math.round((autoResolved / totalEmails) * 100) : 0
 
   const stats = [
-    { label: lang === 'es' ? 'Emails procesados' : 'Emails processed', value: totalEmails, color: '#8B5CF6' },
-    { label: lang === 'es' ? 'Auto-resueltos' : 'Auto-resolved', value: `${autoRate}%`, color: '#10B981' },
-    { label: lang === 'es' ? 'Escalados' : 'Escalated', value: escalated, color: '#F59E0B' },
-    { label: lang === 'es' ? 'Confianza prom.' : 'Avg confidence', value: totalEmails > 0
+    { label: lang === 'es' ? 'Emails respondidos' : 'Emails responded', value: totalEmails, color: '#8B5CF6' },
+    { label: lang === 'es' ? 'Tasa de auto-resolucion' : 'Auto-resolution rate', value: `${autoRate}%`, color: '#10B981' },
+    { label: lang === 'es' ? 'Emails escalados' : 'Emails escalated', value: escalated, color: '#F59E0B' },
+    { label: lang === 'es' ? 'Confianza promedio' : 'Avg confidence', value: totalEmails > 0
       ? `${Math.round(results.reduce((sum, r) => sum + ((r.output_data?.confidence || 0.75) * 100), 0) / totalEmails)}%`
       : '--', color: '#6366F1' },
   ]

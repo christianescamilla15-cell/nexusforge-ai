@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
+import { useToast } from '../../shared/hooks/useToast'
+import { addNotification } from '../../shared/components/NotificationBell'
 
 const CATEGORY_BADGE = {
   support:    { en: 'Support',    es: 'Soporte',      color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
@@ -144,6 +146,7 @@ export default function TemplatesLibrary({ lang = 'en', onDeployed, isMobile = f
   const [hoveredSlug, setHoveredSlug] = useState(null)
   const [deployTarget, setDeployTarget] = useState(null)
   const [deploying, setDeploying] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
     fetchAPI('/templates/').then(res => {
@@ -163,10 +166,16 @@ export default function TemplatesLibrary({ lang = 'en', onDeployed, isMobile = f
     })
     setDeploying(false)
     if (res.error) {
-      alert(lang === 'es' ? `Error al desplegar: ${res.error}` : `Deploy failed: ${res.error}`)
+      toast.show(lang === 'es' ? `Error al desplegar: ${res.error}` : `Deploy failed: ${res.error}`, 'error')
+      addNotification(lang === 'es' ? `Error al desplegar: ${res.error}` : `Deploy failed: ${res.error}`, 'error')
       return
     }
     setDeployTarget(null)
+    const deployMsg = lang === 'es'
+      ? `\u2705 ${nameOverride} desplegado exitosamente`
+      : `\u2705 ${nameOverride} deployed successfully`
+    toast.show(deployMsg, 'success')
+    addNotification(deployMsg, 'success')
     if (res.data?.automation_id) {
       if (onDeployed) onDeployed(res.data)
     }
