@@ -633,6 +633,36 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
           {/* Plan usage bar */}
           <PlanUsageBar lang={lang} totalRuns={kpis.totalRuns} />
 
+          {/* Quick Actions */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+            gap: 10, marginBottom: 20,
+          }}>
+            {[
+              { key: 'wizard', icon: '\u2728', label: lang === 'es' ? 'Crear Automatizacion' : 'Create Automation', color: '#6366F1' },
+              { key: 'intelligence', icon: '\u26A1', label: lang === 'es' ? 'Analizar Documento' : 'Analyze Document', color: '#059669' },
+              { key: 'automations', icon: '\u25B6', label: lang === 'es' ? 'Mis Automatizaciones' : 'My Automations', color: '#D97706' },
+              { key: 'agents', icon: '\uD83E\uDD16', label: lang === 'es' ? 'Ver Agentes' : 'View Agents', color: '#8B5CF6' },
+            ].map(action => (
+              <button key={action.key} onClick={() => onNavigate(action.key)} style={{
+                padding: '14px 12px', borderRadius: 10,
+                border: '1px solid #E5E7EB', background: '#fff',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                transition: 'all 0.15s', fontSize: 13, fontWeight: 600, color: '#374151',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = action.color; e.currentTarget.style.background = `${action.color}06` }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = '#fff' }}
+              >
+                <span style={{
+                  width: 32, height: 32, borderRadius: 8, background: `${action.color}12`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0,
+                }}>{action.icon}</span>
+                <span style={{ lineHeight: 1.3 }}>{action.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Main content grid */}
           <div className="nxf-two-col-grid" style={{
             display: 'grid',

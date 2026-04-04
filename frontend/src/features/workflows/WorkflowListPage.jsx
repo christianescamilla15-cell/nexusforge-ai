@@ -3,6 +3,7 @@ import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import DataTable from '../../shared/components/DataTable'
 import StatusBadge from '../../shared/components/StatusBadge'
+import { useToast } from '../../shared/hooks/useToast'
 import EmptyState from '../../shared/components/EmptyState'
 import ConfirmModal from '../../shared/components/ConfirmModal'
 import { useConfirm } from '../../shared/hooks/useConfirm'
@@ -16,6 +17,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
   const [apiWorkflows, setApiWorkflows] = useState([])
   const [localWorkflows, setLocalWorkflows] = useState([])
   const [confirmState, showConfirm] = useConfirm()
+  const toast = useToast()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -52,6 +54,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
     await fetchAPI(`/workflows/${wf.id}`, { method: 'DELETE' })
     setApiWorkflows(prev => prev.filter(w => w.id !== wf.id))
     setMenuOpen(null)
+    toast.show(lang === 'es' ? 'Workflow archivado' : 'Workflow archived', 'success')
   }
 
   const handleRename = async (wf) => {
@@ -64,6 +67,7 @@ export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lan
     setApiWorkflows(prev => prev.map(w => w.id === wf.id ? { ...w, name: renameValue } : w))
     setRenaming(null)
     setMenuOpen(null)
+    toast.show(lang === 'es' ? 'Nombre actualizado' : 'Name updated', 'success')
   }
 
   const columns = [
