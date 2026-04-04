@@ -98,10 +98,11 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                 step = steps_by_name[step_name]
                 step_input = {**(input_data or {})}
 
-                # Merge outputs from dependencies
+                # Merge outputs from dependencies (snapshot to avoid race with parallel steps)
+                results_snapshot = dict(results)
                 for dep in step.depends_on:
-                    if dep in results and results[dep].get("output"):
-                        step_input[f"_{dep}_output"] = results[dep]["output"]
+                    if dep in results_snapshot and results_snapshot[dep].get("output"):
+                        step_input[f"_{dep}_output"] = results_snapshot[dep]["output"]
 
                 result = await run_step(
                     run_id=run_id,

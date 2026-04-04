@@ -870,6 +870,14 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const [requiresApproval, setRequiresApproval] = useState(draft?.requiresApproval || false)
   const [hasDraft] = useState(!!draft?.description)
 
+  // Warn before closing tab during publish (prevents orphaned workflows)
+  useEffect(() => {
+    if (!publishing) return
+    const handler = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [publishing])
+
   // Save wizard state to localStorage on every change
   useEffect(() => {
     if (description || step > 0) {
