@@ -347,11 +347,11 @@ async def reset_password(body: ResetPasswordRequest):
     """Verify the 6-digit code and set a new password."""
     import time
     entry = _reset_codes.get(body.email)
+    if entry and time.time() > entry["expires"]:
+        del _reset_codes[body.email]
+        entry = None  # treat expired as missing
     if not entry or entry["code"] != body.code:
         raise HTTPException(400, "Invalid or expired reset code")
-    if time.time() > entry["expires"]:
-        del _reset_codes[body.email]
-        raise HTTPException(400, "Reset code has expired")
 
     if len(body.new_password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")

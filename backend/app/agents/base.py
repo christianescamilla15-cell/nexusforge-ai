@@ -43,8 +43,8 @@ def clean_llm_json(text: str) -> dict:
             return json.loads(match.group())
         except json.JSONDecodeError:
             pass
-    # Last resort: raise with context
-    raise json.JSONDecodeError(f"Cannot parse LLM response as JSON: {t[:200]}", t, 0)
+    # Last resort: return fallback dict instead of crashing on plain string responses
+    return {"raw_text": t[:500], "_parse_failed": True}
 
 
 @dataclass

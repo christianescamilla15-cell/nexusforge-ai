@@ -11,8 +11,11 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
 
   const handleApiUrlChange = (value) => {
     setApiUrl(value)
-    persistApiUrl(value)
     setBackendStatus(null)
+  }
+
+  const handleApiUrlBlur = () => {
+    persistApiUrl(apiUrl)
   }
 
   const testConnection = async () => {
@@ -54,7 +57,7 @@ export default function SettingsPage({ lang = 'en', setLang, onResetTour, theme 
                 aria-label="API URL"
                 style={inputStyle}
                 onFocus={(e) => e.target.style.borderColor = 'rgba(16,185,129,0.4)'}
-                onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; handleApiUrlBlur() }}
               />
               <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 8, lineHeight: 1.5 }}>
                 {lang === 'es'

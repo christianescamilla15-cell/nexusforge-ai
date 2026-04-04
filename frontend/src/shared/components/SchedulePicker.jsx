@@ -47,7 +47,7 @@ export default function SchedulePicker({ value = '', onChange, lang = 'en' }) {
 
   const handleCustomChange = (h, m) => {
     setHour(h); setMinute(m)
-    const days = selectedDays.length > 0 ? selectedDays.sort().join(',') : '*'
+    const days = selectedDays.length > 0 ? [...selectedDays].sort().join(',') : '*'
     onChange?.(`${m} ${h} * * ${days}`)
   }
 

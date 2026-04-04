@@ -28,7 +28,7 @@ function PlanUsageBar({ lang, totalRuns }) {
   const limit = PLAN_LIMITS[plan] || 5
   if (limit === -1) return null // enterprise = unlimited
 
-  const pct = Math.min(100, Math.round((totalRuns / limit) * 100))
+  const pct = Math.min(100, Math.round(((totalRuns ?? 0) / limit) * 100)) || 0
   const isNear = pct >= 80
   const barColor = isNear ? '#EF4444' : '#6366F1'
 
@@ -667,11 +667,12 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
               : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
             for (let i = 6; i >= 0; i--) {
               const d = new Date(); d.setDate(d.getDate() - i)
-              const key = d.toISOString().slice(0, 10)
+              const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
               days[key] = { label: dayNames[d.getDay()], value: 0 }
             }
             runs.forEach(r => {
-              const key = (r.created_at || r.started_at || '').slice(0, 10)
+              const rd = new Date(r.created_at || r.started_at || '')
+              const key = `${rd.getFullYear()}-${String(rd.getMonth()+1).padStart(2,'0')}-${String(rd.getDate()).padStart(2,'0')}`
               if (days[key]) days[key].value++
             })
             const chartData = Object.values(days)

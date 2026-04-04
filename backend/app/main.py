@@ -66,7 +66,9 @@ async def lifespan(app: FastAPI):
                 pool = await get_db_pool()
                 async with pool.acquire() as conn:
                     result = await conn.execute("""
-                        UPDATE workflow_runs SET status = 'failed'
+                        UPDATE workflow_runs SET status = 'failed',
+                            completed_at = NOW(),
+                            error_message = 'Execution timed out (zombie cleanup)'
                         WHERE status IN ('pending', 'running')
                         AND created_at < NOW() - INTERVAL '10 minutes'
                     """)

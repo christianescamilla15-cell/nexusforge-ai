@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fetchAPI } from '../../services/api'
+import { fetchAPI, trackGuestRun } from '../../services/api'
 import PublishModal from './PublishModal'
 import RunInputModal from './RunInputModal'
 import TemplatesLibrary from '../templates/TemplatesLibrary'
@@ -268,12 +268,12 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
     })
     if (!search.trim()) return list
     const q = search.toLowerCase()
-    return userAutomations.filter(a =>
+    return list.filter(a =>
       (a.name || '').toLowerCase().includes(q) ||
       (a.description || '').toLowerCase().includes(q) ||
       (a.workflow_name || '').toLowerCase().includes(q)
     )
-  }, [userAutomations, search])
+  }, [userAutomations, search, favorites])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -291,6 +291,11 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
   }
 
   const _executeRun = async (auto, input_data) => {
+    const guest = trackGuestRun()
+    if (!guest.allowed) {
+      toast.show(lang === 'es' ? 'Limite de ejecuciones alcanzado. Registrate para continuar.' : 'Run limit reached. Register to continue.', 'error')
+      return
+    }
     setRunning(auto.id)
     toast.show(
       lang === 'es' ? '\uD83D\uDE80 Ejecutando automatizacion...' : '\uD83D\uDE80 Running automation...',
@@ -333,10 +338,12 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
       { confirmLabel: lang === 'es' ? 'Despublicar' : 'Unpublish' }
     )
     if (!ok) return
-    await Promise.all([...selected].map(id => fetchAPI(`/automations/${id}`, { method: 'DELETE' })))
-    setUserAutomations(prev => prev.filter(a => !selected.has(a.id)))
+    const ids = [...selected]
+    const results = await Promise.all(ids.map(id => fetchAPI(`/automations/${id}`, { method: 'DELETE' })))
+    const deletedIds = new Set(ids.filter((_, i) => !results[i].error))
+    setUserAutomations(prev => prev.filter(a => !deletedIds.has(a.id)))
     setSelected(new Set())
-    toast.show(lang === 'es' ? `${selected.size} despublicadas` : `${selected.size} unpublished`, 'success')
+    toast.show(`${deletedIds.size} ${lang === 'es' ? 'despublicadas' : 'unpublished'}`, 'success')
   }
 
   const handleClone = async (auto) => {
