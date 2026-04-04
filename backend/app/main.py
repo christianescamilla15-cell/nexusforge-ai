@@ -73,9 +73,11 @@ app = FastAPI(
     redirect_slashes=True,
 )
 
+# CORS — use ALLOWED_ORIGINS env var; fallback to permissive for dev
+_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

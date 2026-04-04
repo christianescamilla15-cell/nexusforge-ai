@@ -6,6 +6,7 @@ import time
 from uuid import UUID, uuid4
 
 from app.agents.registry import get_agent
+from app.auth.encryption import decrypt_api_key
 from app.db.client import get_db_pool
 from app.domain.tracking.events import ExecutionContext
 from app.engine.checkpoint import save_checkpoint
@@ -44,7 +45,7 @@ async def _load_user_agent_config(user_id: str | None, agent_type: str) -> dict:
             "max_tokens": row["max_tokens"],
             "system_prompt": row["system_prompt"],
             "tools": row["tools"] or [],
-            "user_api_key": key_row["api_key_encrypted"] if key_row else None,
+            "user_api_key": decrypt_api_key(key_row["api_key_encrypted"]) if key_row else None,
         }
     except Exception as exc:
         logger.debug("Could not load user agent config for %s/%s: %s", user_id, agent_type, exc)

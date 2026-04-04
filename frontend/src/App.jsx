@@ -16,12 +16,13 @@ import SwarmListPage from './features/swarms/SwarmListPage'
 import SettingsPage from './features/settings/SettingsPage'
 import ChatAssistant from './features/chat/ChatAssistant'
 import CostTokenDashboard from './features/metrics/CostTokenDashboard'
-import ExecutionTimelineViewer from './features/executions/ExecutionTimelineViewer'
 import AnalyzePage from './features/analyze/AnalyzePage'
 import IntegrationManagerPage from './features/integrations/IntegrationManagerPage'
 import WizardPage from './features/wizard/WizardPage'
 import AutomationsPage from './features/automations/AutomationsPage'
 import SmartDashboardPage from './pages/SmartDashboardPage'
+import ConnectorHubPage from './features/connectors/ConnectorHubPage'
+import AuditLog from './features/audit/AuditLog'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -181,12 +182,14 @@ export default function App() {
             onOpenDashboard={(id) => setSelectedAutomationId(id)}
           />
         )
+      case 'connectors':
+        return <ConnectorHubPage lang={lang} />
+      case 'audit':
+        return <AuditLog lang={lang} />
       case 'analyze':
         return <AnalyzePage lang={lang} />
       case 'cost-metrics':
         return <CostTokenDashboard lang={lang} />
-      case 'timeline':
-        return <ExecutionTimelineViewer lang={lang} />
       case 'settings':
         return (
           <SettingsPage

@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from ..integrations.config import IntegrationConfig
 from ..auth.jwt_handler import verify_token
+from ..auth.encryption import encrypt_api_key, decrypt_api_key
 from ..db.client import get_db_pool
 from ..llm.user_provider import AVAILABLE_PROVIDERS
 
@@ -111,7 +112,7 @@ async def save_provider_key(req: SaveKeyRequest, request: Request):
             """INSERT INTO user_provider_keys (user_id, provider, api_key_encrypted, model)
                VALUES ($1::uuid, $2, $3, $4)
                ON CONFLICT (user_id, provider) DO UPDATE SET api_key_encrypted = $3, model = $4""",
-            user_id, req.provider, req.api_key, req.model,
+            user_id, req.provider, encrypt_api_key(req.api_key), req.model,
         )
     return {"saved": True, "provider": req.provider}
 
@@ -123,7 +124,7 @@ async def list_provider_keys(request: Request):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT provider, model, is_active, LEFT(api_key_encrypted, 8) || '...' as preview FROM user_provider_keys WHERE user_id = $1::uuid",
+            "SELECT provider, model, is_active, '****' || RIGHT(api_key_encrypted, 4) as preview FROM user_provider_keys WHERE user_id = $1::uuid",
             user_id,
         )
     return {"keys": [dict(r) for r in rows]}

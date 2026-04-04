@@ -23,8 +23,8 @@ class Settings(BaseSettings):
 
     # App
     app_name: str = "NexusForge AI"
-    debug: bool = True
-    allowed_origins: str = "*"
+    debug: bool = False  # default secure — set DEBUG=true in .env for development
+    allowed_origins: str = ""  # set ALLOWED_ORIGINS in .env (comma-separated)
 
     class Config:
         env_file = ".env"
