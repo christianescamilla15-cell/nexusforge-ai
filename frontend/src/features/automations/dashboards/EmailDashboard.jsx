@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
+import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 
@@ -50,6 +51,9 @@ export default function EmailDashboard({ automation, lang, onBack }) {
   }, [automation.id])
 
   useEffect(() => { loadResults() }, [loadResults])
+
+  // Ctrl+Enter to process
+  useCtrlEnter(() => { if (emailText.trim() && !processing) handleProcess() }, !processing)
 
   const handleProcess = async () => {
     if (!emailText.trim() || processing) return

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
+import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 import AutoDashboardGenerator from './AutoDashboardGenerator'
@@ -81,6 +82,9 @@ export default function GenericDashboard({ automation, lang, onBack }) {
   }, [automation.id])
 
   useEffect(() => { loadResults() }, [loadResults])
+
+  // Ctrl+Enter to process
+  useCtrlEnter(() => { if (isInputValid() && !processing) handleProcess() }, !processing)
 
   const getInputData = () => {
     if (inputType === 'json') {

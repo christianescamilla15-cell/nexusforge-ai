@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
+import Skeleton from '../../shared/components/Skeleton'
 import CostTokenDashboard from '../metrics/CostTokenDashboard'
 import ConfirmModal from '../../shared/components/ConfirmModal'
 import { useConfirm } from '../../shared/hooks/useConfirm'
@@ -238,11 +239,7 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
         </div>
       </div>
 
-      {loading && (
-        <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
-          {lang === 'es' ? 'Cargando ejecuciones...' : 'Loading executions...'}
-        </div>
-      )}
+      {loading && <Skeleton.Table rows={6} />}
 
       {error && (
         <div style={{

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchAPI, getApiUrl } from '../../../services/api'
+import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 
@@ -54,6 +55,9 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
   }, [automation.id])
 
   useEffect(() => { loadResults() }, [loadResults])
+
+  // Ctrl+Enter to open file picker
+  useCtrlEnter(() => { if (!processing) fileInputRef.current?.click() }, !processing)
 
   const handleFiles = async (files) => {
     if (!files || files.length === 0 || processing) return

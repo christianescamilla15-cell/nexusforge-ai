@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
+import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
 import StatsBar from './StatsBar'
 
 function formatDate(iso, lang) {
@@ -88,6 +89,9 @@ export default function ReportDashboard({ automation, lang, onBack }) {
   }, [automation.id])
 
   useEffect(() => { loadResults() }, [loadResults])
+
+  // Ctrl+Enter to generate
+  useCtrlEnter(() => { if (topic.trim() && !processing) handleGenerate() }, !processing)
 
   const toggleSource = (src) => {
     setSelectedSources(prev =>

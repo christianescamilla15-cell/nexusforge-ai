@@ -118,9 +118,18 @@ export default function TicketDashboard({ automation, lang, onBack }) {
           setTicketText('')
           await loadResults()
           setProcessing(false)
+          // Notify
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Ticket procesado exitosamente' : 'Ticket processed successfully', 'success')
+          } catch {}
         } else if (status === 'failed') {
           setError(execRes.data?.error || (lang === 'es' ? 'La ejecucion fallo' : 'Execution failed'))
           setProcessing(false)
+          try {
+            const { addNotification } = await import('../../../shared/components/NotificationBell')
+            addNotification(lang === 'es' ? 'Error al procesar ticket' : 'Ticket processing failed', 'error')
+          } catch {}
         } else {
           setTimeout(poll, 2000)
         }

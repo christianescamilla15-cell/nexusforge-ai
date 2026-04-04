@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
 import ErrorBoundary from './shared/components/ErrorBoundary'
+import WhatsNew from './shared/components/WhatsNew'
 import AuthPage from './features/auth/AuthPage'
 import Layout from './shared/components/Layout'
 import OnboardingTour from './shared/components/OnboardingTour'
@@ -212,6 +213,7 @@ function AppRoutes() {
           onComplete={() => { setShowTour(false); try { localStorage.setItem('nxf-tour-done', '1') } catch {} }}
         />
       )}
+      <WhatsNew lang={lang} />
       <CommandPalette onNavigate={navigate} lang={lang} />
       <ChatAssistant lang={lang} />
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismiss} />
