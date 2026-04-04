@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { fireConfetti } from '../utils/confetti'
 
 const STORAGE_KEY = 'nxf_getting_started'
 
@@ -34,6 +35,15 @@ export default function GettingStarted({ lang = 'en', onNavigate }) {
   const allDone = completed.length >= STEPS.length
 
   // Celebration when all done
+  // Fire confetti once when all done
+  const [confettiFired, setConfettiFired] = useState(false)
+  useEffect(() => {
+    if (allDone && !dismissed && !confettiFired) {
+      fireConfetti()
+      setConfettiFired(true)
+    }
+  }, [allDone, dismissed, confettiFired])
+
   if (allDone && !dismissed) {
     return (
       <div style={{
