@@ -109,6 +109,9 @@ app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(swarms.router, prefix="/api/swarms", tags=["swarms"])
 app.include_router(plugins.router, prefix="/api/plugins", tags=["plugins"])
+
+from app.routes.results import router as results_router
+app.include_router(results_router, prefix="/api", tags=["results"])
 app.include_router(memory.router, prefix="/api", tags=["memory"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(metrics.router, prefix="/api", tags=["metrics"])

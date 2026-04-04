@@ -34,8 +34,7 @@ def _get_user_id(request: Request) -> str:
 @router.post("/", status_code=201, response_model=WorkflowResponse)
 async def create_workflow(body: WorkflowCreate, request: Request):
     """Create a new workflow after validating its DAG definition."""
-    _get_user_id(request)  # require auth
-    # Validate the DAG before persisting
+    user_id = _get_user_id(request)  # require auth
     try:
         validate_dag(body.dag_definition)
     except DAGValidationError as exc:
@@ -46,12 +45,13 @@ async def create_workflow(body: WorkflowCreate, request: Request):
         dag_json = json.dumps(body.dag_definition.model_dump())
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                """INSERT INTO workflows (name, description, dag_definition, version, status)
-                   VALUES ($1, $2, $3::jsonb, 1, 'active')
+                """INSERT INTO workflows (name, description, dag_definition, version, status, user_id)
+                   VALUES ($1, $2, $3::jsonb, 1, 'active', $4::uuid)
                    RETURNING id, name, description, dag_definition, version, status, created_at, updated_at""",
                 body.name,
                 body.description,
                 dag_json,
+                user_id,
             )
         return _row_to_response(row)
     except Exception as exc:
