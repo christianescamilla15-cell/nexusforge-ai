@@ -112,14 +112,15 @@ async def dispatch_outputs(
     # Google Drive
     if config.get("drive"):
         try:
-            from app.connectors.drive import DriveConnector
-            drive = DriveConnector(user_id=user_id)
-            uploaded = await drive.create_file(
+            from app.integrations.google_drive.client import create_file
+            folder_id = config.get("drive_folder_id", "1P56v2fkzWZbgEFSqhQvZsQPu9x8_1vb6")
+            uploaded = await create_file(
                 name=f"{auto_name}_run_{str(run_id)[:8]}.json",
                 content=json.dumps(result_summary, indent=2, default=str),
+                folder_id=folder_id,
                 mime_type="application/json",
             )
-            results["drive"] = "uploaded" if uploaded else "failed"
+            results["drive"] = "uploaded" if uploaded.get("status") == "success" else f"failed: {uploaded.get('message', '')}"
         except Exception as e:
             logger.warning("output_dispatch drive failed: %s", e)
             results["drive"] = f"error: {e}"
