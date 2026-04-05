@@ -368,6 +368,124 @@ GROUP BY agent_type
 
 This gives real retry and fallback counts per agent.
 
+### Task 18: Automation "Ejecutar" debe quedarse en la página
+
+**BUG ACTUAL:** Cuando el usuario hace click en "Ejecutar" desde el dashboard de una automatización (ej: Invoice Data Extraction), el frontend navega a la página de Ejecuciones (`/executions/{runId}`), sacando al usuario de su contexto. El usuario pierde de vista su automation dashboard.
+
+**Comportamiento esperado:** Al dar click en "Ejecutar":
+1. El botón cambia a "Ejecutando..." con spinner
+2. La ejecución corre en background
+3. El usuario se QUEDA en el dashboard de la automatización
+4. Los stats se actualizan en tiempo real (total_ejecuciones++, tasa de éxito recalcula)
+5. Una nueva fila aparece en "Ejecuciones recientes" de ESA automatización
+6. Notification bell muestra "Completado" cuando termina
+7. El usuario puede OPCIONALMENTE navegar al detalle de la ejecución desde la tabla
+
+**Fix en frontend:** En los 5 typed dashboards (TicketDashboard, DocumentDashboard, EmailDashboard, ReportDashboard, GenericDashboard), después de POST /automations/{id}/run:
+- NO navegar a /executions/{runId}
+- En su lugar: poll en background + actualizar stats + mostrar resultado inline
+- Agregar link "Ver detalle" en la tabla de resultados que lleva a /executions/{runId}
+
+### Task 19: Mapa completo de sincronizaciones por origen de ejecución
+
+Cada ejecución desde CUALQUIER origen debe reflejarse en múltiples páginas:
+
+**ENJAMBRE (POST /swarms/execute):**
+```
+Se refleja en:
+├── Enjambres → modal de resultado
+├── Ejecuciones (sidebar) → nueva fila con steps de cada agente
+├── Tab Métricas → tokens + cost + per-agent
+├── Dashboard KPIs → +1 ejecución, tokens, cost, tasa éxito
+├── Dashboard Recientes → nueva fila "swarm_{topology}"
+├── Dashboard Actividad Agentes → +1 por agente usado
+├── Agentes → contador de ejecuciones por agente
+└── Status → health scores actualizados
+```
+
+**AUTOMATIZACIÓN (POST /automations/{id}/run):**
+```
+Se refleja en:
+├── Dashboard Automatización → total+1, tasa éxito, duración, costo, gráfica, tabla recientes
+├── Card en Automatizaciones lista → "🔄 N ejecuciones", fecha última
+├── Ejecuciones (sidebar) → nueva fila con todos los steps del DAG
+├── Tab Métricas → tokens + cost + per-agent
+├── Dashboard KPIs → +1 ejecución, tokens, cost, tasa éxito
+├── Dashboard Recientes → nueva fila con nombre de automation
+├── Dashboard Actividad Agentes → +1 por agente del pipeline
+├── Dashboard Runs por Día → +1 en gráfica del día
+├── Dashboard Plan Usage Bar → runs_today +1
+├── Flujos de Trabajo → historial del workflow asociado
+├── Agentes → contador por agente
+├── NotificationBell → "Completado" o "Fallido"
+├── Tab title → "(1) NexusForge AI"
+├── Email → reporte HTML (si Resend configurado)
+├── Slack → Block Kit message (si webhook configurado)
+├── Pending Approvals → si requires_approval=true
+└── Status → health scores
+```
+
+**WORKFLOW DIRECTO (POST /executions/):**
+```
+Se refleja en:
+├── Ejecuciones (sidebar) → nueva fila
+├── Ejecución Detalle → steps con input/output/tokens/cost
+├── Tab Métricas → tokens + cost
+├── Dashboard KPIs → +1
+├── Dashboard Recientes → nueva fila
+├── Dashboard Actividad Agentes → +1 por agente
+├── Flujos de Trabajo → historial del workflow
+└── Status → health scores
+```
+
+**ENTERPRISE OPS / DOC INTEL / ANALYZE (Intelligence Hub):**
+```
+Se refleja en:
+├── Intelligence Hub → resultado inline en el tab
+├── Ejecuciones (sidebar) → nueva fila
+├── Tab Métricas → tokens + cost
+├── Dashboard KPIs → +1
+├── Dashboard Recientes → nueva fila
+├── Dashboard Actividad Agentes → +1 por agente
+├── Email → reporte HTML
+└── Notion → página creada (si configurado)
+```
+
+**DRIVE PIPELINE:**
+```
+Se refleja en:
+├── Ejecuciones → nueva fila
+├── Tab Métricas → tokens + cost
+├── Dashboard KPIs → +1
+├── Notion → página con resultados
+├── Email → reporte
+├── WhatsApp → mensaje (si Twilio configurado)
+└── Webhook → POST al URL configurado
+```
+
+**DEMO (Try AI Now):**
+```
+Se refleja en:
+└── NADA (no se trackea, rate-limited 5/hr/IP)
+```
+
+### Task 20: Reintentos y Fallbacks en Métricas
+
+Los contadores "Total Reintentos" y "Total Fallbacks" en la tab Métricas están siempre en 0.
+
+Después de la migración, estos deben calcularse desde step_executions:
+```sql
+-- Reintentos: steps que tuvieron retry_count > 0
+SELECT SUM(retry_count) as total_retries FROM step_executions
+
+-- Fallbacks: steps donde el agente usó fallback (provider='local', model='fallback')
+SELECT COUNT(*) as total_fallbacks FROM step_executions
+WHERE output_data::text LIKE '%"_parse_failed": true%'
+   OR output_data::text LIKE '%"provider": "local"%'
+```
+
+Estos números deben actualizarse con cada nueva ejecución.
+
 ## Complete Page → Data Source Map (After Migration)
 
 | Page | API | Source Table | Writes? |
