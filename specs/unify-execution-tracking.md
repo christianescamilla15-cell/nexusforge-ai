@@ -333,6 +333,41 @@ step_executions rows (one per agent called):
 3. Call `complete_run()` → updates workflow_runs with totals
 4. Optionally: consider calling `agent.run()` instead of `agent.execute()` to get full lifecycle (circuit breaker + memory). This is a bigger change and can be done separately.
 
+### Task 17: Tab Métricas dentro de Ejecuciones
+
+The "Métricas" tab inside the Ejecuciones page (ExecutionListPage.jsx) embeds `CostTokenDashboard` component. This shows:
+
+- **Tokens Totales** (e.g., 28,000) — from GET /runs/reliability/health → total_tokens
+- **Costo Total USD** (e.g., $0.1047) — from same endpoint → total_cost
+- **Latencia Prom.** (e.g., 542ms) — from same endpoint → avg_latency_ms
+- **Total Reintentos** — from per-agent data → sum of retries
+- **Total Fallbacks** — from per-agent data → sum of fallbacks
+- **Tasa de Exito** (e.g., 100%) — from same endpoint → system_success_rate
+- **Per-Run Breakdown table** — from GET /runs/ → each run with tokens/cost
+- **Per-Agent Breakdown table** — from GET /runs/reliability/health → agents array
+
+**CRITICAL:** This tab currently shows REAL data (28,000 tokens) because `_get_db_health()` currently reads from `pipeline_runs` which has actual swarm/enterprise_ops data. The Dashboard KPIs show 0 because they read from a different source.
+
+After the UNION fix (commit 4970b91 pending deploy) or full migration to workflow_runs, ALL of these must show consistent data:
+- Dashboard KPIs = Tab Métricas KPIs = same numbers
+- Dashboard Recientes = Tab Ejecuciones list = same runs
+- Both read from the SAME unified source
+
+**The "Reintentos" and "Fallbacks" counters** come from per-agent data in the health endpoint. Currently these are always 0 because:
+- `pipeline_runs` stores `agents_used` as a list of names but no retry/fallback counts
+- `step_executions` has `retry_count` but is not aggregated in the health query
+
+After migration, the health query should also compute:
+```sql
+SELECT agent_type, 
+       SUM(retry_count) as total_retries,
+       COUNT(*) FILTER (WHERE provider = 'local' AND model = 'fallback') as total_fallbacks
+FROM step_executions 
+GROUP BY agent_type
+```
+
+This gives real retry and fallback counts per agent.
+
 ## Complete Page → Data Source Map (After Migration)
 
 | Page | API | Source Table | Writes? |
