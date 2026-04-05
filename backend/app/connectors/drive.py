@@ -104,8 +104,8 @@ class DriveConnector(ConnectorBase):
 
         # Try real integration
         try:
-            from app.integrations.google_drive.client import upload_file
-            result = await upload_file(name=file_name, content=content, folder_id=folder_id)
+            from app.integrations.google_drive.client import create_file
+            result = await create_file(name=file_name, content=content, folder_id=folder_id)
             return ConnectorResult(
                 status="success",
                 data={"file_id": result.get("id", "uploaded"), "name": file_name},

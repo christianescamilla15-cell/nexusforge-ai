@@ -103,8 +103,23 @@ async def notify_workflow_complete(
             logger.info("Email sent to %s for workflow %s", to, workflow_name)
         else:
             logger.warning("Email failed for %s: %s", workflow_name, result.get("message"))
-        return sent
+        email_ok = sent
 
     except Exception as e:
         logger.warning("Email notification failed (non-fatal): %s", e)
-        return False
+        email_ok = False
+
+    # Also try Slack notification (best-effort, runs regardless of email)
+    try:
+        from app.integrations.slack.client import notify_slack
+        await notify_slack(
+            user_id=None,
+            event_type="workflow.completed",
+            workflow_name=workflow_name,
+            status=status,
+            details={"tokens": total_tokens, "cost": f"${cost_usd:.4f}", "agents": len(agents_used)},
+        )
+    except Exception:
+        pass  # Slack is optional
+
+    return email_ok
