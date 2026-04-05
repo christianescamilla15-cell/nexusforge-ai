@@ -295,26 +295,7 @@ function AutomationDashboardRoute({ lang, navigate }) {
     <SmartDashboardPage
       automationId={automationId}
       onBack={() => routerNavigate('/automations')}
-      onRun={async (auto) => {
-        // Actually run the automation instead of navigating away
-        const { fetchAPI } = await import('./services/api')
-        const { invalidateAfterExecution } = await import('./shared/queryKeys')
-        const res = await fetchAPI(`/automations/${auto.id || automationId}/run`, {
-          method: 'POST',
-          body: JSON.stringify({ input_data: {} }),
-        })
-        if (!res.error && res.data?.run_id) {
-          // Poll until done
-          const runId = res.data.run_id
-          const poll = setInterval(async () => {
-            const exec = await fetchAPI(`/executions/${runId}`)
-            if (exec.data?.status === 'completed' || exec.data?.status === 'failed') {
-              clearInterval(poll)
-              invalidateAfterExecution()
-            }
-          }, 1500)
-        }
-      }}
+      onViewExecution={(runId) => routerNavigate(`/executions/${runId}`)}
       lang={lang}
     />
   )

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
 import { CopyButton } from '../../shared/hooks/useCopyClipboard.jsx'
@@ -62,11 +62,12 @@ const TABS = [
   { key: 'audit', en: 'Audit', es: 'Auditoría' },
 ]
 
-export default function AutomationDashboard({ automationId, onBack, onRun, lang = 'en' }) {
+export default function AutomationDashboard({ automationId, onBack, onRun, onViewExecution, lang = 'en' }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('stats')
+  const [runState, setRunState] = useState(null) // null | 'running' | { runId: string }
 
   useEffect(() => {
     if (!automationId) return
@@ -118,13 +119,61 @@ export default function AutomationDashboard({ automationId, onBack, onRun, lang 
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 }}>{auto.name}</h1>
           <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>{auto.description || auto.workflow_name}</p>
         </div>
-        <button onClick={() => onRun && onRun(auto)} style={{
-          padding: '9px 18px', borderRadius: 9, border: 'none', fontSize: 13, fontWeight: 600,
-          background: `linear-gradient(135deg, ${color}, ${color})`, color: '#fff', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          <span>▶</span> {lang === 'es' ? 'Ejecutar' : 'Run'}
-        </button>
+        {runState?.runId ? (
+          <button onClick={() => onViewExecution && onViewExecution(runState.runId)} style={{
+            padding: '9px 18px', borderRadius: 9, border: 'none', fontSize: 13, fontWeight: 600,
+            background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <span>{'👁'}</span> {lang === 'es' ? 'Ver Ejecucion' : 'View Execution'}
+          </button>
+        ) : (
+          <button
+            disabled={runState === 'running'}
+            onClick={async () => {
+              setRunState('running')
+              const res = await fetchAPI(`/automations/${automationId}/run`, {
+                method: 'POST',
+                body: JSON.stringify({ input_data: {} }),
+              })
+              if (res.error || !res.data?.run_id) {
+                setRunState(null)
+                return
+              }
+              const runId = res.data.run_id
+              // Poll until done
+              const poll = setInterval(async () => {
+                const exec = await fetchAPI(`/executions/${runId}`)
+                if (exec.data?.status === 'completed' || exec.data?.status === 'failed') {
+                  clearInterval(poll)
+                  setRunState({ runId })
+                  // Reload dashboard stats
+                  fetchAPI(`/automations/${automationId}/dashboard`).then(r => {
+                    if (!r.error && r.data) setData(r.data)
+                  })
+                  try {
+                    const { invalidateAfterExecution } = await import('../../shared/queryKeys')
+                    invalidateAfterExecution()
+                  } catch {}
+                }
+              }, 1500)
+            }}
+            style={{
+              padding: '9px 18px', borderRadius: 9, border: 'none', fontSize: 13, fontWeight: 600,
+              background: runState === 'running'
+                ? 'linear-gradient(135deg, #F59E0B, #D97706)'
+                : `linear-gradient(135deg, ${color}, ${color})`,
+              color: '#fff', cursor: runState === 'running' ? 'wait' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              opacity: runState === 'running' ? 0.8 : 1,
+            }}
+          >
+            <span>{runState === 'running' ? '⏳' : '▶'}</span>
+            {runState === 'running'
+              ? (lang === 'es' ? 'Ejecutando...' : 'Running...')
+              : (lang === 'es' ? 'Ejecutar' : 'Run')}
+          </button>
+        )}
       </div>
 
       {/* Stats cards */}

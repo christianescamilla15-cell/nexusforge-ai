@@ -58,7 +58,7 @@ const TAB_LABELS = {
   settings: { en: 'Settings', es: 'Configuracion' },
 }
 
-export default function SmartDashboard({ automationId, lang, onBack, onRun }) {
+export default function SmartDashboard({ automationId, lang, onBack, onRun, onViewExecution }) {
   const [automation, setAutomation] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -194,6 +194,7 @@ export default function SmartDashboard({ automationId, lang, onBack, onRun }) {
           lang={lang}
           onBack={onBack}
           onRun={onRun}
+          onViewExecution={onViewExecution}
         />
       )}
 
