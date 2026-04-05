@@ -93,8 +93,40 @@ After migration, `workflow_runs.py`:
 
 In 5 typed dashboards (TicketDashboard, DocumentDashboard, EmailDashboard, ReportDashboard, GenericDashboard):
 - After POST /automations/{id}/run, do NOT navigate to /executions/{runId}
-- Instead: poll in background, update stats inline, show result in the dashboard
+- Instead: poll /executions/{runId} every 1.5s, update stats inline
+- Show result in the dashboard when complete
 - Add "Ver detalle" link in results table for optional navigation
+
+### Frontend Sync Architecture (from TanStack Query + Zustand research)
+
+**Query Key Factory** (`frontend/src/shared/queryKeys.js`):
+```javascript
+export const keys = {
+  dashboardKpis: () => ['dashboard', 'kpis'],
+  automations: () => ['automations'],
+  automation: (id) => ['automations', id],
+  executions: () => ['executions'],
+  analytics: () => ['analytics'],
+}
+```
+
+**After any execution completes, invalidate all related caches:**
+```javascript
+// In every component that triggers a run:
+onSettled: async () => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: keys.automations() }),
+    queryClient.invalidateQueries({ queryKey: keys.dashboardKpis() }),
+    queryClient.invalidateQueries({ queryKey: keys.executions() }),
+    queryClient.invalidateQueries({ queryKey: keys.analytics() }),
+  ])
+}
+```
+
+**Counter Cache Trigger** (Migration 029 already includes this):
+- PostgreSQL trigger auto-updates user_execution_stats on every INSERT
+- Dashboard KPIs read from user_execution_stats (1 row, <1ms)
+- No need for COUNT(*) full table scan
 
 ### Demo → Wizard Prefill
 
