@@ -406,8 +406,8 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
       </div>
 
       {/* Results */}
-      <div style={{ marginBottom: 16 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: '0 0 12px' }}>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>
           {lang === 'es' ? 'Documentos procesados' : 'Processed documents'}
           {results.length > 0 && (
             <span style={{ fontSize: 12, fontWeight: 400, color: '#9CA3AF', marginLeft: 8 }}>
@@ -415,6 +415,24 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
             </span>
           )}
         </h3>
+        {results.length > 0 && (
+          <button
+            onClick={async () => {
+              if (!confirm(lang === 'es' ? 'Eliminar todos los resultados?' : 'Delete all results?')) return
+              await fetchAPI(`/results/automation/${automation.id}/all`, { method: 'DELETE' })
+              await loadResults()
+            }}
+            style={{
+              background: 'none', border: '1px solid #FECACA', borderRadius: 6,
+              padding: '4px 10px', fontSize: 11, color: '#DC2626', cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+          >
+            {lang === 'es' ? 'Eliminar todos' : 'Delete all'}
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -455,10 +473,29 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
                 style={{
                   background: '#fff', borderRadius: 10, border: '1px solid #E5E7EB',
                   padding: 16, cursor: 'pointer', transition: 'border-color 0.15s',
+                  position: 'relative',
                 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = color}
-                onMouseLeave={e => e.currentTarget.style.borderColor = '#E5E7EB'}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.querySelector('.del-btn').style.opacity = '1' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.querySelector('.del-btn').style.opacity = '0' }}
               >
+                <button
+                  className="del-btn"
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    await fetchAPI(`/results/${r.id}`, { method: 'DELETE' })
+                    await loadResults()
+                  }}
+                  style={{
+                    position: 'absolute', top: 6, right: 6, width: 22, height: 22,
+                    borderRadius: '50%', border: 'none', background: '#FEE2E2',
+                    color: '#DC2626', fontSize: 12, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    opacity: 0, transition: 'opacity 0.15s',
+                  }}
+                  title={lang === 'es' ? 'Eliminar' : 'Delete'}
+                >
+                  ✕
+                </button>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <span style={{ fontSize: 22 }}>{getFileIcon(inp.filename)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -470,13 +507,13 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
                     </p>
                   </div>
                 </div>
-                {out.summary && (
+                {(out.summary || out.executive_summary || out.title) && (
                   <p style={{
                     fontSize: 12, color: '#6B7280', lineHeight: 1.5, margin: '0 0 8px',
                     overflow: 'hidden', display: '-webkit-box',
                     WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                   }}>
-                    {out.summary}
+                    {out.summary || out.executive_summary || out.title}
                   </p>
                 )}
                 <div style={{ fontSize: 11, color: '#9CA3AF' }}>

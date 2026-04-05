@@ -266,6 +266,35 @@ async def approve_or_reject_result(result_id: UUID, body: ApprovalRequest, reque
         raise HTTPException(500, str(exc))
 
 
+@router.delete("/automation/{automation_id}/all")
+async def delete_all_results(automation_id: UUID, request: Request):
+    """Delete all results for an automation."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        raise HTTPException(401, "Login required")
+
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            auto = await conn.fetchrow(
+                "SELECT id FROM automations WHERE id = $1 AND user_id = $2::uuid",
+                automation_id, user_id,
+            )
+            if not auto:
+                raise HTTPException(404, "Automation not found")
+
+            count = await conn.fetchval(
+                "DELETE FROM automation_results WHERE automation_id = $1 RETURNING count(*)",
+                automation_id,
+            )
+        return {"deleted": True, "count": count or 0}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to delete all results")
+        raise HTTPException(500, str(exc))
+
+
 @router.delete("/{result_id}")
 async def delete_result(result_id: UUID, request: Request):
     """Delete a result."""
