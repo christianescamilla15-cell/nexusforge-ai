@@ -160,24 +160,183 @@ Add a comment to the table migration and any remaining references:
 -- This table is kept for historical data only.
 ```
 
+### Task 7: Ejecuciones desde Flujos de Trabajo
+
+When a user clicks "Run" from WorkflowDetailPage or WorkflowBuilderPage, it calls `POST /executions/` which goes through `trigger_execution` in `executions.py`. This ALREADY writes to `workflow_runs` via the executor — no migration needed. But verify:
+
+- `POST /executions/` → `trigger_execution()` → creates `workflow_runs` row ✅
+- The run MUST have `user_id` set (currently it does via `_get_user_id`)
+- The run MUST appear in Dashboard KPIs after completion
+- The run MUST appear in the Ejecuciones page
+- Steps MUST appear in `step_executions` with tokens/cost per agent
+
+**Key check:** When the executor calls `execute_workflow()`, it already does:
+- INSERT workflow_runs (pending)
+- For each step: INSERT step_executions (with tokens_used, cost_usd)
+- UPDATE workflow_runs (completed, total_tokens, total_cost_usd)
+
+This flow is already unified. No changes needed. But verify it works end-to-end.
+
+### Task 8: Métricas de Costo page (/metrics)
+
+The Cost/Token Dashboard (`CostTokenDashboard.jsx`) reads from:
+- `GET /runs/reliability/health` → total_tokens, total_cost (same as Dashboard KPIs)
+- `GET /runs/` → per-run breakdown with tokens and cost
+- `GET /providers/status` → which LLM providers are active
+
+After migration to single table, these all read from `workflow_runs`. Verify:
+
+1. **Total tokens** = SUM of all workflow_runs.total_tokens (should be > 0 after real LLM calls)
+2. **Total cost** = SUM of all workflow_runs.total_cost_usd
+3. **Per-run breakdown** = each workflow_run row has its own tokens/cost
+4. **Per-agent breakdown** = from agents_used JSONB column cross-referenced with step_executions
+
+**Critical:** After the _extract_text() fix is deployed, agents should use real LLM calls (not fallback), so tokens and cost will be > 0. Before that fix, all executions show $0 / 0 tokens because agents fall back to demo mode.
+
+**Métricas flow:**
+```
+Agent executes → LLMRouter.chat() → GroqProvider returns {tokens_input, tokens_output}
+  → AgentResult.tokens_used = tokens_input + tokens_output
+  → AgentResult.cost_usd = calculate_cost(provider, tokens_input, tokens_output)
+  → step_runner saves to step_executions (tokens_used, cost_usd)
+  → executor sums all steps → UPDATE workflow_runs (total_tokens, total_cost_usd)
+  → GET /runs/reliability/health reads SUM from workflow_runs
+  → Dashboard KPIs + Métricas page display correct totals
+```
+
+**What can cause tokens=0:**
+- Agent enters demo mode (no text found in input) → FIX: _extract_text()
+- LLM API key invalid → check Render env vars
+- LLM call fails, agent uses fallback → fallback returns tokens_used=0
+- Groq model deprecated → check model availability
+- cost_usd not calculated → verify token_tracker.py has correct pricing
+
+### Task 9: Verify cost tracking end-to-end
+
+Read `backend/app/llm/token_tracker.py` and verify:
+- Groq pricing is correct and up-to-date
+- Claude pricing is correct
+- `calculate_cost(provider, tokens_input, tokens_output)` returns > 0 for non-zero tokens
+- The cost is attached to `LLMResponse.cost_usd` in the router
+
+Then verify the chain:
+1. `LLMRouter.chat()` → `response.cost_usd = calculate_cost(...)` 
+2. `agent.execute()` → `AgentResult(cost_usd=resp.cost_usd)`
+3. `step_runner.run_step()` → saves to `step_executions.cost_usd`
+4. `executor.execute_workflow()` → `total_cost += result.get("cost_usd", 0)`
+5. `executor` → `UPDATE workflow_runs SET total_cost_usd = $N`
+6. `_get_db_health()` → `SUM(total_cost_usd)` from workflow_runs
+7. Frontend KPI → displays `$X.XXXX`
+
+### Task 10: Connectors page (/connectors)
+
+Connectors are user-scoped CRUD (Gmail, Slack, Notion, Drive, REST, Postgres). They do NOT create executions — they are used BY executions as output destinations. But verify:
+
+- When a connector `test_connection` is called, it should NOT create a workflow_run
+- When a connector `fetch` or `push` is called during a pipeline, the parent run tracks it
+- The ConnectorHubPage shows test status per connector — this is independent of execution tracking
+
+No changes needed for connectors in this spec. They are consumers, not producers.
+
+### Task 11: Audit Log page (/audit)
+
+The audit log reads from `audit_logs` table — completely separate from execution tracking. Verify:
+
+- Audit entries are written when: automations CRUD, workflows CRUD, agent config changes, variable changes
+- Audit does NOT track individual execution runs (that's workflow_runs)
+- No changes needed
+
+### Task 12: Intelligence Hub page (/intelligence)
+
+This page has 3 tabs that each trigger use-case routes:
+- Enterprise Ops tab → POST /enterprise-ops/process → currently writes pipeline_runs → MIGRATE
+- Doc Intelligence tab → POST /document-intelligence/run → currently writes pipeline_runs → MIGRATE
+- Analyze tab → POST /analyze/text → currently writes pipeline_runs → MIGRATE
+
+All 3 are covered in Tasks 3. After migration, runs from Intelligence Hub appear in:
+- Dashboard KPIs ✅
+- Dashboard Recientes ✅
+- Ejecuciones page ✅
+- Métricas de Costo ✅
+
+### Task 13: Status page (/status)
+
+Reads from GET /health (DB + Redis check) and GET /providers/status. Does NOT read execution data. No changes needed.
+
+### Task 14: API Docs page (/docs)
+
+Static page with health check. No execution data. No changes needed.
+
+### Task 15: Agents page (/agents)
+
+Shows 24 registered agents with config. The "Actividad de Agentes" panel and memory stats should reflect actual agent usage from executions.
+
+After migration, agent activity should be computed from:
+```sql
+SELECT agent_type, COUNT(*) as executions, 
+       AVG(duration_ms) as avg_latency, SUM(tokens_used) as total_tokens
+FROM step_executions 
+GROUP BY agent_type
+```
+This is already the correct source — step_executions is written by ALL execution paths (executor + step_runner). No migration needed here.
+
+### Task 16: Swarms page (/swarms)
+
+POST /swarms/execute triggers a swarm that currently writes to BOTH tables. After migration (Task 3), it only writes to workflow_runs. The swarm result should appear in all dashboards.
+
+## Complete Page → Data Source Map (After Migration)
+
+| Page | API | Source Table | Writes? |
+|------|-----|-------------|---------|
+| Dashboard KPIs | GET /runs/reliability/health | workflow_runs | Read |
+| Dashboard Recientes | GET /runs/ | workflow_runs | Read |
+| Dashboard Agentes | GET /runs/reliability/health | workflow_runs.agents_used + step_executions | Read |
+| Automatizaciones stats | GET /automations/{id}/stats | workflow_runs | Read |
+| Automatizaciones dashboard | GET /automations/{id}/dashboard | workflow_runs | Read |
+| Automatizaciones run | POST /automations/{id}/run | workflow_runs | Write |
+| Wizard publish | POST /workflows/ + POST /automations/ | workflows + automations | Write |
+| Ejecuciones lista | GET /executions/ | workflow_runs | Read |
+| Ejecuciones detalle | GET /executions/{id} | workflow_runs + step_executions | Read |
+| Ejecuciones run | POST /executions/ | workflow_runs | Write |
+| Métricas costo | GET /runs/reliability/health | workflow_runs | Read |
+| Métricas per-run | GET /runs/ | workflow_runs | Read |
+| Intelligence Enterprise | POST /enterprise-ops/process | workflow_runs (MIGRATED) | Write |
+| Intelligence DocIntel | POST /document-intelligence/run | workflow_runs (MIGRATED) | Write |
+| Intelligence Analyze | POST /analyze/text | workflow_runs (MIGRATED) | Write |
+| Swarms execute | POST /swarms/execute | workflow_runs (MIGRATED) | Write |
+| Drive Pipeline | POST /drive-to-intelligence | workflow_runs (MIGRATED) | Write |
+| Portfolio Copilot | POST /portfolio-copilot/run | workflow_runs (MIGRATED) | Write |
+| Agentes activity | computed from step_executions | step_executions | Read |
+| Status | GET /health | N/A | Read |
+| Connectors | CRUD /connectors/ | connectors table | Write |
+| Audit | GET /audit/ | audit_logs table | Read |
+| Settings | localStorage + /auth/* | nf_users | Read/Write |
+
 ## Acceptance Criteria
 
 - [ ] All 6 use-case routes write to workflow_runs (not pipeline_runs)
 - [ ] Dashboard KPIs read from workflow_runs ONLY (no UNION needed)
 - [ ] Ejecuciones page shows ALL runs (automations + use-cases)
 - [ ] Dashboard Recientes shows ALL runs (from workflow_runs)
+- [ ] Métricas de Costo shows correct tokens and cost from workflow_runs
+- [ ] Actividad de Agentes shows agent usage from step_executions
+- [ ] Intelligence Hub runs appear in Dashboard + Ejecuciones
+- [ ] Swarm runs appear in Dashboard + Ejecuciones
+- [ ] Workflow direct runs appear in Dashboard + Ejecuciones
 - [ ] pipeline_runs receives NO new writes
 - [ ] 260/260 tests pass
 - [ ] Existing historical data in pipeline_runs is not deleted
+- [ ] Cost tracking chain verified end-to-end (LLM → AgentResult → step_executions → workflow_runs → KPI)
 
 ## Files to Modify
 
-- `backend/app/utils/run_tracker.py` — extend with new params
-- `backend/app/routes/swarms.py` — replace save_pipeline_run
+- `backend/app/utils/run_tracker.py` — extend with pipeline_name, agents_used params
+- `backend/app/routes/swarms.py` — replace save_pipeline_run with run_tracker
 - `backend/app/routes/enterprise_ops.py` — same
 - `backend/app/routes/document_intelligence.py` — same
 - `backend/app/routes/analyze.py` — same
 - `backend/app/routes/drive_pipeline.py` — same
 - `backend/app/routes/portfolio_copilot.py` — same
-- `backend/app/routes/workflow_runs.py` — simplify queries
+- `backend/app/routes/workflow_runs.py` — simplify to read workflow_runs only
+- `backend/app/llm/token_tracker.py` — verify pricing is correct
 - `backend/app/db/migrations/028_workflow_runs_agents_used.sql` — new migration
