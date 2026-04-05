@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
+const OutputDestinations = lazy(() => import('./OutputDestinations'))
 import { CopyButton } from '../../shared/hooks/useCopyClipboard.jsx'
 import RulesPanel from '../rules/RulesPanel'
 import VariablesPanel from '../variables/VariablesPanel'
@@ -57,6 +58,7 @@ function RunsChart({ runs, color = '#6366F1' }) {
 
 const TABS = [
   { key: 'stats', en: 'Stats', es: 'Estadísticas' },
+  { key: 'outputs', en: 'Destinations', es: 'Destinos' },
   { key: 'variables', en: 'Variables', es: 'Variables' },
   { key: 'rules', en: 'Rules', es: 'Reglas' },
   { key: 'audit', en: 'Audit', es: 'Auditoría' },
@@ -289,6 +291,12 @@ export default function AutomationDashboard({ automationId, onBack, onRun, onVie
             )}
           </div>
         </>
+      )}
+
+      {activeTab === 'outputs' && (
+        <Suspense fallback={<div style={{ padding: 24, color: '#9CA3AF' }}>...</div>}>
+          <OutputDestinations automationId={automationId} lang={lang} />
+        </Suspense>
       )}
 
       {activeTab === 'variables' && (

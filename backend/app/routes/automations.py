@@ -83,6 +83,33 @@ async def _launch_run(automation_id: UUID, workflow_id: UUID, wf_name: str,
     async def _safe_execute():
         try:
             await execute_workflow(workflow_id, run_id, dag, input_data, ctx=ctx, user_id=user_id)
+            # Dispatch outputs to configured destinations (best-effort)
+            try:
+                from app.integrations.output_dispatch import dispatch_outputs
+                p = await get_db_pool()
+                async with p.acquire() as c:
+                    wr = await c.fetchrow(
+                        "SELECT total_tokens, total_cost_usd, agents_used, status FROM workflow_runs WHERE id = $1",
+                        run_id,
+                    )
+                if wr:
+                    agents = wr["agents_used"]
+                    if isinstance(agents, str):
+                        agents = json.loads(agents)
+                    await dispatch_outputs(
+                        automation_id=automation_id,
+                        run_id=run_id,
+                        user_id=user_id or "",
+                        result_summary={
+                            "status": wr["status"],
+                            "total_tokens": wr["total_tokens"] or 0,
+                            "cost_usd": float(wr["total_cost_usd"] or 0),
+                            "agents_used": agents if isinstance(agents, list) else [],
+                            "summary": f"{auto_name} completed with {wr['total_tokens'] or 0} tokens",
+                        },
+                    )
+            except Exception as de:
+                logger.warning("output_dispatch failed for run %s: %s", run_id, de)
         except Exception as exc:
             logger.exception("Background execution failed for run %s", run_id)
             try:
@@ -257,6 +284,47 @@ async def delete_automation(automation_id: UUID, request: Request):
     except Exception as exc:
         logger.exception("Failed to delete automation")
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Output Config ─────────────────────────────────────────────────────────────
+
+@router.get("/{automation_id}/output-config")
+async def get_output_config(automation_id: UUID, request: Request):
+    """Get output destination config for an automation."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Login required")
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT output_config FROM automations WHERE id = $1 AND user_id = $2::uuid",
+            automation_id, user_id,
+        )
+    if not row:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    config = row["output_config"] or {}
+    if isinstance(config, str):
+        config = json.loads(config)
+    return {"output_config": config}
+
+
+@router.put("/{automation_id}/output-config")
+async def update_output_config(automation_id: UUID, request: Request):
+    """Update output destination config for an automation."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Login required")
+    body = await request.json()
+    config = body.get("output_config", {})
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "UPDATE automations SET output_config = $1::jsonb WHERE id = $2 AND user_id = $3::uuid",
+            json.dumps(config), automation_id, user_id,
+        )
+    if int(result.split()[-1]) == 0:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return {"updated": True, "output_config": config}
 
 
 # ── Run ───────────────────────────────────────────────────────────────────────
