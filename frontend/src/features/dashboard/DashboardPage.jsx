@@ -732,7 +732,15 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
           }}>
             {/* Recent runs */}
             <div style={{ overflowX: 'auto' }}>
-              <RecentRuns runs={runs} />
+              <RecentRuns runs={runs} lang={lang} onClearAll={async () => {
+                // Clear all runs from pipeline_runs (best-effort)
+                try {
+                  await Promise.all(runs.slice(0, 50).map(r =>
+                    fetchAPI(`/executions/${r.id}`, { method: 'DELETE' }).catch(() => {})
+                  ))
+                  wrappedLoad() // refresh dashboard
+                } catch {}
+              }} />
             </div>
 
             {/* Right sidebar */}
