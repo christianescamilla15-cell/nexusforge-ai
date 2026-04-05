@@ -486,6 +486,26 @@ WHERE output_data::text LIKE '%"_parse_failed": true%'
 
 Estos números deben actualizarse con cada nueva ejecución.
 
+### Task 21: Dashboard Ejecuciones Recientes — límite visual + limpiar
+
+**Problema actual:** La tabla de "Ejecuciones Recientes" en el Dashboard muestra 51 resultados sin límite, haciendo la página muy larga.
+
+**Requerimientos:**
+
+1. **Máximo 25 filas visibles** — si hay más de 25, la tabla se contrae con scroll interno (max-height) y paginación de 10 en 10
+2. **Botón "Limpiar"** — permite borrar todas las ejecuciones recientes de un click (con ConfirmModal)
+3. **Header sticky** — al scrollear dentro de la tabla, el header (Estado, Flujo, ID, Latencia) se mantiene fijo
+4. **Contador** — "51 resultados" visible en el header
+5. **No ocupar más de ~400px de alto** — si hay 51 resultados, se paginan y scrollean, no estiran la página
+
+**Nota:** Este fix ya fue implementado parcialmente (commit d77f6a5 pendiente deploy) con:
+- Paginación 10/page
+- Max-height 400px con scroll
+- Sticky header
+- Botón "Limpiar" con ConfirmModal
+
+Verificar que funciona correctamente después del deploy.
+
 ## Complete Page → Data Source Map (After Migration)
 
 | Page | API | Source Table | Writes? |
