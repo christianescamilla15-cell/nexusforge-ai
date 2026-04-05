@@ -506,6 +506,100 @@ Estos números deben actualizarse con cada nueva ejecución.
 
 Verificar que funciona correctamente después del deploy.
 
+### Task 22: "Prueba la IA ahora" → AI Wizard con idea pre-cargada
+
+**Flujo actual:** El usuario escribe texto en "Prueba la IA ahora" en el Dashboard, recibe un análisis (clasificación, urgencia, entidades, respuesta sugerida), y ve un botón "→ Crear automatización con esto".
+
+**Problema:** Al hacer click en "Crear automatización con esto", el Wizard se abre en blanco — el usuario tiene que re-describir todo desde cero. La idea analizada NO se transfiere al Wizard.
+
+**Comportamiento esperado:**
+
+1. Usuario escribe texto en "Prueba la IA ahora"
+2. IA analiza → muestra clasificación, urgencia, entidades, respuesta
+3. Usuario click "→ Crear automatización con esto"
+4. **Wizard se abre con TODO pre-cargado:**
+   - Tipo pre-seleccionado basado en la clasificación (ej: general_inquiry → "Ticket Triage")
+   - Nombre del flujo pre-llenado (ej: "Atención al Cliente — Consultas Generales")
+   - Descripción pre-llenada con el análisis: "Clasificar tickets de clientes, detectar urgencia, extraer entidades, generar respuesta automática"
+   - Input type pre-seleccionado: "Text" (porque el demo usó texto)
+   - Output pre-seleccionado: ["dashboard", "email"] (basado en que es atención al cliente)
+5. El usuario solo revisa y hace click en "Generar Flujo" — no tiene que escribir nada
+
+**Datos a transferir del demo al Wizard:**
+```javascript
+// Desde el resultado del demo:
+const demoResult = {
+  classification: "general_inquiry",
+  urgency: "high",
+  entities: ["intake", "intent", "customer"],
+  summary: "Consulta general sobre pedido...",
+  suggested_response: "Estimado cliente..."
+}
+
+// Mapeo a Wizard pre-fill:
+const wizardPrefill = {
+  automationType: mapClassToType(demoResult.classification),
+  // general_inquiry → "ticket"
+  // financial → "report"  
+  // technical → "ticket"
+  // document → "document"
+  customName: generateName(demoResult.classification, demoResult.urgency),
+  description: demoResult.summary,
+  inputType: "text",
+  outputTypes: ["dashboard", "email"],
+}
+
+// Navegar al wizard con prefill:
+navigate('/wizard', { state: wizardPrefill })
+// O guardar en localStorage y leer en WizardPage
+```
+
+**Implementación:**
+1. En `DashboardPage.jsx` → botón "Crear automatización" → guarda resultado en `localStorage.setItem('nxf_wizard_prefill', JSON.stringify(prefill))`
+2. En `WizardPage.jsx` → `useEffect` al montar → lee `nxf_wizard_prefill` → pre-llena todos los campos → borra el prefill de localStorage
+3. El usuario ve el Wizard ya listo con tipo seleccionado, nombre, descripción, input y output pre-configurados
+4. Solo falta click "Generar Flujo" → "Publicar"
+
+### Task 23: AI Wizard debe pre-seleccionar opciones inteligentemente
+
+**Problema actual:** Cuando el usuario selecciona un tipo (ej: "Personalizado"), tiene que llenar nombre, descripción, input y output manualmente en los siguientes pasos.
+
+**Comportamiento esperado para CADA tipo:**
+
+```
+Triage de Tickets:
+├── Nombre: "Triage de Tickets de Soporte"
+├── Input: text (pre-seleccionado)
+├── Output: [dashboard, slack] (pre-seleccionado)
+└── Descripción: "Clasificar tickets por urgencia y generar respuestas automáticas"
+
+Análisis de Documentos:
+├── Nombre: "Análisis de Documentos"
+├── Input: file (pre-seleccionado)
+├── Output: [dashboard, export] (pre-seleccionado)
+└── Descripción: "Extraer datos de PDFs, facturas y documentos"
+
+Auto-Respuesta Email:
+├── Nombre: "Auto-Respuesta de Emails"
+├── Input: text (pre-seleccionado)
+├── Output: [dashboard, email] (pre-seleccionado)
+└── Descripción: "Clasificar emails entrantes y generar respuestas automáticas"
+
+Generador de Reportes:
+├── Nombre: "Generador de Reportes"
+├── Input: form (pre-seleccionado)
+├── Output: [dashboard, export] (pre-seleccionado)
+└── Descripción: "Analizar datos y generar reportes ejecutivos"
+
+Personalizado:
+├── Nombre: vacío (usuario escribe)
+├── Input: no pre-seleccionado
+├── Output: [dashboard] (mínimo)
+└── Descripción: vacío (usuario escribe)
+```
+
+**Nota:** QUICK_TYPE_DEFAULTS ya existe en WizardPage.jsx y pre-selecciona input/output. Pero NO pre-llena el nombre ni la descripción. Agregar eso.
+
 ## Complete Page → Data Source Map (After Migration)
 
 | Page | API | Source Table | Writes? |
