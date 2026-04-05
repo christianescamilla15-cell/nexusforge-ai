@@ -2,26 +2,44 @@
 
 import json
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from ..metrics.collector import collector
 
 router = APIRouter(prefix="/runs", tags=["Workflow Runs"])
 logger = logging.getLogger(__name__)
 
 
-async def _get_db_runs(limit: int = 50) -> list:
+def _get_user_id(request: Request) -> str:
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Login required")
+    return uid
+
+
+async def _get_db_runs(limit: int = 50, user_id: str = None) -> list:
     """Fetch runs from workflow_runs (unified source)."""
     try:
         from ..db.client import get_db_pool
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                """SELECT id, pipeline_name, status, trigger_type,
-                          total_tokens, total_cost_usd, agents_used,
-                          error_message, started_at, completed_at, metadata
-                   FROM workflow_runs ORDER BY started_at DESC LIMIT $1""",
-                limit,
-            )
+            if user_id:
+                rows = await conn.fetch(
+                    """SELECT id, pipeline_name, status, trigger_type,
+                              total_tokens, total_cost_usd, agents_used,
+                              error_message, started_at, completed_at, metadata
+                       FROM workflow_runs
+                       WHERE user_id = $1::uuid OR user_id IS NULL
+                       ORDER BY started_at DESC LIMIT $2""",
+                    user_id, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    """SELECT id, pipeline_name, status, trigger_type,
+                              total_tokens, total_cost_usd, agents_used,
+                              error_message, started_at, completed_at, metadata
+                       FROM workflow_runs ORDER BY started_at DESC LIMIT $1""",
+                    limit,
+                )
             runs = []
             for r in rows:
                 agents = r["agents_used"]
@@ -67,13 +85,19 @@ async def _get_db_runs(limit: int = 50) -> list:
         return []
 
 
-async def _get_db_health() -> dict:
+async def _get_db_health(user_id: str = None) -> dict:
     """Compute system health from workflow_runs only (unified source)."""
     try:
         from ..db.client import get_db_pool
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            stats = await conn.fetchrow("""
+            user_filter = ""
+            user_params: list = []
+            if user_id:
+                user_filter = "WHERE user_id = $1::uuid OR user_id IS NULL"
+                user_params = [user_id]
+
+            stats = await conn.fetchrow(f"""
                 SELECT
                     COUNT(*) as total_runs,
                     COUNT(*) FILTER (WHERE status = 'completed') as successful,
@@ -84,16 +108,19 @@ async def _get_db_health() -> dict:
                         EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000
                     ) FILTER (WHERE status = 'completed' AND completed_at IS NOT NULL), 0) as avg_latency,
                     COUNT(DISTINCT pipeline_name) as pipeline_count
-                FROM workflow_runs
-            """)
+                FROM workflow_runs {user_filter}
+            """, *user_params)
 
             # Per-agent metrics from agents_used JSONB + step_executions
-            agent_rows = await conn.fetch("""
+            agent_filter = "WHERE agents_used IS NOT NULL AND agents_used != '[]'::jsonb"
+            if user_id:
+                agent_filter += " AND (user_id = $1::uuid OR user_id IS NULL)"
+            agent_rows = await conn.fetch(f"""
                 SELECT agents_used, total_tokens, total_cost_usd,
                        EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000 as processing_time_ms,
                        status
-                FROM workflow_runs WHERE agents_used IS NOT NULL AND agents_used != '[]'::jsonb
-            """)
+                FROM workflow_runs {agent_filter}
+            """, *user_params)
 
             # Retry/fallback counts from step_executions
             retry_rows = await conn.fetch("""
@@ -174,9 +201,10 @@ async def _get_db_health() -> dict:
 
 
 @router.get("/")
-async def list_runs(limit: int = 50):
+async def list_runs(request: Request, limit: int = 50):
     """List recent runs — merges PostgreSQL workflow_runs + in-memory."""
-    db_runs = await _get_db_runs(limit)
+    user_id = _get_user_id(request)
+    db_runs = await _get_db_runs(limit, user_id=user_id)
     mem_runs = collector.get_runs(limit=limit)
     mem_list = [r.model_dump() for r in mem_runs]
 
@@ -197,9 +225,10 @@ async def get_agent_reliability():
 
 
 @router.get("/reliability/health")
-async def get_system_health():
+async def get_system_health(request: Request):
     """Get overall system health — reads from workflow_runs (unified source)."""
-    db_health = await _get_db_health()
+    user_id = _get_user_id(request)
+    db_health = await _get_db_health(user_id=user_id)
     if db_health and db_health["total_runs"] > 0:
         return db_health
 
@@ -208,8 +237,9 @@ async def get_system_health():
 
 
 @router.get("/{run_id}")
-async def get_run(run_id: str):
+async def get_run(run_id: str, request: Request):
     """Get details for a specific run."""
+    user_id = _get_user_id(request)
     # Try workflow_runs first
     try:
         from ..db.client import get_db_pool
@@ -217,8 +247,8 @@ async def get_run(run_id: str):
         async with pool.acquire() as conn:
             import uuid
             row = await conn.fetchrow(
-                "SELECT * FROM workflow_runs WHERE id = $1",
-                uuid.UUID(run_id),
+                "SELECT * FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                uuid.UUID(run_id), user_id,
             )
             if row:
                 agents = row["agents_used"]

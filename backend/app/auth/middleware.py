@@ -1,7 +1,8 @@
 """Auth middleware — enforces JWT on protected routes, injects user into request.state."""
 
 import logging
-from fastapi import Request, HTTPException
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from .jwt_handler import verify_token
 
@@ -14,6 +15,7 @@ PUBLIC_PATHS = {
     "/api/auth/login",
     "/api/auth/google",
     "/api/auth/plans",
+    "/api/integrations/status",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -21,6 +23,8 @@ PUBLIC_PATHS = {
 
 PUBLIC_PREFIXES = [
     "/api/auth/",
+    "/api/templates",
+    "/api/automations/webhook/",
     "/docs",
     "/openapi",
     "/redoc",
@@ -33,6 +37,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Skip auth for public routes
         if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
+            request.state.user = None
+            request.state.user_id = None
+            request.state.user_plan = "free"
             return await call_next(request)
 
         # Skip auth for OPTIONS (CORS preflight)
@@ -49,9 +56,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request.state.user_plan = token_data.get("plan", "free")
                 return await call_next(request)
 
-        # No valid token — allow request but mark as anonymous
-        # This enables gradual migration: existing features work without auth
-        request.state.user = None
-        request.state.user_id = None
-        request.state.user_plan = "free"
-        return await call_next(request)
+        # No valid token — BLOCK access to protected routes
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required"},
+        )

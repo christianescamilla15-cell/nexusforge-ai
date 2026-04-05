@@ -8,7 +8,7 @@ dashboards.
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.db.client import get_db_pool
 
@@ -16,9 +16,17 @@ router = APIRouter(prefix="/executions-db", tags=["Executions DB"])
 logger = logging.getLogger(__name__)
 
 
+def _get_user_id(request: Request) -> str:
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Login required")
+    return uid
+
+
 @router.get("/")
-async def list_executions(limit: int = 50):
+async def list_executions(request: Request, limit: int = 50):
     """List recent workflow executions from persistent storage."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -28,10 +36,11 @@ async def list_executions(limit: int = 50):
                        total_latency_ms, total_tokens, total_cost_usd,
                        fallback_used, retry_count
                 FROM workflow_runs
+                WHERE user_id = $1::uuid OR user_id IS NULL
                 ORDER BY started_at DESC
-                LIMIT $1
+                LIMIT $2
                 """,
-                limit,
+                user_id, limit,
             )
             return {"executions": [dict(r) for r in rows], "total": len(rows)}
     except Exception as exc:
@@ -40,14 +49,15 @@ async def list_executions(limit: int = 50):
 
 
 @router.get("/{run_id}")
-async def get_execution(run_id: str):
+async def get_execution(run_id: str, request: Request):
     """Get a specific execution by ID."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT * FROM workflow_runs WHERE id = $1",
-                run_id,
+                "SELECT * FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                run_id, user_id,
             )
             if not row:
                 raise HTTPException(status_code=404, detail="Execution not found")
@@ -60,11 +70,19 @@ async def get_execution(run_id: str):
 
 
 @router.get("/{run_id}/steps")
-async def get_execution_steps(run_id: str):
+async def get_execution_steps(run_id: str, request: Request):
     """Get all steps for a specific execution."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Verify run ownership first
+            owner_check = await conn.fetchrow(
+                "SELECT id FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                run_id, user_id,
+            )
+            if not owner_check:
+                raise HTTPException(status_code=404, detail="Execution not found")
             rows = await conn.fetch(
                 """
                 SELECT * FROM workflow_steps
@@ -80,11 +98,19 @@ async def get_execution_steps(run_id: str):
 
 
 @router.get("/{run_id}/events")
-async def get_execution_events(run_id: str):
+async def get_execution_events(run_id: str, request: Request):
     """Get all agent events for a specific execution."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Verify run ownership first
+            owner_check = await conn.fetchrow(
+                "SELECT id FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                run_id, user_id,
+            )
+            if not owner_check:
+                raise HTTPException(status_code=404, detail="Execution not found")
             rows = await conn.fetch(
                 """
                 SELECT * FROM agent_events
@@ -100,15 +126,17 @@ async def get_execution_events(run_id: str):
 
 
 @router.get("/{run_id}/timeline")
-async def get_execution_timeline(run_id: str):
+async def get_execution_timeline(run_id: str, request: Request):
     """Get unified timeline merging workflow lifecycle, steps, events, and
     checkpoints — ordered chronologically."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             # Workflow lifecycle
             run = await conn.fetchrow(
-                "SELECT * FROM workflow_runs WHERE id = $1", run_id
+                "SELECT * FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                run_id, user_id,
             )
             if not run:
                 raise HTTPException(status_code=404, detail="Execution not found")
@@ -240,11 +268,19 @@ async def get_execution_timeline(run_id: str):
 
 
 @router.get("/{run_id}/checkpoints")
-async def get_execution_checkpoints(run_id: str):
+async def get_execution_checkpoints(run_id: str, request: Request):
     """Get all checkpoints for a specific execution."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Verify run ownership first
+            owner_check = await conn.fetchrow(
+                "SELECT id FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                run_id, user_id,
+            )
+            if not owner_check:
+                raise HTTPException(status_code=404, detail="Execution not found")
             rows = await conn.fetch(
                 """
                 SELECT * FROM checkpoints

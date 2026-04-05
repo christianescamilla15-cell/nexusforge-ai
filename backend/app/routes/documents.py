@@ -4,7 +4,7 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.db.client import get_db_pool
 from app.models.document import DocumentUpload, DocumentSearch, DocumentResponse, ChunkResponse
@@ -15,21 +15,30 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _get_user_id(request: Request) -> str:
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Login required")
+    return uid
+
+
 @router.post("/", status_code=201, response_model=DocumentResponse)
-async def upload_document(body: DocumentUpload):
+async def upload_document(body: DocumentUpload, request: Request):
     """Upload a document and index it for RAG retrieval."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                """INSERT INTO documents (title, content, file_type, language, metadata, status)
-                   VALUES ($1, $2, $3, $4, $5::jsonb, 'pending')
+                """INSERT INTO documents (title, content, file_type, language, metadata, status, user_id)
+                   VALUES ($1, $2, $3, $4, $5::jsonb, 'pending', $6::uuid)
                    RETURNING id, title, content, file_type, language, status, created_at""",
                 body.title,
                 body.content,
                 body.file_type,
                 body.language,
                 json.dumps(body.metadata),
+                user_id,
             )
 
         doc_id = row["id"]
@@ -63,18 +72,19 @@ async def upload_document(body: DocumentUpload):
 
 
 @router.get("/", response_model=list[DocumentResponse])
-async def list_documents(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+async def list_documents(request: Request, skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
     """List all documents with pagination."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
                 """SELECT id, title, content, file_type, language, status, created_at
                    FROM documents
+                   WHERE user_id = $1::uuid OR user_id IS NULL
                    ORDER BY created_at DESC
-                   OFFSET $1 LIMIT $2""",
-                skip,
-                limit,
+                   OFFSET $2 LIMIT $3""",
+                user_id, skip, limit,
             )
         return [
             DocumentResponse(
@@ -94,8 +104,9 @@ async def list_documents(skip: int = Query(0, ge=0), limit: int = Query(20, ge=1
 
 
 @router.post("/search", response_model=list[ChunkResponse])
-async def search_documents(body: DocumentSearch):
+async def search_documents(body: DocumentSearch, request: Request):
     """Semantic search across indexed documents."""
+    _get_user_id(request)
     try:
         results = await search(body.query, top_k=body.top_k)
         return [

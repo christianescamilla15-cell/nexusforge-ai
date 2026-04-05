@@ -18,13 +18,11 @@ logger = logging.getLogger(__name__)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-def _get_user_id(request: Request) -> Optional[str]:
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        data = verify_token(auth[7:])
-        if data:
-            return data.get("sub")
-    return None
+def _get_user_id(request: Request) -> str:
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Login required")
+    return uid
 
 
 def _row_to_dict(r) -> dict:
@@ -94,9 +92,17 @@ class EvaluateRequest(BaseModel):
 @router.get("/automation/{automation_id}")
 async def list_rules(automation_id: UUID, request: Request):
     """List all rules for an automation."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Verify automation ownership
+            auto = await conn.fetchrow(
+                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                automation_id, user_id,
+            )
+            if not auto:
+                raise HTTPException(status_code=404, detail="Automation not found")
             rows = await conn.fetch(
                 """SELECT * FROM automation_rules
                    WHERE automation_id = $1
@@ -113,14 +119,13 @@ async def list_rules(automation_id: UUID, request: Request):
 async def create_rule(body: CreateRuleRequest, request: Request):
     """Create a new automation rule."""
     user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            # Verify automation exists
+            # Verify automation ownership
             auto = await conn.fetchrow(
-                "SELECT id FROM automations WHERE id = $1", body.automation_id,
+                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                body.automation_id, user_id,
             )
             if not auto:
                 raise HTTPException(status_code=404, detail="Automation not found")
@@ -152,13 +157,14 @@ async def create_rule(body: CreateRuleRequest, request: Request):
 async def update_rule(rule_id: UUID, body: UpdateRuleRequest, request: Request):
     """Update an existing automation rule."""
     user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             existing = await conn.fetchrow(
-                "SELECT id FROM automation_rules WHERE id = $1", rule_id,
+                """SELECT ar.id FROM automation_rules ar
+                   JOIN automations a ON a.id = ar.automation_id
+                   WHERE ar.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                rule_id, user_id,
             )
             if not existing:
                 raise HTTPException(status_code=404, detail="Rule not found")
@@ -193,11 +199,18 @@ async def update_rule(rule_id: UUID, body: UpdateRuleRequest, request: Request):
 async def delete_rule(rule_id: UUID, request: Request):
     """Delete an automation rule."""
     user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Verify ownership before deleting
+            existing = await conn.fetchrow(
+                """SELECT ar.id FROM automation_rules ar
+                   JOIN automations a ON a.id = ar.automation_id
+                   WHERE ar.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                rule_id, user_id,
+            )
+            if not existing:
+                raise HTTPException(status_code=404, detail="Rule not found")
             result = await conn.execute(
                 "DELETE FROM automation_rules WHERE id = $1", rule_id,
             )
@@ -219,7 +232,17 @@ async def evaluate(body: EvaluateRequest, request: Request):
 
     Returns which rules matched and what actions would execute.
     """
+    user_id = _get_user_id(request)
     try:
+        # Verify automation ownership
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            auto = await conn.fetchrow(
+                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                body.automation_id, user_id,
+            )
+            if not auto:
+                raise HTTPException(status_code=404, detail="Automation not found")
         matched = await evaluate_rules(body.automation_id, body.input_data)
         return {
             "automation_id": str(body.automation_id),

@@ -19,13 +19,11 @@ logger = logging.getLogger(__name__)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-def _get_user_id(request: Request) -> Optional[str]:
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        data = verify_token(auth[7:])
-        if data:
-            return data.get("sub")
-    return None
+def _get_user_id(request: Request) -> str:
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Login required")
+    return uid
 
 
 def _row_to_dict(r) -> dict:
@@ -54,15 +52,17 @@ async def list_audit(
     offset: int = Query(0, ge=0),
 ):
     """List recent audit entries with optional entity_type filter (paginated)."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            where = ""
-            params: list = []
+            conditions = ["(user_id = $1::uuid OR user_id IS NULL)"]
+            params: list = [user_id]
             if entity_type:
-                where = "WHERE entity_type = $1"
+                conditions.append(f"entity_type = ${len(params) + 1}")
                 params.append(entity_type)
 
+            where = "WHERE " + " AND ".join(conditions)
             idx = len(params)
             params.append(limit)
             params.append(offset)
@@ -77,7 +77,7 @@ async def list_audit(
 
             count_row = await conn.fetchrow(
                 f"SELECT COUNT(*) AS total FROM audit_logs {where}",
-                *(params[:1] if entity_type else []),
+                *(params[:idx]),
             )
 
         return {
@@ -100,20 +100,23 @@ async def audit_for_entity(
     offset: int = Query(0, ge=0),
 ):
     """Audit trail for a specific entity."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
                 """SELECT * FROM audit_logs
                    WHERE entity_type = $1 AND entity_id = $2
+                     AND (user_id = $3::uuid OR user_id IS NULL)
                    ORDER BY created_at DESC
-                   LIMIT $3 OFFSET $4""",
-                entity_type, entity_id, limit, offset,
+                   LIMIT $4 OFFSET $5""",
+                entity_type, entity_id, user_id, limit, offset,
             )
             count_row = await conn.fetchrow(
                 """SELECT COUNT(*) AS total FROM audit_logs
-                   WHERE entity_type = $1 AND entity_id = $2""",
-                entity_type, entity_id,
+                   WHERE entity_type = $1 AND entity_id = $2
+                     AND (user_id = $3::uuid OR user_id IS NULL)""",
+                entity_type, entity_id, user_id,
             )
         return {
             "items": [_row_to_dict(r) for r in rows],
@@ -134,17 +137,16 @@ async def export_audit_csv(
 ):
     """Export audit logs as CSV."""
     user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            where = ""
-            params: list = []
+            conditions = ["(user_id = $1::uuid OR user_id IS NULL)"]
+            params: list = [user_id]
             if entity_type:
-                where = "WHERE entity_type = $1"
+                conditions.append(f"entity_type = ${len(params) + 1}")
                 params.append(entity_type)
 
+            where = "WHERE " + " AND ".join(conditions)
             idx = len(params)
             params.append(limit)
 

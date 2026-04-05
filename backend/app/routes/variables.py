@@ -20,13 +20,11 @@ MASK = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-def _get_user_id(request: Request) -> Optional[str]:
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        data = verify_token(auth[7:])
-        if data:
-            return data.get("sub")
-    return None
+def _get_user_id(request: Request) -> str:
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Login required")
+    return uid
 
 
 def _client_ip(request: Request) -> str:
@@ -69,9 +67,17 @@ class UpdateVariableRequest(BaseModel):
 @router.get("/automation/{automation_id}")
 async def list_variables(automation_id: UUID, request: Request):
     """List all variables for an automation (secrets are masked)."""
+    user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Verify automation ownership
+            auto = await conn.fetchrow(
+                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                automation_id, user_id,
+            )
+            if not auto:
+                raise HTTPException(status_code=404, detail="Automation not found")
             rows = await conn.fetch(
                 """SELECT * FROM automation_variables
                    WHERE automation_id = $1
@@ -88,14 +94,13 @@ async def list_variables(automation_id: UUID, request: Request):
 async def create_variable(body: CreateVariableRequest, request: Request):
     """Create a new automation variable."""
     user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            # Verify automation exists
+            # Verify automation ownership
             auto = await conn.fetchrow(
-                "SELECT id FROM automations WHERE id = $1", body.automation_id,
+                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                body.automation_id, user_id,
             )
             if not auto:
                 raise HTTPException(status_code=404, detail="Automation not found")
@@ -129,13 +134,14 @@ async def create_variable(body: CreateVariableRequest, request: Request):
 async def update_variable(variable_id: UUID, body: UpdateVariableRequest, request: Request):
     """Update an existing automation variable."""
     user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             existing = await conn.fetchrow(
-                "SELECT * FROM automation_variables WHERE id = $1", variable_id,
+                """SELECT av.* FROM automation_variables av
+                   JOIN automations a ON a.id = av.automation_id
+                   WHERE av.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                variable_id, user_id,
             )
             if not existing:
                 raise HTTPException(status_code=404, detail="Variable not found")
@@ -177,14 +183,14 @@ async def update_variable(variable_id: UUID, body: UpdateVariableRequest, reques
 async def delete_variable(variable_id: UUID, request: Request):
     """Delete an automation variable."""
     user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Login required")
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             existing = await conn.fetchrow(
-                "SELECT key, automation_id FROM automation_variables WHERE id = $1",
-                variable_id,
+                """SELECT av.key, av.automation_id FROM automation_variables av
+                   JOIN automations a ON a.id = av.automation_id
+                   WHERE av.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                variable_id, user_id,
             )
             if not existing:
                 raise HTTPException(status_code=404, detail="Variable not found")

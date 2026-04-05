@@ -39,13 +39,10 @@ AVAILABLE_SERVICES = [
 
 
 def _get_user_id(request: Request) -> str:
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        raise HTTPException(401, "Login required")
-    token_data = verify_token(auth[7:])
-    if not token_data:
-        raise HTTPException(401, "Invalid token")
-    return token_data["sub"]
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Login required")
+    return uid
 
 @router.get("/status")
 async def integration_status():
@@ -53,37 +50,44 @@ async def integration_status():
     return IntegrationConfig.status()
 
 @router.get("/drive/files")
-async def drive_list_files(query: str = "", limit: int = 10):
+async def drive_list_files(request: Request, query: str = "", limit: int = 10):
+    _get_user_id(request)
     from ..integrations.google_drive.client import list_files
     return await list_files(query=query, max_results=limit)
 
 @router.get("/gmail/messages")
-async def gmail_list_messages(query: str = "is:unread", limit: int = 5):
+async def gmail_list_messages(request: Request, query: str = "is:unread", limit: int = 5):
+    _get_user_id(request)
     from ..integrations.gmail.client import list_messages
     return await list_messages(query=query, max_results=limit)
 
 @router.get("/calendar/events")
-async def calendar_list_events(days: int = 7, limit: int = 10):
+async def calendar_list_events(request: Request, days: int = 7, limit: int = 10):
+    _get_user_id(request)
     from ..integrations.google_calendar.client import list_events
     return await list_events(days_ahead=days, max_results=limit)
 
 @router.get("/calendar/availability")
-async def calendar_availability(date: str = None):
+async def calendar_availability(request: Request, date: str = None):
+    _get_user_id(request)
     from ..integrations.google_calendar.client import get_availability
     return await get_availability(date=date)
 
 @router.post("/notion/write")
-async def notion_write(title: str, content: str):
+async def notion_write(request: Request, title: str, content: str):
+    _get_user_id(request)
     from ..integrations.notion.client import write_page
     return await write_page(title=title, content=content)
 
 @router.get("/notion/query")
-async def notion_query():
+async def notion_query(request: Request):
+    _get_user_id(request)
     from ..integrations.notion.client import query_database
     return await query_database()
 
 @router.post("/webhook/send")
-async def webhook_send(event_type: str, payload: dict):
+async def webhook_send(request: Request, event_type: str, payload: dict):
+    _get_user_id(request)
     from ..integrations.webhooks.client import send_webhook
     return await send_webhook(event_type=event_type, payload=payload)
 
