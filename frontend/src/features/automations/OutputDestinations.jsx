@@ -21,20 +21,37 @@ export default function OutputDestinations({ automationId, lang = 'en' }) {
     setLoading(true)
     Promise.all([
       fetchAPI(`/automations/${automationId}/output-config`),
+      fetchAPI('/integrations/status'),
       fetchAPI('/integrations/services'),
-    ]).then(([configRes, intRes]) => {
+    ]).then(([configRes, statusRes, servicesRes]) => {
       if (!configRes.error && configRes.data?.output_config) {
         setConfig(configRes.data.output_config)
         setWebhookUrl(configRes.data.output_config.webhook_url || '')
       }
-      if (!intRes.error) {
-        const map = {}
-        const items = intRes.data?.services || intRes.data || []
-        if (Array.isArray(items)) {
-          items.forEach(s => { map[s.service] = s })
-        }
-        setIntegrations(map)
+      // Build integration status map from both sources
+      const map = {}
+      // Global status (env vars — google_drive, gmail, notion, webhooks)
+      if (!statusRes.error && statusRes.data) {
+        const statusData = statusRes.data
+        Object.entries(statusData).forEach(([key, val]) => {
+          if (val.configured) {
+            const normalizedKey = key === 'google_drive' ? 'drive' : key === 'webhooks' ? 'webhook' : key
+            map[normalizedKey] = { service: normalizedKey, is_active: true, test_status: 'ok' }
+          }
+        })
       }
+      // Per-user services (user_integrations — email, notion, slack)
+      if (!servicesRes.error) {
+        const items = servicesRes.data?.services || servicesRes.data || []
+        if (Array.isArray(items)) {
+          items.forEach(s => {
+            const key = s.id || s.service
+            // Mark as configured if user has it in user_integrations
+            if (!map[key]) map[key] = { service: key, is_active: false }
+          })
+        }
+      }
+      setIntegrations(map)
       setLoading(false)
     })
   }, [automationId])
@@ -102,9 +119,9 @@ export default function OutputDestinations({ automationId, lang = 'en' }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
         {DESTINATIONS.map(dest => {
           const enabled = !!config[dest.key]
-          const integrated = dest.service ? integrations[dest.service] : true
+          const integrated = integrations[dest.key] || (dest.service ? integrations[dest.service] : null)
           const configured = integrated?.is_active || integrated?.test_status === 'ok' || dest.key === 'webhook'
-          const needsSetup = dest.service && !integrated
+          const needsSetup = !integrated && dest.key !== 'webhook'
 
           return (
             <div
