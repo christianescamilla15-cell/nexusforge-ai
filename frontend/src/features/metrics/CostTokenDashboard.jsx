@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../services/api'
+import { subscribe } from '../../shared/queryKeys'
 
 const T = {
   en: {
@@ -74,24 +75,23 @@ export default function CostTokenDashboard({ lang = 'en', embedded = false }) {
   const [error, setError] = useState(null)
   const [providerStatus, setProviderStatus] = useState(null)
 
-  useEffect(() => {
-    async function load() {
-      const [healthRes, runsRes] = await Promise.all([
-        fetchAPI('/runs/reliability/health'),
-        fetchAPI('/runs/'),
-      ])
+  const loadMetrics = useCallback(async () => {
+    const [healthRes, runsRes] = await Promise.all([
+      fetchAPI('/runs/reliability/health'),
+      fetchAPI('/runs/'),
+    ])
 
-      if (healthRes.error || runsRes.error) {
-        setError(healthRes.error || runsRes.error)
-        setLoading(false)
-        return
-      }
+    if (healthRes.error || runsRes.error) {
+      setError(healthRes.error || runsRes.error)
+      setLoading(false)
+      return
+    }
 
-      setIsDemo(healthRes.isDemo || runsRes.isDemo)
+    setIsDemo(healthRes.isDemo || runsRes.isDemo)
 
-      if (healthRes.data?.agents) {
-        setAgents(healthRes.data.agents.map(a => ({
-          agent: a.agent,
+    if (healthRes.data?.agents) {
+      setAgents(healthRes.data.agents.map(a => ({
+        agent: a.agent,
           executions: a.executions || 0,
           avg_latency_ms: a.avg_latency_ms || 0,
           tokens: a.tokens || 0,
@@ -117,9 +117,14 @@ export default function CostTokenDashboard({ lang = 'en', embedded = false }) {
       }
 
       setLoading(false)
-    }
-    load()
   }, [])
+
+  useEffect(() => { loadMetrics() }, [loadMetrics])
+
+  // Subscribe to cascade invalidation
+  useEffect(() => {
+    return subscribe(['analytics'], loadMetrics)
+  }, [loadMetrics])
 
   const totalTokens = runs.reduce((s, r) => s + (r.tokens || 0), 0)
   const totalCost = runs.reduce((s, r) => s + (r.cost || 0), 0)

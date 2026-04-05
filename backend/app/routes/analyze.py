@@ -318,40 +318,31 @@ async def analyze_document(
 
     processing_time = round((time.time() - start) * 1000, 1)
 
-    # Step 7: Persist to DB (best-effort)
+    # Step 7: Persist to workflow_runs via run_tracker (best-effort)
     run_id = None
     try:
-        from ..db.client import get_db_pool
-        from ..db.pipeline_store import save_pipeline_run
-        pool = await get_db_pool()
-        run_id = await save_pipeline_run(
-            pool,
+        run_id = await start_run(
             pipeline_name="analyze",
+            trigger_type="api",
+            metadata={"file": file.filename or "upload", "language": language},
+        )
+        agents = doc_data.get("agents_used", ["DocumentRAG", "Summarizer", "QAGenerator"])
+        agent_count = max(len(agents), 1)
+        for agent in agents:
+            await record_step(
+                run_id, agent, agent.lower(),
+                tokens_used=doc_data.get("total_tokens", 0) // agent_count,
+                cost_usd=doc_data.get("cost_usd", 0) / agent_count,
+                duration_ms=int(processing_time) // agent_count,
+            )
+        await complete_run(
+            run_id,
             status=doc_data["status"],
-            trigger_source="backend",
-            file_name=file.filename,
-            document_type=doc_data.get("document_type"),
-            input_summary={"file_type": file_type, "language": language, "custom_questions": bool(questions)},
-            output_summary={"summary": doc_data.get("summary", ""), "questions": len(q_list), "answers": len(answers)},
-            steps=steps,
             total_tokens=doc_data.get("total_tokens", 0),
-            cost_usd=doc_data.get("cost_usd", 0),
-            processing_time_ms=int(processing_time),
-            llm_used=doc_data.get("llm_used", False),
+            total_cost_usd=float(doc_data.get("cost_usd", 0)),
             agents_used=doc_data.get("agents_used", []),
             notion_url=notion_url,
-            webhook_sent=False,
         )
-    except Exception:
-        pass
-
-    # Track in workflow_runs for Executions page
-    try:
-        tracker_id = await start_run("AI Analyze", metadata={"file": file.filename or "upload", "language": language})
-        agents = doc_data.get("agents_used", ["DocumentRAG", "Summarizer", "QAGenerator"])
-        for agent in agents:
-            await record_step(tracker_id, agent, agent.lower(), tokens_used=doc_data.get("total_tokens", 0) // max(len(agents), 1), cost_usd=doc_data.get("cost_usd", 0) / max(len(agents), 1), duration_ms=int(processing_time) // max(len(agents), 1))
-        await complete_run(tracker_id, status=doc_data["status"], total_tokens=doc_data.get("total_tokens", 0), total_cost_usd=float(doc_data.get("cost_usd", 0)))
     except Exception as e:
         logger.warning("analyze: run_tracker failed: %s", e)
 
@@ -462,31 +453,30 @@ async def analyze_text(
 
     processing_time = round((time.time() - start) * 1000, 1)
 
-    # Persist
+    # Persist to workflow_runs via run_tracker (best-effort)
     try:
-        from ..db.client import get_db_pool
-        from ..db.pipeline_store import save_pipeline_run
-        pool = await get_db_pool()
-        await save_pipeline_run(
-            pool, pipeline_name="analyze-text", status=doc_data["status"],
-            trigger_source="backend", document_type=doc_data.get("document_type"),
-            input_summary={"length": len(content), "language": language},
-            output_summary={"summary": doc_data.get("summary", "")},
-            steps=steps, total_tokens=doc_data.get("total_tokens", 0),
-            cost_usd=doc_data.get("cost_usd", 0), processing_time_ms=int(processing_time),
-            llm_used=doc_data.get("llm_used", False), agents_used=doc_data.get("agents_used", []),
+        tracker_id = await start_run(
+            pipeline_name="analyze-text",
+            trigger_type="api",
+            metadata={"language": language},
+        )
+        agents = doc_data.get("agents_used", ["DocumentRAG", "Summarizer", "QAGenerator"])
+        agent_count = max(len(agents), 1)
+        for agent in agents:
+            await record_step(
+                tracker_id, agent, agent.lower(),
+                tokens_used=doc_data.get("total_tokens", 0) // agent_count,
+                cost_usd=doc_data.get("cost_usd", 0) / agent_count,
+                duration_ms=int(processing_time) // agent_count,
+            )
+        await complete_run(
+            tracker_id,
+            status=doc_data["status"],
+            total_tokens=doc_data.get("total_tokens", 0),
+            total_cost_usd=float(doc_data.get("cost_usd", 0)),
+            agents_used=doc_data.get("agents_used", []),
             notion_url=notion_url,
         )
-    except Exception:
-        pass
-
-    # Track in workflow_runs for Executions page
-    try:
-        tracker_id = await start_run("AI Analyze (Text)", metadata={"language": language})
-        agents = doc_data.get("agents_used", ["DocumentRAG", "Summarizer", "QAGenerator"])
-        for agent in agents:
-            await record_step(tracker_id, agent, agent.lower(), tokens_used=doc_data.get("total_tokens", 0) // max(len(agents), 1), cost_usd=doc_data.get("cost_usd", 0) / max(len(agents), 1), duration_ms=int(processing_time) // max(len(agents), 1))
-        await complete_run(tracker_id, status=doc_data["status"], total_tokens=doc_data.get("total_tokens", 0), total_cost_usd=float(doc_data.get("cost_usd", 0)))
     except Exception as e:
         logger.warning("analyze-text: run_tracker failed: %s", e)
 
@@ -511,12 +501,10 @@ async def get_all_pipeline_runs(
     pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),
     limit: int = Query(20, ge=1, le=100),
 ):
-    """List all persisted pipeline run history."""
+    """List all persisted run history from workflow_runs (unified source)."""
     try:
-        from ..db.client import get_db_pool
-        from ..db.pipeline_store import list_pipeline_runs
-        pool = await get_db_pool()
-        runs = await list_pipeline_runs(pool, pipeline_name=pipeline, limit=limit)
+        from ..utils.run_tracker import list_runs
+        runs = await list_runs(pipeline_name=pipeline, limit=limit)
         for run in runs:
             run["id"] = str(run["id"])
             if run.get("created_at"):

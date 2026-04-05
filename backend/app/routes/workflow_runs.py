@@ -1,8 +1,7 @@
-"""Workflow runs — serves metrics from PostgreSQL pipeline_runs + in-memory collector."""
+"""Workflow runs — serves metrics from PostgreSQL workflow_runs (unified source of truth)."""
 
 import json
 import logging
-import os
 from fastapi import APIRouter, HTTPException
 from ..metrics.collector import collector
 
@@ -11,16 +10,16 @@ logger = logging.getLogger(__name__)
 
 
 async def _get_db_runs(limit: int = 50) -> list:
-    """Fetch pipeline runs from PostgreSQL."""
+    """Fetch runs from workflow_runs (unified source)."""
     try:
         from ..db.client import get_db_pool
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
-                """SELECT id, pipeline_name, status, trigger_source, file_name,
-                          document_type, total_tokens, cost_usd, processing_time_ms,
-                          llm_used, agents_used, steps, notion_url, error_message, created_at
-                   FROM pipeline_runs ORDER BY created_at DESC LIMIT $1""",
+                """SELECT id, pipeline_name, status, trigger_type,
+                          total_tokens, total_cost_usd, agents_used,
+                          error_message, started_at, completed_at, metadata
+                   FROM workflow_runs ORDER BY started_at DESC LIMIT $1""",
                 limit,
             )
             runs = []
@@ -28,23 +27,38 @@ async def _get_db_runs(limit: int = 50) -> list:
                 agents = r["agents_used"]
                 if isinstance(agents, str):
                     agents = json.loads(agents)
+                meta = r["metadata"] or {}
+                if isinstance(meta, str):
+                    meta = json.loads(meta)
+
+                # Compute latency from timestamps
+                latency_ms = 0
+                if r["completed_at"] and r["started_at"]:
+                    latency_ms = int((r["completed_at"] - r["started_at"]).total_seconds() * 1000)
+
+                workflow_name = (
+                    r["pipeline_name"]
+                    or meta.get("workflow_name")
+                    or "workflow"
+                )
+
                 runs.append({
                     "id": str(r["id"]),
-                    "workflow_name": r["pipeline_name"] or "pipeline",
+                    "workflow_name": workflow_name,
+                    "pipeline_name": r["pipeline_name"],
                     "status": r["status"],
-                    "trigger_source": r["trigger_source"],
-                    "file_name": r["file_name"],
-                    "document_type": r["document_type"],
+                    "trigger_source": r["trigger_type"],
                     "total_tokens": r["total_tokens"] or 0,
                     "tokens": r["total_tokens"] or 0,
-                    "total_cost": float(r["cost_usd"] or 0),
-                    "cost": float(r["cost_usd"] or 0),
-                    "total_latency_ms": r["processing_time_ms"] or 0,
-                    "latency_ms": r["processing_time_ms"] or 0,
+                    "total_cost": float(r["total_cost_usd"] or 0),
+                    "cost": float(r["total_cost_usd"] or 0),
+                    "total_latency_ms": latency_ms,
+                    "latency_ms": latency_ms,
                     "agents_used": agents if isinstance(agents, list) else [],
-                    "started_at": r["created_at"].isoformat() if r["created_at"] else None,
-                    "finished_at": r["created_at"].isoformat() if r["created_at"] else None,
-                    "notion_url": r["notion_url"],
+                    "started_at": r["started_at"].isoformat() if r["started_at"] else None,
+                    "finished_at": r["completed_at"].isoformat() if r["completed_at"] else None,
+                    "created_at": r["started_at"].isoformat() if r["started_at"] else None,
+                    "notion_url": meta.get("notion_url"),
                     "error_message": r["error_message"],
                 })
             return runs
@@ -54,50 +68,45 @@ async def _get_db_runs(limit: int = 50) -> list:
 
 
 async def _get_db_health() -> dict:
-    """Compute system health from BOTH pipeline_runs AND workflow_runs."""
+    """Compute system health from workflow_runs only (unified source)."""
     try:
         from ..db.client import get_db_pool
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            # Combine both tables for complete KPIs
             stats = await conn.fetchrow("""
                 SELECT
-                    (COALESCE(pr.total, 0) + COALESCE(wr.total, 0)) as total_runs,
-                    (COALESCE(pr.successful, 0) + COALESCE(wr.successful, 0)) as successful,
-                    (COALESCE(pr.failed, 0) + COALESCE(wr.failed, 0)) as failed,
-                    (COALESCE(pr.tokens, 0) + COALESCE(wr.tokens, 0)) as total_tokens,
-                    (COALESCE(pr.cost, 0) + COALESCE(wr.cost, 0)) as total_cost,
-                    GREATEST(COALESCE(pr.avg_lat, 0), COALESCE(wr.avg_lat, 0)) as avg_latency,
-                    (COALESCE(pr.agents_count, 0) + COALESCE(wr.agents_count, 0)) as total_agents_tracked
-                FROM
-                    (SELECT COUNT(*) as total,
-                            COUNT(*) FILTER (WHERE status = 'completed') as successful,
-                            COUNT(*) FILTER (WHERE status = 'failed') as failed,
-                            COALESCE(SUM(total_tokens), 0) as tokens,
-                            COALESCE(SUM(cost_usd), 0) as cost,
-                            COALESCE(AVG(processing_time_ms) FILTER (WHERE status = 'completed'), 0) as avg_lat,
-                            COUNT(DISTINCT pipeline_name) as agents_count
-                     FROM pipeline_runs) pr,
-                    (SELECT COUNT(*) as total,
-                            COUNT(*) FILTER (WHERE status = 'completed') as successful,
-                            COUNT(*) FILTER (WHERE status = 'failed') as failed,
-                            COALESCE(SUM(total_tokens), 0) as tokens,
-                            COALESCE(SUM(total_cost_usd), 0) as cost,
-                            COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
-                                FILTER (WHERE status = 'completed'), 0) as avg_lat,
-                            COUNT(DISTINCT workflow_id) as agents_count
-                     FROM workflow_runs) wr
+                    COUNT(*) as total_runs,
+                    COUNT(*) FILTER (WHERE status = 'completed') as successful,
+                    COUNT(*) FILTER (WHERE status = 'failed') as failed,
+                    COALESCE(SUM(total_tokens), 0) as total_tokens,
+                    COALESCE(SUM(total_cost_usd), 0) as total_cost,
+                    COALESCE(AVG(
+                        EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000
+                    ) FILTER (WHERE status = 'completed' AND completed_at IS NOT NULL), 0) as avg_latency,
+                    COUNT(DISTINCT pipeline_name) as pipeline_count
+                FROM workflow_runs
             """)
 
-            # Combine agent data from both tables
+            # Per-agent metrics from agents_used JSONB + step_executions
             agent_rows = await conn.fetch("""
-                SELECT agents_used, total_tokens, cost_usd, processing_time_ms, status
-                FROM pipeline_runs WHERE agents_used IS NOT NULL
-                UNION ALL
-                SELECT agents_used, total_tokens, total_cost_usd as cost_usd,
-                       EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000 as processing_time_ms, status
-                FROM workflow_runs WHERE agents_used IS NOT NULL
+                SELECT agents_used, total_tokens, total_cost_usd,
+                       EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000 as processing_time_ms,
+                       status
+                FROM workflow_runs WHERE agents_used IS NOT NULL AND agents_used != '[]'::jsonb
             """)
+
+            # Retry/fallback counts from step_executions
+            retry_rows = await conn.fetch("""
+                SELECT agent_type,
+                       COALESCE(SUM(retry_count), 0) as total_retries,
+                       COUNT(*) FILTER (
+                           WHERE output_data::text LIKE '%"_parse_failed": true%'
+                              OR output_data::text LIKE '%"provider": "local"%'
+                       ) as total_fallbacks
+                FROM step_executions
+                GROUP BY agent_type
+            """)
+            retry_map = {r["agent_type"]: r for r in retry_rows}
 
             # Aggregate per-agent metrics
             agent_map = {}
@@ -133,6 +142,12 @@ async def _get_db_health() -> dict:
                 if a["executions"] > 0:
                     a["avg_latency_ms"] = round(a["_total_latency"] / a["executions"], 1)
                     a["success_rate"] = round(a["_successes"] / a["executions"], 2)
+                    # Attach retry/fallback data from step_executions
+                    rt = retry_map.get(a["agent"])
+                    if rt:
+                        a["retries"] = int(rt["total_retries"] or 0)
+                        a["fallbacks"] = int(rt["total_fallbacks"] or 0)
+                        a["retry_rate"] = round(a["retries"] / a["executions"], 3)
                 del a["_total_latency"]
                 del a["_successes"]
                 agents.append(a)
@@ -147,7 +162,7 @@ async def _get_db_health() -> dict:
                 "successful_runs": successful,
                 "failed_runs": failed,
                 "system_success_rate": round(successful / max(total, 1), 3),
-                "total_agents_tracked": int(stats.get("total_agents_tracked") or 0) or len(agents),
+                "total_agents_tracked": int(stats.get("pipeline_count") or 0) or len(agents),
                 "avg_latency_ms": round(float(stats["avg_latency"] or 0), 1),
                 "total_tokens": int(stats["total_tokens"] or 0),
                 "total_cost": round(float(stats["total_cost"] or 0), 6),
@@ -160,13 +175,15 @@ async def _get_db_health() -> dict:
 
 @router.get("/")
 async def list_runs(limit: int = 50):
-    """List recent runs — merges PostgreSQL + in-memory."""
+    """List recent runs — merges PostgreSQL workflow_runs + in-memory."""
     db_runs = await _get_db_runs(limit)
     mem_runs = collector.get_runs(limit=limit)
     mem_list = [r.model_dump() for r in mem_runs]
 
-    # Merge: DB runs first, then in-memory (avoid duplicates)
-    all_runs = db_runs + mem_list
+    # Merge: DB runs first, then in-memory (avoid duplicates by id)
+    db_ids = {r["id"] for r in db_runs}
+    unique_mem = [r for r in mem_list if str(r.get("id", "")) not in db_ids]
+    all_runs = db_runs + unique_mem
     source = "postgresql" if db_runs else ("memory" if mem_list else "empty")
     return {"runs": all_runs, "total": len(all_runs), "source": source}
 
@@ -181,7 +198,7 @@ async def get_agent_reliability():
 
 @router.get("/reliability/health")
 async def get_system_health():
-    """Get overall system health — tries PostgreSQL first."""
+    """Get overall system health — reads from workflow_runs (unified source)."""
     db_health = await _get_db_health()
     if db_health and db_health["total_runs"] > 0:
         return db_health
@@ -193,36 +210,37 @@ async def get_system_health():
 @router.get("/{run_id}")
 async def get_run(run_id: str):
     """Get details for a specific run."""
-    # Try DB first
+    # Try workflow_runs first
     try:
         from ..db.client import get_db_pool
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             import uuid
             row = await conn.fetchrow(
-                "SELECT * FROM pipeline_runs WHERE id = $1",
+                "SELECT * FROM workflow_runs WHERE id = $1",
                 uuid.UUID(run_id),
             )
             if row:
                 agents = row["agents_used"]
                 if isinstance(agents, str):
                     agents = json.loads(agents)
-                steps = row["steps"]
-                if isinstance(steps, str):
-                    steps = json.loads(steps)
+                meta = row["metadata"] or {}
+                if isinstance(meta, str):
+                    meta = json.loads(meta)
+                latency_ms = 0
+                if row["completed_at"] and row["started_at"]:
+                    latency_ms = int((row["completed_at"] - row["started_at"]).total_seconds() * 1000)
                 return {
                     "id": str(row["id"]),
-                    "workflow_name": row["pipeline_name"],
+                    "workflow_name": row["pipeline_name"] or meta.get("workflow_name", "workflow"),
+                    "pipeline_name": row["pipeline_name"],
                     "status": row["status"],
-                    "file_name": row["file_name"],
-                    "document_type": row["document_type"],
                     "total_tokens": row["total_tokens"] or 0,
-                    "total_cost": float(row["cost_usd"] or 0),
-                    "total_latency_ms": row["processing_time_ms"] or 0,
+                    "total_cost": float(row["total_cost_usd"] or 0),
+                    "total_latency_ms": latency_ms,
                     "agents_used": agents if isinstance(agents, list) else [],
-                    "steps": steps if isinstance(steps, list) else [],
-                    "notion_url": row["notion_url"],
-                    "started_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "notion_url": meta.get("notion_url"),
+                    "started_at": row["started_at"].isoformat() if row["started_at"] else None,
                 }
     except Exception:
         pass

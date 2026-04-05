@@ -7,6 +7,7 @@ import { timeAgo } from '../../shared/utils/timeAgo'
 import CostTokenDashboard from '../metrics/CostTokenDashboard'
 import ConfirmModal from '../../shared/components/ConfirmModal'
 import { useConfirm } from '../../shared/hooks/useConfirm'
+import { subscribe } from '../../shared/queryKeys'
 
 function formatDuration(ms) {
   if (!ms && ms !== 0) return '--'
@@ -69,6 +70,11 @@ export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   }
 
   useEffect(() => { loadExecutions() }, [])
+
+  // Subscribe to cascade invalidation
+  useEffect(() => {
+    return subscribe(['executions'], loadExecutions)
+  }, [])
 
   // Auto-refresh: always poll every 10s for the first 60s after mount,
   // then only continue if there are active runs.

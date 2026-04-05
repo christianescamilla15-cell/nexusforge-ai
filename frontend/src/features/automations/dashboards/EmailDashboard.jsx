@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
 import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
+import { invalidateAfterExecution } from '../../../shared/queryKeys'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 
@@ -112,6 +113,7 @@ export default function EmailDashboard({ automation, lang, onBack }) {
           setEmailText('')
           await loadResults()
           setProcessing(false)
+          invalidateAfterExecution()
           try {
             const { addNotification } = await import('../../../shared/components/NotificationBell')
             addNotification(lang === 'es' ? 'Email procesado' : 'Email processed', 'success')

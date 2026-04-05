@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchAPI, trackGuestRun } from '../../services/api'
 import PublishModal from './PublishModal'
 import RunInputModal from './RunInputModal'
@@ -10,6 +10,7 @@ import { useToast } from '../../shared/hooks/useToast'
 import { timeAgo } from '../../shared/utils/timeAgo'
 import SchedulePicker from '../../shared/components/SchedulePicker'
 import { addNotification } from '../../shared/components/NotificationBell'
+import { invalidateAfterExecution } from '../../shared/queryKeys'
 
 const TRIGGER_BADGE = {
   manual: { en: 'Manual', es: 'Manual', color: '#6366F1', bg: 'rgba(99,102,241,0.1)' },
@@ -300,17 +301,59 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
     }
     setRunning(auto.id)
     toast.show(
-      lang === 'es' ? '\uD83D\uDE80 Ejecutando automatizacion...' : '\uD83D\uDE80 Running automation...',
+      lang === 'es' ? 'Ejecutando automatizacion...' : 'Running automation...',
       'info'
     )
     const res = await fetchAPI(`/automations/${auto.id}/run`, {
       method: 'POST',
       body: JSON.stringify({ input_data }),
     })
-    setRunning(null)
-    if (!res.error && res.data?.run_id && onNavigateToExecution) {
-      onNavigateToExecution(res.data.run_id)
+
+    if (res.error || !res.data?.run_id) {
+      setRunning(null)
+      toast.show(res.error || 'Run failed', 'error')
+      return
     }
+
+    // Poll for completion — stay on page (no navigation)
+    const runId = res.data.run_id
+    let attempts = 0
+    const poll = setInterval(async () => {
+      attempts++
+      if (attempts > 60) {
+        clearInterval(poll)
+        setRunning(null)
+        toast.show(lang === 'es' ? 'Tiempo de espera agotado' : 'Timed out', 'warning')
+        return
+      }
+      try {
+        const execRes = await fetchAPI(`/executions/${runId}`)
+        const status = execRes.data?.status
+        if (status === 'completed' || status === 'failed') {
+          clearInterval(poll)
+          setRunning(null)
+          const tokens = execRes.data?.total_tokens || 0
+          const cost = execRes.data?.total_cost || execRes.data?.total_cost_usd || 0
+          if (status === 'completed') {
+            toast.show(
+              lang === 'es'
+                ? `Completado — ${tokens.toLocaleString()} tokens, $${Number(cost).toFixed(4)}`
+                : `Completed — ${tokens.toLocaleString()} tokens, $${Number(cost).toFixed(4)}`,
+              'success'
+            )
+          } else {
+            toast.show(
+              lang === 'es' ? `Fallo: ${execRes.data?.error_message || 'error'}` : `Failed: ${execRes.data?.error_message || 'error'}`,
+              'error'
+            )
+          }
+          // Cascade invalidate all related caches
+          invalidateAfterExecution()
+          // Refresh automations list to update run counts
+          loadUserAutomations()
+        }
+      } catch (_) { /* keep polling */ }
+    }, 1500)
   }
 
   const handleDelete = async (id) => {

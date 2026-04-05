@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import { useRefreshOnFocus } from '../../shared/hooks/useRefreshOnFocus'
+import { subscribe } from '../../shared/queryKeys'
 import GettingStarted from '../../shared/components/GettingStarted'
 import MiniBarChart from '../../shared/components/MiniBarChart'
 import TipOfTheDay from '../../shared/components/TipOfTheDay'
@@ -248,7 +249,19 @@ function TryItNowSection({ lang = 'en', isMobile, onNavigate }) {
               </div>
             )}
             <button
-              onClick={() => onNavigate && onNavigate('wizard')}
+              onClick={() => {
+                // Save demo result for Wizard prefill
+                try {
+                  const prefill = {
+                    sampleText: tryText,
+                    result: tryResult,
+                    automationType: tryResult?.classification?.category || tryResult?.document_type || 'ticket',
+                    description: tryResult?.summary || tryResult?.suggested_response || tryText.slice(0, 200),
+                  }
+                  localStorage.setItem('nxf_wizard_prefill', JSON.stringify(prefill))
+                } catch {}
+                onNavigate && onNavigate('wizard')
+              }}
               style={{
                 marginTop: 12, padding: '8px 16px', borderRadius: 8,
                 border: 'none', background: '#6366F1', color: '#fff',
@@ -434,6 +447,11 @@ export default function DashboardPage({ lang = 'en', onNavigate }) {
   useEffect(() => {
     const interval = setInterval(() => wrappedLoadRef.current(), 30000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Subscribe to cascade invalidation — refetch when any execution completes
+  useEffect(() => {
+    return subscribe(['dashboardKpis', 'dashboardRecent'], () => wrappedLoadRef.current())
   }, [])
 
   // Map health data to KPI values

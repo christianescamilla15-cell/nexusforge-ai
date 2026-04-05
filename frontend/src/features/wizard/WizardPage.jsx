@@ -122,10 +122,22 @@ const QUICK_TYPES = [
 // ── Quick-type smart defaults ────────────────────────────────────────────────
 
 const QUICK_TYPE_DEFAULTS = {
-  ticket:   { input: 'text',   outputs: ['dashboard', 'slack'] },
-  document: { input: 'file',   outputs: ['dashboard', 'export'] },
-  email:    { input: 'text',   outputs: ['dashboard', 'email'] },
-  report:   { input: 'form',   outputs: ['dashboard', 'export'] },
+  ticket:   { input: 'text',   outputs: ['dashboard', 'slack'],
+    name: { es: 'Triage de Tickets de Soporte', en: 'Support Ticket Triage' },
+    desc: { es: 'Clasificar tickets por urgencia y generar respuestas automáticas', en: 'Classify tickets by urgency and generate automatic responses' },
+  },
+  document: { input: 'file',   outputs: ['dashboard', 'export'],
+    name: { es: 'Análisis de Documentos', en: 'Document Analysis' },
+    desc: { es: 'Extraer datos clave de PDFs, facturas y contratos', en: 'Extract key data from PDFs, invoices and contracts' },
+  },
+  email:    { input: 'text',   outputs: ['dashboard', 'email'],
+    name: { es: 'Auto-Respuesta de Emails', en: 'Email Auto-Responder' },
+    desc: { es: 'Clasificar emails por tipo y urgencia, generar respuestas sugeridas', en: 'Classify emails by type and urgency, generate suggested responses' },
+  },
+  report:   { input: 'form',   outputs: ['dashboard', 'export'],
+    name: { es: 'Generador de Reportes Ejecutivos', en: 'Executive Report Generator' },
+    desc: { es: 'Analizar datos y generar reportes ejecutivos con insights', en: 'Analyze data and generate executive reports with insights' },
+  },
   custom:   { input: null,     outputs: [] },
 }
 
@@ -870,6 +882,29 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
   const [requiresApproval, setRequiresApproval] = useState(draft?.requiresApproval || false)
   const [hasDraft] = useState(!!draft?.description)
 
+  // Read demo prefill from localStorage (set by "Crear automatización con esto" on Dashboard)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('nxf_wizard_prefill')
+      if (!raw) return
+      localStorage.removeItem('nxf_wizard_prefill')
+      const prefill = JSON.parse(raw)
+      if (prefill.automationType) {
+        const validTypes = QUICK_TYPES.map(qt => qt.key)
+        const type = validTypes.includes(prefill.automationType) ? prefill.automationType : 'custom'
+        setAutomationType(type)
+        // Apply smart defaults for the type
+        const defaults = QUICK_TYPE_DEFAULTS[type]
+        if (defaults?.input) setInputType(defaults.input)
+        if (defaults?.outputs?.length) setOutputTypes(defaults.outputs)
+      }
+      if (prefill.description) setDescription(prefill.description)
+      if (prefill.result?.classification?.category) {
+        setCustomName(prefill.result.classification.category)
+      }
+    } catch {}
+  }, [])
+
   // Warn before closing tab during publish (prevents orphaned workflows)
   useEffect(() => {
     if (!publishing) return
@@ -1152,7 +1187,16 @@ export default function WizardPage({ lang = 'en', onNavigate, onNavigateToBuilde
             workflowName={customName}
             onNameChange={setCustomName}
             selectedType={automationType}
-            onTypeChange={setAutomationType}
+            onTypeChange={(type) => {
+              setAutomationType(type)
+              const defaults = QUICK_TYPE_DEFAULTS[type]
+              if (defaults?.name) {
+                setCustomName(defaults.name[lang] || defaults.name.en || '')
+              }
+              if (defaults?.desc && !description) {
+                setDescription(defaults.desc[lang] || defaults.desc.en || '')
+              }
+            }}
             lang={lang}
           />
         )}

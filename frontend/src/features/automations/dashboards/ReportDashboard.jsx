@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
 import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
+import { invalidateAfterExecution } from '../../../shared/queryKeys'
 import StatsBar from './StatsBar'
 
 function formatDate(iso, lang) {
@@ -164,6 +165,7 @@ export default function ReportDashboard({ automation, lang, onBack }) {
           setTopic('')
           await loadResults()
           setProcessing(false)
+          invalidateAfterExecution()
           try {
             const { addNotification } = await import('../../../shared/components/NotificationBell')
             addNotification(lang === 'es' ? 'Reporte generado' : 'Report generated', 'success')

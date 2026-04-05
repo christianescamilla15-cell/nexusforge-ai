@@ -138,29 +138,32 @@ async def drive_to_intelligence(request: DrivePipelineInput):
 
     processing_time = round((time.time() - start) * 1000, 1)
 
-    # Persist run to DB (best-effort)
+    # Persist run to workflow_runs via run_tracker (best-effort)
     run_id = None
     try:
-        from ..db.client import get_db_pool
-        from ..db.pipeline_store import save_pipeline_run
-        pool = await get_db_pool()
-        run_id = await save_pipeline_run(
-            pool,
+        from ..utils.run_tracker import start_run, record_step, complete_run
+        run_id = await start_run(
             pipeline_name="drive-to-intelligence",
+            trigger_type="api",
+            metadata={"file_id": request.file_id, "language": request.language, "file_name": file_name},
+        )
+        agents = doc.get("agents_used", [])
+        agent_count = max(len(agents), 1)
+        for agent in agents:
+            await record_step(
+                run_id, agent, agent.lower().replace("agent", ""),
+                tokens_used=doc.get("total_tokens", 0) // agent_count,
+                cost_usd=doc.get("cost_usd", 0) / agent_count,
+                duration_ms=int(processing_time) // agent_count,
+            )
+        await complete_run(
+            run_id,
             status=doc["status"],
-            trigger_source="backend",
-            file_name=file_name,
-            document_type=doc.get("document_type"),
-            input_summary={"file_id": request.file_id, "language": request.language},
-            output_summary={"summary": doc.get("summary", ""), "extracted_fields": doc.get("extracted_fields", {})},
-            steps=steps,
             total_tokens=doc.get("total_tokens", 0),
-            cost_usd=doc.get("cost_usd", 0),
-            processing_time_ms=int(processing_time),
-            llm_used=doc.get("llm_used", False),
+            total_cost_usd=float(doc.get("cost_usd", 0)),
             agents_used=doc.get("agents_used", []),
             notion_url=notion_url,
-            webhook_sent=webhook_sent,
+            extra_metadata={"webhook_sent": webhook_sent, "file_name": file_name},
         )
     except Exception:
         pass
@@ -251,12 +254,10 @@ async def get_pipeline_runs(
     pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),
     limit: int = Query(20, ge=1, le=100),
 ):
-    """List persisted pipeline run history."""
+    """List persisted run history from workflow_runs (unified source)."""
     try:
-        from ..db.client import get_db_pool
-        from ..db.pipeline_store import list_pipeline_runs
-        pool = await get_db_pool()
-        runs = await list_pipeline_runs(pool, pipeline_name=pipeline, limit=limit)
+        from ..utils.run_tracker import list_runs
+        runs = await list_runs(pipeline_name=pipeline, limit=limit)
         for run in runs:
             run["id"] = str(run["id"])
             if run.get("created_at"):

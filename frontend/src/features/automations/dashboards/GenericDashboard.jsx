@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
 import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
+import { invalidateAfterExecution } from '../../../shared/queryKeys'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 import AutoDashboardGenerator from './AutoDashboardGenerator'
@@ -165,6 +166,7 @@ export default function GenericDashboard({ automation, lang, onBack }) {
           setFormValues({})
           await loadResults()
           setProcessing(false)
+          invalidateAfterExecution()
           try {
             const { addNotification } = await import('../../../shared/components/NotificationBell')
             addNotification(lang === 'es' ? 'Procesamiento completado' : 'Processing complete', 'success')

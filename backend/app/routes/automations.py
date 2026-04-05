@@ -50,12 +50,25 @@ async def _launch_run(automation_id: UUID, workflow_id: UUID, wf_name: str,
             dag_data = json.loads(dag_data)
         dag = DAGDefinition(**dag_data)
 
+        # Parse user_id to UUID for the column
+        uid = None
+        if user_id:
+            try:
+                from uuid import UUID as _UUID
+                uid = _UUID(user_id) if isinstance(user_id, str) else user_id
+            except (ValueError, AttributeError):
+                uid = None
+
         row = await conn.fetchrow(
-            """INSERT INTO workflow_runs (workflow_id, status, trigger_type, metadata)
-               VALUES ($1, 'pending', 'manual', $2::jsonb)
+            """INSERT INTO workflow_runs
+               (workflow_id, status, trigger_type, metadata, user_id, automation_id, pipeline_name, execution_type)
+               VALUES ($1, 'pending', 'manual', $2::jsonb, $3, $4, $5, 'automation')
                RETURNING id""",
             workflow_id,
             json.dumps({"automation_id": str(automation_id), "automation_name": auto_name}),
+            uid,
+            automation_id,
+            auto_name,
         )
         run_id = row["id"]
 

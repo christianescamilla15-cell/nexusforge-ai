@@ -47,14 +47,21 @@ async def trigger_execution(body: ExecutionTrigger, request: Request):
             if not wf:
                 raise HTTPException(status_code=404, detail="Workflow not found or not active")
 
-            # Create run record
+            # Create run record with user_id for ownership filtering
+            uid = None
+            try:
+                uid = UUID(user_id)
+            except (ValueError, AttributeError):
+                pass
+
             row = await conn.fetchrow(
-                """INSERT INTO workflow_runs (workflow_id, status, trigger_type, metadata)
-                   VALUES ($1, 'pending', $2, $3::jsonb)
+                """INSERT INTO workflow_runs (workflow_id, status, trigger_type, metadata, user_id, execution_type)
+                   VALUES ($1, 'pending', $2, $3::jsonb, $4, 'dag_workflow')
                    RETURNING id, status, created_at""",
                 body.workflow_id,
                 body.trigger_type,
                 json.dumps(body.input_data),
+                uid,
             )
 
         run_id = row["id"]
@@ -145,8 +152,8 @@ async def list_executions(
         params = []
         idx = 1
 
-        # Always filter by authenticated user
-        conditions.append(f"wr.user_id = ${idx}::uuid")
+        # Show user's own runs + runs without a user (pipeline/public runs)
+        conditions.append(f"(wr.user_id = ${idx}::uuid OR wr.user_id IS NULL)")
         params.append(user_id)
         idx += 1
 

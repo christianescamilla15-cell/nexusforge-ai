@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchAPI, getApiUrl } from '../../../services/api'
 import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
+import { invalidateAfterExecution } from '../../../shared/queryKeys'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 
@@ -156,6 +157,7 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
           })
           await loadResults()
           setProcessing(false)
+          invalidateAfterExecution()
           try {
             const { addNotification } = await import('../../../shared/components/NotificationBell')
             addNotification(lang === 'es' ? 'Documento procesado' : 'Document processed', 'success')
