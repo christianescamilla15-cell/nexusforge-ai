@@ -54,25 +54,46 @@ async def _get_db_runs(limit: int = 50) -> list:
 
 
 async def _get_db_health() -> dict:
-    """Compute system health from PostgreSQL pipeline_runs."""
+    """Compute system health from BOTH pipeline_runs AND workflow_runs."""
     try:
         from ..db.client import get_db_pool
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # Combine both tables for complete KPIs
             stats = await conn.fetchrow("""
                 SELECT
-                    COUNT(*) as total_runs,
-                    COUNT(*) FILTER (WHERE status = 'completed') as successful,
-                    COUNT(*) FILTER (WHERE status = 'failed') as failed,
-                    COALESCE(SUM(total_tokens), 0) as total_tokens,
-                    COALESCE(SUM(total_cost_usd), 0) as total_cost,
-                    COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
-                        FILTER (WHERE status = 'completed'), 0) as avg_latency,
-                    COUNT(DISTINCT COALESCE(workflow_id::text, 'unknown')) as total_agents_tracked
-                FROM workflow_runs
+                    (COALESCE(pr.total, 0) + COALESCE(wr.total, 0)) as total_runs,
+                    (COALESCE(pr.successful, 0) + COALESCE(wr.successful, 0)) as successful,
+                    (COALESCE(pr.failed, 0) + COALESCE(wr.failed, 0)) as failed,
+                    (COALESCE(pr.tokens, 0) + COALESCE(wr.tokens, 0)) as total_tokens,
+                    (COALESCE(pr.cost, 0) + COALESCE(wr.cost, 0)) as total_cost,
+                    GREATEST(COALESCE(pr.avg_lat, 0), COALESCE(wr.avg_lat, 0)) as avg_latency,
+                    (COALESCE(pr.agents_count, 0) + COALESCE(wr.agents_count, 0)) as total_agents_tracked
+                FROM
+                    (SELECT COUNT(*) as total,
+                            COUNT(*) FILTER (WHERE status = 'completed') as successful,
+                            COUNT(*) FILTER (WHERE status = 'failed') as failed,
+                            COALESCE(SUM(total_tokens), 0) as tokens,
+                            COALESCE(SUM(cost_usd), 0) as cost,
+                            COALESCE(AVG(processing_time_ms) FILTER (WHERE status = 'completed'), 0) as avg_lat,
+                            COUNT(DISTINCT pipeline_name) as agents_count
+                     FROM pipeline_runs) pr,
+                    (SELECT COUNT(*) as total,
+                            COUNT(*) FILTER (WHERE status = 'completed') as successful,
+                            COUNT(*) FILTER (WHERE status = 'failed') as failed,
+                            COALESCE(SUM(total_tokens), 0) as tokens,
+                            COALESCE(SUM(total_cost_usd), 0) as cost,
+                            COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
+                                FILTER (WHERE status = 'completed'), 0) as avg_lat,
+                            COUNT(DISTINCT workflow_id) as agents_count
+                     FROM workflow_runs) wr
             """)
 
+            # Combine agent data from both tables
             agent_rows = await conn.fetch("""
+                SELECT agents_used, total_tokens, cost_usd, processing_time_ms, status
+                FROM pipeline_runs WHERE agents_used IS NOT NULL
+                UNION ALL
                 SELECT agents_used, total_tokens, total_cost_usd as cost_usd,
                        EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000 as processing_time_ms, status
                 FROM workflow_runs WHERE agents_used IS NOT NULL
