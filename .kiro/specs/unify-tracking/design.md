@@ -2,12 +2,58 @@
 
 ## Technical Design
 
-### Database Migration
+> Architecture: Unified Polymorphic Table (n8n pattern) + Counter Projections (ClickHouse pattern)
+> Sources: Temporal.io, n8n, Inngest, Databricks Lakeflow, PostgreSQL pg_ivm
 
-Create migration `028_workflow_runs_agents_used.sql`:
+### Database Migration 028 — Unified Polymorphic Execution Table
+
 ```sql
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS execution_type VARCHAR(30) DEFAULT 'dag_workflow';
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS automation_id UUID;
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS pipeline_name VARCHAR(100);
 ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS agents_used JSONB DEFAULT '[]';
-ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS pipeline_name VARCHAR(100) DEFAULT NULL;
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS trigger_source VARCHAR(50);
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS input_data JSONB;
+ALTER TABLE workflow_runs ADD COLUMN IF NOT EXISTS output_data JSONB;
+
+CREATE INDEX IF NOT EXISTS idx_runs_execution_type ON workflow_runs(execution_type);
+CREATE INDEX IF NOT EXISTS idx_runs_automation ON workflow_runs(automation_id);
+```
+
+### Database Migration 029 — Counter Projections (instant KPIs)
+
+```sql
+CREATE TABLE IF NOT EXISTS user_execution_stats (
+    user_id UUID PRIMARY KEY,
+    total_runs INTEGER DEFAULT 0,
+    runs_completed INTEGER DEFAULT 0,
+    runs_failed INTEGER DEFAULT 0,
+    total_tokens BIGINT DEFAULT 0,
+    total_cost_usd NUMERIC(12,6) DEFAULT 0,
+    last_run_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION update_execution_stats() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO user_execution_stats (user_id, total_runs, runs_completed, runs_failed, total_tokens, total_cost_usd, last_run_at)
+    VALUES (NEW.user_id, 1,
+        CASE WHEN NEW.status='completed' THEN 1 ELSE 0 END,
+        CASE WHEN NEW.status='failed' THEN 1 ELSE 0 END,
+        COALESCE(NEW.total_tokens,0), COALESCE(NEW.total_cost_usd,0), NEW.started_at)
+    ON CONFLICT (user_id) DO UPDATE SET
+        total_runs=user_execution_stats.total_runs+1,
+        runs_completed=user_execution_stats.runs_completed+EXCLUDED.runs_completed,
+        runs_failed=user_execution_stats.runs_failed+EXCLUDED.runs_failed,
+        total_tokens=user_execution_stats.total_tokens+EXCLUDED.total_tokens,
+        total_cost_usd=user_execution_stats.total_cost_usd+EXCLUDED.total_cost_usd,
+        last_run_at=GREATEST(user_execution_stats.last_run_at,EXCLUDED.last_run_at),
+        updated_at=now();
+    RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_execution_stats AFTER INSERT ON workflow_runs
+FOR EACH ROW EXECUTE FUNCTION update_execution_stats();
 ```
 
 ### Extend run_tracker.py
