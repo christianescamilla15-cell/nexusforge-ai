@@ -200,6 +200,15 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
   if (selectedResult) {
     const out = selectedResult.output_data || {}
     const inp = selectedResult.input_data || {}
+    // Normalize keys — the DAG executor produces different keys than expected
+    const summary = out.summary || out.executive_summary || out.report_markdown || ''
+    const fields = out.fields || (out.analysis && Array.isArray(out.analysis)
+      ? out.analysis.map(a => ({ name: a.section || a.name || 'Analysis', value: a.content || a.value || JSON.stringify(a) }))
+      : [])
+    const findings = out.key_findings || out.recommendations || []
+    const qa = out.qa || []
+    const title = out.title || inp.filename || (lang === 'es' ? 'Documento' : 'Document')
+
     return (
       <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
         <button onClick={() => setSelectedResult(null)} style={{
@@ -218,7 +227,7 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
             <span style={{ fontSize: 28 }}>{getFileIcon(inp.filename)}</span>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 }}>
-                {inp.filename || (lang === 'es' ? 'Documento' : 'Document')}
+                {title}
               </h3>
               <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>
                 {inp.file_type} · {formatSize(inp.file_size)} · {formatDate(selectedResult.created_at, lang)}
@@ -226,49 +235,62 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
             </div>
           </div>
 
-          {out.summary && (
+          {summary && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase' }}>
-                {lang === 'es' ? 'Resumen' : 'Summary'}
+                {lang === 'es' ? 'Resumen Ejecutivo' : 'Executive Summary'}
               </p>
               <div style={{
                 padding: 12, background: '#F9FAFB', borderRadius: 8,
                 border: '1px solid #E5E7EB', fontSize: 13, color: '#374151', lineHeight: 1.6,
+                whiteSpace: 'pre-wrap',
               }}>
-                {out.summary}
+                {summary}
               </div>
             </div>
           )}
 
-          {out.fields && out.fields.length > 0 && (
+          {fields.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 8, textTransform: 'uppercase' }}>
-                {lang === 'es' ? 'Campos extraidos' : 'Extracted fields'}
+                {lang === 'es' ? 'Analisis' : 'Analysis'}
               </p>
               <div style={{
                 background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB',
                 overflow: 'hidden',
               }}>
-                {out.fields.map((f, i) => (
+                {fields.map((f, i) => (
                   <div key={i} style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    padding: '8px 14px', borderBottom: i < out.fields.length - 1 ? '1px solid #E5E7EB' : 'none',
+                    padding: '10px 14px', borderBottom: i < fields.length - 1 ? '1px solid #E5E7EB' : 'none',
                     fontSize: 13,
                   }}>
-                    <span style={{ color: '#6B7280', fontWeight: 500 }}>{f.name || f.key}</span>
-                    <span style={{ color: '#111827' }}>{f.value}</span>
+                    <span style={{ color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 4 }}>{f.name || f.key}</span>
+                    <span style={{ color: '#111827', lineHeight: 1.5 }}>{typeof f.value === 'string' ? f.value : JSON.stringify(f.value)}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {out.qa && out.qa.length > 0 && (
+          {findings.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 8, textTransform: 'uppercase' }}>
+                {lang === 'es' ? 'Hallazgos Clave' : 'Key Findings'}
+              </p>
+              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: '#374151', lineHeight: 1.8 }}>
+                {findings.map((f, i) => (
+                  <li key={i}>{typeof f === 'string' ? f : f.finding || f.recommendation || JSON.stringify(f)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {qa.length > 0 && (
             <div>
               <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 8, textTransform: 'uppercase' }}>
                 Q&A
               </p>
-              {out.qa.map((item, i) => (
+              {qa.map((item, i) => (
                 <div key={i} style={{ marginBottom: 12 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: '0 0 4px' }}>
                     Q: {item.question}
@@ -278,6 +300,22 @@ export default function DocumentDashboard({ automation, lang, onBack }) {
                   </p>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Fallback: show raw output if nothing else matched */}
+          {!summary && fields.length === 0 && findings.length === 0 && qa.length === 0 && Object.keys(out).length > 0 && (
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 8, textTransform: 'uppercase' }}>
+                {lang === 'es' ? 'Resultado' : 'Result'}
+              </p>
+              <pre style={{
+                padding: 12, background: '#F9FAFB', borderRadius: 8,
+                border: '1px solid #E5E7EB', fontSize: 12, color: '#374151',
+                overflow: 'auto', maxHeight: 400, whiteSpace: 'pre-wrap',
+              }}>
+                {JSON.stringify(out, null, 2)}
+              </pre>
             </div>
           )}
         </div>
