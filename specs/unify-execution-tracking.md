@@ -280,9 +280,58 @@ GROUP BY agent_type
 ```
 This is already the correct source — step_executions is written by ALL execution paths (executor + step_runner). No migration needed here.
 
-### Task 16: Swarms page (/swarms)
+### Task 16: Swarms page (/swarms) — FULL SYNC REQUIREMENTS
 
-POST /swarms/execute triggers a swarm that currently writes to BOTH tables. After migration (Task 3), it only writes to workflow_runs. The swarm result should appear in all dashboards.
+POST /swarms/execute triggers a swarm (sequential, parallel, hierarchical, debate, consensus, adaptive). Each swarm calls real agents. After migration, a swarm execution MUST appear in ALL of these:
+
+**Where a swarm run MUST be visible after execution:**
+
+1. **Dashboard → KPIs** — "Ejecuciones Totales" must increment by 1, "Tasa de Exito" must update, tokens and cost must sum
+2. **Dashboard → Ejecuciones Recientes** — new row with status=Completado, topology name, latency
+3. **Dashboard → Actividad de Agentes** — each agent used in the swarm must increment its count
+4. **Ejecuciones page (sidebar)** — the run must appear in the executions list with all steps
+5. **Ejecuciones → Detalle** — clicking the run must show each agent step with input/output/tokens/cost
+6. **Métricas de Costo** — total_tokens and total_cost from the swarm must be included in the aggregates
+7. **Flujos de Trabajo** — if the swarm used a workflow_id, it appears in that workflow's run history
+
+**Data that must be tracked per swarm execution:**
+
+```
+workflow_runs row:
+  - id: UUID
+  - workflow_id: NULL (swarms don't use a workflow)
+  - pipeline_name: "swarm_{topology}" (e.g., "swarm_consensus")
+  - status: "completed" | "failed"
+  - trigger_type: "api"
+  - user_id: from JWT
+  - agents_used: ["classifier", "extractor", "summarizer"] (JSONB)
+  - total_tokens: SUM of all agent tokens
+  - total_cost_usd: SUM of all agent costs
+  - started_at, completed_at: timestamps
+  - metadata: {"topology": "consensus", "task": "...", "agents_count": 3}
+
+step_executions rows (one per agent called):
+  - run_id: linked to workflow_runs.id
+  - step_name: agent_type (e.g., "classifier")
+  - agent_type: same
+  - status: "completed" | "failed"
+  - tokens_used: from AgentResult
+  - cost_usd: from AgentResult
+  - duration_ms: measured
+  - input_data: what the agent received
+  - output_data: what the agent returned
+```
+
+**Current problem:** swarms.py writes to pipeline_runs (which Dashboard Recientes reads) but NOT to step_executions (so no per-agent breakdown). The swarm also calls `agent.execute()` directly instead of `agent.run()`, which means:
+- No circuit breaker check per agent
+- No memory recall/remember per agent
+- No per-step DB tracking in step_executions
+
+**Fix:** After the run_tracker migration, swarms should:
+1. Call `start_run()` → creates workflow_runs row
+2. For each agent result, call `record_step()` → creates step_executions row
+3. Call `complete_run()` → updates workflow_runs with totals
+4. Optionally: consider calling `agent.run()` instead of `agent.execute()` to get full lifecycle (circuit breaker + memory). This is a bigger change and can be done separately.
 
 ## Complete Page → Data Source Map (After Migration)
 
