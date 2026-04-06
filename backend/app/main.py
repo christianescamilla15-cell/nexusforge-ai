@@ -125,7 +125,13 @@ app.add_middleware(SecurityHeadersMiddleware)
 from starlette.middleware.gzip import GZipMiddleware
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
-# CORS — use ALLOWED_ORIGINS env var; fallback to permissive for dev
+# Auth middleware — injects user into request.state
+# Must be added BEFORE CORS so CORS wraps it (outermost = last added)
+from app.auth.middleware import AuthMiddleware
+app.add_middleware(AuthMiddleware)
+
+# CORS — outermost middleware so ALL responses (including 401s) get CORS headers
+# Must be added LAST so it wraps everything, including AuthMiddleware 401 responses
 _origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -134,10 +140,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Auth middleware — injects user into request.state (non-blocking for now)
-from app.auth.middleware import AuthMiddleware
-app.add_middleware(AuthMiddleware)
 
 # Auth + Billing + API Keys + Audit + Custom Agents + Slack
 from app.auth.routes import router as auth_routes
