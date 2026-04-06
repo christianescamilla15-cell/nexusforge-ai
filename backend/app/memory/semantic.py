@@ -30,14 +30,16 @@ class SemanticMemory:
             embedding = await get_embedding(text)
             meta = metadata or {}
             meta.update({"agent_id": agent_id, "memory_type": "semantic", "stored_at": time.time()})
+            # Build pgvector-compatible string: "[0.1,0.2,...]" and cast to ::vector
+            embedding_str = "[" + ",".join(str(v) for v in embedding) + "]"
             pool = await get_db_pool()
             await pool.execute(
                 """
                 INSERT INTO document_chunks (document_id, chunk_index, content, embedding, metadata)
-                VALUES (gen_random_uuid(), 0, $1, $2, $3)
+                VALUES (gen_random_uuid(), 0, $1, $2::vector, $3)
                 """,
                 text,
-                json.dumps(embedding),
+                embedding_str,
                 json.dumps(meta),
             )
             return True
@@ -56,6 +58,7 @@ class SemanticMemory:
         """Semantic search for similar past experiences."""
         try:
             query_embedding = await get_embedding(query)
+            query_embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
             pool = await get_db_pool()
             rows = await pool.fetch(
                 """
@@ -67,7 +70,7 @@ class SemanticMemory:
                 ORDER  BY embedding <=> $1::vector
                 LIMIT  $3
                 """,
-                json.dumps(query_embedding),
+                query_embedding_str,
                 json.dumps({"agent_id": agent_id, "memory_type": "semantic"}),
                 top_k,
             )

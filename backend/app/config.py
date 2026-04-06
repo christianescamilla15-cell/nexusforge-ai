@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     anthropic_api_key: str = ""
 
+    # Ollama (local inference)
+    ollama_enabled: bool = False
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5-coder:7b"
+
     # Embeddings
     voyage_api_key: str = ""
 
@@ -25,6 +30,7 @@ class Settings(BaseSettings):
     app_name: str = "NexusForge AI"
     debug: bool = False  # default secure — set DEBUG=true in .env for development
     allowed_origins: str = ""  # set ALLOWED_ORIGINS in .env (comma-separated)
+    port: int = 8000
 
     class Config:
         env_file = ".env"

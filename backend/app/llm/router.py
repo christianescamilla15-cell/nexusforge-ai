@@ -1,4 +1,19 @@
-"""Multi-provider LLM router with circuit breaker."""
+"""Multi-provider LLM router with per-agent model mapping and automatic fallback.
+
+Fallback chain for all agents:
+  1. Ollama (local GPU)  — free, ~20 t/s, requires PC on
+  2. Groq               — free tier (14k req/day), cloud
+  3. Claude             — paid, last resort
+
+Per-agent local model assignment:
+  gemma3:4b          → fast classification tasks (Router, Classifier, Sentiment)
+  qwen2.5-coder:7b   → structured JSON output (Extractor, Normalizer, Validator, Repair, Knowledge)
+  llama3.1:8b        → general language (Summarizer, Analyzer, Translator, Enricher, Monitor, OCR)
+
+Cloud-only agents (skip Ollama, need 70B+ reasoning):
+  PlannerAgent, ReporterAgent, ResearcherAgent, CriticAgent → Groq → Claude
+  ComplianceAgent → Claude directly (regulatory/PII critical)
+"""
 
 import time
 import logging
@@ -7,20 +22,49 @@ from collections import deque
 from app.llm.provider import LLMResponse
 from app.llm.groq_provider import GroqProvider
 from app.llm.claude_provider import ClaudeProvider
+from app.llm.ollama_provider import OllamaProvider
 from app.llm.token_tracker import calculate_cost
 from app.domain.tracking.events import ExecutionContext
 
 logger = logging.getLogger(__name__)
 
-# Circuit breaker settings
-_CB_ERROR_THRESHOLD = 3      # errors to trigger open circuit
-_CB_WINDOW_SECONDS = 60      # window to count errors in
-_CB_COOLDOWN_SECONDS = 30    # how long to skip a tripped provider
+# ── Per-agent local model map ────────────────────────────────────────────────
+# gemma3:4b — lightweight, fast classification
+_GEMMA_AGENTS = {"RouterAgent", "ClassifierAgent", "SentimentAgent"}
+
+# qwen2.5-coder:7b — structured JSON, code-like deterministic output
+_QWEN_AGENTS = {
+    "ExtractorAgent", "NormalizerAgent", "ValidatorAgent",
+    "RepairAgent", "KnowledgeAgent",
+}
+
+# llama3.1:8b — general language, narrative, synthesis
+_LLAMA_AGENTS = {
+    "SummarizerAgent", "AnalyzerAgent", "TranslatorAgent",
+    "EnricherAgent", "MonitorAgent", "OCRAgent",
+}
+
+# Cloud-only agents: skip Ollama entirely, go straight to Groq → Claude
+_CLOUD_PREFERRED_AGENTS = {
+    "PlannerAgent", "ReporterAgent", "ResearcherAgent", "CriticAgent",
+}
+
+# Claude-only agents: bypass Groq, use Claude directly for critical tasks
+_CLAUDE_ONLY_AGENTS = {"ComplianceAgent"}
+
+_AGENT_MODEL_MAP: dict[str, str] = {
+    **{a: "gemma3:4b" for a in _GEMMA_AGENTS},
+    **{a: "qwen2.5-coder:7b" for a in _QWEN_AGENTS},
+    **{a: "llama3.1:8b" for a in _LLAMA_AGENTS},
+}
+
+# ── Circuit breaker settings ─────────────────────────────────────────────────
+_CB_ERROR_THRESHOLD = 3
+_CB_WINDOW_SECONDS = 60
+_CB_COOLDOWN_SECONDS = 30
 
 
 class _CircuitBreaker:
-    """Simple circuit breaker per provider."""
-
     def __init__(self):
         self._errors: deque[float] = deque()
         self._open_until: float = 0.0
@@ -28,19 +72,15 @@ class _CircuitBreaker:
     def record_error(self):
         now = time.monotonic()
         self._errors.append(now)
-        # Purge old entries
         cutoff = now - _CB_WINDOW_SECONDS
         while self._errors and self._errors[0] < cutoff:
             self._errors.popleft()
-        # Trip if threshold reached
         if len(self._errors) >= _CB_ERROR_THRESHOLD:
             self._open_until = now + _CB_COOLDOWN_SECONDS
             logger.warning("Circuit breaker tripped — cooldown %ds", _CB_COOLDOWN_SECONDS)
 
     def is_open(self) -> bool:
-        if time.monotonic() < self._open_until:
-            return True
-        return False
+        return time.monotonic() < self._open_until
 
     def reset(self):
         self._errors.clear()
@@ -48,27 +88,57 @@ class _CircuitBreaker:
 
 
 class LLMRouter:
-    """Route LLM calls through available providers with failover."""
+    """Route LLM calls to the right model per agent with automatic fallback."""
 
     def __init__(self):
-        self._providers = [GroqProvider(), ClaudeProvider()]
+        self._ollama = OllamaProvider()
+        self._groq = GroqProvider()
+        self._claude = ClaudeProvider()
         self._breakers: dict[str, _CircuitBreaker] = {
-            p.name: _CircuitBreaker() for p in self._providers
+            "ollama": _CircuitBreaker(),
+            "groq": _CircuitBreaker(),
+            "claude": _CircuitBreaker(),
         }
 
-    async def chat(self, messages: list[dict], temperature: float = 0.3,
-                   max_tokens: int = 2048, ctx: ExecutionContext = None,
-                   step_id: str = None) -> LLMResponse:
-        """Try providers in order: Groq first, then Claude. Respects circuit breakers."""
+    def _build_provider_chain(self, agent_name: str) -> list:
+        """Return ordered provider list based on agent type."""
+        # Claude-only: skip everything else
+        if agent_name in _CLAUDE_ONLY_AGENTS:
+            return [self._claude]
+
+        # Cloud-preferred: skip Ollama, go Groq → Claude
+        if agent_name in _CLOUD_PREFERRED_AGENTS:
+            return [self._groq, self._claude]
+
+        # Everyone else: Ollama → Groq → Claude
+        return [self._ollama, self._groq, self._claude]
+
+    async def chat(
+        self,
+        messages: list[dict],
+        temperature: float = 0.3,
+        max_tokens: int = 2048,
+        agent_name: str = "",
+        ctx: ExecutionContext = None,
+        step_id: str = None,
+    ) -> LLMResponse:
+        """Route call through provider chain. Respects per-agent model map and circuit breakers."""
+
+        # Set Ollama model based on agent
+        ollama_model = _AGENT_MODEL_MAP.get(agent_name)
+        if ollama_model:
+            self._ollama.set_model(ollama_model)
+
+        provider_chain = self._build_provider_chain(agent_name)
         errors = []
 
-        for provider in self._providers:
+        for provider in provider_chain:
             if not provider.is_available():
                 continue
+
             breaker = self._breakers[provider.name]
             if breaker.is_open():
-                logger.info("Skipping %s (circuit open)", provider.name)
-                # Tracking: circuit breaker open event
+                logger.info("Skipping %s (circuit open) for agent %s", provider.name, agent_name)
                 if ctx and ctx.tracker:
                     await ctx.tracker.agent_event(
                         run_id=ctx.run_id,
@@ -82,29 +152,40 @@ class LLMRouter:
             try:
                 response = await provider.chat(messages, temperature, max_tokens)
                 breaker.reset()
-                # Attach cost
                 response.cost_usd = calculate_cost(
                     response.provider, response.tokens_input, response.tokens_output
                 )
+                if provider.name != "ollama":
+                    logger.info(
+                        "Agent '%s' routed to %s (Ollama unavailable)",
+                        agent_name, provider.name,
+                    )
                 return response
+
             except Exception as exc:
-                logger.warning("Provider %s failed: %s", provider.name, exc)
+                logger.warning("Provider %s failed for agent %s: %s", provider.name, agent_name, exc)
                 breaker.record_error()
                 errors.append((provider.name, exc))
-                # Tracking: fallback to next provider
-                next_providers = [p.name for p in self._providers
-                                  if p.name != provider.name and p.is_available()
-                                  and not self._breakers[p.name].is_open()]
-                if ctx and ctx.tracker and next_providers and step_id:
+
+                # Track fallback event
+                next_available = [
+                    p.name for p in provider_chain
+                    if p.name != provider.name
+                    and p.is_available()
+                    and not self._breakers[p.name].is_open()
+                ]
+                if ctx and ctx.tracker and next_available and step_id:
                     await ctx.tracker.fallback_recorded(
                         step_id=step_id,
                         from_provider=provider.name,
-                        to_provider=next_providers[0],
+                        to_provider=next_available[0],
                     )
 
-        # All providers exhausted
         detail = "; ".join(f"{n}: {e}" for n, e in errors)
-        raise RuntimeError(f"All LLM providers failed — {detail}" if detail else "No LLM providers available")
+        raise RuntimeError(
+            f"All LLM providers failed for agent '{agent_name}' — {detail}"
+            if detail else f"No LLM providers available for agent '{agent_name}'"
+        )
 
 
 # Module-level singleton

@@ -2,6 +2,10 @@
 
 # Pricing per million tokens (USD)
 PRICING = {
+    "ollama": {
+        "input": 0.0,   # local inference, no cost
+        "output": 0.0,
+    },
     "groq": {
         "input": 0.59 / 1_000_000,
         "output": 0.79 / 1_000_000,

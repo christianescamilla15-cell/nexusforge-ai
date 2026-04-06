@@ -95,7 +95,7 @@ async def test_classifier_fallback_without_llm():
     # Execute without demo flag; LLM is not available, so it should hit fallback
     result = await agent.execute({"text": "This is a financial report about Q3 earnings."})
     assert result.output["category"] in ["general", "financial", "legal", "technical", "medical"]
-    assert result.provider in ("local", "fallback", "groq", "claude")
+    assert result.provider in ("local", "fallback", "groq", "claude", "ollama")
 
 
 def test_agent_result_has_required_fields():

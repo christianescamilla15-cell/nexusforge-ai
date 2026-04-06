@@ -8,11 +8,10 @@ describe('App', () => {
     expect(container.innerHTML.length).toBeGreaterThan(0)
   })
 
-  it('renders sidebar with navigation', () => {
+  it('renders login page when unauthenticated', () => {
     render(<App />)
-    expect(screen.getByLabelText('Dashboard')).toBeTruthy()
-    expect(screen.getByLabelText('Workflows')).toBeTruthy()
-    expect(screen.getByLabelText('Agents')).toBeTruthy()
+    // App shows AuthPage by default when no token in localStorage
+    expect(screen.getByPlaceholderText('user@example.com')).toBeTruthy()
   })
 
   it('renders the onboarding tour on first visit', () => {

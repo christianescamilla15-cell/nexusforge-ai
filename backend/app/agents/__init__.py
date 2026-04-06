@@ -23,4 +23,5 @@ from app.agents import (  # noqa: F401
     sentiment,
     scheduler,
     webhook,
+    judge,
 )
