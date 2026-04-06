@@ -171,7 +171,6 @@ async def _stream_groq(api_key: str, messages: list[dict]):
 
     async def generate():
         try:
-            in_think = False
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.post(
                     "https://api.groq.com/openai/v1/chat/completions",
@@ -189,52 +188,47 @@ async def _stream_groq(api_key: str, messages: list[dict]):
                     timeout=30,
                 )
 
-                buffer = ""
+                # Collect full response first, then parse <think> tags cleanly
+                full_response = ""
                 async for line in response.aiter_lines():
                     if line.startswith("data: ") and line != "data: [DONE]":
                         try:
                             chunk = json.loads(line[6:])
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
                             content = delta.get("content", "")
-                            if not content:
-                                continue
-
-                            buffer += content
-
-                            # Parse <think> tags from streamed buffer
-                            if "<think>" in buffer and not in_think:
-                                in_think = True
-                                parts = buffer.split("<think>", 1)
-                                if parts[0].strip():
-                                    yield f"data: {json.dumps({'type': 'text', 'content': parts[0]})}\n\n"
-                                buffer = parts[1] if len(parts) > 1 else ""
-                                continue
-
-                            if "</think>" in buffer and in_think:
-                                in_think = False
-                                parts = buffer.split("</think>", 1)
-                                if parts[0].strip():
-                                    yield f"data: {json.dumps({'type': 'thinking', 'content': parts[0]})}\n\n"
-                                yield f"data: {json.dumps({'type': 'thinking_done'})}\n\n"
-                                buffer = parts[1] if len(parts) > 1 else ""
-                                if buffer.strip():
-                                    yield f"data: {json.dumps({'type': 'text', 'content': buffer})}\n\n"
-                                    buffer = ""
-                                continue
-
-                            # Flush buffer when not in tag transition
-                            if len(buffer) > 20:
-                                msg_type = "thinking" if in_think else "text"
-                                yield f"data: {json.dumps({'type': msg_type, 'content': buffer})}\n\n"
-                                buffer = ""
-
+                            if content:
+                                full_response += content
                         except json.JSONDecodeError:
                             pass
 
-                # Flush remaining buffer
-                if buffer.strip():
-                    msg_type = "thinking" if in_think else "text"
-                    yield f"data: {json.dumps({'type': msg_type, 'content': buffer})}\n\n"
+                # Parse <think> tags from complete response
+                if "<think>" in full_response and "</think>" in full_response:
+                    think_start = full_response.index("<think>") + 7
+                    think_end = full_response.index("</think>")
+                    thinking = full_response[think_start:think_end].strip()
+                    answer = full_response[think_end + 8:].strip()
+
+                    # Stream thinking
+                    if thinking:
+                        # Send in chunks for streaming effect
+                        words = thinking.split(" ")
+                        for i in range(0, len(words), 4):
+                            chunk = " ".join(words[i:i+4])
+                            yield f"data: {json.dumps({'type': 'thinking', 'content': chunk + ' '})}\n\n"
+                        yield f"data: {json.dumps({'type': 'thinking_done'})}\n\n"
+
+                    # Stream answer
+                    if answer:
+                        words = answer.split(" ")
+                        for i in range(0, len(words), 3):
+                            chunk = " ".join(words[i:i+3])
+                            yield f"data: {json.dumps({'type': 'text', 'content': chunk + ' '})}\n\n"
+                else:
+                    # No think tags — stream everything as text
+                    words = full_response.split(" ")
+                    for i in range(0, len(words), 3):
+                        chunk = " ".join(words[i:i+3])
+                        yield f"data: {json.dumps({'type': 'text', 'content': chunk + ' '})}\n\n"
 
                 yield f"data: {json.dumps({'type': 'done', 'provider': 'Groq (llama-3.3-70b)'})}\n\n"
         except Exception as e:
