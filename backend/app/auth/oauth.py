@@ -1,11 +1,50 @@
-"""Google OAuth2 — demo mode returns mock user, production uses real Google."""
-GOOGLE_CLIENT_ID = 'demo-client-id'
+"""Google OAuth2 — verifies Google id_token using Google's tokeninfo endpoint."""
+
+import logging
+import os
+import httpx
+
+logger = logging.getLogger(__name__)
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+
 
 async def verify_google_token(id_token: str) -> dict | None:
-    # Demo mode: accept any token and return mock user
-    if id_token == 'demo':
-        return {'sub': 'google-demo-001', 'email': 'demo@nexusforge.ai', 'name': 'Demo User'}
-    # Production: verify with Google
-    # from google.oauth2 import id_token as google_id_token
-    # return google_id_token.verify_oauth2_token(id_token, requests.Request(), GOOGLE_CLIENT_ID)
-    return {'sub': f'google-{id_token[:8]}', 'email': f'{id_token[:8]}@gmail.com', 'name': 'OAuth User'}
+    """Verify a Google id_token and return user info, or None if invalid."""
+    if not id_token:
+        return None
+
+    # Use Google's tokeninfo endpoint — no extra library needed
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": id_token},
+            )
+        if resp.status_code != 200:
+            logger.warning("Google tokeninfo returned %s", resp.status_code)
+            return None
+
+        data = resp.json()
+
+        # Verify the token was issued for our app
+        aud = data.get("aud", "")
+        if GOOGLE_CLIENT_ID and aud != GOOGLE_CLIENT_ID:
+            logger.warning("Google token aud mismatch: %s", aud)
+            return None
+
+        email = data.get("email")
+        if not email:
+            return None
+
+        return {
+            "sub": data.get("sub"),
+            "email": email,
+            "name": data.get("name") or email.split("@")[0],
+            "picture": data.get("picture"),
+            "email_verified": data.get("email_verified") == "true",
+        }
+
+    except Exception as exc:
+        logger.error("verify_google_token failed: %s", exc)
+        return None

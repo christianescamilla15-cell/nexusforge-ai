@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getApiUrl } from '../../services/api'
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '757664093745-tbhfgbu5m184ff308ldgqtg3sd8hkalm.apps.googleusercontent.com'
 
 export default function AuthPage({ onLogin, lang = 'es' }) {
   const [mode, setMode] = useState('login') // login | register | forgot | reset
@@ -11,6 +13,60 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [info, setInfo] = useState(null)
+  const [googleLoading, setGoogleLoading] = useState(false)
+
+  // Load Google Identity Services script
+  useEffect(() => {
+    if (document.getElementById('google-gsi-script')) return
+    const script = document.createElement('script')
+    script.id = 'google-gsi-script'
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    document.head.appendChild(script)
+  }, [])
+
+  const handleGoogleCredential = async (credential) => {
+    setGoogleLoading(true)
+    setError(null)
+    try {
+      const apiUrl = getApiUrl()
+      const res = await fetch(`${apiUrl}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: credential }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Google login failed')
+      localStorage.setItem('nf_token', data.token)
+      localStorage.setItem('nf_user', JSON.stringify(data.user))
+      onLogin(data.user)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
+  const handleGoogleClick = () => {
+    if (!window.google?.accounts?.oauth2) {
+      setError('Google SDK not loaded yet. Try again in a moment.')
+      return
+    }
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (response) => handleGoogleCredential(response.credential),
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    })
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Fallback: render button in a popup
+        const div = document.getElementById('google-signin-btn')
+        if (div) window.google.accounts.id.renderButton(div, { theme: 'outline', size: 'large', width: 320 })
+      }
+    })
+  }
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
   const bg = isDark ? '#0F1117' : '#F8FAFC'
@@ -268,25 +324,34 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
 
         {/* Google OAuth */}
         <button
-          onClick={() => {
-            setError(lang === 'es' ? 'Google OAuth proximamente. Usa email por ahora.' : 'Google OAuth coming soon. Use email for now.')
-          }}
+          onClick={handleGoogleClick}
+          disabled={googleLoading}
           style={{
             width: '100%', padding: '12px 0', borderRadius: 8,
             border: `1px solid ${border}`, background: 'transparent',
-            color: text, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            color: text, fontSize: 14, fontWeight: 600,
+            cursor: googleLoading ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            marginBottom: 10,
+            marginBottom: 10, opacity: googleLoading ? 0.7 : 1,
+            transition: 'opacity 0.2s',
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 48 48">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-          </svg>
-          {lang === 'es' ? 'Continuar con Google' : 'Continue with Google'}
+          {googleLoading ? (
+            <span style={{ fontSize: 13 }}>{lang === 'es' ? 'Conectando...' : 'Connecting...'}</span>
+          ) : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </svg>
+              {lang === 'es' ? 'Continuar con Google' : 'Continue with Google'}
+            </>
+          )}
         </button>
+        {/* Hidden div for GSI button fallback */}
+        <div id="google-signin-btn" style={{ display: 'none' }} />
 
         {/* Guest / Trial mode */}
         <button
