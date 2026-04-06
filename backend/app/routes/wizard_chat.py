@@ -302,12 +302,49 @@ async def _stream_claude(api_key: str, messages: list[dict]):
     )
 
 
-# ── Main endpoint with fallback chain ───────────────────────────────────────
+# ── Guide chat system prompt (simpler, always online) ───────────────────────
+
+GUIDE_SYSTEM_PROMPT = """You are NexusForge AI Guide — a friendly assistant that helps users understand and navigate the platform.
+
+## Your Role
+- Answer questions about NexusForge AI features and capabilities
+- Explain how automations, agents, and integrations work in simple terms
+- Help users troubleshoot issues
+- Guide users to the right section of the platform
+- Be concise: 2-3 sentences max per response
+
+## Platform Knowledge
+NexusForge AI is an enterprise automation platform with:
+- 24 AI agents that process data (classify, extract, analyze, summarize, etc.)
+- 6 swarm topologies for complex workflows
+- 12 integrations: Email, Slack, Notion, Google Drive, Google Sheets, Gmail, Webhook, External API, etc.
+- AI Wizard that builds automations through conversation
+- Dashboard with KPIs, execution history, and real-time monitoring
+- Google OAuth + Stripe billing (Free/Pro/Team plans)
+
+## Pages
+- Home: AI chat to build automations conversationally
+- Automations: list of your created automations
+- AI Wizard: step-by-step automation builder
+- Intelligence: document analysis hub
+- Integrations: connect Email, Slack, Notion, Drive, etc.
+- Settings: account, API URL, language, theme
+
+## Rules
+- Use the user's language (Spanish/English)
+- Be warm and helpful
+- Never show JSON or technical internals
+- If they want to BUILD something, suggest going to the Home page chat
+- Always be available — you run on cloud (Groq) 24/7
+"""
+
+
+# ── Main endpoints ──────────────────────────────────────────────────────────
 
 
 @router.post("/chat")
 async def wizard_chat(body: ChatRequest):
-    """Stream AI Wizard response. Fallback: deepseek-r1 → Groq → Claude."""
+    """Stream AI Wizard response (builder). Fallback: deepseek-r1 → Groq → Claude."""
 
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
 
@@ -335,6 +372,79 @@ async def wizard_chat(body: ChatRequest):
 
     return StreamingResponse(
         no_llm(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/guide")
+async def wizard_guide(body: ChatRequest):
+    """Stream guide chat response. Always uses Groq (online 24/7)."""
+
+    messages = [{"role": m.role, "content": m.content} for m in body.messages]
+
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    if groq_key:
+        return await _stream_groq_guide(groq_key, messages)
+
+    # Fallback to Claude if no Groq
+    claude_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if claude_key:
+        return await _stream_claude(claude_key, messages)
+
+    async def no_llm():
+        yield f"data: {json.dumps({'type': 'text', 'content': 'Guide unavailable. Configure GROQ_API_KEY.'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'provider': 'none'})}\n\n"
+
+    return StreamingResponse(
+        no_llm(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+async def _stream_groq_guide(api_key: str, messages: list[dict]):
+    """Stream from Groq for the guide chat — no thinking, just direct responses."""
+    import httpx
+
+    async def generate():
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [{"role": "system", "content": GUIDE_SYSTEM_PROMPT}] + messages,
+                        "temperature": 0.5,
+                        "max_tokens": 512,
+                        "stream": True,
+                    },
+                    timeout=30,
+                )
+
+                async for line in response.aiter_lines():
+                    if line.startswith("data: ") and line != "data: [DONE]":
+                        try:
+                            chunk = json.loads(line[6:])
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'type': 'text', 'content': content})}\n\n"
+                        except json.JSONDecodeError:
+                            pass
+
+                yield f"data: {json.dumps({'type': 'done', 'provider': 'Groq Guide (24/7)'})}\n\n"
+        except Exception as e:
+            logger.warning("Groq guide failed: %s", e)
+            yield f"data: {json.dumps({'type': 'text', 'content': 'Error connecting to guide. Try again.'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'provider': 'error'})}\n\n"
+
+    return StreamingResponse(
+        generate(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

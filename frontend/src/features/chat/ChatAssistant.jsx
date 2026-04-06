@@ -160,8 +160,8 @@ export default function ChatAssistant({ lang = 'en' }) {
         id: 'welcome',
         role: 'system',
         text: lang === 'es'
-          ? 'Conectado al Arquitecto AI de NexusForge'
-          : 'Connected to NexusForge AI Architect',
+          ? 'Hola, soy tu gu\u00EDa de NexusForge. Pregunta lo que necesites.'
+          : 'Hi, I\u2019m your NexusForge guide. Ask me anything.',
       }])
     }
   }, [open, messages.length, lang])
@@ -187,7 +187,7 @@ export default function ChatAssistant({ lang = 'en' }) {
     try {
       abortRef.current = new AbortController()
 
-      const response = await fetch(`${apiUrl}/wizard/chat`, {
+      const response = await fetch(`${apiUrl}/wizard/guide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ messages: history, language: lang }),
@@ -445,12 +445,12 @@ export default function ChatAssistant({ lang = 'en' }) {
               </div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>
-                  AI Architect
+                  {lang === 'es' ? 'Gu\u00EDa NexusForge' : 'NexusForge Guide'}
                 </div>
                 <div style={{ fontSize: 11, color: streaming ? '#2563EB' : '#9CA3AF', transition: 'color 0.2s' }}>
                   {streaming
-                    ? (lang === 'es' ? 'Pensando...' : 'Thinking...')
-                    : (lang === 'es' ? 'Powered by LLM' : 'Powered by LLM')}
+                    ? (lang === 'es' ? 'Respondiendo...' : 'Responding...')
+                    : (lang === 'es' ? 'Siempre en l\u00EDnea' : 'Always online')}
                 </div>
               </div>
             </div>
