@@ -33,6 +33,8 @@ export default function ChatFirstDashboard({ lang = 'es', onNavigate }) {
         height: 'calc(100vh - 56px)',
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
+        margin: '-24px', /* Cancel out Layout's main padding */
+        width: 'calc(100% + 48px)',
       }}>
         {/* Mobile tab switcher */}
         {isMobile && (
