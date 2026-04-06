@@ -112,6 +112,9 @@ export default function ChatAssistant({ lang = 'en' }) {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [currentResponse, setCurrentResponse] = useState('')
+  const [currentThinking, setCurrentThinking] = useState('')
+  const [isThinking, setIsThinking] = useState(false)
+  const [provider, setProvider] = useState('')
   const [hasUnread, setHasUnread] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -198,6 +201,7 @@ export default function ChatAssistant({ lang = 'en' }) {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let fullText = ''
+      let thinkText = ''
       let buffer = ''
 
       while (true) {
@@ -206,7 +210,6 @@ export default function ChatAssistant({ lang = 'en' }) {
 
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
-        // Keep the last potentially incomplete line in the buffer
         buffer = lines.pop() || ''
 
         for (const line of lines) {
@@ -214,6 +217,14 @@ export default function ChatAssistant({ lang = 'en' }) {
           if (!trimmed.startsWith('data: ')) continue
           try {
             const data = JSON.parse(trimmed.slice(6))
+            if (data.type === 'thinking') {
+              thinkText += data.content
+              setCurrentThinking(thinkText)
+              setIsThinking(true)
+            }
+            if (data.type === 'thinking_done') {
+              setIsThinking(false)
+            }
             if (data.type === 'text') {
               fullText += data.content
               setCurrentResponse(fullText)
@@ -223,8 +234,13 @@ export default function ChatAssistant({ lang = 'en' }) {
                 id: `a-${Date.now()}`,
                 role: 'assistant',
                 text: fullText,
+                thinking: thinkText || null,
+                provider: data.provider || '',
               }])
+              setProvider(data.provider || '')
               setCurrentResponse('')
+              setCurrentThinking('')
+              setIsThinking(false)
               setStreaming(false)
             }
           } catch {
@@ -233,14 +249,16 @@ export default function ChatAssistant({ lang = 'en' }) {
         }
       }
 
-      // If we exit the loop without a 'done' event, finalize
       if (fullText && streaming) {
         setMessages((prev) => [...prev, {
           id: `a-${Date.now()}`,
           role: 'assistant',
           text: fullText,
+          thinking: thinkText || null,
         }])
         setCurrentResponse('')
+        setCurrentThinking('')
+        setIsThinking(false)
         setStreaming(false)
       }
     } catch (err) {
@@ -494,18 +512,75 @@ export default function ChatAssistant({ lang = 'en' }) {
                   alignSelf: 'flex-start', maxWidth: '90%',
                   animation: 'chatFadeIn 0.3s ease',
                 }}>
+                  {/* Collapsible thinking block */}
+                  {msg.thinking && (
+                    <details style={{
+                      marginBottom: 4, background: '#FFFBEB', borderRadius: '10px 10px 4px 4px',
+                      border: '1px solid #FDE68A', overflow: 'hidden',
+                    }}>
+                      <summary style={{
+                        padding: '6px 12px', fontSize: 11, fontWeight: 600,
+                        color: '#D97706', cursor: 'pointer', userSelect: 'none',
+                      }}>
+                        {'\uD83E\uDDE0'} {lang === 'es' ? 'Ver razonamiento' : 'View reasoning'}
+                      </summary>
+                      <div style={{
+                        padding: '8px 12px', fontSize: 11, color: '#92400E',
+                        lineHeight: 1.5, fontStyle: 'italic', maxHeight: 200,
+                        overflow: 'auto',
+                      }}>
+                        {msg.thinking}
+                      </div>
+                    </details>
+                  )}
                   <div style={{
                     background: '#FFFFFF', color: '#374151',
-                    padding: '12px 14px', borderRadius: '14px 14px 14px 4px',
+                    padding: '12px 14px', borderRadius: msg.thinking ? '4px 4px 14px 4px' : '14px 14px 14px 4px',
                     fontSize: 14, lineHeight: 1.6,
                     border: '1px solid #E5E7EB',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                   }}>
                     {formatMessage(msg.text)}
+                    {msg.provider && (
+                      <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 6, textAlign: 'right' }}>
+                        {msg.provider}
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             })}
+
+            {/* Thinking process (visible reasoning) */}
+            {streaming && currentThinking && (
+              <div style={{
+                alignSelf: 'flex-start', maxWidth: '90%',
+                animation: 'chatFadeIn 0.3s ease',
+              }}>
+                <div style={{
+                  background: '#FEF3C7', color: '#92400E',
+                  padding: '10px 14px', borderRadius: '14px 14px 14px 4px',
+                  fontSize: 12, lineHeight: 1.5, fontStyle: 'italic',
+                  border: '1px solid #FDE68A',
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4, color: '#D97706', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 14 }}>{'\uD83E\uDDE0'}</span>
+                    {isThinking
+                      ? (lang === 'es' ? 'Razonando...' : 'Reasoning...')
+                      : (lang === 'es' ? 'Razonamiento completado' : 'Reasoning complete')}
+                  </div>
+                  {currentThinking.slice(0, 500)}{currentThinking.length > 500 ? '...' : ''}
+                  {isThinking && (
+                    <span style={{
+                      display: 'inline-block', width: 2, height: 12,
+                      background: '#D97706', marginLeft: 2,
+                      animation: 'chatTypingBounce 1s ease-in-out infinite',
+                      verticalAlign: 'text-bottom',
+                    }} />
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Streaming response in progress */}
             {streaming && currentResponse && (
@@ -532,7 +607,7 @@ export default function ChatAssistant({ lang = 'en' }) {
             )}
 
             {/* Typing indicator before first token */}
-            {streaming && !currentResponse && (
+            {streaming && !currentResponse && !currentThinking && (
               <div style={{
                 alignSelf: 'flex-start',
                 background: '#FFFFFF',
