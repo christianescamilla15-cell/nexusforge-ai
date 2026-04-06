@@ -145,19 +145,24 @@ const QUICK_TYPE_DEFAULTS = {
 
 const INPUT_OPTIONS = [
   { key: 'text', icon: '\uD83D\uDCDD', label: { es: 'Texto', en: 'Text input' }, desc: { es: 'Pegar texto directamente', en: 'Paste text directly' } },
-  { key: 'file', icon: '\uD83D\uDCC4', label: { es: 'Archivo', en: 'File upload' }, desc: { es: 'PDF, DOCX, imágenes', en: 'PDF, DOCX, images' } },
+  { key: 'file', icon: '\uD83D\uDCC4', label: { es: 'Archivo', en: 'File upload' }, desc: { es: 'PDF, DOCX, im\u00E1genes', en: 'PDF, DOCX, images' } },
   { key: 'form', icon: '\uD83D\uDCCB', label: { es: 'Formulario', en: 'Form' }, desc: { es: 'Campos personalizados', en: 'Custom fields' } },
+  { key: 'drive', icon: '\uD83D\uDCC1', label: { es: 'Google Drive', en: 'Google Drive' }, desc: { es: 'Carpeta de Drive compartida', en: 'Shared Drive folder' } },
+  { key: 'sheets', icon: '\uD83D\uDCCA', label: { es: 'Google Sheets', en: 'Google Sheets' }, desc: { es: 'Spreadsheet en tiempo real', en: 'Live spreadsheet data' } },
   { key: 'webhook', icon: '\uD83D\uDD17', label: { es: 'Webhook', en: 'Webhook' }, desc: { es: 'Trigger externo', en: 'External trigger' } },
-  { key: 'email', icon: '\uD83D\uDCE7', label: { es: 'Email', en: 'Email' }, desc: { es: 'Integración Gmail', en: 'Gmail integration' } },
+  { key: 'email', icon: '\uD83D\uDCE7', label: { es: 'Email', en: 'Email' }, desc: { es: 'Integraci\u00F3n Gmail', en: 'Gmail integration' } },
+  { key: 'api', icon: '\u2699\uFE0F', label: { es: 'API Externa', en: 'External API' }, desc: { es: 'Zendesk, Jira, Freshdesk, etc.', en: 'Zendesk, Jira, Freshdesk, etc.' } },
 ]
 
 // ── Output options ───────────────────────────────────────────────────────────
 
 const OUTPUT_OPTIONS = [
   { key: 'dashboard', icon: '\uD83D\uDCCA', label: { es: 'Dashboard', en: 'Dashboard' }, desc: { es: 'Ver en NexusForge', en: 'View in NexusForge' } },
-  { key: 'email', icon: '\uD83D\uDCE7', label: { es: 'Email', en: 'Email notification' }, desc: { es: 'Notificación por email', en: 'Send email notification' } },
-  { key: 'slack', icon: '\uD83D\uDCAC', label: { es: 'Slack', en: 'Slack notification' }, desc: { es: 'Notificación a Slack', en: 'Send to Slack' } },
+  { key: 'email', icon: '\uD83D\uDCE7', label: { es: 'Email', en: 'Email notification' }, desc: { es: 'Notificaci\u00F3n por email', en: 'Send email notification' } },
+  { key: 'slack', icon: '\uD83D\uDCAC', label: { es: 'Slack', en: 'Slack notification' }, desc: { es: 'Notificaci\u00F3n a Slack', en: 'Send to Slack' } },
   { key: 'notion', icon: '\uD83D\uDCDD', label: { es: 'Notion', en: 'Save to Notion' }, desc: { es: 'Guardar en Notion', en: 'Save to Notion database' } },
+  { key: 'drive', icon: '\uD83D\uDCC1', label: { es: 'Google Drive', en: 'Google Drive' }, desc: { es: 'Subir resultados a Drive', en: 'Upload results to Drive' } },
+  { key: 'sheets', icon: '\uD83D\uDCCA', label: { es: 'Google Sheets', en: 'Google Sheets' }, desc: { es: 'Exportar a spreadsheet', en: 'Export to spreadsheet' } },
   { key: 'export', icon: '\uD83D\uDCE5', label: { es: 'Exportar CSV/PDF', en: 'Export CSV/PDF' }, desc: { es: 'Descargar resultados', en: 'Download results' } },
   { key: 'webhook', icon: '\uD83D\uDD17', label: { es: 'Webhook', en: 'Webhook' }, desc: { es: 'Enviar a sistema externo', en: 'Send to external system' } },
 ]
