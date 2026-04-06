@@ -2,12 +2,12 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { getApiUrl } from '../../services/api'
 
 const QUICK_ACTIONS = [
-  { label: 'Ticket Triage', labelEs: 'Triage de Tickets', icon: '\uD83C\uDFAB' },
-  { label: 'Document Analysis', labelEs: 'Analisis de Documentos', icon: '\uD83D\uDCC4' },
-  { label: 'Email Auto-Responder', labelEs: 'Auto-respuesta de Emails', icon: '\uD83D\uDCE7' },
-  { label: 'Report Generator', labelEs: 'Generador de Reportes', icon: '\uD83D\uDCCA' },
-  { label: 'Show me the agents', labelEs: 'Muestrame los agentes', icon: '\uD83E\uDD16' },
-  { label: 'Explain topologies', labelEs: 'Explica las topologias', icon: '\uD83D\uDD00' },
+  { label: 'Classify support tickets', labelEs: 'Clasificar tickets de soporte', icon: '\uD83C\uDFAB' },
+  { label: 'Analyze documents & invoices', labelEs: 'Analizar documentos y facturas', icon: '\uD83D\uDCC4' },
+  { label: 'Auto-reply to emails', labelEs: 'Responder emails automaticamente', icon: '\uD83D\uDCE7' },
+  { label: 'Generate weekly reports', labelEs: 'Generar reportes semanales', icon: '\uD83D\uDCCA' },
+  { label: 'Monitor social media mentions', labelEs: 'Monitorear menciones en redes', icon: '\uD83D\uDCF1' },
+  { label: 'Process and validate data', labelEs: 'Procesar y validar datos', icon: '\u2699\uFE0F' },
 ]
 
 function formatMessage(text) {
