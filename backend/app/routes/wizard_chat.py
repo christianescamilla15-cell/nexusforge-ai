@@ -115,6 +115,7 @@ async def _stream_ollama(messages: list[dict]):
 
     async def generate():
         try:
+            was_thinking = False
             async with httpx.AsyncClient(timeout=120) as client:
                 async with client.stream(
                     "POST",
@@ -127,33 +128,27 @@ async def _stream_ollama(messages: list[dict]):
                     },
                     timeout=120,
                 ) as resp:
-                    in_think = False
                     async for line in resp.aiter_lines():
                         if not line.strip():
                             continue
                         try:
                             chunk = json.loads(line)
-                            content = chunk.get("message", {}).get("content", "")
-                            if not content:
-                                continue
+                            msg = chunk.get("message", {})
 
-                            # Detect <think> tags for reasoning display
-                            if "<think>" in content:
-                                in_think = True
-                                content = content.replace("<think>", "")
-                                if content.strip():
-                                    yield f"data: {json.dumps({'type': 'thinking', 'content': content})}\n\n"
-                                continue
-                            if "</think>" in content:
-                                in_think = False
-                                content = content.replace("</think>", "")
-                                if content.strip():
-                                    yield f"data: {json.dumps({'type': 'thinking', 'content': content})}\n\n"
-                                yield f"data: {json.dumps({'type': 'thinking_done'})}\n\n"
-                                continue
+                            # Ollama deepseek-r1 sends thinking in a separate field
+                            thinking = msg.get("thinking", "")
+                            content = msg.get("content", "")
 
-                            msg_type = "thinking" if in_think else "text"
-                            yield f"data: {json.dumps({'type': msg_type, 'content': content})}\n\n"
+                            if thinking:
+                                was_thinking = True
+                                yield f"data: {json.dumps({'type': 'thinking', 'content': thinking})}\n\n"
+
+                            if content:
+                                # First content after thinking = transition
+                                if was_thinking:
+                                    yield f"data: {json.dumps({'type': 'thinking_done'})}\n\n"
+                                    was_thinking = False
+                                yield f"data: {json.dumps({'type': 'text', 'content': content})}\n\n"
 
                             if chunk.get("done"):
                                 break
