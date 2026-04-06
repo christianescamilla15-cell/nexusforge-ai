@@ -1,4 +1,5 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { fetchAPI } from '../../services/api'
 import useChatStream from './hooks/useChatStream'
 import { usePreviewEvents, parseAssistantResponse } from './hooks/usePreviewEvents'
 
@@ -29,6 +30,7 @@ export default function ChatPanel({ lang = 'es' }) {
   const { emitPreview } = usePreviewEvents()
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const [publishing, setPublishing] = useState(false)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -63,7 +65,145 @@ export default function ChatPanel({ lang = 'es' }) {
     }
   }, [chat.currentResponse, lang, emitPreview])
 
+  // Detect publish confirmation and actually create the automation
+  const publishAutomation = useCallback(async () => {
+    if (publishing) return
+    setPublishing(true)
+    emitPreview({ type: 'building', data: {} })
+
+    // Extract conversation summary for the workflow generator
+    const conversationSummary = chat.messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => m.text)
+      .join('\n')
+      .slice(-2000)
+
+    try {
+      // Step 1: Generate workflow DAG via AI
+      chat.setMessages(prev => [...prev, {
+        id: `sys-${Date.now()}`, role: 'system',
+        text: lang === 'es' ? '\u2699\uFE0F Generando workflow...' : '\u2699\uFE0F Generating workflow...',
+      }])
+
+      const genRes = await fetchAPI('/wizard/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          description: conversationSummary,
+          complexity: 'medium',
+          language: lang,
+        }),
+      })
+
+      const workflow = genRes.data?.workflow
+      if (!workflow || genRes.error) {
+        chat.setMessages(prev => [...prev, {
+          id: `err-${Date.now()}`, role: 'assistant',
+          text: lang === 'es'
+            ? 'Hubo un error generando el workflow. Intenta describir tu automatizaci\u00F3n de nuevo.'
+            : 'Error generating workflow. Try describing your automation again.',
+        }])
+        setPublishing(false)
+        return
+      }
+
+      // Step 2: Save workflow
+      chat.setMessages(prev => [...prev, {
+        id: `sys2-${Date.now()}`, role: 'system',
+        text: lang === 'es' ? '\uD83D\uDCBE Guardando workflow...' : '\uD83D\uDCBE Saving workflow...',
+      }])
+
+      const wfRes = await fetchAPI('/workflows/', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: workflow.name || 'AI Chat Workflow',
+          description: workflow.description || conversationSummary.slice(0, 200),
+          dag_definition: {
+            steps: (workflow.steps || []).map(s => ({
+              name: s.name,
+              type: s.agent_type || s.type,
+              depends_on: s.depends_on || [],
+            })),
+          },
+        }),
+      })
+
+      if (wfRes.error || !wfRes.data?.id) {
+        chat.setMessages(prev => [...prev, {
+          id: `err2-${Date.now()}`, role: 'assistant',
+          text: lang === 'es' ? 'Error guardando el workflow: ' + (wfRes.error || 'ID no recibido') : 'Error saving workflow.',
+        }])
+        setPublishing(false)
+        return
+      }
+
+      // Step 3: Create automation
+      chat.setMessages(prev => [...prev, {
+        id: `sys3-${Date.now()}`, role: 'system',
+        text: lang === 'es' ? '\uD83D\uDE80 Creando automatizaci\u00F3n...' : '\uD83D\uDE80 Creating automation...',
+      }])
+
+      // Extract config from conversation
+      const inputs = workflow.suggested_integrations?.inputs || ['text']
+      const outputs = workflow.suggested_integrations?.outputs || ['dashboard']
+      const inputType = inputs[0] === 'drive' ? 'drive' : inputs[0] === 'gmail' ? 'email' : inputs[0] === 'webhook' ? 'webhook' : 'text'
+
+      const autoRes = await fetchAPI('/automations/', {
+        method: 'POST',
+        body: JSON.stringify({
+          workflow_id: wfRes.data.id,
+          name: workflow.name || 'AI Automation',
+          trigger_type: inputType === 'webhook' ? 'webhook' : 'manual',
+          icon: '\u2728',
+          color: '#6366F1',
+          input_config: { type: inputType },
+          output_config: { destinations: outputs },
+          requires_approval: conversationSummary.toLowerCase().includes('aprobaci') || conversationSummary.toLowerCase().includes('approval'),
+        }),
+      })
+
+      if (autoRes.error) {
+        chat.setMessages(prev => [...prev, {
+          id: `err3-${Date.now()}`, role: 'assistant',
+          text: lang === 'es' ? 'Error creando la automatizaci\u00F3n: ' + autoRes.error : 'Error creating automation.',
+        }])
+        setPublishing(false)
+        return
+      }
+
+      // Success!
+      emitPreview({ type: 'complete', data: { name: workflow.name } })
+      chat.setMessages(prev => [...prev, {
+        id: `done-${Date.now()}`, role: 'assistant',
+        text: lang === 'es'
+          ? `\u2705 **\u00A1"${workflow.name}" est\u00E1 lista!**\n\nTu automatizaci\u00F3n fue creada con ${workflow.steps?.length || 0} agentes. Ve a **Automatizaciones** para ejecutarla o configurar los detalles.`
+          : `\u2705 **"${workflow.name}" is ready!**\n\nYour automation was created with ${workflow.steps?.length || 0} agents. Go to **Automations** to run it or configure details.`,
+      }])
+
+    } catch (err) {
+      chat.setMessages(prev => [...prev, {
+        id: `exc-${Date.now()}`, role: 'assistant',
+        text: lang === 'es' ? 'Error inesperado: ' + err.message : 'Unexpected error: ' + err.message,
+      }])
+    }
+    setPublishing(false)
+  }, [chat, lang, emitPreview, publishing])
+
+  // Detect when user says "yes, publish" in any form
+  const isPublishConfirmation = (text) => {
+    const lower = text.toLowerCase().trim()
+    const confirmWords = ['si', 's\u00ED', 'yes', 'publ', 'crear', 'create', 'listo', 'dale', 'ok', 'confirmo', 'hazlo', 'do it', 'go ahead']
+    return confirmWords.some(w => lower.startsWith(w) || lower === w)
+  }
+
   const handleSend = (text) => {
+    // Check if this is a publish confirmation
+    if (isPublishConfirmation(text) && chat.messages.some(m => m.role === 'assistant' && (m.text.includes('Publico') || m.text.includes('publish') || m.text.includes('Publicar')))) {
+      // Add user message visually
+      chat.setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', text: text.trim() }])
+      publishAutomation()
+      return
+    }
+
     chat.sendMessage(text, (fullText) => {
       const event = parseAssistantResponse(fullText, lang)
       if (event) emitPreview(event)
