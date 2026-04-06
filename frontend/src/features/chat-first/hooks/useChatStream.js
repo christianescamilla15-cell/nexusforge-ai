@@ -1,12 +1,30 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { getApiUrl } from '../../../services/api'
+
+const STORAGE_KEY = 'nxf_chat_history'
+
+function loadMessages() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveMessages(msgs) {
+  try {
+    // Keep last 50 messages to avoid storage overflow
+    const toSave = msgs.filter(m => m.role !== 'system').slice(-50)
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(toSave))
+  } catch { /* storage full */ }
+}
 
 /**
  * Extracted chat streaming logic — reusable by ChatPanel and ChatAssistant.
  * Handles SSE streaming with thinking/text/done event types.
+ * Persists messages in sessionStorage.
  */
 export default function useChatStream(lang = 'es') {
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(() => loadMessages())
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [currentResponse, setCurrentResponse] = useState('')
@@ -14,6 +32,11 @@ export default function useChatStream(lang = 'es') {
   const [isThinking, setIsThinking] = useState(false)
   const [provider, setProvider] = useState('')
   const abortRef = useRef(null)
+
+  // Persist messages to sessionStorage
+  useEffect(() => {
+    if (messages.length > 0) saveMessages(messages)
+  }, [messages])
 
   const sendMessage = useCallback(async (text, onChunk) => {
     if (!text.trim() || streaming) return

@@ -185,26 +185,22 @@ export default function ChatPanel({ lang = 'es' }) {
           )
         })}
 
-        {/* Thinking in progress */}
-        {chat.streaming && chat.currentThinking && (
-          <div style={{ alignSelf: 'flex-start', maxWidth: '90%', width: '100%' }}>
+        {/* Thinking in progress — shows only last ~30 chars like ChatGPT */}
+        {chat.streaming && chat.currentThinking && chat.isThinking && (
+          <div style={{ alignSelf: 'flex-start' }}>
             <div style={{
-              background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
-              color: '#78350F', padding: '14px 18px',
-              borderRadius: '18px 18px 18px 4px',
-              fontSize: 13, lineHeight: 1.6, fontStyle: 'italic',
-              border: '2px solid #F59E0B',
-              boxShadow: '0 2px 8px rgba(245,158,11,0.15)',
+              background: '#FEF3C7',
+              color: '#92400E', padding: '8px 14px',
+              borderRadius: '14px 14px 14px 4px',
+              fontSize: 12, fontStyle: 'italic',
+              border: '1px solid #FDE68A',
+              display: 'flex', alignItems: 'center', gap: 6,
+              maxWidth: 300,
             }}>
-              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8, color: '#B45309', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 16, animation: 'pulse 2s infinite' }}>{'\uD83E\uDDE0'}</span>
-                {chat.isThinking
-                  ? (lang === 'es' ? 'Pensando en tiempo real...' : 'Thinking in real-time...')
-                  : (lang === 'es' ? 'Razonamiento completado' : 'Reasoning complete')}
-              </div>
-              <div style={{ maxHeight: 200, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {chat.currentThinking}
-              </div>
+              <span style={{ fontSize: 14, animation: 'pulse 1.5s infinite', flexShrink: 0 }}>{'\uD83E\uDDE0'}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {chat.currentThinking.slice(-40)}
+              </span>
             </div>
           </div>
         )}
