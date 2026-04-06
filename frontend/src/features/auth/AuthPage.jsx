@@ -35,6 +35,7 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_token: credential }),
+        signal: AbortSignal.timeout(60000), // 60s — Render cold start
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Google login failed')
@@ -42,7 +43,11 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
       localStorage.setItem('nf_user', JSON.stringify(data.user))
       onLogin(data.user)
     } catch (err) {
-      setError(err.message)
+      if (err.name === 'TimeoutError') {
+        setError(lang === 'es' ? 'El servidor tardó mucho. Intenta de nuevo.' : 'Server timeout. Please try again.')
+      } else {
+        setError(err.message)
+      }
     } finally {
       setGoogleLoading(false)
     }
