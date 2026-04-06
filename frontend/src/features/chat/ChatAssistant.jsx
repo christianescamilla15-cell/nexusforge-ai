@@ -126,7 +126,7 @@ export default function ChatAssistant({ lang = 'en' }) {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, streaming, currentResponse, scrollToBottom])
+  }, [messages, streaming, currentResponse, currentThinking, scrollToBottom])
 
   useEffect(() => {
     if (open && inputRef.current) {
@@ -554,26 +554,30 @@ export default function ChatAssistant({ lang = 'en' }) {
             {/* Thinking process (visible reasoning) */}
             {streaming && currentThinking && (
               <div style={{
-                alignSelf: 'flex-start', maxWidth: '90%',
+                alignSelf: 'flex-start', maxWidth: '95%', width: '95%',
                 animation: 'chatFadeIn 0.3s ease',
               }}>
                 <div style={{
-                  background: '#FEF3C7', color: '#92400E',
-                  padding: '10px 14px', borderRadius: '14px 14px 14px 4px',
-                  fontSize: 12, lineHeight: 1.5, fontStyle: 'italic',
-                  border: '1px solid #FDE68A',
+                  background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+                  color: '#78350F',
+                  padding: '14px 16px', borderRadius: '14px 14px 14px 4px',
+                  fontSize: 13, lineHeight: 1.6, fontStyle: 'italic',
+                  border: '2px solid #F59E0B',
+                  boxShadow: '0 2px 8px rgba(245,158,11,0.2)',
                 }}>
-                  <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4, color: '#D97706', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 14 }}>{'\uD83E\uDDE0'}</span>
+                  <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8, color: '#B45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 16, animation: isThinking ? 'chatTypingBounce 2s ease-in-out infinite' : 'none' }}>{'\uD83E\uDDE0'}</span>
                     {isThinking
-                      ? (lang === 'es' ? 'Razonando...' : 'Reasoning...')
+                      ? (lang === 'es' ? 'Pensando en tiempo real...' : 'Thinking in real-time...')
                       : (lang === 'es' ? 'Razonamiento completado' : 'Reasoning complete')}
                   </div>
-                  {currentThinking.slice(0, 500)}{currentThinking.length > 500 ? '...' : ''}
+                  <div style={{ maxHeight: 300, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {currentThinking}
+                  </div>
                   {isThinking && (
                     <span style={{
-                      display: 'inline-block', width: 2, height: 12,
-                      background: '#D97706', marginLeft: 2,
+                      display: 'inline-block', width: 3, height: 14,
+                      background: '#B45309', marginLeft: 2,
                       animation: 'chatTypingBounce 1s ease-in-out infinite',
                       verticalAlign: 'text-bottom',
                     }} />
