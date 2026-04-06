@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 
 const DESTINATIONS = [
-  { key: 'email', icon: '✉️', label: { es: 'Email', en: 'Email' }, service: 'email' },
-  { key: 'slack', icon: '💬', label: { es: 'Slack', en: 'Slack' }, service: 'slack' },
-  { key: 'notion', icon: '📝', label: { es: 'Notion', en: 'Notion' }, service: 'notion' },
-  { key: 'drive', icon: '📁', label: { es: 'Google Drive', en: 'Google Drive' }, service: 'drive' },
-  { key: 'webhook', icon: '🔗', label: { es: 'Webhook', en: 'Webhook' }, service: null },
+  { key: 'email', icon: '\u2709\uFE0F', label: { es: 'Email', en: 'Email' }, service: 'email' },
+  { key: 'slack', icon: '\uD83D\uDCAC', label: { es: 'Slack', en: 'Slack' }, service: 'slack' },
+  { key: 'notion', icon: '\uD83D\uDCDD', label: { es: 'Notion', en: 'Notion' }, service: 'notion' },
+  { key: 'drive', icon: '\uD83D\uDCC1', label: { es: 'Google Drive', en: 'Google Drive' }, service: 'drive' },
+  { key: 'sheets', icon: '\uD83D\uDCCA', label: { es: 'Google Sheets', en: 'Google Sheets' }, service: 'sheets' },
+  { key: 'webhook', icon: '\uD83D\uDD17', label: { es: 'Webhook', en: 'Webhook' }, service: null },
 ]
 
 export default function OutputDestinations({ automationId, lang = 'en' }) {

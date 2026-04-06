@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { fetchAPI } from '../../services/api'
 
 export default function RunInputModal({ automation, onSubmit, onClose, lang = 'en' }) {
   const config = automation.input_config || { type: 'none' }
@@ -6,6 +7,26 @@ export default function RunInputModal({ automation, onSubmit, onClose, lang = 'e
   const [jsonText, setJsonText] = useState('{}')
   const [formValues, setFormValues] = useState({})
   const [jsonError, setJsonError] = useState(null)
+  // Drive/Sheets/API state
+  const [driveFiles, setDriveFiles] = useState([])
+  const [selectedFileId, setSelectedFileId] = useState('')
+  const [driveFolderId, setDriveFolderId] = useState('')
+  const [sheetsUrl, setSheetsUrl] = useState('')
+  const [sheetsRange, setSheetsRange] = useState('A1:Z1000')
+  const [apiEndpoint, setApiEndpoint] = useState('')
+  const [apiHeaders, setApiHeaders] = useState('{}')
+  const [loadingFiles, setLoadingFiles] = useState(false)
+
+  // Load Drive files when input is drive
+  useEffect(() => {
+    if (config.type === 'drive') {
+      setLoadingFiles(true)
+      fetchAPI('/workflows/drive-to-intelligence/files').then(res => {
+        if (!res.error && res.data?.files) setDriveFiles(res.data.files)
+        setLoadingFiles(false)
+      }).catch(() => setLoadingFiles(false))
+    }
+  }, [config.type])
 
   const inputStyle = {
     width: '100%', padding: '9px 12px', borderRadius: 8,
@@ -22,11 +43,19 @@ export default function RunInputModal({ automation, onSubmit, onClose, lang = 'e
         input_data = JSON.parse(jsonText)
         setJsonError(null)
       } catch {
-        setJsonError(lang === 'es' ? 'JSON inválido' : 'Invalid JSON')
+        setJsonError(lang === 'es' ? 'JSON inv\u00E1lido' : 'Invalid JSON')
         return
       }
     } else if (config.type === 'form') {
       input_data = { ...formValues }
+    } else if (config.type === 'drive') {
+      input_data = { source: 'drive', file_id: selectedFileId, folder_id: driveFolderId }
+    } else if (config.type === 'sheets') {
+      input_data = { source: 'sheets', spreadsheet_url: sheetsUrl, range: sheetsRange }
+    } else if (config.type === 'api') {
+      let headers = {}
+      try { headers = JSON.parse(apiHeaders) } catch {}
+      input_data = { source: 'api', endpoint: apiEndpoint, headers }
     }
     onSubmit(input_data)
   }
@@ -125,6 +154,114 @@ export default function RunInputModal({ automation, onSubmit, onClose, lang = 'e
             )}
           </div>
         ))}
+
+        {/* Google Drive input */}
+        {config.type === 'drive' && (
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+              {lang === 'es' ? 'Selecciona archivo de Drive' : 'Select Drive file'}
+            </label>
+            {loadingFiles ? (
+              <p style={{ fontSize: 13, color: '#9CA3AF' }}>{lang === 'es' ? 'Cargando archivos...' : 'Loading files...'}</p>
+            ) : driveFiles.length > 0 ? (
+              <select
+                value={selectedFileId}
+                onChange={e => setSelectedFileId(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">{lang === 'es' ? 'Seleccionar archivo...' : 'Select file...'}</option>
+                {driveFiles.map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            ) : (
+              <p style={{ fontSize: 12, color: '#EF4444' }}>
+                {lang === 'es' ? 'No se encontraron archivos. Verifica la integraci\u00F3n de Google Drive.' : 'No files found. Check Google Drive integration.'}
+              </p>
+            )}
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>
+                {lang === 'es' ? 'Folder ID (opcional)' : 'Folder ID (optional)'}
+              </label>
+              <input
+                type="text"
+                value={driveFolderId}
+                onChange={e => setDriveFolderId(e.target.value)}
+                placeholder="1P56v2fk..."
+                style={{ ...inputStyle, fontSize: 12 }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Google Sheets input */}
+        {config.type === 'sheets' && (
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+              {lang === 'es' ? 'URL del Google Sheet' : 'Google Sheet URL'}
+            </label>
+            <input
+              type="text"
+              value={sheetsUrl}
+              onChange={e => setSheetsUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              style={inputStyle}
+              autoFocus
+            />
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>
+                {lang === 'es' ? 'Rango de celdas' : 'Cell range'}
+              </label>
+              <input
+                type="text"
+                value={sheetsRange}
+                onChange={e => setSheetsRange(e.target.value)}
+                placeholder="A1:Z1000"
+                style={{ ...inputStyle, fontSize: 12 }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* External API input */}
+        {config.type === 'api' && (
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+              {lang === 'es' ? 'Endpoint de la API' : 'API Endpoint'}
+            </label>
+            <input
+              type="text"
+              value={apiEndpoint}
+              onChange={e => setApiEndpoint(e.target.value)}
+              placeholder="https://api.zendesk.com/v2/tickets.json"
+              style={inputStyle}
+              autoFocus
+            />
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 12, color: '#6B7280', display: 'block', marginBottom: 4 }}>
+                {lang === 'es' ? 'Headers (JSON)' : 'Headers (JSON)'}
+              </label>
+              <textarea
+                value={apiHeaders}
+                onChange={e => setApiHeaders(e.target.value)}
+                placeholder='{"Authorization": "Bearer token..."}'
+                rows={3}
+                style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* No input needed */}
+        {(config.type === 'none' || config.type === 'webhook' || config.type === 'email') && (
+          <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 20, textAlign: 'center' }}>
+            {config.type === 'webhook'
+              ? (lang === 'es' ? 'Esta automatizaci\u00F3n se activa v\u00EDa webhook externo' : 'This automation triggers via external webhook')
+              : config.type === 'email'
+              ? (lang === 'es' ? 'Esta automatizaci\u00F3n se activa cuando llega un email' : 'This automation triggers on incoming email')
+              : (lang === 'es' ? 'No requiere datos de entrada' : 'No input data required')}
+          </p>
+        )}
 
         <button
           onClick={handleSubmit}
