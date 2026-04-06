@@ -80,12 +80,12 @@ export default function ChatPanel({ lang = 'es' }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
-      background: '#FAFBFC',
+      background: '#FAFBFC', width: '100%',
     }}>
       {/* Header */}
       <div style={{
-        padding: '16px 20px', borderBottom: '1px solid #E5E7EB',
-        background: '#fff',
+        padding: '12px 16px', borderBottom: '1px solid #E5E7EB',
+        background: '#fff', flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{

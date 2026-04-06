@@ -70,6 +70,7 @@ export default function ChatFirstDashboard({ lang = 'es', onNavigate }) {
             flex: isMobile ? 1 : 6,
             display: isMobile && activeTab !== 'chat' ? 'none' : 'flex',
             flexDirection: 'column', minWidth: 0,
+            overflow: 'hidden',
           }}>
             <ChatPanel lang={lang} />
           </div>
@@ -79,6 +80,7 @@ export default function ChatFirstDashboard({ lang = 'es', onNavigate }) {
             flex: isMobile ? 1 : 4,
             display: isMobile && activeTab !== 'preview' ? 'none' : 'flex',
             flexDirection: 'column', minWidth: 0,
+            overflow: 'hidden',
           }}>
             <PreviewPanel lang={lang} />
           </div>
