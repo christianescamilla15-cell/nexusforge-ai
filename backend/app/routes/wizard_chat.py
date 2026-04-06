@@ -86,15 +86,23 @@ class ChatRequest(BaseModel):
 # ── Provider functions ──────────────────────────────────────────────────────
 
 
+def _get_ollama_url() -> str:
+    """Get Ollama URL — tunnel (cloud) or localhost."""
+    return os.environ.get("OLLAMA_TUNNEL_URL", "http://localhost:11434")
+
+
 async def _check_ollama(model: str = "deepseek-r1:8b") -> bool:
-    """Quick health check: is Ollama running and has the model?"""
+    """Quick health check: is Ollama running (local or via tunnel)?"""
     import httpx
+    base = _get_ollama_url()
     try:
-        async with httpx.AsyncClient(timeout=3) as client:
-            resp = await client.get("http://localhost:11434/api/tags")
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(f"{base}/api/tags")
             if resp.status_code == 200:
                 models = [m["name"] for m in resp.json().get("models", [])]
-                return model in models
+                if model in models:
+                    logger.info("Ollama available at %s with %s", base, model)
+                    return True
     except Exception:
         pass
     return False
@@ -103,13 +111,14 @@ async def _check_ollama(model: str = "deepseek-r1:8b") -> bool:
 async def _stream_ollama(messages: list[dict]):
     """Stream from Ollama deepseek-r1:8b with native <think> support."""
     import httpx
+    base = _get_ollama_url()
 
     async def generate():
         try:
             async with httpx.AsyncClient(timeout=120) as client:
                 async with client.stream(
                     "POST",
-                    "http://localhost:11434/api/chat",
+                    f"{base}/api/chat",
                     json={
                         "model": "deepseek-r1:8b",
                         "messages": [{"role": "system", "content": NEXUSFORGE_SYSTEM_PROMPT}] + messages,
