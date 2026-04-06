@@ -13,6 +13,7 @@ import Skeleton from './shared/components/Skeleton'
 
 // Eager: Dashboard (first page users see) + Chat (always visible)
 import DashboardPage from './features/dashboard/DashboardPage'
+import ChatFirstDashboard from './features/chat-first/ChatFirstDashboard'
 import ChatAssistant from './features/chat/ChatAssistant'
 import CommandPalette from './shared/components/CommandPalette'
 
@@ -190,7 +191,8 @@ function AppRoutes() {
       <Layout currentPage={currentPage} onNavigate={navigate} lang={lang} toggleLang={toggleLang} theme={theme} setTheme={setTheme} user={user} onLogout={handleLogout}>
         <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<DashboardPage lang={lang} onNavigate={navigate} />} />
+          <Route path="/" element={<ChatFirstDashboard lang={lang} onNavigate={navigate} />} />
+          <Route path="/dashboard-classic" element={<DashboardPage lang={lang} onNavigate={navigate} />} />
 
           {/* Automations */}
           <Route path="/automations" element={
