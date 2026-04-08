@@ -51,6 +51,8 @@ async def get_topologies():
 @router.post("/execute", response_model=SwarmResultResponse)
 async def execute_swarm(req: SwarmExecuteRequest, request: Request):
     """Execute a swarm with given agents and input."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     _get_user_id(request)  # require auth
     try:
         swarm = get_swarm(req.topology)

@@ -16,19 +16,19 @@ PUBLIC_PATHS = {
     "/api/auth/google",
     "/api/auth/plans",
     "/api/integrations/status",
-    "/docs",
-    "/openapi.json",
-    "/redoc",
 }
 
 PUBLIC_PREFIXES = [
     "/api/auth/",
     "/api/templates",
     "/api/automations/webhook/",
-    "/docs",
-    "/openapi",
-    "/redoc",
 ]
+
+# Swagger/docs only accessible in development (NEXUSFORGE_ENV != production)
+import os as _os
+if _os.environ.get("NEXUSFORGE_ENV", "development") != "production":
+    PUBLIC_PATHS.update({"/docs", "/openapi.json", "/redoc"})
+    PUBLIC_PREFIXES.extend(["/docs", "/openapi", "/redoc"])
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

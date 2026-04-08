@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 @router.post("/", status_code=201)
 async def trigger_execution(body: ExecutionTrigger, request: Request):
     """Create a workflow run and enqueue execution in the background."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     user_id = _get_user_id(request)
     try:
         pool = await get_db_pool()
