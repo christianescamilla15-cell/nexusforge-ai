@@ -5,10 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.client import get_db_pool, get_redis, close_connections
 from app.db.mongo_client import close_mongo
-from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth, metrics, workflow_runs, executions_db, evaluation
+from app.routes import workflows, executions, agents, documents, health, swarms, plugins, memory, auth, metrics, workflow_runs
 from app.routes.enterprise_ops import router as enterprise_ops_router
 from app.routes.document_intelligence import router as doc_intel_router
-from app.routes.portfolio_copilot import router as portfolio_copilot_router
 from app.routes.integrations import router as integrations_router
 from app.routes.feedback import router as feedback_router
 from app.routes.drive_pipeline import router as drive_pipeline_router
@@ -175,11 +174,8 @@ app.include_router(memory.router, prefix="/api", tags=["memory"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(metrics.router, prefix="/api", tags=["metrics"])
 app.include_router(workflow_runs.router, prefix="/api", tags=["workflow-runs"])
-app.include_router(executions_db.router, prefix="/api", tags=["executions-db"])
-app.include_router(evaluation.router, prefix="/api", tags=["evaluation"])
 app.include_router(enterprise_ops_router, prefix="/api")
 app.include_router(doc_intel_router, prefix="/api")
-app.include_router(portfolio_copilot_router, prefix="/api")
 app.include_router(integrations_router, prefix="/api")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(drive_pipeline_router, prefix="/api")
@@ -194,8 +190,3 @@ app.include_router(audit_log_router, prefix="/api", tags=["audit-log"])
 from app.routes.demo import router as demo_router
 app.include_router(demo_router, prefix="/api", tags=["demo"])
 
-from app.routes.orchestrator import router as orchestrator_router
-app.include_router(orchestrator_router, prefix="/api", tags=["orchestrator"])
-
-from app.routes.meta import router as meta_router
-app.include_router(meta_router, tags=["meta-orchestration"])
