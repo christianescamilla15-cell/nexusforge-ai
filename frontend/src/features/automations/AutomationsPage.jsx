@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { fetchAPI, trackGuestRun } from '../../services/api'
 import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import PublishModal from './PublishModal'
@@ -21,7 +21,7 @@ const TRIGGER_BADGE = {
 
 const PAGE_SIZE = 12
 
-function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onClone, onDashboard, running, isFavorite, onToggleFavorite, isSelected, onToggleSelect }) {
+const AutomationCard = memo(function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onClone, onDashboard, running, isFavorite, onToggleFavorite, isSelected, onToggleSelect }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const trigger = TRIGGER_BADGE[auto.trigger_type] || TRIGGER_BADGE.manual
   const bg = auto.color ? `${auto.color}12` : 'rgba(99,102,241,0.08)'
@@ -126,7 +126,7 @@ function AutomationCard({ auto, lang, onRun, onDelete, onEdit, onClone, onDashbo
       </div>
     </div>
   )
-}
+})
 
 function EditAutomationModal({ automation, lang, onClose, onSaved }) {
   const [name, setName] = useState(automation.name || '')

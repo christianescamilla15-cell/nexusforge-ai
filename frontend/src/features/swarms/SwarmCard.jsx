@@ -140,7 +140,9 @@ const TOPOLOGY_DATA = {
   },
 }
 
-export default function SwarmCard({ topology, onExecute }) {
+import { memo } from 'react'
+
+export default memo(function SwarmCard({ topology, onExecute }) {
   const data = TOPOLOGY_DATA[topology]
   if (!data) return null
 
@@ -219,6 +221,6 @@ export default function SwarmCard({ topology, onExecute }) {
       </button>
     </div>
   )
-}
+})
 
 export { TOPOLOGY_DATA }
