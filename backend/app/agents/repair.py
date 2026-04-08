@@ -10,8 +10,10 @@ from app.agents.registry import register_agent
 
 logger = logging.getLogger(__name__)
 
-# In-memory fingerprint cache: fingerprint -> {fix_type, success_count, fail_count}
+# In-memory fingerprint cache: fingerprint -> {fix_type, success_count, fail_count, last_used}
+# Max 200 entries; evicts least-recently-used when full
 _FINGERPRINT_CACHE: dict[str, dict] = {}
+_FINGERPRINT_MAX = 200
 
 REPAIR_PROMPT = """A workflow step has failed. Analyze the error and suggest a fix.
 
@@ -63,6 +65,10 @@ def _get_cached_fix(fingerprint: str) -> dict | None:
 def _record_healing_result(fingerprint: str, fix_type: str, success: bool):
     """Record whether a healing fix worked for this fingerprint."""
     if fingerprint not in _FINGERPRINT_CACHE:
+        # Evict least-used entries if cache is full
+        if len(_FINGERPRINT_CACHE) >= _FINGERPRINT_MAX:
+            worst = min(_FINGERPRINT_CACHE, key=lambda k: _FINGERPRINT_CACHE[k].get("success_count", 0))
+            del _FINGERPRINT_CACHE[worst]
         _FINGERPRINT_CACHE[fingerprint] = {"fix_type": fix_type, "success_count": 0, "fail_count": 0}
     if success:
         _FINGERPRINT_CACHE[fingerprint]["success_count"] += 1

@@ -211,4 +211,4 @@ class TestFallbackStrategyExecution:
             context={},
         )
         assert result.success is False
-        assert "No cached result" in result.message
+        assert "no cached" in result.message.lower() or "no cached or historical" in result.message.lower()

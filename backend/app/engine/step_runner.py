@@ -158,9 +158,16 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
         "error": last_error,
         "retry_count": retry_max,
     }
+    # Build result_cache from dependency outputs already in input_data
+    result_cache = {
+        k.strip("_").replace("_output", ""): v
+        for k, v in input_data.items()
+        if k.startswith("_") and k.endswith("_output")
+    }
     execution_context = {
         "run_id": str(run_id),
         "step_id": str(step_id),
+        "result_cache": result_cache,
     }
 
     try:

@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 class PredictiveMemory:
     """Tier 4b: Forward-looking predictions based on regressive analysis."""
 
+    _MAX_CACHE_SIZE = 500  # Evict oldest entries when exceeded
+
     def __init__(self):
         from app.memory.regressive import RegressiveMemory
         self._regressive = RegressiveMemory()
@@ -36,6 +38,17 @@ class PredictiveMemory:
         return None
 
     def _set_cached(self, key: str, data: dict):
+        # Evict expired entries if cache is too large
+        if len(self._cache) >= self._MAX_CACHE_SIZE:
+            now = time.monotonic()
+            expired = [k for k, (exp, _) in self._cache.items() if exp <= now]
+            for k in expired:
+                del self._cache[k]
+            # If still too large after purging expired, drop oldest 20%
+            if len(self._cache) >= self._MAX_CACHE_SIZE:
+                sorted_keys = sorted(self._cache, key=lambda k: self._cache[k][0])
+                for k in sorted_keys[:len(sorted_keys) // 5]:
+                    del self._cache[k]
         self._cache[key] = (time.monotonic() + self._cache_ttl, data)
 
     def invalidate(self, agent_id: str):

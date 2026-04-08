@@ -1,11 +1,15 @@
 """SelfHealer — core self-healing engine that orchestrates error recovery."""
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 
 from app.healing.detector import FailureDetector, ErrorClassification
 from app.healing.strategies import get_strategy, HealingResult, STRATEGY_REGISTRY
 from app.healing.circuit_breaker import get_circuit_breaker
+
+# Maximum time for the entire healing session (prevents infinite healing)
+_HEAL_TIMEOUT_SECONDS = 120
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +52,33 @@ class SelfHealer:
         execution_context: dict = None,
     ) -> HealingResult:
         """
-        Attempt to heal a failed step:
+        Attempt to heal a failed step with a global timeout.
         1. Classify the error using FailureDetector
         2. If recoverable, try strategies in priority order
         3. If not recoverable, log to dead letter queue and return failure
         4. Log healing attempt for future learning
         """
+        try:
+            return await asyncio.wait_for(
+                self._do_heal(failed_step, error_info, execution_context),
+                timeout=_HEAL_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            step_name = failed_step.get("step_name", "unknown")
+            logger.error("SelfHealer: healing timed out after %ds for step '%s'", _HEAL_TIMEOUT_SECONDS, step_name)
+            self._log_attempt(step_name, "timeout", "none", False, f"Healing timed out after {_HEAL_TIMEOUT_SECONDS}s")
+            return HealingResult(
+                success=False, strategy_used="none", output=None,
+                message=f"Healing timed out after {_HEAL_TIMEOUT_SECONDS}s for step '{step_name}'",
+            )
+
+    async def _do_heal(
+        self,
+        failed_step: dict,
+        error_info: dict,
+        execution_context: dict = None,
+    ) -> HealingResult:
+        """Internal healing logic (wrapped by timeout)."""
         execution_context = execution_context or {}
         error_message = error_info.get("error_message", str(error_info.get("error", "Unknown")))
         step_name = failed_step.get("step_name", "unknown")

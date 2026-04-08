@@ -415,8 +415,26 @@ export default function WorkflowBuilderPage({ lang = 'en', editWorkflowId = null
 
   const [currentSavedId, setCurrentSavedId] = useState(editWorkflowId || null)
 
+  // Cycle detection via DFS — prevents saving invalid DAGs
+  const hasCycle = () => {
+    const adj = {}
+    nodes.forEach(n => { adj[n.id] = [] })
+    edges.forEach(e => { if (adj[e.from]) adj[e.from].push(e.to) })
+    const visited = new Set(), stack = new Set()
+    const dfs = (id) => {
+      if (stack.has(id)) return true
+      if (visited.has(id)) return false
+      visited.add(id); stack.add(id)
+      for (const next of (adj[id] || [])) { if (dfs(next)) return true }
+      stack.delete(id)
+      return false
+    }
+    return nodes.some(n => dfs(n.id))
+  }
+
   const handleSave = async () => {
     if (nodes.length === 0) { showToast(lang === 'es' ? 'Agrega al menos un nodo' : 'Add at least one agent node', 'error'); return }
+    if (hasCycle()) { showToast(lang === 'es' ? 'El workflow tiene ciclos — elimina conexiones circulares' : 'Workflow has cycles — remove circular connections', 'error'); return }
 
     const saveName = workflowName.trim() || 'Untitled Workflow'
     const body = {

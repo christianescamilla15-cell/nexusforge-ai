@@ -236,6 +236,7 @@ class LLMRouter:
                     )
 
         detail = "; ".join(f"{n}: {e}" for n, e in errors)
+        logger.error("All LLM providers failed for '%s': %s", agent_name, detail or "no providers available")
         raise RuntimeError(
             f"All LLM providers failed for agent '{agent_name}' — {detail}"
             if detail else f"No LLM providers available for agent '{agent_name}'"

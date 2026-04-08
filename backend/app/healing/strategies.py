@@ -97,7 +97,7 @@ class RepairStrategy(HealingStrategy):
                 "error": error_info.get("error_message", "Unknown error"),
                 "step_config": failed_step.get("config", {}),
             }
-            repair_result = await repair_agent.execute(repair_input, failed_step.get("config", {}))
+            repair_result = await repair_agent.run(repair_input, failed_step.get("config", {}))
 
             diagnosis = repair_result.output
             if diagnosis.get("can_auto_fix", False):
@@ -158,15 +158,17 @@ class EscalateStrategy(HealingStrategy):
 
 
 class FallbackStrategy(HealingStrategy):
-    """Use cached result from previous successful run."""
+    """Use cached result from previous successful run or context cache."""
 
     name = "fallback"
 
     async def apply(self, failed_step: dict, error_info: dict, context: dict) -> HealingResult:
+        import json as _json
         step_name = failed_step.get("step_name", "unknown")
+
+        # 1. Check context-provided cache first
         cache = context.get("result_cache", {})
         cached_result = cache.get(step_name)
-
         if cached_result:
             return HealingResult(
                 success=True,
@@ -175,11 +177,36 @@ class FallbackStrategy(HealingStrategy):
                 message=f"Using cached result for step '{step_name}'",
             )
 
+        # 2. Query DB for last successful execution of same step type
+        step_type = failed_step.get("step_type", "")
+        if step_type:
+            try:
+                from app.db.client import get_db_pool
+                pool = await get_db_pool()
+                async with pool.acquire() as conn:
+                    row = await conn.fetchrow(
+                        """SELECT output_data FROM step_executions
+                           WHERE step_name = $1 AND status = 'completed'
+                             AND output_data IS NOT NULL
+                           ORDER BY completed_at DESC LIMIT 1""",
+                        step_name,
+                    )
+                if row and row["output_data"]:
+                    output = _json.loads(row["output_data"]) if isinstance(row["output_data"], str) else row["output_data"]
+                    return HealingResult(
+                        success=True,
+                        strategy_used=self.name,
+                        output=output,
+                        message=f"Using last successful DB result for step '{step_name}'",
+                    )
+            except Exception as exc:
+                logger.warning("FallbackStrategy DB lookup failed: %s", exc)
+
         return HealingResult(
             success=False,
             strategy_used=self.name,
             output=None,
-            message=f"No cached result available for step '{step_name}'",
+            message=f"No cached or historical result available for step '{step_name}'",
         )
 
 
