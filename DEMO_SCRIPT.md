@@ -3,7 +3,7 @@
 > Use this script to showcase NexusForge in interviews, presentations, or portfolio reviews.
 
 ## Setup
-- Open: https://frontend-silk-three-66.vercel.app
+- Open: https://nexusforge-two.vercel.app
 - Login with your account (or use Guest mode for quick demo)
 
 ---

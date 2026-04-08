@@ -3,7 +3,7 @@
 > Enterprise-grade AI Agent Orchestration Platform for PYMEs (SMBs)
 
 ## Live URLs
-- **Frontend:** https://frontend-silk-three-66.vercel.app
+- **Frontend:** https://nexusforge-two.vercel.app
 - **Backend API:** https://nexusforge-api.onrender.com/api
 - **API Docs:** https://nexusforge-api.onrender.com/docs
 - **GitHub:** https://github.com/christianescamilla15-cell/nexusforge-ai

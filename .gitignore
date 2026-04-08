@@ -33,3 +33,8 @@ Thumbs.db
 # Docker
 *.log
 .vercel
+
+# NexusForge CLI generated
+BRIEFING.md
+.claude/
+.kiro/power/
