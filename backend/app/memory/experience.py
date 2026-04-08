@@ -89,6 +89,25 @@ class ExperienceCollector:
         self._result = None
         self._input_data: dict = {}
 
+    async def __aenter__(self):
+        """Support async with ExperienceCollector(...) as collector."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Auto-persist on exit: success if no exception, error if exception."""
+        if exc_type is not None:
+            await self._persist("error", error=f"{exc_type.__name__}: {exc_val}"[:200])
+        elif self._result is not None:
+            is_fallback = (
+                hasattr(self._result, "provider")
+                and self._result.provider in ("local",)
+                and hasattr(self._result, "model")
+                and self._result.model in ("fallback", "circuit-breaker")
+            )
+            outcome = "fallback" if is_fallback else "success"
+            await self._persist(outcome)
+        return False  # Don't suppress exceptions
+
     def record_tool(self, tool_name: str):
         """Call this when a capability/tool is used."""
         self._tools_used.append(tool_name)

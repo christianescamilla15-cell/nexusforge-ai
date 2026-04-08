@@ -115,6 +115,54 @@ async def _check_ollama(model: str = "deepseek-r1:8b") -> bool:
     return False
 
 
+async def _stream_ollama_model(messages: list[dict], model: str = "gemma4:27b", provider_label: str = "Gemma 4 27B (local)"):
+    """Stream from any Ollama thinking model (gemma4, deepseek-r1, etc.)."""
+    import httpx
+    base = _get_ollama_url()
+
+    async def generate():
+        try:
+            was_thinking = False
+            async with httpx.AsyncClient(timeout=120) as client:
+                async with client.stream(
+                    "POST",
+                    f"{base}/api/chat",
+                    json={"model": model, "messages": messages, "stream": True, "think": True},
+                ) as resp:
+                    async for line in resp.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        msg = chunk.get("message", {})
+                        thinking = msg.get("thinking", "")
+                        content = msg.get("content", "")
+                        if thinking:
+                            if not was_thinking:
+                                was_thinking = True
+                            yield f"data: {json.dumps({'type': 'thinking', 'content': thinking})}\n\n"
+                        if content:
+                            if was_thinking:
+                                yield f"data: {json.dumps({'type': 'thinking_done'})}\n\n"
+                                was_thinking = False
+                            yield f"data: {json.dumps({'type': 'text', 'content': content})}\n\n"
+
+            if was_thinking:
+                yield f"data: {json.dumps({'type': 'thinking_done'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'provider': provider_label})}\n\n"
+        except Exception as e:
+            logger.error("Ollama %s stream error: %s", model, e)
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 async def _stream_ollama(messages: list[dict]):
     """Stream from Ollama deepseek-r1:8b with native <think> support."""
     import httpx
@@ -344,28 +392,37 @@ NexusForge AI is an enterprise automation platform with:
 
 @router.post("/chat")
 async def wizard_chat(body: ChatRequest):
-    """Stream AI Wizard response (builder). Fallback: deepseek-r1 → Groq → Claude."""
+    """Stream AI Wizard response (builder).
+
+    Fallback chain: gemma4:27b -> deepseek-r1:8b -> Groq -> Claude.
+    Gemma 4 and deepseek-r1 both support native thinking mode.
+    """
 
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
 
-    # 1. Try local deepseek-r1:8b (native thinking)
+    # 1. Try local gemma4:27b (best reasoning, native thinking)
+    if await _check_ollama("gemma4:27b"):
+        logger.info("Wizard chat: using gemma4:27b (local, thinking)")
+        return await _stream_ollama_model(messages, "gemma4:27b", "Gemma 4 27B (local)")
+
+    # 2. Try local deepseek-r1:8b (native thinking, lighter)
     if await _check_ollama("deepseek-r1:8b"):
         logger.info("Wizard chat: using deepseek-r1:8b (local)")
         return await _stream_ollama(messages)
 
-    # 2. Fallback to Groq (free cloud)
+    # 3. Fallback to Groq (free cloud)
     groq_key = os.environ.get("GROQ_API_KEY", "")
     if groq_key:
         logger.info("Wizard chat: using Groq (cloud fallback)")
         return await _stream_groq(groq_key, messages)
 
-    # 3. Last resort: Claude
+    # 4. Last resort: Claude
     claude_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if claude_key:
         logger.info("Wizard chat: using Claude (paid fallback)")
         return await _stream_claude(claude_key, messages)
 
-    # 4. No LLM available — return error
+    # 5. No LLM available
     async def no_llm():
         yield f"data: {json.dumps({'type': 'text', 'content': 'No AI model available. Start Ollama or configure GROQ_API_KEY.'})}\n\n"
         yield f"data: {json.dumps({'type': 'done', 'provider': 'none'})}\n\n"

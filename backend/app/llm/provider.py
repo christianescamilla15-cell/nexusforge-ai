@@ -12,6 +12,8 @@ class LLMResponse:
     tokens_output: int
     model: str
     provider: str
+    cost_usd: float = 0.0
+    thinking: str = ""
 
 
 class BaseLLMProvider(ABC):

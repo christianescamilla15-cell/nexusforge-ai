@@ -1,8 +1,11 @@
-"""Unified memory manager — wraps all three memory tiers.
+"""Unified memory manager — wraps all five memory tiers.
 
 Supports polyglot persistence: Redis (fast) + MongoDB (rich queries) for
 episodic memory via dual-write.  MongoDB is optional — everything works
 without it.
+
+Tiers 4a (regressive) and 4b (predictive) provide retrospective analysis
+and forward-looking predictions based on historical execution data.
 """
 
 from __future__ import annotations
@@ -14,6 +17,8 @@ from app.memory.working import WorkingMemory
 from app.memory.episodic import EpisodicMemory
 from app.memory.episodic_mongo import MongoEpisodicMemory
 from app.memory.semantic import SemanticMemory
+from app.memory.regressive import RegressiveMemory
+from app.memory.predictive import PredictiveMemory
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +26,12 @@ logger = logging.getLogger(__name__)
 class MemoryManager:
     """Single entry-point for agent memory across all tiers.
 
-    * **working**  — in-process dict (tier 1)
-    * **episodic** — Redis with 30-day TTL (tier 2a, fast)
+    * **working**     — in-process dict (tier 1)
+    * **episodic**    — Redis with 30-day TTL (tier 2a, fast)
     * **episodic_mongo** — MongoDB with TTL index (tier 2b, rich queries)
-    * **semantic** — pgvector long-term store (tier 3)
+    * **semantic**    — pgvector long-term store (tier 3)
+    * **regressive**  — retrospective analysis (tier 4a, reads from MongoDB)
+    * **predictive**  — forward-looking predictions (tier 4b, reads from regressive)
     """
 
     def __init__(self) -> None:
@@ -32,6 +39,8 @@ class MemoryManager:
         self.episodic = EpisodicMemory()
         self.episodic_mongo = MongoEpisodicMemory()
         self.semantic = SemanticMemory()
+        self.regressive = RegressiveMemory()
+        self.predictive = PredictiveMemory()
 
     # --- unified write ---
 
@@ -49,20 +58,35 @@ class MemoryManager:
                 self.working.set(f"last_{agent_id}", text)
             elif t == "episodic":
                 # Dual-write: Redis (fast) + MongoDB (rich queries)
-                await self.episodic.store_episode(
-                    agent_id=agent_id,
-                    episode_type=metadata.get("type", "info") if metadata else "info",
-                    summary=text,
-                    context=metadata,
-                )
-                # MongoDB write is fire-and-forget; failure is logged
-                await self.episodic_mongo.store_episode(
-                    agent_id=agent_id,
-                    episode_type=metadata.get("type", "info") if metadata else "info",
-                    summary=text,
-                    context=metadata,
-                    outcome=metadata.get("outcome", "success") if metadata else "success",
-                )
+                ep_type = metadata.get("type", "info") if metadata else "info"
+                ep_outcome = metadata.get("outcome", "success") if metadata else "success"
+
+                redis_ok = False
+                try:
+                    await self.episodic.store_episode(
+                        agent_id=agent_id,
+                        episode_type=ep_type,
+                        summary=text,
+                        context=metadata,
+                    )
+                    redis_ok = True
+                except Exception as e:
+                    logger.warning("Episodic Redis write failed for %s: %s", agent_id, e)
+
+                try:
+                    await self.episodic_mongo.store_episode(
+                        agent_id=agent_id,
+                        episode_type=ep_type,
+                        summary=text,
+                        context=metadata,
+                        outcome=ep_outcome,
+                    )
+                except Exception as e:
+                    logger.warning("Episodic MongoDB write failed for %s: %s", agent_id, e)
+                    if not redis_ok:
+                        logger.error(
+                            "BOTH episodic backends failed for %s -- data lost", agent_id
+                        )
             elif t == "semantic":
                 await self.semantic.store(agent_id, text, metadata)
             else:
@@ -126,5 +150,32 @@ class MemoryManager:
                 for m in memories
             ]
             parts.append("## Related Knowledge\n" + "\n".join(sem_lines))
+
+        # Tier 4a — regressive (anomaly alerts only, keep prompt lean)
+        try:
+            anomalies = await self.regressive.detect_anomalies(agent_id, window="1h")
+            if anomalies:
+                parts.append(
+                    f"## Active Anomalies\n"
+                    f"{len(anomalies)} anomalies in last hour. "
+                    f"Top: z={anomalies[0]['z_score']} ({anomalies[0].get('summary', '')[:100]})"
+                )
+        except Exception:
+            pass
+
+        # Tier 4b — predictive (execution forecast)
+        try:
+            prediction = await self.predictive.predict_execution(agent_id)
+            if prediction.get("confidence", 0) > 0.3:
+                rec = prediction["recommendation"]
+                if rec != "proceed":
+                    parts.append(
+                        f"## Prediction\n"
+                        f"Recommendation: {rec}. "
+                        f"Fallback prob: {prediction['fallback_probability']:.0%}, "
+                        f"Est. duration: {prediction['estimated_duration_sec']:.1f}s"
+                    )
+        except Exception:
+            pass
 
         return "\n\n".join(parts) if parts else ""

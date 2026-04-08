@@ -57,11 +57,29 @@ class OrchestratorMemory:
         return snapshot
 
     async def get_agent_profile(self, agent_id: str) -> dict[str, Any]:
-        """Full profile: recent episodes + patterns + stats for one agent."""
+        """Full profile: recent episodes + patterns + stats + analytics + predictions."""
         recent = await self._mongo.recall_recent(agent_id, limit=20)
         patterns = await self._mongo.get_patterns(agent_id)
         stats = await self._mongo.get_agent_stats(agent_id)
         memories = await self._manager.semantic.recall(agent_id, agent_id, top_k=10)
+
+        # Tier 4a: regressive analytics
+        rolling_stats = {}
+        anomalies = []
+        correlations = {}
+        try:
+            rolling_stats = await self._manager.regressive.get_rolling_stats(agent_id, "24h")
+            anomalies = await self._manager.regressive.detect_anomalies(agent_id, window="1h")
+            correlations = await self._manager.regressive.get_failure_correlations(agent_id, "7d")
+        except Exception:
+            pass
+
+        # Tier 4b: predictive
+        predictions = {}
+        try:
+            predictions = await self._manager.predictive.predict_execution(agent_id)
+        except Exception:
+            pass
 
         return {
             "agent_id": agent_id,
@@ -69,6 +87,10 @@ class OrchestratorMemory:
             "patterns": patterns,
             "stats": stats,
             "semantic_memories": memories,
+            "rolling_stats_24h": rolling_stats,
+            "active_anomalies": anomalies,
+            "failure_correlations": correlations,
+            "predictions": predictions,
             "retrieved_at": time.time(),
         }
 
@@ -83,7 +105,7 @@ class OrchestratorMemory:
 
         # Sort by timestamp descending
         all_episodes.sort(
-            key=lambda e: e.get("timestamp", e.get("stored_at", 0)),
+            key=lambda e: e.get("created_at", e.get("timestamp", e.get("stored_at", 0))),
             reverse=True,
         )
         return all_episodes[:limit]

@@ -29,8 +29,11 @@ from app.domain.tracking.events import ExecutionContext
 logger = logging.getLogger(__name__)
 
 # ── Per-agent local model map ────────────────────────────────────────────────
-# gemma3:4b — lightweight, fast classification
+# gemma4:4b — fast classification + routing (upgraded from gemma3:4b)
 _GEMMA_AGENTS = {"RouterAgent", "ClassifierAgent", "SentimentAgent"}
+
+# gemma4:27b — local reasoning for complex agents (MoE, thinking mode)
+_REASONING_AGENTS = {"PlannerAgent", "CriticAgent", "JudgeAgent"}
 
 # qwen2.5-coder:7b — structured JSON, code-like deterministic output
 _QWEN_AGENTS = {
@@ -42,21 +45,25 @@ _QWEN_AGENTS = {
 _LLAMA_AGENTS = {
     "SummarizerAgent", "AnalyzerAgent", "TranslatorAgent",
     "EnricherAgent", "MonitorAgent", "OCRAgent",
+    "SchedulerAgent", "ScraperAgent",
 }
 
-# Cloud-only agents: skip Ollama entirely, go straight to Groq → Claude
-_CLOUD_PREFERRED_AGENTS = {
-    "PlannerAgent", "ReporterAgent", "ResearcherAgent", "CriticAgent",
-}
+# Cloud-only agents: skip Ollama, go straight to Groq -> Claude
+# (Planner/Critic moved to local reasoning with gemma4:27b)
+_CLOUD_PREFERRED_AGENTS = {"ReporterAgent", "ResearcherAgent"}
 
 # Claude-only agents: bypass Groq, use Claude directly for critical tasks
 _CLAUDE_ONLY_AGENTS = {"ComplianceAgent"}
 
 _AGENT_MODEL_MAP: dict[str, str] = {
-    **{a: "gemma3:4b" for a in _GEMMA_AGENTS},
+    **{a: "gemma4:4b" for a in _GEMMA_AGENTS},
+    **{a: "gemma4:27b" for a in _REASONING_AGENTS},
     **{a: "qwen2.5-coder:7b" for a in _QWEN_AGENTS},
     **{a: "llama3.1:8b" for a in _LLAMA_AGENTS},
 }
+
+# Models that support native thinking mode (Ollama returns thinking field)
+_THINKING_MODELS = {"gemma4:27b", "deepseek-r1:8b"}
 
 # ── Circuit breaker settings ─────────────────────────────────────────────────
 _CB_ERROR_THRESHOLD = 3
@@ -99,6 +106,17 @@ class LLMRouter:
             "groq": _CircuitBreaker(),
             "claude": _CircuitBreaker(),
         }
+        # Predictive memory for smart pre-routing (lazy init)
+        self._predictive = None
+
+    def _get_predictive(self):
+        if self._predictive is None:
+            try:
+                from app.memory.predictive import PredictiveMemory
+                self._predictive = PredictiveMemory()
+            except Exception:
+                pass
+        return self._predictive
 
     def _build_provider_chain(self, agent_name: str) -> list:
         """Return ordered provider list based on agent type."""
@@ -130,6 +148,26 @@ class LLMRouter:
             self._ollama.set_model(ollama_model)
 
         provider_chain = self._build_provider_chain(agent_name)
+
+        # Predictive pre-routing: skip Ollama if historical data shows high fallback
+        predictive = self._get_predictive()
+        if predictive and ollama_model and agent_name:
+            try:
+                if await predictive.should_preempt_fallback(agent_name, ollama_model):
+                    logger.info(
+                        "Predictive: skipping Ollama for %s (high fallback probability)",
+                        agent_name,
+                    )
+                    provider_chain = [p for p in provider_chain if p.name != "ollama"]
+                    if ctx and ctx.tracker:
+                        await ctx.tracker.agent_event(
+                            run_id=ctx.run_id, agent_name=agent_name,
+                            event_type="predictive_skip_ollama", step_id=step_id,
+                            message="Predictive memory recommended skipping Ollama",
+                        )
+            except Exception:
+                pass  # Prediction failure should never block execution
+
         errors = []
 
         for provider in provider_chain:
