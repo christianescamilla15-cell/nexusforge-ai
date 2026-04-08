@@ -137,6 +137,7 @@ class PublishRequest(BaseModel):
     trigger_type: str = "manual"
     schedule_cron: Optional[str] = None
     input_config: dict = {"type": "none"}
+    output_config: dict = {}
     requires_approval: bool = False
 
 
@@ -203,13 +204,15 @@ async def publish_automation(body: PublishRequest, request: Request):
             row = await conn.fetchrow(
                 """INSERT INTO automations
                        (user_id, workflow_id, name, description, icon, color,
-                        trigger_type, schedule_cron, input_config, webhook_secret,
-                        requires_approval)
-                   VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
+                        trigger_type, schedule_cron, input_config, output_config,
+                        webhook_secret, requires_approval)
+                   VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb,
+                           $11, $12)
                    RETURNING id, created_at, webhook_secret""",
                 user_id, body.workflow_id, body.name, body.description,
                 body.icon, body.color, body.trigger_type, body.schedule_cron,
-                json.dumps(body.input_config), webhook_secret, body.requires_approval,
+                json.dumps(body.input_config), json.dumps(body.output_config),
+                webhook_secret, body.requires_approval,
             )
         return {
             "id": str(row["id"]),

@@ -50,6 +50,12 @@ async def dispatch_outputs(
     if not config:
         return {"skipped": "no output_config set"}
 
+    # Normalize destinations array format (from chat UI) to key-based format
+    if "destinations" in config and isinstance(config["destinations"], list):
+        for dest in config["destinations"]:
+            if dest not in config:
+                config[dest] = True
+
     auto_name = row["name"] or "Automation"
     results = {}
 
