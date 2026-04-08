@@ -8,7 +8,7 @@ import PreviewRenderer from './PreviewRenderer'
  * When idle, shows mini KPI dashboard.
  */
 export default function PreviewPanel({ lang = 'es' }) {
-  const { previewState } = usePreviewEvents()
+  const { previewState, stepStatuses } = usePreviewEvents()
   const [kpis, setKpis] = useState(null)
 
   // Fetch KPIs for the mini dashboard
@@ -59,7 +59,7 @@ export default function PreviewPanel({ lang = 'es' }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ width: '100%', maxWidth: 400 }}>
-          <PreviewRenderer previewState={previewState} lang={lang} />
+          <PreviewRenderer previewState={previewState} stepStatuses={stepStatuses} lang={lang} />
         </div>
       </div>
 

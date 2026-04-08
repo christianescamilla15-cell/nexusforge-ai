@@ -106,6 +106,20 @@ export default function ChatPanel({ lang = 'es' }) {
         return
       }
 
+      // Show DAG in preview as soon as we have the steps
+      emitPreview({
+        type: 'workflow',
+        data: {
+          name: workflow.name,
+          steps: (workflow.steps || []).map(s => ({
+            name: s.name,
+            type: s.agent_type || s.type,
+            depends_on: s.depends_on || [],
+          })),
+          runId: null, // no run yet — just show the DAG structure
+        },
+      })
+
       // Step 2: Save workflow
       chat.setMessages(prev => [...prev, {
         id: `sys2-${Date.now()}`, role: 'system',
@@ -170,8 +184,20 @@ export default function ChatPanel({ lang = 'es' }) {
         return
       }
 
-      // Success!
-      emitPreview({ type: 'complete', data: { name: workflow.name } })
+      // Success — update preview with run_id if available for live WebSocket tracking
+      const runId = autoRes.data?.run_id || autoRes.data?.id || null
+      emitPreview({
+        type: 'workflow',
+        data: {
+          name: workflow.name,
+          steps: (workflow.steps || []).map(s => ({
+            name: s.name,
+            type: s.agent_type || s.type,
+            depends_on: s.depends_on || [],
+          })),
+          runId,
+        },
+      })
       chat.setMessages(prev => [...prev, {
         id: `done-${Date.now()}`, role: 'assistant',
         text: lang === 'es'

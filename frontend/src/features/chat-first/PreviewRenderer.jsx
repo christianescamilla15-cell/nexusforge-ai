@@ -1,3 +1,5 @@
+import DAGVisualization from '../workflows/DAGVisualization'
+
 /**
  * Renders different preview types based on the current state of the conversation.
  * Shows visual feedback of what's being built in real-time.
@@ -174,10 +176,138 @@ function IdlePreview({ lang }) {
   )
 }
 
-export default function PreviewRenderer({ previewState, lang = 'es' }) {
+const STATUS_COLOR = {
+  completed: '#059669',
+  running: '#6366F1',
+  failed: '#EF4444',
+  pending: '#9CA3AF',
+}
+
+const STATUS_LABEL = {
+  completed: { es: 'Completado', en: 'Completed' },
+  running: { es: 'Ejecutando', en: 'Running' },
+  failed: { es: 'Error', en: 'Failed' },
+  pending: { es: 'Pendiente', en: 'Pending' },
+}
+
+function WorkflowLiveView({ data, stepStatuses, lang }) {
+  const steps = data?.steps || []
+  const name = data?.name || (lang === 'es' ? 'Workflow' : 'Workflow')
+
+  const total = steps.length
+  const completed = steps.filter(s => stepStatuses[s.name] === 'completed').length
+  const running = steps.filter(s => stepStatuses[s.name] === 'running').length
+  const failed = steps.filter(s => stepStatuses[s.name] === 'failed').length
+  const progress = total > 0 ? Math.round((completed / total) * 100) : 0
+
+  return (
+    <div style={{ padding: '16px 16px 8px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: 8,
+          background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 16, color: '#fff', flexShrink: 0,
+        }}>⚡</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {name}
+          </div>
+          <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+            {running > 0
+              ? (lang === 'es' ? `${running} agente${running > 1 ? 's' : ''} ejecutando...` : `${running} agent${running > 1 ? 's' : ''} running...`)
+              : completed === total && total > 0
+                ? (lang === 'es' ? '✅ Completado' : '✅ Completed')
+                : (lang === 'es' ? `${completed}/${total} pasos` : `${completed}/${total} steps`)}
+          </div>
+        </div>
+        {/* Live badge */}
+        {running > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '3px 8px', borderRadius: 20,
+            background: '#EEF2FF', border: '1px solid #C7D2FE',
+          }}>
+            <div style={{
+              width: 6, height: 6, borderRadius: '50%', background: '#6366F1',
+              animation: 'pulse 1.2s ease-in-out infinite',
+            }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#6366F1' }}>LIVE</span>
+          </div>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      {total > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 11, color: '#6B7280' }}>
+              {lang === 'es' ? 'Progreso' : 'Progress'}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: failed > 0 ? '#EF4444' : '#6366F1' }}>
+              {failed > 0 ? (lang === 'es' ? `${failed} error${failed > 1 ? 'es' : ''}` : `${failed} error${failed > 1 ? 's' : ''}`) : `${progress}%`}
+            </span>
+          </div>
+          <div style={{ height: 6, borderRadius: 3, background: '#E5E7EB', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 3,
+              width: `${progress}%`,
+              background: failed > 0
+                ? 'linear-gradient(90deg, #6366F1, #EF4444)'
+                : 'linear-gradient(90deg, #6366F1, #8B5CF6)',
+              transition: 'width 0.6s ease',
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* Step status pills */}
+      {steps.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {steps.map(step => {
+            const status = stepStatuses[step.name] || 'pending'
+            const color = STATUS_COLOR[status]
+            return (
+              <div key={step.name} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 20,
+                background: `${color}10`, border: `1px solid ${color}30`,
+                fontSize: 11,
+              }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0,
+                  animation: status === 'running' ? 'pulse 1s ease-in-out infinite' : 'none',
+                }} />
+                <span style={{ color: '#374151', fontWeight: 500 }}>
+                  {step.name.length > 14 ? step.name.slice(0, 12) + '…' : step.name}
+                </span>
+                <span style={{ color, fontWeight: 600 }}>
+                  {STATUS_LABEL[status]?.[lang] || status}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* DAG visualization */}
+      <div style={{
+        borderRadius: 12, border: '1px solid #E5E7EB',
+        background: '#FAFBFC', overflow: 'hidden',
+      }}>
+        <DAGVisualization steps={steps} stepStatuses={stepStatuses} lang={lang} />
+      </div>
+    </div>
+  )
+}
+
+export default function PreviewRenderer({ previewState, stepStatuses = {}, lang = 'es' }) {
   const { type, data } = previewState
 
   switch (type) {
+    case 'workflow':
+      return <WorkflowLiveView data={data} stepStatuses={stepStatuses} lang={lang} />
     case 'step':
       return <StepIndicator step={data?.step || 'source'} lang={lang} />
     case 'building':

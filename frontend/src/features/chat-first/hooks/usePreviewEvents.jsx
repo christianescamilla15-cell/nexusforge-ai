@@ -1,28 +1,57 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import { getApiUrl } from '../../../services/api'
 
 const PreviewEventContext = createContext(null)
 
 /**
  * Preview event types:
  *   idle       — show default KPI dashboard
- *   workflow   — show workflow DAG visualization
- *   automation — show automation config preview
+ *   workflow   — show workflow DAG with live step statuses via WebSocket
  *   building   — show building animation
  *   complete   — show completed automation summary
+ *   step       — show conversation step progress
  */
 export function PreviewEventProvider({ children }) {
   const [previewState, setPreviewState] = useState({ type: 'idle', data: null })
+  // stepStatuses: { [stepName]: 'pending' | 'running' | 'completed' | 'failed' }
+  const [stepStatuses, setStepStatuses] = useState({})
+  const wsRef = useRef(null)
 
   const emitPreview = useCallback((event) => {
     setPreviewState(event)
+    // When a workflow run starts, open WebSocket for live step updates
+    if (event.type === 'workflow' && event.data?.runId) {
+      if (wsRef.current) wsRef.current.close()
+      setStepStatuses({})
+      const apiUrl = getApiUrl().replace(/^http/, 'ws')
+      const ws = new WebSocket(`${apiUrl}/ws/${event.data.runId}`)
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data)
+          // Backend publishes: { step_name, status } or { type: 'step_update', step_name, status }
+          const stepName = msg.step_name || msg.name
+          const status = msg.status
+          if (stepName && status) {
+            setStepStatuses(prev => ({ ...prev, [stepName]: status }))
+          }
+        } catch { /* ignore malformed */ }
+      }
+      ws.onerror = () => {}
+      wsRef.current = ws
+    }
   }, [])
 
   const resetPreview = useCallback(() => {
+    if (wsRef.current) { wsRef.current.close(); wsRef.current = null }
     setPreviewState({ type: 'idle', data: null })
+    setStepStatuses({})
   }, [])
 
+  // Cleanup on unmount
+  useEffect(() => () => { if (wsRef.current) wsRef.current.close() }, [])
+
   return (
-    <PreviewEventContext.Provider value={{ previewState, emitPreview, resetPreview }}>
+    <PreviewEventContext.Provider value={{ previewState, stepStatuses, emitPreview, resetPreview }}>
       {children}
     </PreviewEventContext.Provider>
   )
@@ -30,7 +59,7 @@ export function PreviewEventProvider({ children }) {
 
 export function usePreviewEvents() {
   const ctx = useContext(PreviewEventContext)
-  if (!ctx) return { previewState: { type: 'idle', data: null }, emitPreview: () => {}, resetPreview: () => {} }
+  if (!ctx) return { previewState: { type: 'idle', data: null }, stepStatuses: {}, emitPreview: () => {}, resetPreview: () => {} }
   return ctx
 }
 
