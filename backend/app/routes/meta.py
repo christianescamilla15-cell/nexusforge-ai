@@ -169,23 +169,76 @@ async def optimize_flow(body: OptimizeRequest):
     return result.model_dump()
 
 
+class SDKRequest(BaseModel):
+    prompt: str
+    tools: list[str] = ["Read", "Glob", "Grep"]
+    resume_session: bool = False
+
+
+@router.post("/sdk/run")
+async def run_sdk(body: SDKRequest):
+    """Run a task through the Claude Agent SDK (requires ANTHROPIC_API_KEY)."""
+    from app.meta.agent_sdk_bridge import get_sdk_bridge
+
+    bridge = get_sdk_bridge()
+    if not bridge.available:
+        return {"error": "Agent SDK not available. Install claude-agent-sdk and set ANTHROPIC_API_KEY."}
+
+    result = await bridge.run(
+        prompt=body.prompt,
+        tools=body.tools,
+        resume_session=body.resume_session,
+    )
+    return result
+
+
+@router.post("/sdk/review")
+async def sdk_code_review(body: dict):
+    """Use Agent SDK to review a file."""
+    from app.meta.agent_sdk_bridge import get_sdk_bridge
+    bridge = get_sdk_bridge()
+    return await bridge.code_review(body.get("file_path", ""))
+
+
+@router.post("/sdk/research")
+async def sdk_research(body: dict):
+    """Use Agent SDK to research a topic."""
+    from app.meta.agent_sdk_bridge import get_sdk_bridge
+    bridge = get_sdk_bridge()
+    return await bridge.research(body.get("topic", ""))
+
+
 @router.get("/health")
 async def meta_health():
     """Check meta-orchestration subsystem health."""
     from app.meta.pipeline import get_pipeline
+    from app.meta.agent_sdk_bridge import get_sdk_bridge
 
     pipeline = get_pipeline()
+    bridge = get_sdk_bridge()
     router_ok = pipeline._get_router() is not None
 
     return {
         "status": "ok" if router_ok else "degraded",
         "pipeline": "ready" if router_ok else "no router",
+        "agent_sdk": "available" if bridge.available else "not configured",
         "agents": [
             "ArchitectureReasoner",
             "SpecGenerator",
             "FeaturePredictor",
             "FlowOptimizer",
             "MetaPipeline",
+            "AgentSDKBridge",
         ],
         "phases": ["think", "build", "document", "verify", "predict"],
+        "endpoints": [
+            "/api/meta/pipeline",
+            "/api/meta/reason",
+            "/api/meta/generate-spec",
+            "/api/meta/predict-features",
+            "/api/meta/optimize-flow",
+            "/api/meta/sdk/run",
+            "/api/meta/sdk/review",
+            "/api/meta/sdk/research",
+        ],
     }

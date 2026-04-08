@@ -10,7 +10,57 @@ const QUICK_ACTIONS = [
   { icon: '\uD83D\uDCCA', labelEs: 'Generar reportes', labelEn: 'Generate reports', prompt: { es: 'Necesito generar reportes semanales automaticos', en: 'I need to generate automatic weekly reports' } },
   { icon: '\uD83D\uDCF1', labelEs: 'Monitorear redes', labelEn: 'Monitor social', prompt: { es: 'Quiero monitorear menciones de mi marca en redes sociales', en: 'I want to monitor brand mentions on social media' } },
   { icon: '\u2699\uFE0F', labelEs: 'Procesar datos', labelEn: 'Process data', prompt: { es: 'Necesito procesar y validar datos de multiples fuentes', en: 'I need to process and validate data from multiple sources' } },
+  { icon: '\uD83D\uDD0D', labelEs: 'Investigar mercado', labelEn: 'Research market', prompt: { es: 'Necesito investigar tendencias de mercado y competencia', en: 'I need to research market trends and competition' } },
+  { icon: '\uD83D\uDEE1\uFE0F', labelEs: 'Compliance check', labelEn: 'Compliance check', prompt: { es: 'Quiero verificar cumplimiento regulatorio de mis documentos', en: 'I want to check regulatory compliance of my documents' } },
+  { icon: '\uD83E\uDD16', labelEs: 'Pipeline IA', labelEn: 'AI Pipeline', prompt: { es: 'Quiero crear un pipeline multi-agente personalizado', en: 'I want to create a custom multi-agent pipeline' } },
 ]
+
+function ThinkingBubble({ thinking }) {
+  const [expanded, setExpanded] = useState(false)
+  const lines = thinking.split('\n').filter(l => l.trim())
+  const preview = thinking.slice(-60)
+
+  return (
+    <div style={{ alignSelf: 'flex-start', maxWidth: expanded ? '85%' : 'auto' }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          background: expanded ? '#FFFBEB' : '#FEF3C7',
+          color: '#92400E', padding: expanded ? '12px 16px' : '8px 14px',
+          borderRadius: '14px 14px 14px 4px',
+          fontSize: 12, fontStyle: 'italic',
+          border: '1px solid #FDE68A',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          maxWidth: expanded ? '100%' : 340,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: expanded ? 8 : 0 }}>
+          <span style={{ fontSize: 14, animation: 'pulse 1.5s infinite', flexShrink: 0 }}>{'\uD83E\uDDE0'}</span>
+          {!expanded && (
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {preview}
+            </span>
+          )}
+          {expanded && (
+            <span style={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Reasoning ({lines.length} lines) — click to collapse
+            </span>
+          )}
+        </div>
+        {expanded && (
+          <div style={{
+            maxHeight: 300, overflowY: 'auto', fontSize: 12,
+            lineHeight: 1.6, whiteSpace: 'pre-wrap', marginTop: 4,
+            padding: '8px 0', borderTop: '1px solid #FDE68A',
+          }}>
+            {thinking}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function formatMessage(text) {
   if (!text) return null
@@ -351,24 +401,9 @@ export default function ChatPanel({ lang = 'es' }) {
           )
         })}
 
-        {/* Thinking in progress — shows only last ~30 chars like ChatGPT */}
+        {/* Thinking in progress — expandable on click */}
         {chat.streaming && chat.currentThinking && chat.isThinking && (
-          <div style={{ alignSelf: 'flex-start' }}>
-            <div style={{
-              background: '#FEF3C7',
-              color: '#92400E', padding: '8px 14px',
-              borderRadius: '14px 14px 14px 4px',
-              fontSize: 12, fontStyle: 'italic',
-              border: '1px solid #FDE68A',
-              display: 'flex', alignItems: 'center', gap: 6,
-              maxWidth: 300,
-            }}>
-              <span style={{ fontSize: 14, animation: 'pulse 1.5s infinite', flexShrink: 0 }}>{'\uD83E\uDDE0'}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {chat.currentThinking.slice(-40)}
-              </span>
-            </div>
-          </div>
+          <ThinkingBubble thinking={chat.currentThinking} />
         )}
 
         {/* Streaming response */}

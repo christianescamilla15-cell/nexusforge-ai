@@ -302,6 +302,28 @@ function WorkflowLiveView({ data, stepStatuses, lang }) {
   )
 }
 
+function ErrorState({ data, lang }) {
+  return (
+    <div style={{ textAlign: 'center', padding: 40 }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>{'\u26A0\uFE0F'}</div>
+      <h3 style={{ margin: '0 0 8px', color: '#DC2626' }}>
+        {lang === 'es' ? 'Error en la ejecucion' : 'Execution Error'}
+      </h3>
+      <p style={{ color: '#6B7280', fontSize: 14, maxWidth: 300, margin: '0 auto 16px' }}>
+        {data?.message || (lang === 'es' ? 'Algo salio mal. Intenta de nuevo.' : 'Something went wrong. Try again.')}
+      </p>
+      {data?.step && (
+        <div style={{
+          background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8,
+          padding: '10px 16px', fontSize: 13, color: '#991B1B', display: 'inline-block',
+        }}>
+          {lang === 'es' ? 'Fallo en' : 'Failed at'}: <strong>{data.step}</strong>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PreviewRenderer({ previewState, stepStatuses = {}, lang = 'es' }) {
   const { type, data } = previewState
 
@@ -314,6 +336,8 @@ export default function PreviewRenderer({ previewState, stepStatuses = {}, lang 
       return <BuildingAnimation lang={lang} />
     case 'complete':
       return <CompleteSummary data={data} lang={lang} />
+    case 'error':
+      return <ErrorState data={data} lang={lang} />
     default:
       return <IdlePreview lang={lang} />
   }
