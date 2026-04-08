@@ -325,6 +325,25 @@ function BillingSection({ lang }) {
   const user = (() => { try { return JSON.parse(localStorage.getItem('nf_user') || '{}') } catch { return {} } })()
   if (user.isGuest) return null
   const currentPlan = user.plan || 'free'
+  const [upgrading, setUpgrading] = useState(null)
+
+  const handleUpgrade = async (planId) => {
+    setUpgrading(planId)
+    try {
+      const res = await fetchAPI('/billing/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ plan: planId }),
+      })
+      if (res.data?.url) {
+        window.location.href = res.data.url
+      } else {
+        alert(res.error || (lang === 'es' ? 'Error iniciando checkout' : 'Error starting checkout'))
+      }
+    } catch {
+      alert(lang === 'es' ? 'Error de conexion' : 'Connection error')
+    }
+    setUpgrading(null)
+  }
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20 }}>
@@ -360,13 +379,25 @@ function BillingSection({ lang }) {
                 {plan.price}
               </div>
               <div style={{ fontSize: 11, color: '#9CA3AF' }}>{plan.limit}</div>
-              {!isCurrent && plan.id !== 'free' && (
-                <button onClick={() => alert(lang === 'es' ? 'Contactanos para upgrade: support@nexusforge.ai' : 'Contact us to upgrade: support@nexusforge.ai')} style={{
+              {!isCurrent && plan.id !== 'free' && plan.id !== 'enterprise' && (
+                <button
+                  disabled={upgrading === plan.id}
+                  onClick={() => handleUpgrade(plan.id)}
+                  style={{
+                    marginTop: 8, padding: '5px 12px', borderRadius: 6, border: `1px solid ${plan.color}`,
+                    background: 'transparent', color: plan.color, fontSize: 11, fontWeight: 600,
+                    cursor: upgrading ? 'default' : 'pointer', opacity: upgrading ? 0.6 : 1,
+                  }}>
+                  {upgrading === plan.id ? '...' : 'Upgrade'}
+                </button>
+              )}
+              {!isCurrent && plan.id === 'enterprise' && (
+                <button onClick={() => window.open('mailto:support@nexusforge.ai?subject=Enterprise Plan')} style={{
                   marginTop: 8, padding: '5px 12px', borderRadius: 6, border: `1px solid ${plan.color}`,
                   background: 'transparent', color: plan.color, fontSize: 11, fontWeight: 600,
                   cursor: 'pointer',
                 }}>
-                  {lang === 'es' ? 'Upgrade' : 'Upgrade'}
+                  {lang === 'es' ? 'Contactar' : 'Contact'}
                 </button>
               )}
             </div>

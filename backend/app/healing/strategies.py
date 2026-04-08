@@ -67,19 +67,38 @@ class RetryStrategy(HealingStrategy):
 
 
 class SkipStrategy(HealingStrategy):
-    """Skip the failed step and use default/empty output."""
+    """Skip the failed step and use safe default output for the agent type."""
 
     name = "skip"
 
+    # Safe defaults per agent type so downstream steps get the expected shape
+    _DEFAULTS = {
+        "classifier": {"category": "unknown", "confidence": 0.0, "reasoning": "Step skipped due to error"},
+        "extractor": {"entities": []},
+        "summarizer": {"summary": "", "key_points": [], "word_count": 0},
+        "sentiment": {"sentiment": "neutral", "score": 0.5, "reasoning": "Step skipped"},
+        "validator": {"is_valid": False, "score": 0, "issues": ["Step skipped"], "recommendations": []},
+        "analyzer": {"analysis": "Step skipped due to error", "metrics": {}},
+        "normalizer": {"normalized": {}},
+        "translator": {"translated_text": "", "source_language": "unknown", "target_language": "unknown"},
+    }
+
     async def apply(self, failed_step: dict, error_info: dict, context: dict) -> HealingResult:
         step_name = failed_step.get("step_name", "unknown")
-        default_output = context.get("default_outputs", {}).get(step_name, {})
+        step_type = failed_step.get("step_type", "")
+
+        # Check context first, then use type-based defaults
+        default_output = context.get("default_outputs", {}).get(step_name)
+        if not default_output:
+            default_output = self._DEFAULTS.get(step_type, {})
+
+        output = {**default_output, "_skipped": True, "_reason": error_info.get("error_type", "unknown")}
 
         return HealingResult(
             success=True,
             strategy_used=self.name,
-            output=default_output or {"_skipped": True, "_reason": error_info.get("error_type", "unknown")},
-            message=f"Skipped step '{step_name}' with default output",
+            output=output,
+            message=f"Skipped step '{step_name}' with safe default output for '{step_type}'",
         )
 
 

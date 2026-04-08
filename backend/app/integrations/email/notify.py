@@ -6,7 +6,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_RECIPIENT = "christianescamilla15@gmail.com"
+DEFAULT_RECIPIENT = os.environ.get("NEXUSFORGE_NOTIFY_EMAIL", "")
 
 
 async def notify_workflow_complete(

@@ -9,6 +9,7 @@ Usage:
 
 import json
 import logging
+import os
 from uuid import UUID
 
 from app.db.client import get_db_pool
@@ -119,7 +120,7 @@ async def dispatch_outputs(
     if config.get("drive"):
         try:
             from app.integrations.google_drive.client import create_file
-            folder_id = config.get("drive_folder_id", "1P56v2fkzWZbgEFSqhQvZsQPu9x8_1vb6")
+            folder_id = config.get("drive_folder_id", os.environ.get("NEXUSFORGE_DRIVE_FOLDER", ""))
             uploaded = await create_file(
                 name=f"{auto_name}_run_{str(run_id)[:8]}.json",
                 content=json.dumps(result_summary, indent=2, default=str),

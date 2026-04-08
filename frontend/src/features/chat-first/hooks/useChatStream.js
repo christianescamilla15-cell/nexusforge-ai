@@ -57,6 +57,7 @@ export default function useChatStream(lang = 'es') {
     const token = typeof window !== 'undefined' ? localStorage.getItem('nf_token') : null
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
 
+    let retried = false
     try {
       abortRef.current = new AbortController()
 
@@ -137,12 +138,61 @@ export default function useChatStream(lang = 'es') {
       }
     } catch (err) {
       if (err.name === 'AbortError') return
+
+      // Retry once on transient network errors
+      if (!retried) {
+        retried = true
+        try {
+          await new Promise(r => setTimeout(r, 1500))
+          // Re-attempt the same request
+          abortRef.current = new AbortController()
+          const retryRes = await fetch(`${apiUrl}/wizard/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({ messages: history, language: lang }),
+            signal: abortRef.current.signal,
+          })
+          if (retryRes.ok) {
+            const reader2 = retryRes.body.getReader()
+            const decoder2 = new TextDecoder()
+            let buf2 = ''
+            while (true) {
+              const { done: d2, value: v2 } = await reader2.read()
+              if (d2) break
+              buf2 += decoder2.decode(v2, { stream: true })
+              const lines2 = buf2.split('\n')
+              buf2 = lines2.pop() || ''
+              for (const line of lines2) {
+                const tr = line.trim()
+                if (!tr.startsWith('data: ')) continue
+                try {
+                  const data = JSON.parse(tr.slice(6))
+                  if (data.type === 'text') { fullText += data.content; setCurrentResponse(fullText); if (onChunk) onChunk(fullText) }
+                  if (data.type === 'done') {
+                    setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: fullText, thinking: thinkText || null, provider: data.provider || '' }])
+                    setProvider(data.provider || '')
+                  }
+                } catch {}
+              }
+            }
+            if (fullText) {
+              setMessages(prev => {
+                if (prev.some(m => m.text === fullText)) return prev
+                return [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: fullText }]
+              })
+            }
+            setCurrentResponse(''); setCurrentThinking(''); setIsThinking(false); setStreaming(false)
+            return
+          }
+        } catch { /* retry also failed */ }
+      }
+
       setMessages(prev => [...prev, {
         id: `e-${Date.now()}`,
         role: 'assistant',
         text: lang === 'es'
-          ? 'Error de conexion. Verifica que el backend este activo.'
-          : 'Connection error. Check the backend is running.',
+          ? 'Error de conexion. Verifica que el backend este activo en Configuracion.'
+          : 'Connection error. Check the backend is running in Settings.',
       }])
       setCurrentResponse('')
       setCurrentThinking('')

@@ -66,11 +66,11 @@ class FailureDetector:
                     suggested_action=action,
                 )
 
-        # Unknown error — attempt repair if message is informative, else escalate
-        has_info = len(error_str) > 20
+        # Unknown error — always attempt repair first (recoverable by default)
+        # Short cryptic errors are often transient; long ones have diagnostic info
         return ErrorClassification(
             error_type="unknown",
             severity="high",
-            is_recoverable=has_info,
-            suggested_action="repair" if has_info else "escalate",
+            is_recoverable=True,
+            suggested_action="repair",
         )

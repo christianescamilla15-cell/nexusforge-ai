@@ -73,8 +73,8 @@ class TestFailureDetectorClassification:
     def test_unknown_error_short_message(self):
         result = self.detector.classify("fail")
         assert result.error_type == "unknown"
-        assert result.is_recoverable is False  # <20 chars
-        assert result.suggested_action == "escalate"
+        assert result.is_recoverable is True  # always attempt repair
+        assert result.suggested_action == "repair"
 
     def test_classification_returns_error_classification(self):
         result = self.detector.classify("connection reset")
@@ -165,11 +165,12 @@ class TestSkipStrategyExecution:
     async def test_skip_uses_default_output(self):
         strategy = SkipStrategy()
         result = await strategy.apply(
-            failed_step={"step_name": "extract"},
+            failed_step={"step_name": "extract", "step_type": "extractor"},
             error_info={"error_type": "data_quality"},
             context={"default_outputs": {"extract": {"entities": []}}},
         )
-        assert result.output == {"entities": []}
+        assert result.output["entities"] == []
+        assert result.output["_skipped"] is True
 
 
 class TestEscalateStrategyExecution:
