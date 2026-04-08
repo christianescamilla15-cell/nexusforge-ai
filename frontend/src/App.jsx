@@ -11,8 +11,7 @@ import { useLanguage } from './shared/hooks/useLanguage'
 import { useToastState, ToastContext } from './shared/hooks/useToast'
 import Skeleton from './shared/components/Skeleton'
 
-// Eager: Dashboard (first page users see) + Chat (always visible)
-import DashboardPage from './features/dashboard/DashboardPage'
+// Eager: Chat-first dashboard (first page users see) + Chat (always visible)
 import ChatFirstDashboard from './features/chat-first/ChatFirstDashboard'
 import ChatAssistant from './features/chat/ChatAssistant'
 import CommandPalette from './shared/components/CommandPalette'
@@ -192,7 +191,6 @@ function AppRoutes() {
         <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<ChatFirstDashboard lang={lang} onNavigate={navigate} />} />
-          <Route path="/dashboard-classic" element={<DashboardPage lang={lang} onNavigate={navigate} />} />
 
           {/* Automations */}
           <Route path="/automations" element={

@@ -7,25 +7,19 @@ import { useToast } from '../../shared/hooks/useToast'
 import EmptyState from '../../shared/components/EmptyState'
 import ConfirmModal from '../../shared/components/ConfirmModal'
 import { useConfirm } from '../../shared/hooks/useConfirm'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import WorkflowCreateModal from './WorkflowCreateModal'
 
 
 export default function WorkflowListPage({ onSelectWorkflow, onEditWorkflow, lang = 'en' }) {
   const [filter, setFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [apiWorkflows, setApiWorkflows] = useState([])
   const [localWorkflows, setLocalWorkflows] = useState([])
   const [error, setError] = useState(null)
   const [confirmState, showConfirm] = useConfirm()
   const toast = useToast()
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   // Fetch real workflows from API
   useEffect(() => {

@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { fetchAPI, trackGuestRun } from '../../services/api'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import PublishModal from './PublishModal'
 import RunInputModal from './RunInputModal'
 import TemplatesLibrary from '../templates/TemplatesLibrary'
@@ -211,7 +212,7 @@ function EditAutomationModal({ automation, lang, onClose, onSaved }) {
 }
 
 export default function AutomationsPage({ lang = 'en', onNavigateToExecution, initialDashboardId = null, onOpenDashboard }) {
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [userAutomations, setUserAutomations] = useState([])
   const [loadingUser, setLoadingUser] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -227,13 +228,6 @@ export default function AutomationsPage({ lang = 'en', onNavigateToExecution, in
     try { return JSON.parse(localStorage.getItem('nxf_fav_automations') || '[]') } catch { return [] }
   })
   const toast = useToast()
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   useEffect(() => {
     if (initialDashboardId && onOpenDashboard) {

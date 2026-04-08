@@ -1,17 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
 import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
+import { useIsMobile } from '../../../shared/hooks/useIsMobile'
 import { invalidateAfterExecution } from '../../../shared/queryKeys'
+import { formatDate } from '../../../shared/utils/formatDate'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
 import AutoDashboardGenerator from './AutoDashboardGenerator'
-
-function formatDate(iso, lang) {
-  if (!iso) return '--'
-  return new Date(iso).toLocaleString(lang === 'es' ? 'es-ES' : 'en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
 
 function JsonViewer({ data, label }) {
   const [expanded, setExpanded] = useState(false)
@@ -58,20 +53,13 @@ export default function GenericDashboard({ automation, lang, onBack }) {
   const [processing, setProcessing] = useState(false)
   const [selectedResult, setSelectedResult] = useState(null)
   const [error, setError] = useState(null)
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
 
   // Input state based on automation config
   const inputType = automation.input_config?.type || 'text'
   const [textInput, setTextInput] = useState('')
   const [jsonInput, setJsonInput] = useState('{\n  \n}')
   const [formValues, setFormValues] = useState({})
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   const loadResults = useCallback(async () => {
     setLoading(true)

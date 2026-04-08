@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchAPI, getApiUrl } from '../../services/api'
+import { formatDateWithSeconds } from '../../shared/utils/formatDate'
 
 const ACTION_COLORS = {
   created: '#10B981',
@@ -42,12 +43,7 @@ const T = {
   },
 }
 
-function formatDate(iso, lang) {
-  if (!iso) return '--'
-  return new Date(iso).toLocaleString(lang === 'es' ? 'es-ES' : 'en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  })
-}
+const formatDate = formatDateWithSeconds
 
 function ChangesCell({ changes }) {
   if (!changes || Object.keys(changes).length === 0) {

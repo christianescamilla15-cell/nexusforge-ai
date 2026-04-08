@@ -7,19 +7,8 @@ import RulesPanel from '../rules/RulesPanel'
 import VariablesPanel from '../variables/VariablesPanel'
 import AuditLog from '../audit/AuditLog'
 
-function formatDuration(ms) {
-  if (!ms) return '--'
-  if (ms < 1000) return `${ms}ms`
-  const s = Math.floor(ms / 1000)
-  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
-}
-
-function formatDate(iso, lang) {
-  if (!iso) return '--'
-  return new Date(iso).toLocaleString(lang === 'es' ? 'es-ES' : 'en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
+import { formatDate } from '../../shared/utils/formatDate'
+import { formatDuration } from '../../shared/utils/formatNumber'
 
 // Inline SVG bar chart — last 10 runs by day
 function RunsChart({ runs, color = '#6366F1' }) {

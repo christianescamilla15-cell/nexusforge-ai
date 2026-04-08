@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useIsMobile } from '../../../shared/hooks/useIsMobile'
 
 const PAGE_SIZE = 20
 
@@ -13,14 +14,7 @@ export default function ResultsTable({
   emptyDescription,
 }) {
   const [page, setPage] = useState(0)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   const totalPages = Math.ceil(results.length / PAGE_SIZE)
   const paged = results.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)

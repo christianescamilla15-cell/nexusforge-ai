@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import { useRefreshOnFocus } from '../../shared/hooks/useRefreshOnFocus'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import { subscribe } from '../../shared/queryKeys'
 import GettingStarted from '../../shared/components/GettingStarted'
 import MiniBarChart from '../../shared/components/MiniBarChart'
@@ -382,19 +383,12 @@ function PendingApprovalsSection({ lang = 'en' }) {
 // ── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function DashboardPage({ lang = 'en', onNavigate }) {
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [runs, setRuns] = useState([])
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isDemo, setIsDemo] = useState(false)
   const [error, setError] = useState(null)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   const loadDashboard = () => {
     Promise.all([

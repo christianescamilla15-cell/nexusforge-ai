@@ -1,15 +1,8 @@
-import { useState, useEffect } from 'react'
 import Sparkline from '../../../shared/components/Sparkline'
+import { useIsMobile } from '../../../shared/hooks/useIsMobile'
 
 export default function StatsBar({ stats, lang }) {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   if (!stats || stats.length === 0) return null
 

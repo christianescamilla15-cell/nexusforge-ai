@@ -76,25 +76,21 @@ export async function fetchAPI(endpoint, options = {}) {
 
   try {
     const url = `${apiUrl}${endpoint}`
-    console.log('[fetchAPI]', options.method || 'GET', url)
     const res = await fetch(url, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...authHeaders, ...options.headers },
       signal: AbortSignal.timeout(30000),
       redirect: 'follow',
     })
-    console.log('[fetchAPI] response status:', res.status, res.url)
 
     if (!res.ok) {
       let errDetail = `HTTP ${res.status}`
       try { const body = await res.json(); errDetail = body.detail || body.error || errDetail } catch {}
-      console.error('[fetchAPI] error response:', errDetail)
       return { data: null, isDemo: false, error: `Backend error: ${errDetail}` }
     }
 
     return { data: await res.json(), isDemo: false, error: null }
   } catch (err) {
-    console.error('[fetchAPI] fetch threw:', err)
     return {
       data: null, isDemo: false,
       error: `Backend unreachable: ${err.message}. Check Settings or switch to Demo mode.`,

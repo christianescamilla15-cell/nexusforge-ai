@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { PreviewEventProvider } from './hooks/usePreviewEvents'
 import ChatPanel from './ChatPanel'
 import PreviewPanel from './PreviewPanel'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
 /**
  * Chat-first dashboard — the new default view at "/".
@@ -10,15 +11,8 @@ import PreviewPanel from './PreviewPanel'
  * Mobile: Tab-based toggle between chat and preview.
  */
 export default function ChatFirstDashboard({ lang = 'es', onNavigate }) {
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile(900)
   const [activeTab, setActiveTab] = useState('chat') // chat | preview
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 900)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   return (
     <PreviewEventProvider>

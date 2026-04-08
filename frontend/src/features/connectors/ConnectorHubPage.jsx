@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { fetchAPI } from '../../services/api'
 import ConfirmModal from '../../shared/components/ConfirmModal'
 import { useConfirm } from '../../shared/hooks/useConfirm'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
 const CONNECTOR_ICONS = {
   gmail: '📧', slack: '💬', notion: '📝', drive: '📁', rest: '🌐', postgres: '🐘',
@@ -17,15 +18,8 @@ export default function ConnectorHubPage({ lang = 'en' }) {
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(null)
   const [testResult, setTestResult] = useState(null)
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [confirmState, showConfirm] = useConfirm()
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   const load = async () => {
     setLoading(true)

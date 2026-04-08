@@ -4,36 +4,18 @@ import { t } from '../../shared/i18n/translations'
 import StatusBadge from '../../shared/components/StatusBadge'
 import StepTimeline from './StepTimeline'
 import LiveLog from './LiveLog'
-
-
-function formatDuration(ms) {
-  if (!ms) return '--'
-  const s = Math.floor(ms / 1000)
-  if (s < 60) return `${s}s`
-  return `${Math.floor(s / 60)}m ${s % 60}s`
-}
-
-function formatDate(iso, lang) {
-  if (!iso) return '--'
-  const locale = lang === 'es' ? 'es-ES' : 'en-US'
-  return new Date(iso).toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
+import { formatDateWithSeconds } from '../../shared/utils/formatDate'
+import { formatDuration } from '../../shared/utils/formatNumber'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
 export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
   const [execution, setExecution] = useState(null)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [elapsed, setElapsed] = useState(0)
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const wsRef = useRef(null)
   const timerRef = useRef(null)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -316,7 +298,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
             <span>{t('totalTime', lang)}: <strong>{formatDuration(totalDuration)}</strong></span>
             <span>{t('totalCost', lang)}: <strong style={{ color: '#10B981' }}>${Number(execution.total_cost ?? 0).toFixed(3)}</strong></span>
             <span>{t('tokensUsed', lang)}: <strong>{Number(execution.total_tokens ?? 0).toLocaleString()}</strong></span>
-            <span>{t('start', lang)}: <strong>{formatDate(execution.started_at, lang)}</strong></span>
+            <span>{t('start', lang)}: <strong>{formatDateWithSeconds(execution.started_at, lang)}</strong></span>
           </div>
         </div>
       )}

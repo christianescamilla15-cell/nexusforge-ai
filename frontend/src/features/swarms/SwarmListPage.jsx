@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import { t } from '../../shared/i18n/translations'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import SwarmCard from './SwarmCard'
 import SwarmExecuteModal from './SwarmExecuteModal'
 
@@ -9,14 +10,7 @@ const FALLBACK_TOPOLOGIES = ['sequential', 'parallel', 'hierarchical', 'debate',
 export default function SwarmListPage({ lang = 'en' }) {
   const [executing, setExecuting] = useState(null)
   const [topologies, setTopologies] = useState(FALLBACK_TOPOLOGIES)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   // Fetch real topologies from backend
   useEffect(() => {

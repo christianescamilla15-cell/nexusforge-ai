@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import { t } from '../../shared/i18n/translations'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import StatusBadge from '../../shared/components/StatusBadge'
 import DataTable from '../../shared/components/DataTable'
 import DAGVisualization from './DAGVisualization'
@@ -33,14 +34,7 @@ export default function WorkflowDetailPage({ workflowId, onBack, onEdit, onNavig
   const [runHistory, setRunHistory] = useState([])
   const [stepStatuses, setStepStatuses] = useState({})
   const [activeTab, setActiveTab] = useState('dag')
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   const [wf, setWf] = useState(EMPTY_WORKFLOW)
 

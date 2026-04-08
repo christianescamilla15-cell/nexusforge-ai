@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { t } from '../i18n/translations'
 import { getApiUrl, fetchAPI } from '../../services/api'
+import { useIsMobile } from '../hooks/useIsMobile'
 import NotificationBell from './NotificationBell'
 
 function ConnectionDot({ lang }) {
@@ -56,16 +57,10 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [advancedOpen, setAdvancedOpen] = useState(() => {
     try { return localStorage.getItem('nxf-advanced-open') === '1' } catch { return false }
   })
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   const toggleAdvanced = () => {
     setAdvancedOpen(prev => {

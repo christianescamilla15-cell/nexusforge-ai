@@ -1,50 +1,29 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
 import StatusBadge from '../../shared/components/StatusBadge'
 import Skeleton from '../../shared/components/Skeleton'
 import { timeAgo } from '../../shared/utils/timeAgo'
+import { formatDate } from '../../shared/utils/formatDate'
+import { formatDuration } from '../../shared/utils/formatNumber'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import CostTokenDashboard from '../metrics/CostTokenDashboard'
 import ConfirmModal from '../../shared/components/ConfirmModal'
 import { useConfirm } from '../../shared/hooks/useConfirm'
 import { subscribe } from '../../shared/queryKeys'
-
-function formatDuration(ms) {
-  if (!ms && ms !== 0) return '--'
-  if (ms < 1000) return `${ms}ms`
-  const s = Math.floor(ms / 1000)
-  if (s < 60) return `${s}s`
-  const m = Math.floor(s / 60)
-  const rem = s % 60
-  return `${m}m ${rem}s`
-}
-
-function formatDate(iso, lang) {
-  if (!iso) return '--'
-  const d = new Date(iso)
-  const locale = lang === 'es' ? 'es-ES' : 'en-US'
-  return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
 
 export default function ExecutionListPage({ onSelectExecution, lang = 'en' }) {
   const [executions, setExecutions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('all')
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [selected, setSelected] = useState(new Set())
   const [menuOpen, setMenuOpen] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState('executions')
   const [confirmState, showConfirm] = useConfirm()
   const mountTimeRef = useRef(Date.now())
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   const loadExecutions = () => {
     setLoading(true)

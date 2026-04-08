@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { fetchAPI } from '../../services/api'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
 const T = {
   en: {
@@ -302,14 +303,7 @@ function AnalyzeTab({ lang }) {
 export default function IntelligenceHubPage({ lang = 'en' }) {
   const t = T[lang] || T.en
   const [tab, setTab] = useState('enterprise')
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   const tabs = [
     { key: 'enterprise', label: t.tabEnterprise, color: '#6366F1' },

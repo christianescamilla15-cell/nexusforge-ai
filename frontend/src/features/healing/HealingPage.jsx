@@ -1,18 +1,12 @@
 import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
 import { fetchAPI } from '../../services/api'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
 export default function HealingPage({ lang = 'en', embedded = false }) {
   const [realStats, setRealStats] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 900)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile(900)
 
   useEffect(() => {
     setLoading(true)

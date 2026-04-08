@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../../services/api'
+import { useIsMobile } from '../../../shared/hooks/useIsMobile'
 import TicketDashboard from './TicketDashboard'
 import DocumentDashboard from './DocumentDashboard'
 import EmailDashboard from './EmailDashboard'
@@ -63,14 +64,7 @@ export default function SmartDashboard({ automationId, lang, onBack, onRun, onVi
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (!automationId) return

@@ -1,16 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { fetchAPI } from '../../../services/api'
 import { useCtrlEnter } from '../../../shared/hooks/useCtrlEnter'
+import { useIsMobile } from '../../../shared/hooks/useIsMobile'
 import { invalidateAfterExecution } from '../../../shared/queryKeys'
+import { formatDate } from '../../../shared/utils/formatDate'
 import StatsBar from './StatsBar'
 import ResultsTable from './ResultsTable'
-
-function formatDate(iso, lang) {
-  if (!iso) return '--'
-  return new Date(iso).toLocaleString(lang === 'es' ? 'es-ES' : 'en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
 
 function ConfidencePill({ value }) {
   const pct = Math.round((value || 0) * 100)
@@ -33,14 +28,7 @@ export default function EmailDashboard({ automation, lang, onBack }) {
   const [emailText, setEmailText] = useState('')
   const [selectedResult, setSelectedResult] = useState(null)
   const [error, setError] = useState(null)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   const loadResults = useCallback(async () => {
     setLoading(true)
