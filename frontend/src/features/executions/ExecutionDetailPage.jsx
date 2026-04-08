@@ -7,6 +7,7 @@ import LiveLog from './LiveLog'
 import { formatDateWithSeconds } from '../../shared/utils/formatDate'
 import { formatDuration } from '../../shared/utils/formatNumber'
 import { useIsMobile } from '../../shared/hooks/useIsMobile'
+import { useExecutionWS } from '../../shared/hooks/useExecutionWS'
 
 export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
   const [execution, setExecution] = useState(null)
@@ -14,8 +15,11 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
   const [loading, setLoading] = useState(true)
   const [elapsed, setElapsed] = useState(0)
   const isMobile = useIsMobile()
-  const wsRef = useRef(null)
   const timerRef = useRef(null)
+
+  // Live WebSocket updates for running executions
+  const isRunning = execution?.status === 'pending' || execution?.status === 'running'
+  const { stepStatuses: wsStepStatuses, liveEvents, runStatus: wsRunStatus } = useExecutionWS(runId, isRunning)
 
   useEffect(() => {
     let cancelled = false
@@ -140,7 +144,36 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
     return () => { cancelled = true }
   }, [runId])
 
-  // Poll for live updates when execution is still running
+  // Update execution status from WebSocket
+  useEffect(() => {
+    if (wsRunStatus && execution) {
+      setExecution(prev => prev ? { ...prev, status: wsRunStatus, finished_at: new Date().toISOString() } : prev)
+    }
+  }, [wsRunStatus])
+
+  // Merge WS step statuses into execution steps
+  useEffect(() => {
+    if (Object.keys(wsStepStatuses).length === 0 || !execution) return
+    setExecution(prev => {
+      if (!prev?.steps) return prev
+      const updated = prev.steps.map(s =>
+        wsStepStatuses[s.name] ? { ...s, status: wsStepStatuses[s.name] } : s
+      )
+      return { ...prev, steps: updated }
+    })
+  }, [wsStepStatuses])
+
+  // Append WS live events to event log
+  const lastWsCountRef = useRef(0)
+  useEffect(() => {
+    if (liveEvents.length > lastWsCountRef.current) {
+      const newEvents = liveEvents.slice(lastWsCountRef.current)
+      lastWsCountRef.current = liveEvents.length
+      setEvents(prev => [...prev, ...newEvents])
+    }
+  }, [liveEvents])
+
+  // Fallback polling (slower, only if WS didn't report completion)
   useEffect(() => {
     if (!execution || execution.status === 'completed' || execution.status === 'failed') return
     const interval = setInterval(async () => {
@@ -152,7 +185,7 @@ export default function ExecutionDetailPage({ runId, onBack, lang = 'en' }) {
           clearInterval(interval)
         }
       }
-    }, 3000)
+    }, 8000) // 8s fallback (was 3s), WS handles real-time
     return () => clearInterval(interval)
   }, [execution?.status, runId])
 
