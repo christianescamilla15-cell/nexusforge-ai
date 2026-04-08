@@ -4,8 +4,7 @@ from ..use_cases.portfolio_copilot.schemas import PortfolioCopilotInput, Portfol
 from ..use_cases.portfolio_copilot.workflow import run_portfolio_copilot_workflow
 from ..use_cases.portfolio_copilot.services import load_interview_questions
 from ..integrations.email.notify import notify_workflow_complete
-from ..db.client import get_db_pool
-from ..db.pipeline_store import save_pipeline_run
+from ..utils.run_tracker import start_run, record_step, complete_run
 
 logger = logging.getLogger(__name__)
 
@@ -13,27 +12,45 @@ router = APIRouter(prefix="/portfolio-copilot", tags=["Portfolio Copilot"])
 
 @router.post("/run", response_model=PortfolioCopilotFinalOutput)
 async def run_portfolio_copilot(request: PortfolioCopilotInput):
+    # Start tracking in workflow_runs
+    run_id = None
+    try:
+        run_id = await start_run(
+            pipeline_name="portfolio_copilot",
+            trigger_type="api",
+            metadata={"question_type": getattr(request, 'question_type', 'general')},
+        )
+    except Exception as e:
+        logger.warning("portfolio_copilot: run_tracker start failed: %s", e)
+
     result = await run_portfolio_copilot_workflow(request)
 
-    # Persist to DB
-    try:
-        pool = await get_db_pool()
-        if pool:
-            run_id = await save_pipeline_run(
-                pool,
-                pipeline_name="portfolio_copilot",
-                status=result.status,
-                trigger_source="backend",
+    # Record steps and complete the run
+    if run_id:
+        try:
+            agents = result.agents_used or []
+            agent_count = max(len(agents), 1)
+            per_agent_tokens = (result.total_tokens or 0) // agent_count
+            per_agent_cost = float(result.cost_usd or 0) / agent_count
+            per_agent_ms = int(result.processing_time_ms or 0) // agent_count
+            for agent_name in agents:
+                await record_step(
+                    run_id, agent_name, agent_name.lower().replace("agent", ""),
+                    status="completed",
+                    tokens_used=per_agent_tokens,
+                    cost_usd=per_agent_cost,
+                    duration_ms=per_agent_ms,
+                )
+            await complete_run(
+                run_id,
+                status=result.status or "completed",
                 total_tokens=result.total_tokens or 0,
-                cost_usd=float(result.cost_usd or 0.0),
-                processing_time_ms=int(result.processing_time_ms or 0),
-                llm_used=bool(result.llm_used),
+                total_cost_usd=float(result.cost_usd or 0),
                 agents_used=result.agents_used or [],
-                steps=result.actions_taken or [],
             )
-            logger.info("portfolio_copilot: persisted run_id=%s", run_id)
-    except Exception as e:
-        logger.error("portfolio_copilot: PERSIST FAILED: %s", e, exc_info=True)
+            logger.info("portfolio_copilot: tracked run_id=%s", run_id)
+        except Exception as e:
+            logger.error("portfolio_copilot: run_tracker complete failed: %s", e, exc_info=True)
 
     # Email notification
     await notify_workflow_complete(

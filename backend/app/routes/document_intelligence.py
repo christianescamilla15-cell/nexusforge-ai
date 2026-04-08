@@ -4,8 +4,7 @@ from ..use_cases.document_intelligence.schemas import DocumentIntelligenceInput,
 from ..use_cases.document_intelligence.workflow import run_document_intelligence_workflow
 from ..use_cases.document_intelligence.services import load_sample_documents
 from ..integrations.email.notify import notify_workflow_complete
-from ..db.client import get_db_pool
-from ..db.pipeline_store import save_pipeline_run
+from ..utils.run_tracker import start_run, record_step, complete_run
 
 logger = logging.getLogger(__name__)
 
@@ -13,28 +12,46 @@ router = APIRouter(prefix="/document-intelligence", tags=["Document Intelligence
 
 @router.post("/run", response_model=DocumentIntelligenceFinalOutput)
 async def run_document_workflow(request: DocumentIntelligenceInput):
+    # Start tracking in workflow_runs
+    run_id = None
+    try:
+        run_id = await start_run(
+            pipeline_name="document_intelligence",
+            trigger_type="api",
+            metadata={"filename": request.filename or "unknown"},
+        )
+    except Exception as e:
+        logger.warning("doc_intel: run_tracker start failed: %s", e)
+
     result = await run_document_intelligence_workflow(request)
 
-    # Persist to DB
-    try:
-        pool = await get_db_pool()
-        if pool:
-            run_id = await save_pipeline_run(
-                pool,
-                pipeline_name="document_intelligence",
-                status=result.status,
-                trigger_source="backend",
-                document_type=result.document_type,
+    # Record steps and complete the run
+    if run_id:
+        try:
+            agents = result.agents_used or []
+            agent_count = max(len(agents), 1)
+            per_agent_tokens = (result.total_tokens or 0) // agent_count
+            per_agent_cost = float(result.cost_usd or 0) / agent_count
+            per_agent_ms = int(result.processing_time_ms or 0) // agent_count
+            for agent_name in agents:
+                await record_step(
+                    run_id, agent_name, agent_name.lower().replace("agent", ""),
+                    status="completed",
+                    tokens_used=per_agent_tokens,
+                    cost_usd=per_agent_cost,
+                    duration_ms=per_agent_ms,
+                )
+            await complete_run(
+                run_id,
+                status=result.status or "completed",
                 total_tokens=result.total_tokens or 0,
-                cost_usd=float(result.cost_usd or 0.0),
-                processing_time_ms=int(result.processing_time_ms or 0),
-                llm_used=bool(getattr(result, 'llm_used', False)),
+                total_cost_usd=float(result.cost_usd or 0),
                 agents_used=result.agents_used or [],
-                steps=result.actions_taken or [],
+                extra_metadata={"document_type": result.document_type},
             )
-            logger.info("doc_intel: persisted run_id=%s", run_id)
-    except Exception as e:
-        logger.error("doc_intel: PERSIST FAILED: %s", e, exc_info=True)
+            logger.info("doc_intel: tracked run_id=%s", run_id)
+        except Exception as e:
+            logger.error("doc_intel: run_tracker complete failed: %s", e, exc_info=True)
 
     # Email notification
     await notify_workflow_complete(
