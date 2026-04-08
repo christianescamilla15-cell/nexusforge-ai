@@ -65,6 +65,22 @@ _AGENT_MODEL_MAP: dict[str, str] = {
 # Models that support native thinking mode (Ollama returns thinking field)
 _THINKING_MODELS = {"gemma4:27b", "deepseek-r1:8b"}
 
+# Meta-orchestration agent model assignments (pipeline phases)
+_META_AGENTS = {
+    "MetaThinkAgent": "gemma3:4b",       # THINK phase (use gemma4:27b when available)
+    "MetaBuildAgent": "qwen2.5-coder:7b", # BUILD phase
+    "MetaDocumentAgent": "llama3.1:8b",    # DOCUMENT phase
+    "MetaVerifyAgent": "deepseek-r1:8b",   # VERIFY phase
+    "MetaPredictAgent": "gemma3:4b",       # PREDICT phase (fast)
+    "FeaturePredictorAgent": "gemma3:4b",
+    "ArchitectureReasonerAgent": "gemma3:4b",
+    "SpecGeneratorAgent": "qwen2.5-coder:7b",
+    "EndpointIntelligenceAgent": "qwen2.5-coder:7b",
+    "FlowOptimizerAgent": "gemma3:4b",
+}
+
+_AGENT_MODEL_MAP.update(_META_AGENTS)
+
 # ── Circuit breaker settings ─────────────────────────────────────────────────
 _CB_ERROR_THRESHOLD = 3
 _CB_WINDOW_SECONDS = 60

@@ -196,3 +196,6 @@ app.include_router(demo_router, prefix="/api", tags=["demo"])
 
 from app.routes.orchestrator import router as orchestrator_router
 app.include_router(orchestrator_router, prefix="/api", tags=["orchestrator"])
+
+from app.routes.meta import router as meta_router
+app.include_router(meta_router, tags=["meta-orchestration"])
