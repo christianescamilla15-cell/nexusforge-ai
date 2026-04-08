@@ -1,0 +1,12 @@
+{
+  "name": "Test on Python change",
+  "comment": "Run related tests when Python files are edited",
+  "when": {
+    "type": "fileEdited",
+    "pattern": "**/*.py"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Python file was edited. Check if there are related test files and run them. Report any failures concisely."
+  }
+}

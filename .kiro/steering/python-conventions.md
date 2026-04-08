@@ -7,9 +7,8 @@ fileMatchPattern: "*.py"
 
 ## Style
 - Type hints on all public functions
-- Docstrings on modules, classes, and public methods
 - f-strings over .format() or %
-- pathlib over os.path
+- pathlib over os.path for file operations
 
 ## Architecture
 - Async/await for I/O-bound operations
@@ -19,5 +18,4 @@ fileMatchPattern: "*.py"
 ## Testing
 - pytest over unittest
 - Fixtures for shared setup
-- Parametrize for multiple inputs
 - Mock external services, not internal logic

@@ -1,0 +1,12 @@
+{
+  "name": "Test on JS/TS change",
+  "comment": "Run related tests when JS/TS files are edited",
+  "when": {
+    "type": "fileEdited",
+    "pattern": "**/*.{js,jsx,ts,tsx}"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A JavaScript/TypeScript file was edited. Check if there are related test files and run them. Report any failures concisely."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Dockerfile review",
+  "comment": "Review Dockerfile changes for best practices",
+  "when": {
+    "type": "fileEdited",
+    "pattern": "**/Dockerfile*"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Dockerfile was modified. Review for: multi-stage builds, layer caching, security (no root), and minimal image size."
+  }
+}
