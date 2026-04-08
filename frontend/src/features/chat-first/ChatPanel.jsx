@@ -267,14 +267,26 @@ export default function ChatPanel({ lang = 'es' }) {
   // Detect when user says "yes, publish" in any form
   const isPublishConfirmation = (text) => {
     const lower = text.toLowerCase().trim()
-    const confirmWords = ['si', 's\u00ED', 'yes', 'publ', 'crear', 'create', 'listo', 'dale', 'ok', 'confirmo', 'hazlo', 'do it', 'go ahead']
+    const confirmWords = ['si', 's\u00ED', 'yes', 'publ', 'crear', 'create', 'listo', 'dale', 'ok', 'confirmo', 'hazlo', 'do it', 'go ahead', 'adelante', 'claro', 'por supuesto', 'vamos']
     return confirmWords.some(w => lower.startsWith(w) || lower === w)
+  }
+
+  // Check if assistant previously asked for confirmation (broad matching)
+  const hasConfirmationPrompt = () => {
+    return chat.messages.some(m => {
+      if (m.role !== 'assistant') return false
+      const t = m.text.toLowerCase()
+      return t.includes('publico') || t.includes('publish') || t.includes('publicar') ||
+             t.includes('cree el proyecto') || t.includes('crear este') || t.includes('creado') ||
+             t.includes('est\u00e1 listo') || t.includes('is ready') || t.includes('comencemos') ||
+             t.includes('listo para') || t.includes('\u00bfest\u00e1s listo') || t.includes('shall i create') ||
+             t.includes('lo creo') || t.includes('configurar')
+    })
   }
 
   const handleSend = (text) => {
     // Check if this is a publish confirmation
-    if (isPublishConfirmation(text) && chat.messages.some(m => m.role === 'assistant' && (m.text.includes('Publico') || m.text.includes('publish') || m.text.includes('Publicar')))) {
-      // Add user message visually
+    if (isPublishConfirmation(text) && hasConfirmationPrompt()) {
       chat.setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', text: text.trim() }])
       publishAutomation()
       return
