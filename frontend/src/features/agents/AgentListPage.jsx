@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { t } from '../../shared/i18n/translations'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import AgentCard from './AgentCard'
 import AgentDetailPanel from './AgentDetailPanel'
 import HealingPage from '../healing/HealingPage'
@@ -165,14 +166,7 @@ const DEMO_AGENTS = [
 export default function AgentListPage({ lang = 'en' }) {
   const [agents, setAgents] = useState(DEMO_AGENTS)
   const [selected, setSelected] = useState(null)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  const isMobile = useIsMobile()
 
   // Fetch real agents from API and merge with demo enrichment
   useEffect(() => {
