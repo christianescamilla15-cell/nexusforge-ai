@@ -65,12 +65,22 @@ function ThinkingBubble({ thinking }) {
 function formatMessage(text) {
   if (!text) return null
   return text.split('\n').map((line, i) => {
-    // Bold
-    const formatted = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    if (formatted !== line) {
-      return <div key={i} dangerouslySetInnerHTML={{ __html: formatted }} style={{ marginBottom: 4 }} />
-    }
     if (line.trim() === '') return <br key={i} />
+    // Parse **bold** safely without dangerouslySetInnerHTML
+    const parts = line.split(/(\*\*[^*]+\*\*)/g)
+    const hasFormatting = parts.length > 1
+    if (hasFormatting) {
+      return (
+        <div key={i} style={{ marginBottom: 4 }}>
+          {parts.map((part, j) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return <strong key={j}>{part.slice(2, -2)}</strong>
+            }
+            return part
+          })}
+        </div>
+      )
+    }
     return <div key={i} style={{ marginBottom: 4 }}>{line}</div>
   })
 }

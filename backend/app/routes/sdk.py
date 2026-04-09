@@ -140,4 +140,4 @@ async def sdk_batch(body: SDKBatchRequest, request: Request):
         raise HTTPException(status_code=503, detail="anthropic SDK not installed")
     except Exception as e:
         logger.error("Batch API failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Batch processing failed")

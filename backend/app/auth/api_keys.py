@@ -96,7 +96,7 @@ async def generate_key(req: CreateKeyRequest, request: Request):
             token_data["sub"], key_hash, prefix, req.name,
         )
 
-    logger.info("API key generated for %s: %s", token_data["email"], prefix)
+    logger.info("API key generated: %s (user %s)", prefix, token_data["sub"][:8])
 
     # Return raw key ONLY on creation — never stored in plain text
     return {

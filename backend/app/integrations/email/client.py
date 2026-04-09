@@ -23,7 +23,7 @@ async def send_email(
     """Send an email via Resend API."""
     api_key = os.environ.get("RESEND_API_KEY", "").strip()
     if not api_key:
-        logger.warning("RESEND_API_KEY not configured")
+        logger.warning("Email service not configured (missing RESEND_API_KEY)")
         return {"status": "not_configured", "message": "Set RESEND_API_KEY env var"}
 
     sender = from_address or "NexusForge AI <onboarding@resend.dev>"

@@ -22,7 +22,7 @@ async def verify_google_token(id_token: str) -> dict | None:
                 params={"id_token": id_token},
             )
         if resp.status_code != 200:
-            logger.warning("Google tokeninfo returned %s", resp.status_code)
+            logger.warning("Google tokeninfo returned status %s", resp.status_code)
             return None
 
         data = resp.json()
@@ -30,7 +30,7 @@ async def verify_google_token(id_token: str) -> dict | None:
         # Verify the token was issued for our app
         aud = data.get("aud", "")
         if GOOGLE_CLIENT_ID and aud != GOOGLE_CLIENT_ID:
-            logger.warning("Google token aud mismatch: %s", aud)
+            logger.warning("Google token audience mismatch")
             return None
 
         email = data.get("email")
@@ -46,5 +46,5 @@ async def verify_google_token(id_token: str) -> dict | None:
         }
 
     except Exception as exc:
-        logger.error("verify_google_token failed: %s", exc)
+        logger.error("verify_google_token failed: %s", type(exc).__name__)
         return None

@@ -105,6 +105,8 @@ class WizardQuestionRequest(BaseModel):
 @router.post("/generate")
 async def generate_workflow(req: WizardRequest, request: Request):
     """Generate a workflow DAG from natural language description."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer ") or not verify_token(auth[7:]):
         raise HTTPException(status_code=401, detail="Login required")

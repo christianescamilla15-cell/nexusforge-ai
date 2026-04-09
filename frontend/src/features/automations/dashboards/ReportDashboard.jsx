@@ -47,9 +47,11 @@ function RenderMarkdown({ text }) {
           </blockquote>
         }
         if (line.trim() === '') return <br key={i} />
-        // Bold text
-        const boldParsed = line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-        return <p key={i} style={{ margin: '4px 0' }} dangerouslySetInnerHTML={{ __html: boldParsed }} />
+        // Bold text (safe JSX, no dangerouslySetInnerHTML)
+        const parts = line.split(/(\*\*.*?\*\*)/g)
+        return <p key={i} style={{ margin: '4px 0' }}>{parts.map((p, j) =>
+          p.startsWith('**') && p.endsWith('**') ? <b key={j}>{p.slice(2, -2)}</b> : p
+        )}</p>
       })}
     </div>
   )

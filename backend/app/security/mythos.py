@@ -396,14 +396,26 @@ class MythosScanner:
         enc_file = self.backend / "app" / "auth" / "encryption.py"
         if enc_file.exists():
             content = enc_file.read_text(encoding="utf-8", errors="ignore")
-            if "XOR" in content.upper() or "xor" in content.lower() or "^ key_stream" in content:
+            has_fernet = "fernet" in content.lower() or "Fernet" in content
+            has_xor_only = ("^ key_stream" in content) and not has_fernet
+            if has_xor_only:
                 self.findings.append(Finding(
                     severity="high",
                     category="crypto",
-                    title="API key encryption uses XOR (weak)",
-                    description="XOR-based encryption without IV is deterministic — identical plaintext produces identical ciphertext. Vulnerable to known-plaintext attacks.",
+                    title="API key encryption uses XOR only (weak)",
+                    description="XOR-based encryption without IV is deterministic — identical plaintext produces identical ciphertext.",
                     file_path=str(enc_file.relative_to(self.root)),
                     remediation="Upgrade to Fernet (cryptography package) or AES-256-GCM with random IV",
+                    cwe="CWE-327",
+                ))
+            elif has_fernet and "^ key_stream" in content:
+                self.findings.append(Finding(
+                    severity="info",
+                    category="crypto",
+                    title="API key encryption upgraded to Fernet (legacy XOR kept for backward compat)",
+                    description="Fernet (AES-128-CBC + HMAC) is the primary encryption. Legacy XOR is kept for decrypting old values.",
+                    file_path=str(enc_file.relative_to(self.root)),
+                    remediation="Re-encrypt all existing keys with Fernet to remove legacy XOR dependency",
                     cwe="CWE-327",
                 ))
 
@@ -459,17 +471,18 @@ class MythosScanner:
                     cwe="CWE-693",
                 ))
 
-        # Check middleware order (CORS must be outermost)
-        cors_pos = content.find("CORSMiddleware")
-        auth_pos = content.find("AuthMiddleware")
+        # Check middleware order (CORS must be last added = outermost)
+        # In Starlette, last add_middleware() = outermost wrapper
+        cors_pos = content.find("app.add_middleware(\n    CORSMiddleware") if "CORSMiddleware" in content else -1
+        auth_pos = content.find("app.add_middleware(AuthMiddleware)")
         if cors_pos > 0 and auth_pos > 0 and cors_pos < auth_pos:
             self.findings.append(Finding(
                 severity="high",
                 category="config",
                 title="CORS middleware not outermost",
-                description="CORS must be added AFTER auth so it wraps auth 401 responses. Currently CORS is added before auth.",
+                description="CORS must be added AFTER auth (last add_middleware = outermost). Currently auth is added after CORS.",
                 file_path=str(main_file.relative_to(self.root)),
-                remediation="Move CORS middleware to be the last added (outermost wrapper)",
+                remediation="Move app.add_middleware(CORSMiddleware, ...) to be the LAST middleware added",
                 cwe="CWE-942",
             ))
 

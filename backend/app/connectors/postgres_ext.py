@@ -48,7 +48,8 @@ class PostgresExtConnector(ConnectorBase):
         user = config.get("user", "postgres")
         password = config.get("password", "")
         ssl = config.get("ssl", False)
-        dsn = f"postgresql://{user}:{password}@{host}:{port}/{database}"
+        from urllib.parse import quote_plus
+        dsn = f"postgresql://{quote_plus(user)}:{quote_plus(password)}@{host}:{port}/{database}"
         if ssl:
             dsn += "?sslmode=require"
         return dsn
