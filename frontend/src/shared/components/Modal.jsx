@@ -26,7 +26,7 @@ export default function Modal({ open, onClose, title, children, width = 560 }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#F3F4F6', backdropFilter: 'blur(4px)',
+        background: '#F3F4F6', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
         animation: 'fadeIn 0.15s ease-out',
       }}
     >

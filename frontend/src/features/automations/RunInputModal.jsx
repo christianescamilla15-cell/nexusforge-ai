@@ -64,7 +64,7 @@ export default function RunInputModal({ automation, onSubmit, onClose, lang = 'e
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 110, backdropFilter: 'blur(4px)',
+      zIndex: 110, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         background: '#fff', borderRadius: 16, padding: 28,

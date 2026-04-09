@@ -829,7 +829,7 @@ export default function SwarmExecuteModal({ topology, onClose, lang = 'es', init
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 100, backdropFilter: 'blur(4px)',
+        zIndex: 100, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
       }}
     >
       <PulseStyle />

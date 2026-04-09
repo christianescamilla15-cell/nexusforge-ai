@@ -92,7 +92,7 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
             position: 'fixed', inset: 0,
             background: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.3)',
             zIndex: 40,
-            backdropFilter: 'blur(2px)',
+            backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
           }}
         />
       )}
@@ -411,8 +411,9 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
 
             {/* User avatar + dropdown */}
             <div style={{ position: 'relative' }}
-              onMouseEnter={() => setShowUserMenu(true)}
-              onMouseLeave={() => setShowUserMenu(false)}
+              onMouseEnter={() => !isMobile && setShowUserMenu(true)}
+              onMouseLeave={() => !isMobile && setShowUserMenu(false)}
+              onClick={() => isMobile && setShowUserMenu(prev => !prev)}
             >
               <div style={{
                 width: 34, height: 34, borderRadius: '50%',
@@ -543,10 +544,10 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
               aria-label={item.label}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                background: 'none', border: 'none', padding: '4px 12px',
+                background: 'none', border: 'none', padding: '8px 12px',
                 color: active ? (isDark ? '#818CF8' : '#2563EB') : '#9CA3AF',
-                fontSize: 10, fontWeight: active ? 600 : 400,
-                cursor: 'pointer', minHeight: 'auto',
+                fontSize: 12, fontWeight: active ? 600 : 400,
+                cursor: 'pointer', minHeight: 44,
               }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"

@@ -248,9 +248,9 @@ class RepoIngestionEngine:
         project_name = name or root.name
         graph = ProjectGraph(root=str(root), name=project_name)
 
-        # Phase 1: Scan all files
+        # Phase 1: Scan all files (parallelized with ThreadPoolExecutor)
         logger.info("Ingestion phase 1: scanning files in %s", root)
-        all_files = self._scan_files(root)
+        all_files = await asyncio.get_event_loop().run_in_executor(None, self._scan_files, root)
         graph.files = all_files
         graph.total_files = len(all_files)
         graph.total_lines = sum(f.lines for f in all_files)

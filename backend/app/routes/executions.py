@@ -178,9 +178,10 @@ async def list_executions(
                            wr.started_at, wr.completed_at, wr.error_message,
                            wr.total_tokens, wr.total_cost_usd, wr.metadata, wr.created_at,
                            w.name AS workflow_name,
-                           (SELECT count(*) FROM step_executions se WHERE se.run_id = wr.id) AS steps_count
+                           COALESCE(sc.cnt, 0) AS steps_count
                     FROM workflow_runs wr
                     LEFT JOIN workflows w ON w.id = wr.workflow_id
+                    LEFT JOIN (SELECT run_id, count(*) AS cnt FROM step_executions GROUP BY run_id) sc ON sc.run_id = wr.id
                     {where}
                     ORDER BY wr.created_at DESC
                     OFFSET ${idx} LIMIT ${idx + 1}""",

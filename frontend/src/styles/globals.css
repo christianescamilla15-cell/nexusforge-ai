@@ -225,8 +225,13 @@ input, textarea, select { font-family: inherit; }
     font-size: 14px;
   }
 
+  /* Enforce minimum readable font on mobile */
+  * {
+    -webkit-text-size-adjust: 100%;
+  }
+
   button {
-    min-height: 40px;
+    min-height: 44px; /* Apple HIG touch target minimum */
   }
 
   /* Typography scaling */
