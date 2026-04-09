@@ -37,6 +37,7 @@ const StatusPage = lazy(() => import('./features/status/StatusPage'))
 const AnalyzePage = lazy(() => import('./features/analyze/AnalyzePage'))
 const ApiDocsPage = lazy(() => import('./features/docs/ApiDocsPage'))
 const RefactorDashboard = lazy(() => import('./features/refactor/RefactorDashboard'))
+const ExecutiveDashboard = lazy(() => import('./features/refactor/ExecutiveDashboard'))
 
 import TopLoadingBar from './shared/components/TopLoadingBar'
 import OfflineIndicator from './shared/components/OfflineIndicator'
@@ -247,6 +248,7 @@ function AppRoutes() {
           <Route path="/status" element={<StatusPage lang={lang} />} />
           <Route path="/docs" element={<ApiDocsPage lang={lang} />} />
           <Route path="/refactor" element={<RefactorDashboard lang={lang} />} />
+          <Route path="/executive" element={<ExecutiveDashboard lang={lang} />} />
 
           {/* Config */}
           <Route path="/integrations" element={<IntegrationManagerPage lang={lang} />} />
