@@ -340,6 +340,64 @@ async def triage_issues(body: TriageRequest, request: Request):
     return report.to_dict()
 
 
+class BatchRequest(BaseModel):
+    project_path: str
+    triage_report: dict = {}       # Pre-computed triage, or empty to auto-triage
+    batch_filter: list[int] | None = None  # [1, 2] = only critical batches
+    max_workers: int = 4
+    dry_run: bool = True
+
+
+@router.post("/batch-remediate")
+async def batch_remediate(body: BatchRequest, request: Request):
+    """Execute batch remediation pipeline — 500+ fixes/hour target."""
+    _get_user_id(request)
+
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
+
+    # Auto-triage if no pre-computed report
+    if not body.triage_report:
+        from app.refactor.triage import IssuTriageEngine
+        from app.refactor.ingestion import RepoIngestionEngine
+        from app.refactor.csharp_analyzer import CSharpAnalyzer
+
+        ingestion = RepoIngestionEngine()
+        graph = await ingestion.ingest(body.project_path)
+
+        issues = []
+        for h in graph.vulnerability_hotspots:
+            issues.append({
+                "title": f"Vulnerability in {h['file']}",
+                "category": "code_quality",
+                "severity": "high" if h["vulnerabilities"] > 2 else "medium",
+                "file_path": h["file"],
+            })
+
+        analyzer = CSharpAnalyzer(body.project_path)
+        for p in await analyzer.analyze():
+            for f in p.findings:
+                issues.append({
+                    "title": f.title, "category": f.category,
+                    "severity": f.severity, "file_path": f.file_path,
+                    "line_number": f.line_number, "app": p.name,
+                })
+
+        engine = IssuTriageEngine()
+        body.triage_report = engine.triage(issues).to_dict()
+
+    from app.refactor.batch_pipeline import BatchRemediationPipeline
+
+    pipeline = BatchRemediationPipeline(
+        project_root=body.project_path,
+        max_workers=body.max_workers,
+        dry_run=body.dry_run,
+    )
+
+    report = await pipeline.execute(body.triage_report, batch_filter=body.batch_filter)
+    return report.to_dict()
+
+
 @router.post("/scan-db")
 async def scan_database(body: CSharpAnalyzeRequest, request: Request):
     """Analyze database integrity — missing FK, PII columns, schema issues."""

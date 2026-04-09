@@ -164,6 +164,12 @@ class TriageReport:
                         {"title": i.title, "file": i.file_path, "severity": i.severity, "auto": i.auto_fixable}
                         for i in b.issues[:10]
                     ],
+                    "all_issues": [
+                        {"title": i.title, "category": i.category, "severity": i.severity,
+                         "file_path": i.file_path, "line_number": i.line_number, "app": i.app,
+                         "auto_fixable": i.auto_fixable, "fix_type": i.fix_type}
+                        for i in b.issues
+                    ],
                 }
                 for b in self.batches
             ],
