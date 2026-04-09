@@ -136,6 +136,37 @@ async def generate_pr(body: PRRequest, request: Request):
     return result
 
 
+class TestGenRequest(BaseModel):
+    project_path: str
+    languages: list[str] | None = None  # Filter: ["python", "csharp"]
+    dry_run: bool = False
+
+
+@router.post("/generate-tests")
+async def generate_tests(body: TestGenRequest, request: Request):
+    """Auto-generate test files for codebases with zero test coverage."""
+    _get_user_id(request)
+
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
+
+    from app.refactor.ingestion import RepoIngestionEngine
+    from app.refactor.test_generator import TestGeneratorEngine
+
+    ingestion = RepoIngestionEngine()
+    try:
+        graph = await ingestion.ingest(body.project_path)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Ingestion failed")
+
+    generator = TestGeneratorEngine(
+        project_root=body.project_path,
+        dry_run=body.dry_run,
+    )
+    report = await generator.generate_tests(graph, languages=body.languages)
+    return report.to_dict()
+
+
 @router.get("/status/{project_path:path}")
 async def get_status(project_path: str, request: Request):
     """Check status of a refactoring job."""
