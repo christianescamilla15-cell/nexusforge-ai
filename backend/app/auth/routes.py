@@ -426,3 +426,79 @@ async def get_plans():
             {"id": "enterprise", "name": "Enterprise", "price": None, "runs_per_day": -1, "agents": 43, "features": ["Unlimited", "SSO", "Self-hosted", "SLA", "Dedicated support"]},
         ]
     }
+
+
+class ConsentRequest(BaseModel):
+    accepted_terms: bool = False
+    accepted_privacy: bool = False
+    accepted_marketing: bool = False
+
+
+@router.post("/consent")
+async def record_consent(body: ConsentRequest, request: Request):
+    """Record user consent for Terms, Privacy, and Marketing (GDPR/LFPDPPP)."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Login required")
+    data = verify_token(auth[7:])
+    if not data:
+        raise HTTPException(401, "Invalid token")
+
+    user_id = data["sub"]
+    ip = request.client.host if request.client else ""
+    ua = request.headers.get("User-Agent", "")[:500]
+
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            consents = [
+                ("terms_of_service", body.accepted_terms),
+                ("privacy_policy", body.accepted_privacy),
+                ("marketing", body.accepted_marketing),
+            ]
+            for consent_type, accepted in consents:
+                if accepted:
+                    await conn.execute(
+                        """INSERT INTO user_consents (user_id, consent_type, accepted, ip_address, user_agent)
+                           VALUES ($1::uuid, $2, $3, $4, $5)""",
+                        user_id, consent_type, accepted, ip, ua,
+                    )
+
+            # Mark onboarding complete
+            await conn.execute(
+                "UPDATE nf_users SET onboarding_completed = true, onboarding_completed_at = now() WHERE id = $1::uuid",
+                user_id,
+            )
+
+        return {"recorded": True}
+    except Exception:
+        raise HTTPException(500, "Internal server error")
+
+
+@router.get("/consent")
+async def get_consent(request: Request):
+    """Get user's consent status."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Login required")
+    data = verify_token(auth[7:])
+    if not data:
+        raise HTTPException(401, "Invalid token")
+
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT consent_type, accepted, version, accepted_at
+                   FROM user_consents WHERE user_id = $1::uuid AND revoked_at IS NULL
+                   ORDER BY accepted_at DESC""",
+                data["sub"],
+            )
+        return {
+            "consents": [
+                {"type": r["consent_type"], "accepted": r["accepted"], "version": r["version"], "at": r["accepted_at"].isoformat()}
+                for r in rows
+            ]
+        }
+    except Exception:
+        return {"consents": []}

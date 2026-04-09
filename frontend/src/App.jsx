@@ -39,6 +39,7 @@ const ApiDocsPage = lazy(() => import('./features/docs/ApiDocsPage'))
 const RefactorDashboard = lazy(() => import('./features/refactor/RefactorDashboard'))
 const ExecutiveDashboard = lazy(() => import('./features/refactor/ExecutiveDashboard'))
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard'))
+const WelcomeWizard = lazy(() => import('./features/onboarding/WelcomeWizard'))
 
 import TopLoadingBar from './shared/components/TopLoadingBar'
 import OfflineIndicator from './shared/components/OfflineIndicator'
@@ -105,6 +106,9 @@ function AppRoutes() {
 
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem('nxf-tour-done') } catch { return false }
+  })
+  const [showWizard, setShowWizard] = useState(() => {
+    try { return !localStorage.getItem('nxf-wizard-done') && !!localStorage.getItem('nf_token') } catch { return false }
   })
   const [user, setUser] = useState(() => {
     try {
@@ -281,6 +285,15 @@ function AppRoutes() {
           onNavigate={navigate}
           onComplete={() => { setShowTour(false); try { localStorage.setItem('nxf-tour-done', '1') } catch {} }}
         />
+      )}
+      {showWizard && (
+        <Suspense fallback={null}>
+          <WelcomeWizard
+            lang={lang}
+            userName={user?.name}
+            onComplete={() => setShowWizard(false)}
+          />
+        </Suspense>
       )}
       <WhatsNew lang={lang} />
       <KeyboardShortcuts lang={lang} />
