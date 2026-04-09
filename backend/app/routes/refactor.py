@@ -205,6 +205,86 @@ async def multi_repo_refactor(body: MultiRepoRequest, request: Request):
     return report.to_dict()
 
 
+class CSharpAnalyzeRequest(BaseModel):
+    project_path: str
+
+
+@router.post("/analyze-csharp")
+async def analyze_csharp(body: CSharpAnalyzeRequest, request: Request):
+    """Deep C#/.NET analysis — classes, vulnerabilities, god classes, auth gaps."""
+    _get_user_id(request)
+
+    from app.refactor.csharp_analyzer import CSharpAnalyzer
+
+    analyzer = CSharpAnalyzer(body.project_path)
+    projects = await analyzer.analyze()
+    return [p.to_dict() for p in projects]
+
+
+@router.post("/fix-csharp")
+async def fix_csharp(body: CSharpAnalyzeRequest, request: Request):
+    """Auto-fix SQL injection and hardcoded credentials in C# files."""
+    _get_user_id(request)
+
+    from app.refactor.csharp_analyzer import CSharpAnalyzer
+    from app.refactor.csharp_fixer import CSharpFixer
+
+    # First analyze
+    analyzer = CSharpAnalyzer(body.project_path)
+    projects = await analyzer.analyze()
+
+    # Then fix files with findings
+    fixer = CSharpFixer(body.project_path, dry_run=True)
+    results = []
+    for proj in projects:
+        for finding in proj.findings:
+            if finding.category in ("sql_injection", "hardcoded_cred"):
+                result = fixer.fix_file(finding.file_path)
+                if result.fixes_applied > 0:
+                    results.append({
+                        "file": result.file_path,
+                        "fixes": result.fixes_applied,
+                        "diff": result.diff_summary,
+                        "details": result.fixes,
+                    })
+    return {"files_fixed": len(results), "results": results}
+
+
+@router.post("/generate-cicd")
+async def generate_cicd(body: CSharpAnalyzeRequest, request: Request):
+    """Generate GitHub Actions CI/CD pipelines for .NET and Python projects."""
+    _get_user_id(request)
+
+    from app.refactor.csharp_analyzer import CSharpAnalyzer
+    from app.refactor.cicd_generator import CICDGenerator
+
+    analyzer = CSharpAnalyzer(body.project_path)
+    projects = await analyzer.analyze()
+
+    generator = CICDGenerator(body.project_path, dry_run=True)
+    results = []
+    for proj in projects:
+        result = generator.generate_for_project(proj)
+        results.append({
+            "project": proj.name,
+            "pipelines": result["pipelines"],
+            "test_files": len(result["test_files"]),
+        })
+    return {"projects": len(results), "results": results}
+
+
+@router.post("/scan-rpa")
+async def scan_rpa(body: CSharpAnalyzeRequest, request: Request):
+    """Scan RPA code for fragile Playwright selectors and stability issues."""
+    _get_user_id(request)
+
+    from app.refactor.rpa_scanner import RPAScanner
+
+    scanner = RPAScanner(body.project_path)
+    report = await scanner.scan()
+    return report.to_dict()
+
+
 @router.get("/status/{project_path:path}")
 async def get_status(project_path: str, request: Request):
     """Check status of a refactoring job."""
