@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { fetchAPI, trackGuestRun } from '../../services/api'
 import { useIsMobile } from '../../shared/hooks/useIsMobile'
 import PublishModal from './PublishModal'

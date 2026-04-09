@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
 import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
