@@ -5,7 +5,8 @@ metadata:
   namespace: nexusforge
 data:
   API_BASE_URL: "http://gateway:8000"
-  DATABASE_URL: "postgresql://nexus:nexus_dev_2026@postgres:5432/nexusforge"
+  # DATABASE_URL should come from secrets, not configmap
+  DATABASE_URL: "MOVE_TO_SECRETS"
   REDIS_URL: "redis://redis:6379"
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"

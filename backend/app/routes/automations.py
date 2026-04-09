@@ -182,7 +182,7 @@ async def list_automations(request: Request):
         return [_row_to_dict(r) for r in rows]
     except Exception as exc:
         logger.exception("Failed to list automations")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/", status_code=201)
@@ -223,7 +223,7 @@ async def publish_automation(body: PublishRequest, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to publish automation")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/{automation_id}")
@@ -246,6 +246,12 @@ async def update_automation(automation_id: UUID, body: UpdateRequest, request: R
             if not data:
                 return {"updated": False}
 
+            # Whitelist allowed columns to prevent SQL injection
+            _ALLOWED_COLS = {"name", "description", "icon", "color", "trigger_type", "schedule_cron", "is_active", "input_config", "requires_approval"}
+            data = {k: v for k, v in data.items() if k in _ALLOWED_COLS}
+            if not data:
+                return {"updated": False}
+
             # Serialize input_config to JSON string for asyncpg
             if "input_config" in data:
                 data["input_config"] = json.dumps(data["input_config"])
@@ -263,7 +269,7 @@ async def update_automation(automation_id: UUID, body: UpdateRequest, request: R
         raise
     except Exception as exc:
         logger.exception("Failed to update automation")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal error updating automation")
 
 
 @router.delete("/{automation_id}")
@@ -286,7 +292,7 @@ async def delete_automation(automation_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to delete automation")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Output Config ─────────────────────────────────────────────────────────────
@@ -373,7 +379,7 @@ async def run_automation(automation_id: UUID, body: RunRequest, request: Request
         raise
     except Exception as exc:
         logger.exception("Failed to run automation")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Single automation ─────────────────────────────────────────────────────────
@@ -443,7 +449,7 @@ async def get_automation_stats(automation_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to get automation stats")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{automation_id}/dashboard")
@@ -519,7 +525,7 @@ async def get_automation_dashboard(automation_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to get automation dashboard")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Webhook trigger ───────────────────────────────────────────────────────────
@@ -557,7 +563,7 @@ async def handle_webhook_trigger(webhook_secret: str, request: Request):
         raise
     except Exception as exc:
         logger.exception("Webhook trigger failed")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────

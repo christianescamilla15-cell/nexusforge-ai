@@ -87,7 +87,7 @@ async def list_variables(automation_id: UUID, request: Request):
         return [_row_to_dict(r, mask_secrets=True) for r in rows]
     except Exception as exc:
         logger.exception("Failed to list variables")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/", status_code=201)
@@ -127,7 +127,7 @@ async def create_variable(body: CreateVariableRequest, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to create variable")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/{variable_id}")
@@ -176,7 +176,7 @@ async def update_variable(variable_id: UUID, body: UpdateVariableRequest, reques
         raise
     except Exception as exc:
         logger.exception("Failed to update variable")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/{variable_id}")
@@ -209,7 +209,7 @@ async def delete_variable(variable_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to delete variable")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Variable resolution (used by step_runner) ────────────────────────────────

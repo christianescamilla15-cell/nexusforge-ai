@@ -59,7 +59,7 @@ async def list_templates():
         return [_row_to_dict(r) for r in rows]
     except Exception as exc:
         logger.exception("Failed to list templates")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{slug}")
@@ -83,7 +83,7 @@ async def get_template(slug: str):
         raise
     except Exception as exc:
         logger.exception("Failed to get template")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 class DeployRequest(BaseModel):
@@ -180,4 +180,4 @@ async def deploy_template(slug: str, body: DeployRequest = DeployRequest(), requ
         raise
     except Exception as exc:
         logger.exception("Failed to deploy template %s", slug)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")

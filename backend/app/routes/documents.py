@@ -68,7 +68,7 @@ async def upload_document(body: DocumentUpload, request: Request):
         )
     except Exception as exc:
         logger.exception("Failed to upload document")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/", response_model=list[DocumentResponse])
@@ -100,7 +100,7 @@ async def list_documents(request: Request, skip: int = Query(0, ge=0), limit: in
         ]
     except Exception as exc:
         logger.exception("Failed to list documents")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/search", response_model=list[ChunkResponse])
@@ -122,4 +122,4 @@ async def search_documents(body: DocumentSearch, request: Request):
         ]
     except Exception as exc:
         logger.exception("Document search failed")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")

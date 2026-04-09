@@ -189,6 +189,7 @@ class MythosScanner:
         r'node_modules',
         r'\.git/',
         r'dist/',
+        r'security[\\/]mythos\.py',  # Don't scan ourselves (pattern definitions)
     ]
 
     def _scan_secrets(self) -> int:
@@ -300,7 +301,7 @@ class MythosScanner:
 
         # Backend: SQL + Command injection
         for fpath in self.backend.rglob("*.py"):
-            if "__pycache__" in str(fpath):
+            if "__pycache__" in str(fpath) or "security" in str(fpath):
                 continue
             rel = str(fpath.relative_to(self.root))
             count += 1

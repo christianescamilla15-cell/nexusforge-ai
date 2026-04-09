@@ -88,7 +88,7 @@ async def list_audit(
         }
     except Exception as exc:
         logger.exception("Failed to list audit logs")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/entity/{entity_type}/{entity_id}")
@@ -126,7 +126,7 @@ async def audit_for_entity(
         }
     except Exception as exc:
         logger.exception("Failed to get audit trail for entity")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/export")
@@ -188,4 +188,4 @@ async def export_audit_csv(
         raise
     except Exception as exc:
         logger.exception("Failed to export audit logs")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")

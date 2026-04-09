@@ -56,7 +56,7 @@ async def create_workflow(body: WorkflowCreate, request: Request):
         return _row_to_response(row)
     except Exception as exc:
         logger.exception("Failed to create workflow")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/", response_model=list[WorkflowResponse])
@@ -80,7 +80,7 @@ async def list_workflows(request: Request, skip: int = Query(0, ge=0), limit: in
         return [_row_to_response(r) for r in rows]
     except Exception as exc:
         logger.exception("Failed to list workflows")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
@@ -105,7 +105,7 @@ async def get_workflow(workflow_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to get workflow")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/{workflow_id}", response_model=WorkflowResponse)
@@ -165,7 +165,7 @@ async def update_workflow(workflow_id: UUID, body: WorkflowUpdate, request: Requ
         raise
     except Exception as exc:
         logger.exception("Failed to update workflow")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/{workflow_id}", status_code=200)
@@ -190,7 +190,7 @@ async def delete_workflow(workflow_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to delete workflow")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def _row_to_response(row) -> WorkflowResponse:

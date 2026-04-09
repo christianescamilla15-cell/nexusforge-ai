@@ -112,7 +112,7 @@ async def list_rules(automation_id: UUID, request: Request):
         return [_row_to_dict(r) for r in rows]
     except Exception as exc:
         logger.exception("Failed to list rules")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/", status_code=201)
@@ -150,7 +150,7 @@ async def create_rule(body: CreateRuleRequest, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to create rule")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/{rule_id}")
@@ -192,7 +192,7 @@ async def update_rule(rule_id: UUID, body: UpdateRuleRequest, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to update rule")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/{rule_id}")
@@ -221,7 +221,7 @@ async def delete_rule(rule_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to delete rule")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Evaluate ─────────────────────────────────────────────────────────────────
@@ -253,4 +253,4 @@ async def evaluate(body: EvaluateRequest, request: Request):
         }
     except Exception as exc:
         logger.exception("Failed to evaluate rules")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -113,7 +113,7 @@ async def trigger_execution(body: ExecutionTrigger, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to trigger execution")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/cleanup-zombies", status_code=200)
@@ -135,7 +135,7 @@ async def cleanup_zombie_runs(request: Request):
         return {"detail": f"Cleaned up {count} zombie runs", "affected": count}
     except Exception as exc:
         logger.exception("Failed to cleanup zombies")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/", response_model=list[ExecutionResponse])
@@ -216,7 +216,7 @@ async def list_executions(
         return results
     except Exception as exc:
         logger.exception("Failed to list executions")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{run_id}", response_model=ExecutionResponse)
@@ -298,7 +298,7 @@ async def get_execution(run_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to get execution")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/{run_id}", status_code=200)
@@ -333,7 +333,7 @@ async def delete_or_cancel_execution(run_id: UUID, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to delete/cancel execution")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.websocket("/ws/{run_id}")

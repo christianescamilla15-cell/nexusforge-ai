@@ -185,6 +185,9 @@ async def update_connector(connector_id: UUID, body: UpdateConnectorRequest, req
         if not updates:
             raise HTTPException(400, "No fields to update")
 
+        # Whitelist columns
+        _ALLOWED = {"name", "config", "is_active"}
+        updates = [u for u in updates if any(u.startswith(c) for c in _ALLOWED)]
         updates.append("updated_at = now()")
         set_clause = ", ".join(updates)
         await conn.execute(

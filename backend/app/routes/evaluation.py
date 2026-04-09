@@ -35,7 +35,7 @@ async def list_scenarios():
             return {"scenarios": [dict(r) for r in rows], "total": len(rows)}
     except Exception as exc:
         logger.exception("Failed to list evaluation scenarios")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/scenarios/{scenario_id}")
@@ -55,7 +55,7 @@ async def get_scenario(scenario_id: UUID):
         raise
     except Exception as exc:
         logger.exception("Failed to get evaluation scenario")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/scenarios")
@@ -89,7 +89,7 @@ async def create_scenario(
             return dict(row)
     except Exception as exc:
         logger.exception("Failed to create evaluation scenario")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +208,7 @@ async def run_evaluation(scenario_name: str | None = None):
         raise
     except Exception as exc:
         logger.exception("Failed to run evaluation")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +237,7 @@ async def list_evaluation_results(limit: int = Query(20, ge=1, le=200)):
             return {"results": [dict(r) for r in rows], "total": len(rows)}
     except Exception as exc:
         logger.exception("Failed to list evaluation results")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/results/{eval_run_id}")
@@ -279,4 +279,4 @@ async def get_evaluation_result(eval_run_id: UUID):
         raise
     except Exception as exc:
         logger.exception("Failed to get evaluation result")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")

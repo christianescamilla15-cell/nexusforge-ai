@@ -45,7 +45,7 @@ async def list_executions(request: Request, limit: int = 50):
             return {"executions": [dict(r) for r in rows], "total": len(rows)}
     except Exception as exc:
         logger.exception("Failed to list executions from DB")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{run_id}")
@@ -66,7 +66,7 @@ async def get_execution(run_id: str, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to get execution from DB")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{run_id}/steps")
@@ -94,7 +94,7 @@ async def get_execution_steps(run_id: str, request: Request):
             return {"steps": [dict(r) for r in rows], "total": len(rows)}
     except Exception as exc:
         logger.exception("Failed to get execution steps from DB")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{run_id}/events")
@@ -122,7 +122,7 @@ async def get_execution_events(run_id: str, request: Request):
             return {"events": [dict(r) for r in rows], "total": len(rows)}
     except Exception as exc:
         logger.exception("Failed to get execution events from DB")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{run_id}/timeline")
@@ -264,7 +264,7 @@ async def get_execution_timeline(run_id: str, request: Request):
         raise
     except Exception as exc:
         logger.exception("Failed to build execution timeline from DB")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{run_id}/checkpoints")
@@ -292,4 +292,4 @@ async def get_execution_checkpoints(run_id: str, request: Request):
             return {"checkpoints": [dict(r) for r in rows], "total": len(rows)}
     except Exception as exc:
         logger.exception("Failed to get execution checkpoints from DB")
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")

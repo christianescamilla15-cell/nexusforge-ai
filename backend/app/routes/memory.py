@@ -162,4 +162,4 @@ async def retry_dead_letter(dead_letter_id: UUID):
         raise
     except Exception as exc:
         logger.exception("Failed to retry dead letter %s", dead_letter_id)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Internal server error")
