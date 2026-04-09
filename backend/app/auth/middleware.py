@@ -25,11 +25,14 @@ PUBLIC_PREFIXES = [
     "/api/mythos",  # Self-protected via X-Mythos-Key (returns 404 without it)
 ]
 
-# Swagger/docs only accessible in development (NEXUSFORGE_ENV != production)
+# Swagger/docs: always available, auth-protected in production
+# In development: public (no auth needed)
+# In production: requires valid JWT token (same as other protected routes)
 import os as _os
 if _os.environ.get("NEXUSFORGE_ENV", "development") != "production":
     PUBLIC_PATHS.update({"/docs", "/openapi.json", "/redoc"})
     PUBLIC_PREFIXES.extend(["/docs", "/openapi", "/redoc"])
+# In production, /docs requires auth — handled by AuthMiddleware (not in PUBLIC_PATHS)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

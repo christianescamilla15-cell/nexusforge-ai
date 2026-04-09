@@ -19,19 +19,31 @@ class TokenResponse(BaseModel):
     role: str
     expires_in: int = 28800
 
-DEMO_USERS = {
-    'admin@nexusforge.ai': {'password': 'admin123', 'role': 'admin', 'id': 'user-001'},
-    'member@nexusforge.ai': {'password': 'member123', 'role': 'member', 'id': 'user-002'},
-    'viewer@nexusforge.ai': {'password': 'viewer123', 'role': 'viewer', 'id': 'user-003'},
-}
-
 @router.post('/auth/login', response_model=TokenResponse)
 async def login(body: LoginRequest):
-    user = DEMO_USERS.get(body.email)
-    if not user or user['password'] != body.password:
-        raise HTTPException(401, 'Invalid credentials')
-    token = create_token(user['id'], body.email, user['role'])
-    return TokenResponse(access_token=token, role=user['role'])
+    """Login — delegates to main auth/routes.py. This is a fallback."""
+    # Real login is handled by app.auth.routes — this route exists for backward compat
+    from app.db.client import get_db_pool
+    import bcrypt
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            user = await conn.fetchrow(
+                "SELECT id, email, password_hash, role, is_active FROM nf_users WHERE email = $1",
+                body.email,
+            )
+            if not user or not user["password_hash"]:
+                raise HTTPException(401, "Invalid credentials")
+            if not user["is_active"]:
+                raise HTTPException(403, "Account disabled")
+            if not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
+                raise HTTPException(401, "Invalid credentials")
+            token = create_token(str(user["id"]), user["email"], user["role"] or "member")
+            return TokenResponse(access_token=token, role=user["role"] or "member")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(401, "Invalid credentials")
 
 @router.post('/auth/oauth', response_model=TokenResponse)
 async def oauth_login(body: OAuthRequest):

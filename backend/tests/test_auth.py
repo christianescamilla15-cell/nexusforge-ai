@@ -57,18 +57,16 @@ def client():
     return TestClient(test_app)
 
 
-def test_login_success(client):
-    resp = client.post('/auth/login', json={'email': 'admin@nexusforge.ai', 'password': 'admin123'})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert 'access_token' in body
-    assert body['role'] == 'admin'
-    assert body['token_type'] == 'bearer'
-
-
 def test_login_invalid_credentials(client):
-    resp = client.post('/auth/login', json={'email': 'admin@nexusforge.ai', 'password': 'wrong'})
+    """Login with invalid credentials returns 401 (no demo users in production)."""
+    resp = client.post('/auth/login', json={'email': 'nonexistent@test.com', 'password': 'wrong'})
     assert resp.status_code == 401
+
+
+def test_login_missing_fields(client):
+    """Login without required fields returns 422."""
+    resp = client.post('/auth/login', json={})
+    assert resp.status_code == 422
 
 
 def test_oauth_demo_mode(client):
@@ -80,14 +78,13 @@ def test_oauth_demo_mode(client):
 
 
 def test_get_me_with_token(client):
-    # First login to get a token
-    login_resp = client.post('/auth/login', json={'email': 'member@nexusforge.ai', 'password': 'member123'})
-    token = login_resp.json()['access_token']
-    # Use it on /auth/me
+    # Create a valid token directly (no demo users)
+    from app.auth.jwt_handler import create_token
+    token = create_token('test-user-id', 'test@nexusforge.ai', 'member')
     resp = client.get('/auth/me', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     body = resp.json()
-    assert body['email'] == 'member@nexusforge.ai'
+    assert body['email'] == 'test@nexusforge.ai'
     assert body['role'] == 'member'
 
 

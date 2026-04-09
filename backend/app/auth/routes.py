@@ -262,6 +262,55 @@ async def export_account_data(request: Request):
     }
 
 
+class DeleteAccountRequest(BaseModel):
+    password: str
+    confirmation: str = "DELETE"  # Must type "DELETE" to confirm
+
+
+@router.post("/delete-account")
+async def delete_account(body: DeleteAccountRequest, request: Request):
+    """Permanently delete account and all associated data (GDPR right to erasure)."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Login required")
+    data = verify_token(auth[7:])
+    if not data:
+        raise HTTPException(401, "Invalid token")
+
+    if body.confirmation != "DELETE":
+        raise HTTPException(400, "Must confirm with 'DELETE'")
+
+    user_id = data["sub"]
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            # Verify password
+            user = await conn.fetchrow("SELECT password_hash FROM nf_users WHERE id = $1::uuid", user_id)
+            if not user or not user["password_hash"]:
+                raise HTTPException(404, "Account not found")
+
+            import bcrypt
+            if not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
+                raise HTTPException(401, "Invalid password")
+
+            # Delete all user data (CASCADE handles most)
+            await conn.execute("DELETE FROM automation_results WHERE automation_id IN (SELECT id FROM automations WHERE user_id = $1::uuid)", user_id)
+            await conn.execute("DELETE FROM automations WHERE user_id = $1::uuid", user_id)
+            await conn.execute("DELETE FROM workflows WHERE user_id = $1::uuid", user_id)
+            await conn.execute("DELETE FROM workflow_runs WHERE user_id = $1::uuid", user_id)
+            await conn.execute("DELETE FROM api_keys WHERE user_id = $1::uuid", user_id)
+            await conn.execute("DELETE FROM agent_configs WHERE user_id = $1::uuid", user_id)
+            await conn.execute("DELETE FROM audit_logs WHERE user_id = $1::uuid", user_id)
+            await conn.execute("DELETE FROM nf_users WHERE id = $1::uuid", user_id)
+
+        logger.info("Account deleted: %s", user_id[:8])
+        return {"deleted": True, "message": "Account and all data permanently deleted"}
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(500, "Internal server error")
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
