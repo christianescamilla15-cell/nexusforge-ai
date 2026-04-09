@@ -22,9 +22,13 @@ from collections import deque
 from app.llm.provider import LLMResponse
 from app.llm.groq_provider import GroqProvider
 from app.llm.claude_provider import ClaudeProvider
+from app.llm.haiku_provider import HaikuProvider
 from app.llm.ollama_provider import OllamaProvider
 from app.llm.token_tracker import calculate_cost
 from app.domain.tracking.events import ExecutionContext
+
+# Agents that can use Haiku for fast/cheap classification ($1/MTok vs $3/MTok)
+_HAIKU_ELIGIBLE_AGENTS = {"RouterAgent", "ClassifierAgent", "SentimentAgent"}
 
 logger = logging.getLogger(__name__)
 
@@ -117,10 +121,12 @@ class LLMRouter:
         self._ollama = OllamaProvider()
         self._groq = GroqProvider()
         self._claude = ClaudeProvider()
+        self._haiku = HaikuProvider()
         self._breakers: dict[str, _CircuitBreaker] = {
             "ollama": _CircuitBreaker(),
             "groq": _CircuitBreaker(),
             "claude": _CircuitBreaker(),
+            "haiku": _CircuitBreaker(),
         }
         # Predictive memory for smart pre-routing (lazy init)
         self._predictive = None
@@ -139,6 +145,10 @@ class LLMRouter:
         # Claude-only: skip everything else
         if agent_name in _CLAUDE_ONLY_AGENTS:
             return [self._claude]
+
+        # Haiku-eligible: fast/cheap classification — Ollama → Haiku → Groq → Claude
+        if agent_name in _HAIKU_ELIGIBLE_AGENTS:
+            return [self._ollama, self._haiku, self._groq, self._claude]
 
         # Cloud-preferred: skip Ollama, go Groq → Claude
         if agent_name in _CLOUD_PREFERRED_AGENTS:

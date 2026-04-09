@@ -11,8 +11,12 @@ PRICING = {
         "output": 0.79 / 1_000_000,
     },
     "claude": {
-        "input": 3.0 / 1_000_000,
+        "input": 3.0 / 1_000_000,   # Sonnet 4.6
         "output": 15.0 / 1_000_000,
+    },
+    "haiku": {
+        "input": 1.0 / 1_000_000,   # Haiku 4.5 — 5x cheaper than Sonnet
+        "output": 5.0 / 1_000_000,
     },
     "openai": {
         "input": 0.15 / 1_000_000,   # GPT-4o-mini
