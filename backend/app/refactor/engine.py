@@ -121,17 +121,20 @@ _FIX_PATTERNS = {
 class RefactoringEngine:
     """Execute refactoring across an entire project graph."""
 
-    def __init__(self, project_root: str, use_llm: bool = True, dry_run: bool = False):
+    def __init__(self, project_root: str, use_llm: bool = True, dry_run: bool = False, auto_rollback: bool = True):
         """
         Args:
             project_root: Absolute path to repository
             use_llm: Use LLM for complex refactors (costs tokens)
             dry_run: If True, don't modify files (report only)
+            auto_rollback: Revert changes if tests fail
         """
         self.root = Path(project_root)
         self.use_llm = use_llm
         self.dry_run = dry_run
+        self.auto_rollback = auto_rollback
         self._pattern_cache: dict[str, str] = {}  # fix pattern → successful fix template
+        self._rollback = None
 
     async def refactor_project(
         self,
@@ -149,10 +152,16 @@ class RefactoringEngine:
         start = time.monotonic()
         report = RefactorReport(project_name=graph.name)
 
+        # Initialize rollback manager
+        if self.auto_rollback and not self.dry_run:
+            from app.refactor.rollback import RollbackManager
+            self._rollback = RollbackManager(str(self.root))
+
         # Filter files that need fixing
+        _supported_langs = {k.split("_")[0] for k in _FIX_PATTERNS}
         target_files = [
             f for f in graph.files
-            if f.vulnerabilities > 0 and f.language in _FIX_PATTERNS
+            if f.vulnerabilities > 0 and f.language in _supported_langs
         ]
         report.total_files = len(target_files)
 

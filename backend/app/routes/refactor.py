@@ -167,6 +167,44 @@ async def generate_tests(body: TestGenRequest, request: Request):
     return report.to_dict()
 
 
+class MultiRepoRequest(BaseModel):
+    repos: list[dict]              # [{"path": str, "name": str}, ...]
+    fix_types: list[str] | None = None
+    use_llm: bool = True
+    dry_run: bool = False
+    generate_tests: bool = True
+    max_repos_parallel: int = 3
+
+
+@router.post("/multi-repo")
+async def multi_repo_refactor(body: MultiRepoRequest, request: Request):
+    """Process multiple repositories in parallel — enterprise pipeline.
+
+    Ingests all repos, builds cross-repo dependency map,
+    refactors in safe order, generates tests, and produces consolidated report.
+    """
+    _get_user_id(request)
+
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
+
+    from app.refactor.multi_repo import MultiRepoOrchestrator
+
+    orchestrator = MultiRepoOrchestrator(
+        use_llm=body.use_llm,
+        dry_run=body.dry_run,
+        max_repos_parallel=body.max_repos_parallel,
+    )
+
+    report = await orchestrator.process(
+        repos=body.repos,
+        fix_types=body.fix_types,
+        generate_tests=body.generate_tests,
+    )
+
+    return report.to_dict()
+
+
 @router.get("/status/{project_path:path}")
 async def get_status(project_path: str, request: Request):
     """Check status of a refactoring job."""
