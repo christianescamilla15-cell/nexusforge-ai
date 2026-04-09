@@ -14,9 +14,14 @@ export function getMode() {
 /** Return the user-configured API URL (only relevant in real mode). Empty string = not configured. */
 export function getApiUrl() {
   if (typeof window === 'undefined') return ''
-  return localStorage.getItem('nexusforge_api_url')
-    || import.meta.env.VITE_API_URL
-    || 'https://nexusforge-api.onrender.com/api'
+  const stored = localStorage.getItem('nexusforge_api_url')
+  const url = stored || import.meta.env.VITE_API_URL || 'https://nexusforge-api.onrender.com/api'
+
+  // Prevent mixed content: force HTTPS in production
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://') && !url.includes('localhost')) {
+    return url.replace('http://', 'https://')
+  }
+  return url
 }
 
 /** Return the source of the current API URL for diagnostics. */
