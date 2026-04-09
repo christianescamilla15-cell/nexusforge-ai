@@ -87,10 +87,31 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
+# ── Sentry Error Tracking ───────────────────────────────────────────────────
+_sentry_dsn = _main_os.environ.get("SENTRY_DSN", "")
+if _sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.asyncio import AsyncioIntegration
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            traces_sample_rate=0.1,
+            profiles_sample_rate=0.1,
+            environment=_main_os.environ.get("NEXUSFORGE_ENV", "development"),
+            release=f"nexusforge@2.0",
+            integrations=[FastApiIntegration(), AsyncioIntegration()],
+        )
+        print("Sentry error tracking initialized")
+    except ImportError:
+        print("Warning: sentry-sdk not installed — error tracking disabled")
+    except Exception as e:
+        print(f"Warning: Sentry init failed: {e}")
+
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0",
-    description="Enterprise-grade AI Agent Orchestration Platform",
+    version="2.0.0",
+    description="Enterprise AI Agent Orchestration + Automated Code Remediation Platform",
     lifespan=lifespan,
     redirect_slashes=True,
 )
@@ -209,4 +230,25 @@ app.include_router(admin_router, prefix="/api", tags=["admin"])
 # Mythos — OWNER-ONLY security auditor (returns 404 without valid key)
 from app.security.routes import router as mythos_router
 app.include_router(mythos_router, prefix="/api", tags=["mythos"])
+
+
+# ── API Versioning ──────────────────────────────────────────────────────────
+# /api/v1/* mirrors /api/* for forward compatibility
+# Clients should migrate to /api/v1/ for stability guarantees
+from fastapi import APIRouter as _APIRouter
+from fastapi.responses import RedirectResponse
+
+_v1 = _APIRouter(prefix="/api/v1", tags=["v1"])
+
+@_v1.get("/version")
+async def api_version():
+    return {"version": "v1", "latest": "v1", "deprecated": []}
+
+app.include_router(_v1)
+
+# Mount all existing routes under /api/v1/ as well
+for r in [auth_routes, billing_routes, api_keys_routes, wizard_routes,
+          results_router, analyze_router, automations_router, sdk_router,
+          refactor_router, org_router, admin_router]:
+    app.include_router(r, prefix="/api/v1")
 

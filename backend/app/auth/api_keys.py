@@ -28,14 +28,32 @@ def _hash_key(raw_key: str) -> str:
     return hashlib.sha256(raw_key.encode()).hexdigest()
 
 
-async def validate_api_key(raw_key: str) -> Optional[dict]:
-    """Validate API key and return user info. Returns None if invalid."""
+# Per-key daily rate limits by plan
+_KEY_DAILY_LIMITS = {
+    "free": 100,
+    "pro": 5000,
+    "team": 25000,
+    "enterprise": -1,  # unlimited
+}
+
+# Valid API key scopes
+VALID_SCOPES = {
+    "read", "write", "execute", "admin",
+    "workflows:read", "workflows:write",
+    "automations:read", "automations:write", "automations:execute",
+    "agents:read", "agents:write",
+    "refactor:read", "refactor:execute",
+}
+
+
+async def validate_api_key(raw_key: str, required_scope: str = "") -> Optional[dict]:
+    """Validate API key, check rate limit, and enforce scopes. Returns None if invalid."""
     key_hash = _hash_key(raw_key)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                """SELECT ak.*, u.email, u.name, u.role, u.plan
+                """SELECT ak.*, u.email, u.name, u.role, u.plan, u.is_active AS user_active
                    FROM api_keys ak JOIN nf_users u ON ak.user_id = u.id
                    WHERE ak.key_hash = $1 AND ak.is_active = true""",
                 key_hash,
@@ -43,7 +61,40 @@ async def validate_api_key(raw_key: str) -> Optional[dict]:
             if not row:
                 return None
 
-            # Update last used
+            # Check user active
+            if not row["user_active"]:
+                return None
+
+            # Per-key daily rate limit
+            plan = row["plan"] or "free"
+            daily_limit = _KEY_DAILY_LIMITS.get(plan, 100)
+            requests_today = row.get("requests_today", 0) or 0
+
+            if daily_limit != -1 and requests_today >= daily_limit:
+                logger.warning("API key rate limit exceeded: %s (%d/%d)", row["key_prefix"], requests_today, daily_limit)
+                return None  # Rate limited
+
+            # Scope enforcement
+            if required_scope:
+                scopes = row.get("scopes") or []
+                if isinstance(scopes, str):
+                    import json
+                    scopes = json.loads(scopes) if scopes else []
+
+                # "admin" scope grants everything
+                if scopes and "admin" not in scopes:
+                    # Check exact match or wildcard (e.g., "workflows:read" matches "read")
+                    scope_parts = required_scope.split(":")
+                    has_scope = (
+                        required_scope in scopes
+                        or scope_parts[-1] in scopes  # "read" covers "workflows:read"
+                        or f"{scope_parts[0]}:*" in scopes  # "workflows:*" covers all
+                    )
+                    if not has_scope:
+                        logger.warning("API key scope denied: %s needs '%s', has %s", row["key_prefix"], required_scope, scopes)
+                        return None
+
+            # Update last used + increment counter
             await conn.execute(
                 "UPDATE api_keys SET last_used_at = now(), requests_today = requests_today + 1 WHERE id = $1",
                 row["id"],
@@ -54,9 +105,11 @@ async def validate_api_key(raw_key: str) -> Optional[dict]:
                 "email": row["email"],
                 "name": row["name"],
                 "role": row["role"],
-                "plan": row["plan"],
+                "plan": plan,
                 "scopes": row["scopes"],
                 "key_name": row["name"],
+                "requests_today": requests_today + 1,
+                "daily_limit": daily_limit,
             }
     except Exception as e:
         logger.warning("API key validation error: %s", e)

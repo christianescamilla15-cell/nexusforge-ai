@@ -532,7 +532,7 @@ async def get_automation_dashboard(automation_id: UUID, request: Request):
 
 @router.post("/webhook/{webhook_secret}", status_code=201)
 async def handle_webhook_trigger(webhook_secret: str, request: Request):
-    """Execute an automation via its webhook URL."""
+    """Execute an automation via its webhook URL. Supports HMAC signature verification."""
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -545,8 +545,19 @@ async def handle_webhook_trigger(webhook_secret: str, request: Request):
         if not auto:
             raise HTTPException(status_code=404, detail="Webhook not found or inactive")
 
+        # Verify HMAC signature if provided (optional but recommended)
+        signature = request.headers.get("X-NexusForge-Signature", "")
+        body_bytes = await request.body()
+        if signature:
+            import hmac as _hmac, hashlib as _hashlib
+            expected = "sha256=" + _hmac.new(
+                webhook_secret.encode(), body_bytes, _hashlib.sha256
+            ).hexdigest()
+            if not _hmac.compare_digest(signature, expected):
+                raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
         try:
-            input_data = await request.json()
+            input_data = json.loads(body_bytes) if body_bytes else {}
         except Exception:
             input_data = {}
 
