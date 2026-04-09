@@ -203,6 +203,9 @@ app.include_router(refactor_router, prefix="/api", tags=["refactor-engine"])
 from app.routes.organizations import router as org_router
 app.include_router(org_router, prefix="/api", tags=["organizations"])
 
+from app.routes.admin import router as admin_router
+app.include_router(admin_router, prefix="/api", tags=["admin"])
+
 # Mythos — OWNER-ONLY security auditor (returns 404 without valid key)
 from app.security.routes import router as mythos_router
 app.include_router(mythos_router, prefix="/api", tags=["mythos"])
