@@ -22,6 +22,7 @@ PUBLIC_PREFIXES = [
     "/api/auth/",
     "/api/templates",
     "/api/automations/webhook/",
+    "/api/mythos",  # Self-protected via X-Mythos-Key (returns 404 without it)
 ]
 
 # Swagger/docs only accessible in development (NEXUSFORGE_ENV != production)

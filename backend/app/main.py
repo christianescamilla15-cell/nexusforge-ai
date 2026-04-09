@@ -193,3 +193,7 @@ app.include_router(demo_router, prefix="/api", tags=["demo"])
 from app.routes.sdk import router as sdk_router
 app.include_router(sdk_router, prefix="/api", tags=["agent-sdk"])
 
+# Mythos — OWNER-ONLY security auditor (returns 404 without valid key)
+from app.security.routes import router as mythos_router
+app.include_router(mythos_router, prefix="/api", tags=["mythos"])
+
