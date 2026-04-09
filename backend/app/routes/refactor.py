@@ -285,6 +285,85 @@ async def scan_rpa(body: CSharpAnalyzeRequest, request: Request):
     return report.to_dict()
 
 
+class TriageRequest(BaseModel):
+    project_path: str
+    issues: list[dict] = []        # Pre-loaded issues, or empty to scan from code
+    apps: list[str] | None = None  # Filter to specific apps
+
+
+@router.post("/triage")
+async def triage_issues(body: TriageRequest, request: Request):
+    """Prioritize issues into remediation batches (handles 166K+ issues)."""
+    _get_user_id(request)
+
+    from app.refactor.triage import IssuTriageEngine
+
+    engine = IssuTriageEngine()
+
+    # If no pre-loaded issues, generate from code analysis
+    if not body.issues:
+        from app.refactor.ingestion import RepoIngestionEngine
+        from app.refactor.csharp_analyzer import CSharpAnalyzer
+
+        ingestion = RepoIngestionEngine()
+        graph = await ingestion.ingest(body.project_path)
+
+        issues = []
+        # Add ingestion hotspots as issues
+        for h in graph.vulnerability_hotspots:
+            issues.append({
+                "title": f"Vulnerability in {h['file']}",
+                "category": "code_quality",
+                "severity": "high" if h["vulnerabilities"] > 2 else "medium",
+                "file_path": h["file"],
+                "app": "",
+            })
+
+        # Add C# findings
+        analyzer = CSharpAnalyzer(body.project_path)
+        projects = await analyzer.analyze()
+        for p in projects:
+            for f in p.findings:
+                issues.append({
+                    "title": f.title,
+                    "category": f.category,
+                    "severity": f.severity,
+                    "cwe": f.cwe,
+                    "file_path": f.file_path,
+                    "line_number": f.line_number,
+                    "app": p.name,
+                })
+
+        body.issues = issues
+
+    report = engine.triage(body.issues, apps=body.apps)
+    return report.to_dict()
+
+
+@router.post("/scan-db")
+async def scan_database(body: CSharpAnalyzeRequest, request: Request):
+    """Analyze database integrity — missing FK, PII columns, schema issues."""
+    _get_user_id(request)
+
+    from app.refactor.db_analyzer import DatabaseIntegrityAnalyzer
+
+    analyzer = DatabaseIntegrityAnalyzer(body.project_path)
+    report = await analyzer.analyze()
+    return report.to_dict()
+
+
+@router.post("/scan-pii")
+async def scan_pii(body: CSharpAnalyzeRequest, request: Request):
+    """Scan codebase for personal data exposure (25 PII types)."""
+    _get_user_id(request)
+
+    from app.refactor.pii_scanner import PIIScanner
+
+    scanner = PIIScanner(body.project_path)
+    report = await scanner.scan()
+    return report.to_dict()
+
+
 @router.get("/status/{project_path:path}")
 async def get_status(project_path: str, request: Request):
     """Check status of a refactoring job."""
