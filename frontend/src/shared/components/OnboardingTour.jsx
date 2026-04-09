@@ -5,12 +5,12 @@ import { t } from '../i18n/translations'
 const TOUR_STEPS = [
   {
     id: 'welcome',
-    page: 'dashboard',
-    target: '.nxf-main-content main',
-    title: { es: '!Bienvenido a NexusForge!', en: 'Welcome to NexusForge!' },
+    page: null,
+    target: '[data-page="chat-first"]',
+    title: { es: 'Bienvenido a NexusForge!', en: 'Welcome to NexusForge!' },
     desc: {
-      es: 'Este es tu dashboard principal. Aqui veras el resumen de tus automatizaciones, ejecuciones y agentes.',
-      en: 'This is your main dashboard. Here you\'ll see a summary of your automations, executions and agents.',
+      es: 'Describe lo que quieres automatizar en el chat y la IA lo construye paso a paso.',
+      en: 'Describe what you want to automate in the chat and AI builds it step by step.',
     },
   },
   {
