@@ -133,9 +133,9 @@ app.add_middleware(AuthMiddleware)
 # CORS — outermost middleware so ALL responses (including 401s) get CORS headers
 # Must be added LAST so it wraps everything, including AuthMiddleware 401 responses
 _origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
-if _origins == ["*"] and _os.environ.get("NEXUSFORGE_ENV") == "production":
-    _startup_logger = logging.getLogger("nexusforge.cors")
-    _startup_logger.warning("CORS: wildcard origins in production — set ALLOWED_ORIGINS env var")
+import os as _main_os
+if _origins == ["*"] and _main_os.environ.get("NEXUSFORGE_ENV") == "production":
+    logging.getLogger("nexusforge.cors").warning("CORS: wildcard origins in production — set ALLOWED_ORIGINS env var")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
