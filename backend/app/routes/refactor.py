@@ -445,6 +445,36 @@ async def scan_multilang(body: MultiLangScanRequest, request: Request):
     return report.to_dict()
 
 
+class StranglerPlanRequest(BaseModel):
+    project_path: str
+    name: str = ""
+    format: str = "json"  # "json" or "markdown"
+
+
+@router.post("/strangler-plan")
+async def strangler_plan(body: StranglerPlanRequest, request: Request):
+    """Produce a phased strangler-pattern migration plan for a legacy app.
+
+    Ingests the target project, classifies modules by architectural role
+    (controller / repository / service / shared / mainframe), and emits
+    an ordered decomposition plan with per-phase risk, effort estimate,
+    rollback strategy and stakeholder narrative. Mainframe components
+    are always wrap-only, never rewritten.
+
+    Response format:
+      - "json" (default): StranglerPlan.to_dict()
+      - "markdown": {"markdown": "<rendered plan>"}
+    """
+    _get_user_id(request)
+
+    from app.refactor.strangler_planner import build_plan, render_markdown
+
+    plan = await build_plan(body.project_path, body.name)
+    if body.format.lower() == "markdown":
+        return {"markdown": render_markdown(plan)}
+    return plan.to_dict()
+
+
 @router.get("/status/{project_path:path}")
 async def get_status(project_path: str, request: Request):
     """Check status of a refactoring job."""
