@@ -655,6 +655,79 @@ def _static_governance(tenant_id: str) -> dict | None:
         return None
 
 
+@router.get("/showcase/{tenant_id}/report-out")
+async def get_report_out(tenant_id: str):
+    """Return the rendered Report Out markdown for one tenant.
+
+    Assembles a single-document stakeholder deliverable from the
+    tenant's showcase report, strangler plans, compliance, commercial
+    risk and governance data. Prefers DB-persisted payloads when
+    available, falling back to the static fixtures in
+    backend/showcase_data/.
+    """
+    if "/" in tenant_id or ".." in tenant_id or "\\" in tenant_id:
+        raise HTTPException(status_code=400, detail="Invalid tenant id")
+
+    from app.showcase import report_out as _ro
+
+    report = None
+    compliance = None
+    commercial_risk = None
+    governance = None
+    strangler_plans: dict[str, dict] = {}
+
+    run = await _latest_db_run(tenant_id)
+    if run:
+        rep = run.get("report") or {}
+        if rep:
+            report = rep
+            # Governance and commercial risk live inside the persisted
+            # report payload when present.
+            if isinstance(rep.get("governance"), dict):
+                governance = rep["governance"]
+            if isinstance(rep.get("commercial_risk"), dict):
+                commercial_risk = rep["commercial_risk"]
+        if run.get("compliance"):
+            compliance = run["compliance"]
+        plans = run.get("strangler_plans") or {}
+        if isinstance(plans, dict):
+            strangler_plans = plans
+
+    if report is None:
+        report = _static_report(tenant_id)
+    if compliance is None:
+        compliance = _static_compliance(tenant_id)
+    if commercial_risk is None:
+        commercial_risk = _static_commercial_risk(tenant_id)
+    if governance is None:
+        governance = _static_governance(tenant_id)
+    if not strangler_plans:
+        plans_dir = _SHOWCASE_DATA_DIR / tenant_id / "strangler_plans"
+        if plans_dir.is_dir():
+            for plan_file in sorted(plans_dir.glob("*.json")):
+                try:
+                    strangler_plans[plan_file.stem] = json.loads(
+                        plan_file.read_text(encoding="utf-8")
+                    )
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Corrupt strangler plan file %s", plan_file.name
+                    )
+
+    if report is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    markdown = _ro.render(
+        tenant_id=tenant_id,
+        report=report,
+        compliance=compliance,
+        commercial_risk=commercial_risk,
+        governance=governance,
+        strangler_plans=strangler_plans,
+    )
+    return {"tenant_id": tenant_id, "markdown": markdown}
+
+
 @router.get("/showcase/{tenant_id}/governance")
 async def get_governance_profile(tenant_id: str):
     """Return the governance metadata for one tenant.
