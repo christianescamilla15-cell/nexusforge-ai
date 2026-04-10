@@ -267,6 +267,223 @@ encoding-damaged**, yielding no new substantive data. The April 9 session
 transcripts remain the authoritative source; further extraction effort on
 the older files is not expected to return useful signal.
 
+## 15. Batch-3 supplementary findings (2026-04-10 second update)
+
+A second pass in the same day, after the upstream research repo added
+seven commits including a vendor assessment "Report Out" (~168-slide
+deck), a per-app Technical Debt Composition Plan, a manager Q&A deck
+and corrected counts. All content below is sanitized — no real client,
+sector, people, geography or system names.
+
+### Corrected counts (CRITICAL — supersede prior brief)
+
+- **Total raw issues**: 166,714 (was roughly right)
+- **Total actionable issues**: 13,547 (was "~13,947" — off by 400)
+- **Critical/blocker ratio**: 8.1% of actionable ≈ 1,098 items (confirms
+  the earlier 7-8% estimate)
+- **Core-layer parallel backlog**: +23,283 findings in the legacy core
+  code being remediated by an independent parallel workstream. Combined
+  ecosystem total: **189,997 findings**.
+- **Total ecosystem size**: 5,634,738 LOC across **31 apps + 57 components**
+  (was rounded to "5.6M" previously — now exact)
+
+### Per-app breakdown (using existing codenames; numbers updated)
+
+Prior counts underestimated several apps. Final numbers from the vendor
+Report Out, re-mapped to the tenant-alpha codenames:
+
+| codename | LOC | Code issues | DB findings | Total | BLOCKER | CRITICAL | Notes |
+|---|---|---|---|---|---|---|---|
+| app-01 | 65,018 | 26 | 22 | 48 | 2 | 6 | 51 tables, **0 FK**, 71 stored procedures (67 stale since 2022), 594 MB |
+| app-02 | ~40K | 5 | — | 12 | 2 | 3 | Best-documented; lowest remediation risk |
+| app-03 | ~80K | 13 | DB INACTIVE | 13 | 5 | 8 | **DB inactive since ~2.5 years ago** — recommend retirement pending dual validation |
+| app-04 | ~213K | 210 | — | 210 | 6 | 3 | **Actually 3 sub-projects**, not monolithic: Java analytics + Python RPA + REST backend. Highest BLOCKER density. Test coverage 0%. Max cyclomatic complexity 153. |
+| app-05 | UNKNOWN | — | — | — | — | — | **Not analyzed** by vendor — discovery phase required |
+| nexus app | ~161K+ | 2,238 | — | 2,238 | — | 68 security | 4 sub-projects, 4 languages, 4 database engines, shared context with modules outside scope (cross-team coupling risk) |
+
+**Key correction:** the "simple satellite apps" assumption was wrong.
+Real enterprise legacy apps are bundles of sub-projects (3–4 sub-modules
+typical) with multiple stacks each. The synth generator currently treats
+each app as a single stack — this should be relaxed.
+
+### Plan Componer Deuda — technical debt composition plan structure
+
+The vendor delivered a per-app refactoring roadmap. Each app is classified
+by action and assigned to a phase:
+
+| Action | Meaning |
+|---|---|
+| REFACTOR | Keep the app, rewrite internals |
+| RETIRE | Decommission (only after dual validation: technical + business) |
+| RETAIN | Keep as-is, no changes |
+| TBD | Needs discovery phase |
+
+Typical per-app sub-tasks extracted from the plan:
+- **Credentials centralization** (all apps) — move hardcoded secrets to a
+  centralized secrets manager. This is usually the biggest "quick win" —
+  a single refactor closes 10–15 findings at once.
+- **Index / query optimization** (SQL Server / MySQL apps) — typical
+  target: reduce slow queries from ~27 to ~10; stored procedures from
+  ~67 to ~20.
+- **Foreign key restoration** — typical starting point is 0 FK on 51+
+  tables; full restoration is a multi-sprint effort due to data cleanup.
+- **Authentication / authorization** (REST endpoints) — majority of
+  endpoints lack auth decorators.
+- **XSS sanitization** (frontend apps) — typical fix: introduce
+  DOMPurify-style sanitizer at the rendering layer.
+- **SQL parameterization** — the single largest category (matches prior
+  estimate of 3K+).
+- **Cyclomatic complexity reduction** — typical "before" numbers are
+  extreme: max 153, averages 45+. Target: max <50, average <15.
+- **Test coverage from 0%** — every app starts at zero. Target: 70%.
+
+### Timeline (concrete dates now locked in)
+
+- **Discovery gate**: mid-April 2026. Blocked on code access from the
+  legacy vendor. This is the hard dependency.
+- **Refactoring execution**: May–June 2026 (phase 2)
+- **Testing + UAT + compliance**: July–August 2026 (phase 3)
+- **Hard deadline**: September 2026 for all 5 apps to be production-
+  ready with clean security posture — a **4.5-month window** from
+  start of execution.
+
+**Parallel workstream**: an independent team is remediating 3,000+
+findings in the legacy core code. Satellite-app teams do NOT touch the
+core; core fixes propagate to satellites through the normal merge path.
+
+### Cost / exposure numbers (concrete)
+
+- **Reputational penalty risk**: up to $13M USD
+- **PII / privacy penalty risk**: up to $5M USD
+- **Data-integrity operational risk**: ~$500K USD/year
+- **Vendor billings 2024–2025**: ~$8.6M USD, with ~40% of that
+  (~$3.4M) billed without a written contract — an open commercial risk.
+- **Assessment itself**: 10+ weeks of work by the consulting partner,
+  using a proprietary AI scanning platform, resulting in a 168-slide
+  Report Out.
+
+### Governance structure (confirmed)
+
+- **Monthly steering committee** — meets on day 14 of each month,
+  chaired by a leadership pair, with architects + compliance + product
+  owners attending. First formal progress report post-discovery.
+- **Two-team parallel delivery** — two external teams work in parallel
+  on disjoint sets of apps (5 + 5) under a single unified program
+  manager hired specifically to coordinate them.
+- **Tech lead role pending** — the client is hiring an internal tech
+  lead for post-modernization knowledge transfer; not yet filled.
+- **Code access gate** — the legacy vendor controls repo access via an
+  intermediate reviewer who vets all submissions. External teams do NOT
+  have direct write access; every change goes through the vendor's
+  reviewer first. This is a **delivery bottleneck**, not a security
+  control.
+- **CISO maturity**: the client's security leadership was recently
+  hired; overall IT maturity self-assessed as 2/5. This is why the
+  modernization is happening now: immature security posture + new
+  compliance obligations from recent corporate events.
+
+### Decisions locked in vs. still debated
+
+**Locked in:**
+- Cloud provider: single hyperscaler (AWS dominant, already ~90% of
+  net-new workloads)
+- Modernization tooling: AI-assisted refactoring service from the
+  hyperscaler
+- Security model: encryption at rest + in transit, centralized secrets
+  manager, no plaintext PII in logs
+- Database approach: modernize + add integrity constraints, no lift-
+  and-shift to NoSQL
+- Governance: dual Git branch strategy enforced at repo level
+  (application flow + infrastructure flow)
+
+**Still debated:**
+- **app-03 retirement** — vendor says retire, team wants dual validation
+  (tech exploit viability + business ownership confirmation) before
+  decommission
+- **app-05 scope** — blocked on discovery; unknown if sandbox exists
+  for integration testing against an external regulatory validator
+- **Nexus app refactoring scope** — on-premise, multi-language,
+  multi-DB. Team unclear whether to refactor or replace. Cross-team
+  coupling (shared modules) adds scheduling risk.
+- **Target operating model shift** — evaluation of a unified-order
+  transactional model vs. the current per-line-item model. If the
+  unified-order model is adopted, the 5-app roadmap requires re-
+  architecture. **NOT yet decided.**
+
+### New synthetic generator implications (Batch 3)
+
+These refine, not replace, the Batch 2 recipe guidance:
+
+1. **Apps are bundles of sub-projects, not monoliths.** Update the
+   generator to support `sub_projects: [{name, language, loc, ...}]`
+   per app. `app-04` specifically should be split into 3 sub-projects
+   (Java + Python + TypeScript frontend). The nexus app should be 4
+   sub-projects across 4 languages.
+2. **Corrected per-app budgets**:
+   - `app-01`: bump to ~65K LOC, 26 code findings + 22 DB findings,
+     51 tables, 71 stored procedures (all legacy)
+   - `app-02`: ~40K LOC, keep low finding budget (~5 code, 7 CVE-like)
+   - `app-03`: ~80K LOC, 13 critical findings, generate with a
+     `db_inactive_since` flag to trigger the retirement-path logic
+   - `app-04`: ~213K LOC total across 3 sub-projects, 210 findings,
+     test coverage 0%, max complexity 153
+   - `nexus app`: ~161K+ LOC, 2,238 findings, shared-context coupling
+     to modules outside the tenant scope
+3. **Database fixture** should generate: 51 tables, zero FK,
+   71 stored procedures (60+ with "last modified 2012" comments),
+   594 MB table size — use this as the "standard legacy schema" shape.
+4. **Cyclomatic complexity** should be injected: some functions with
+   CC 150+, average 45+. These trip automated complexity scanners and
+   drive the god-class signal the refactor engine already detects.
+5. **Decision-gate pattern**: generate a per-app `refactor_decision.md`
+   stub with fields `action: refactor|retire|retain|tbd`,
+   `validation_checklist: [...]`, `blockers: [...]`. The strangler
+   planner should read this file if present and honor the decision.
+6. **Parallel core workstream**: generate a sibling `core/` directory
+   at the tenant root with its own `readme_parallel_workstream.md`
+   explaining that core refactoring is handled outside the scope of
+   the satellite-app pipeline. The refactor engine should detect and
+   skip any directory marked as parallel workstream.
+7. **Report Out simulator**: write a small utility that produces a
+   sanitized "vendor Report Out" markdown per tenant summarizing the
+   per-app breakdown, action recommendations, and phase assignments.
+   This is what executive stakeholders actually consume.
+8. **Commercial risk fixture**: add a `commercial_risk.md` per tenant
+   documenting vendor concentration, contract coverage gaps,
+   penalty exposure — these are inputs the strangler planner should
+   factor into phase ordering (high commercial risk = bring forward).
+9. **Compliance deadline fixture**: add `compliance_deadlines.yaml`
+   with the Q2/Q3/Q4 dates and the specific certifications required.
+   The executive dashboard can surface the countdown.
+10. **Governance fixture**: add `governance.yaml` with steering
+    committee cadence, parallel team structure, code-access gate
+    presence, tech-lead role status — these are the organizational
+    inputs that ultimately determine whether a refactoring program
+    succeeds. NexusForge should model them as first-class tenant
+    metadata.
+
+### Summary for the NexusForge narrative
+
+Batch 3 confirms that real enterprise modernization is **deeply coupled
+to audit/compliance deadlines, vendor dependencies, and cost-vs-risk
+tradeoffs at the executive layer**. The 4.5-month phase-1 window is
+ambitious and contingent on code access gates that are outside the
+execution team's control.
+
+The synthetic generator should model not just **code debt** but
+**organizational debt**: immature security leadership, new public-
+reporting obligations, commercial contracts in renegotiation, vendor
+revenue concentration, code access bottlenecks. These are the factors
+that turn a "weeks of code" refactor into a "months of coordination"
+program. NexusForge's differentiator is that it can compress the code
+work to days — but the demo narrative must acknowledge and plan for
+the organizational friction that remains.
+
+The quick-win pattern every enterprise in this profile benefits from:
+**credentials centralization first**. One refactor closes 10–15 findings
+simultaneously and builds the momentum needed for the rest of the
+program. The synth generator should make this the obvious first move.
+
 ---
 
 ## Implications for NexusForge as "Platform of the Future"
