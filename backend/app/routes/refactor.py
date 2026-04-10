@@ -422,6 +422,29 @@ async def scan_pii(body: CSharpAnalyzeRequest, request: Request):
     return report.to_dict()
 
 
+class MultiLangScanRequest(BaseModel):
+    project_path: str
+    languages: list[str] | None = None  # None = all registered languages
+
+
+@router.post("/scan-multilang")
+async def scan_multilang(body: MultiLangScanRequest, request: Request):
+    """Multi-language vulnerability scan — Python, VB.NET, and more.
+
+    Complements `/analyze-csharp` by covering the languages it does not
+    handle. Runs regex-based SQL injection, hardcoded-credential,
+    weak-crypto, command-injection, suppressed-exception and info-leak
+    detectors for each registered language.
+    """
+    _get_user_id(request)
+
+    from app.refactor.multi_lang_scanner import MultiLangScanner
+
+    scanner = MultiLangScanner(body.project_path, languages=body.languages)
+    report = scanner.scan()
+    return report.to_dict()
+
+
 @router.get("/status/{project_path:path}")
 async def get_status(project_path: str, request: Request):
     """Check status of a refactoring job."""
