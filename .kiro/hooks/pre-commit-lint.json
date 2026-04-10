@@ -1,5 +1,0 @@
-{
-  "description": "Run linting before commit",
-  "trigger": "pre-commit",
-  "command": "cd backend && python -m py_compile app/main.py"
-}

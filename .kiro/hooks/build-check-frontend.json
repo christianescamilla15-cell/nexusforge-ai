@@ -1,6 +1,0 @@
-{
-  "description": "Verify frontend builds on change",
-  "trigger": "on-save",
-  "pattern": "frontend/src/**/*.jsx",
-  "command": "cd frontend && npx vite build --mode production"
-}

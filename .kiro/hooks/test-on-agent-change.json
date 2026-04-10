@@ -1,6 +1,0 @@
-{
-  "description": "Run agent tests when agent files change",
-  "trigger": "on-save",
-  "pattern": "backend/app/agents/*.py",
-  "command": "cd backend && pytest tests/test_agents.py -x -q"
-}
