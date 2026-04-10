@@ -58,11 +58,13 @@ synth_output/
 /plugins/
 /packages/
 
-# Stale top-level docs (superseded by docs/ folder)
-ARCHITECTURE.md
-API_CONTRACT.md
-DEMO_SCRIPT.md
-PROJECT_SUMMARY.md
+# Stale top-level docs (superseded by docs/ folder).
+# Leading slash restricts these to the repo root, so docs/DEMO_SCRIPT.md
+# etc. are not affected by these rules.
+/ARCHITECTURE.md
+/API_CONTRACT.md
+/DEMO_SCRIPT.md
+/PROJECT_SUMMARY.md
 
 # CLAUDE.md — stays on disk for Claude Code to read, but not committed
 # (reveals internal architecture notes, deploy gotchas, local paths)
