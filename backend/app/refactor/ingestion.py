@@ -94,6 +94,36 @@ _IGNORE_DIRS = {
     ".env", "logs", "coverage", ".next", ".nuxt",
 }
 
+# Batch 3 deliverable E — parallel workstream marker.
+# Any directory containing a file with this exact basename at its root
+# is skipped (along with its entire subtree) by the ingestion engine.
+# The marker is emitted by the synth generator at the tenant/core level
+# to represent a legacy-core workstream owned by a different team.
+_PARALLEL_WORKSTREAM_MARKER = "parallel_workstream.md"
+
+
+def _find_parallel_workstream_roots(root: Path) -> list[Path]:
+    """Return directories that contain the parallel-workstream marker.
+
+    Walks the tree once looking for files named exactly
+    ``parallel_workstream.md``. Each match's parent directory is the
+    root of a workstream we must skip. The list is resolved to absolute
+    paths so callers can do fast ``startswith`` checks on file paths.
+    """
+    if not root.exists():
+        return []
+    roots: list[Path] = []
+    try:
+        for marker in root.rglob(_PARALLEL_WORKSTREAM_MARKER):
+            if marker.is_file():
+                try:
+                    roots.append(marker.parent.resolve())
+                except OSError:
+                    continue
+    except PermissionError:
+        pass
+    return roots
+
 # ── Data Models ─────────────────────────────────────────────────────────────
 
 @dataclass
@@ -294,14 +324,43 @@ class RepoIngestionEngine:
         return graph
 
     def _scan_files(self, root: Path) -> list[FileInfo]:
-        """Scan all source files in the repository."""
+        """Scan all source files in the repository.
+
+        Respects two skip mechanisms:
+        1. ``_IGNORE_DIRS`` — classic build / cache / VCS directories
+           that never contain source we care about.
+        2. Parallel workstream markers — any directory containing
+           ``parallel_workstream.md`` at its root is excluded along
+           with its entire subtree. See ``_find_parallel_workstream_roots``.
+        """
         files = []
+        parallel_roots = _find_parallel_workstream_roots(root)
+        if parallel_roots:
+            logger.info(
+                "Skipping %d parallel workstream directorie(s): %s",
+                len(parallel_roots),
+                [str(p.relative_to(root.resolve())) for p in parallel_roots],
+            )
+
         for fpath in root.rglob("*"):
             if not fpath.is_file():
                 continue
             # Skip ignored directories
             if any(part in _IGNORE_DIRS for part in fpath.parts):
                 continue
+            # Skip parallel workstream subtrees
+            if parallel_roots:
+                try:
+                    resolved = fpath.resolve()
+                except OSError:
+                    continue
+                if any(
+                    str(resolved).startswith(str(pr) + ("\\" if "\\" in str(pr) else "/"))
+                    or resolved == pr
+                    or str(resolved).startswith(str(pr))
+                    for pr in parallel_roots
+                ):
+                    continue
 
             ext = fpath.suffix.lower()
             lang = _EXT_TO_LANG.get(ext)
