@@ -78,6 +78,7 @@ function SeverityBar({ findingsBySeverity }) {
 }
 
 function AppCard({ app, onSelect, selected, lang }) {
+  const [hovered, setHovered] = useState(false)
   const bySev = app.findings?.by_severity || {}
   const byCat = app.findings?.by_category || {}
   const total = app.findings?.total || 0
@@ -85,12 +86,16 @@ function AppCard({ app, onSelect, selected, lang }) {
   return (
     <button
       onClick={() => onSelect(app.codename)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         textAlign: 'left', cursor: 'pointer', width: '100%',
         background: selected ? '#EEF2FF' : '#fff',
-        border: selected ? '2px solid #6366F1' : '1px solid #E5E7EB',
+        border: selected ? '2px solid #6366F1' : `1px solid ${hovered ? '#A5B4FC' : '#E5E7EB'}`,
         borderRadius: 12, padding: '16px 18px',
-        transition: 'all 0.15s',
+        transform: hovered && !selected ? 'translateY(-1px)' : 'translateY(0)',
+        boxShadow: hovered && !selected ? '0 4px 12px rgba(99, 102, 241, 0.12)' : 'none',
+        transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -492,30 +497,60 @@ function CommercialRiskCard({ data, lang, isMobile }) {
               const lock = LOCK_IN_COLORS[v.lock_in_level] || LOCK_IN_COLORS.medium
               return (
                 <div key={idx} style={{
-                  display: 'grid',
-                  gridTemplateColumns: isMobile ? '1fr' : '1.2fr auto auto auto',
-                  gap: 10, alignItems: 'center',
                   padding: '10px 12px', background: '#F9FAFB', borderRadius: 8,
                 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>
-                      {v.name}
+                  {isMobile ? (
+                    // Mobile: stack name on top, then a row of metrics below
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                            {v.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#6B7280' }}>{v.category}</div>
+                        </div>
+                        <div style={{
+                          padding: '3px 8px', borderRadius: 10, fontSize: 9, fontWeight: 700,
+                          background: lock.bg, color: lock.fg, border: `1px solid ${lock.border}`,
+                          textTransform: 'uppercase', whiteSpace: 'nowrap',
+                        }}>
+                          {lock.label}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#6B7280' }}>
+                        <span>{Number(v.revenue_share_pct || 0).toFixed(1)}% rev</span>
+                        <span>•</span>
+                        <span>{formatUsd(v.spend_2y_usd)} / 2y</span>
+                      </div>
+                    </>
+                  ) : (
+                    // Desktop: original 4-column grid
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.2fr auto auto auto',
+                      gap: 10, alignItems: 'center',
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>
+                          {v.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6B7280' }}>{v.category}</div>
+                      </div>
+                      <div style={{
+                        padding: '3px 9px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                        background: lock.bg, color: lock.fg, border: `1px solid ${lock.border}`,
+                        textTransform: 'uppercase', whiteSpace: 'nowrap',
+                      }}>
+                        lock-in: {lock.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>
+                        {Number(v.revenue_share_pct || 0).toFixed(1)}% rev
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>
+                        {formatUsd(v.spend_2y_usd)} / 2y
+                      </div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#6B7280' }}>{v.category}</div>
-                  </div>
-                  <div style={{
-                    padding: '3px 9px', borderRadius: 10, fontSize: 10, fontWeight: 700,
-                    background: lock.bg, color: lock.fg, border: `1px solid ${lock.border}`,
-                    textTransform: 'uppercase', whiteSpace: 'nowrap',
-                  }}>
-                    {lang === 'es' ? 'lock-in' : 'lock-in'}: {lock.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>
-                    {Number(v.revenue_share_pct || 0).toFixed(1)}% {lang === 'es' ? 'rev' : 'rev'}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>
-                    {formatUsd(v.spend_2y_usd)} / 2y
-                  </div>
+                  )}
                 </div>
               )
             })}
@@ -545,6 +580,7 @@ function CommercialRiskCard({ data, lang, isMobile }) {
                     <div style={{
                       width: `${pct}%`, height: '100%',
                       background: 'linear-gradient(90deg, #F87171, #DC2626)',
+                      transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
                     }} />
                   </div>
                   {p.driver && (
@@ -849,6 +885,7 @@ function renderMarkdown(md) {
 }
 
 function ReportOutModal({ markdown, onClose, lang }) {
+  const isMobile = useIsMobile()
   if (!markdown) return null
   const handleDownload = () => {
     try {
@@ -871,20 +908,23 @@ function ReportOutModal({ markdown, onClose, lang }) {
       style={{
         position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: 20,
+        zIndex: 1000, padding: isMobile ? 8 : 20,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           background: '#fff', borderRadius: 12, maxWidth: 900, width: '100%',
-          maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          maxHeight: isMobile ? '95vh' : '90vh',
+          display: 'flex', flexDirection: 'column',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         }}
       >
         <div style={{
-          padding: '16px 20px', borderBottom: '1px solid #E5E7EB',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: isMobile ? '12px 14px' : '16px 20px',
+          borderBottom: '1px solid #E5E7EB',
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', gap: 8, flexWrap: 'wrap',
         }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>
             {lang === 'es' ? 'Reporte ejecutivo' : 'Executive Report Out'}
@@ -914,7 +954,12 @@ function ReportOutModal({ markdown, onClose, lang }) {
         </div>
         <div
           style={{
-            padding: '20px 28px', overflow: 'auto', flex: 1, color: '#374151',
+            padding: isMobile ? '14px 16px' : '20px 28px',
+            overflow: 'auto',
+            overflowWrap: 'break-word',
+            flex: 1,
+            color: '#374151',
+            fontSize: isMobile ? 12 : 13,
           }}
           dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }}
         />
@@ -1020,9 +1065,30 @@ export default function TenantShowcase({ lang = 'en' }) {
   }, [selectedApp])
 
   if (loading) {
+    // Skeleton screen — mirrors the real layout so the transition to
+    // loaded state does not shift elements around. Uses a gentle CSS
+    // shimmer animation defined inline.
+    const shimmer = {
+      background: 'linear-gradient(90deg, #F3F4F6 0%, #E5E7EB 50%, #F3F4F6 100%)',
+      backgroundSize: '200% 100%',
+      animation: 'nf-shimmer 1.4s ease-in-out infinite',
+      borderRadius: 8,
+    }
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#6B7280' }}>
-        {lang === 'es' ? 'Cargando datos del showcase...' : 'Loading showcase data...'}
+      <div style={{ padding: isMobile ? 16 : 32, maxWidth: 1400, margin: '0 auto' }}>
+        <style>{`
+          @keyframes nf-shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+        <div style={{ ...shimmer, width: '60%', height: 28, marginBottom: 8 }} />
+        <div style={{ ...shimmer, width: '80%', height: 14, marginBottom: 24 }} />
+        <div style={{ ...shimmer, width: '100%', height: 140, marginBottom: 24 }} />
+        <div style={{ ...shimmer, width: 260, height: 42, marginBottom: 20 }} />
+        <div style={{ ...shimmer, width: '100%', height: 180, marginBottom: 16 }} />
+        <div style={{ ...shimmer, width: '100%', height: 180, marginBottom: 16 }} />
+        <div style={{ ...shimmer, width: '100%', height: 180, marginBottom: 24 }} />
       </div>
     )
   }
@@ -1074,51 +1140,75 @@ export default function TenantShowcase({ lang = 'en' }) {
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-          gap: 20, marginTop: 16,
+          gap: isMobile ? 14 : 20, marginTop: 16,
         }}>
-          <div>
-            <div style={{ fontSize: 32, fontWeight: 800 }}>{totals.apps || 0}</div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>{lang === 'es' ? 'Aplicaciones' : 'Applications'}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: isMobile ? 26 : 32, fontWeight: 800, lineHeight: 1.1 }}>
+              {totals.apps || 0}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
+              {lang === 'es' ? 'Aplicaciones' : 'Applications'}
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 32, fontWeight: 800 }}>{(totals.lines_of_code || 0).toLocaleString()}</div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>{lang === 'es' ? 'Líneas de código' : 'Lines of code'}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: isMobile ? 22 : 32, fontWeight: 800, lineHeight: 1.1, overflowWrap: 'break-word' }}>
+              {(totals.lines_of_code || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
+              {lang === 'es' ? 'Líneas de código' : 'Lines of code'}
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 32, fontWeight: 800 }}>{(totals.findings || 0).toLocaleString()}</div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>{lang === 'es' ? 'Hallazgos' : 'Findings'}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: isMobile ? 22 : 32, fontWeight: 800, lineHeight: 1.1, overflowWrap: 'break-word' }}>
+              {(totals.findings || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
+              {lang === 'es' ? 'Hallazgos' : 'Findings'}
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 32, fontWeight: 800 }}>{durationSec}s</div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>{lang === 'es' ? 'Duración pipeline' : 'Pipeline duration'}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: isMobile ? 26 : 32, fontWeight: 800, lineHeight: 1.1 }}>
+              {durationSec}s
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
+              {lang === 'es' ? 'Duración' : 'Duration'}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Action bar — Report Out + future download actions */}
       <div style={{
-        display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap',
-        alignItems: 'center',
+        display: 'flex', gap: isMobile ? 6 : 12, marginBottom: 20,
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
       }}>
         <button
           onClick={openReportOut}
           disabled={reportOutLoading}
           style={{
-            padding: '10px 18px', borderRadius: 8,
+            padding: isMobile ? '12px 18px' : '10px 18px',
+            borderRadius: 8,
             background: reportOutLoading ? '#A5B4FC' : 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-            color: '#fff', border: 'none', fontSize: 13, fontWeight: 700,
+            color: '#fff', border: 'none',
+            fontSize: isMobile ? 14 : 13,
+            fontWeight: 700,
             cursor: reportOutLoading ? 'default' : 'pointer',
             boxShadow: '0 2px 6px rgba(99, 102, 241, 0.3)',
+            whiteSpace: 'nowrap',
           }}
         >
           {reportOutLoading
             ? (lang === 'es' ? 'Cargando reporte...' : 'Loading report...')
             : (lang === 'es' ? '📄 Ver reporte ejecutivo' : '📄 View Executive Report Out')}
         </button>
-        <span style={{ fontSize: 11, color: '#6B7280' }}>
+        <span style={{
+          fontSize: 11, color: '#6B7280',
+          textAlign: isMobile ? 'center' : 'left',
+        }}>
           {lang === 'es'
-            ? 'Documento único con el resumen completo del tenant — listo para stakeholders.'
-            : 'Single-document summary covering the full tenant — ready for stakeholders.'}
+            ? 'Resumen completo del tenant — listo para stakeholders.'
+            : 'Single-document summary — ready for stakeholders.'}
         </span>
       </div>
 
@@ -1183,6 +1273,7 @@ export default function TenantShowcase({ lang = 'en' }) {
                     <div style={{
                       width: `${pct}%`, height: '100%',
                       background: 'linear-gradient(90deg, #6366F1, #8B5CF6)',
+                      transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
                     }} />
                   </div>
                 </div>
@@ -1191,88 +1282,125 @@ export default function TenantShowcase({ lang = 'en' }) {
         </div>
       )}
 
-      {/* App grid + strangler detail */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '380px 1fr',
-        gap: 16, marginBottom: 24,
-      }}>
-        {/* Left: app list */}
-        <div>
-          <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>
-            {lang === 'es' ? 'Aplicaciones' : 'Applications'}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {(report.apps || []).map(app => (
-              <AppCard
-                key={app.codename}
-                app={app}
-                onSelect={setSelectedApp}
-                selected={selectedApp === app.codename}
-                lang={lang}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Right: strangler plan for selected app */}
-        <div>
-          <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>
-            {lang === 'es' ? 'Plan de migración strangler' : 'Strangler migration plan'} — <span style={{ color: '#6366F1' }}>{selectedApp || '...'}</span>
-          </div>
-
-          {planLoading && (
-            <div style={{ padding: 24, textAlign: 'center', color: '#9CA3AF' }}>
-              {lang === 'es' ? 'Cargando plan...' : 'Loading plan...'}
+      {/* App grid + strangler detail.
+          Desktop: 2-column split, all apps on the left, plan on the right.
+          Mobile:  single column, plan renders inline underneath the
+                   selected app card so users don't scroll past 5 cards. */}
+      {(() => {
+        const planPanel = (
+          <div>
+            <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>
+              {lang === 'es' ? 'Plan de migración strangler' : 'Strangler migration plan'} — <span style={{ color: '#6366F1' }}>{selectedApp || '...'}</span>
             </div>
-          )}
 
-          {stranglerPlan && !planLoading && (
-            <>
-              <div style={{
-                background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-                padding: '16px 20px', marginBottom: 12,
-              }}>
-                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
-                      {lang === 'es' ? 'Fases' : 'Phases'}
-                    </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
-                      {stranglerPlan.phases?.length || 0}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
-                      {lang === 'es' ? 'Esfuerzo' : 'Effort'}
-                    </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
-                      {totalEffortDays}d
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
-                      {lang === 'es' ? 'Módulos' : 'Modules'}
-                    </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
-                      {stranglerPlan.total_modules || 0}
-                    </div>
-                  </div>
-                </div>
-                {stranglerPlan.narrative && (
-                  <div style={{ fontSize: 13, color: '#4B5563', marginTop: 14, lineHeight: 1.5 }}>
-                    {stranglerPlan.narrative}
-                  </div>
-                )}
+            {planLoading && (
+              <div style={{ padding: 24, textAlign: 'center', color: '#9CA3AF' }}>
+                {lang === 'es' ? 'Cargando plan...' : 'Loading plan...'}
               </div>
+            )}
 
-              {(stranglerPlan.phases || []).map(phase => (
-                <StranglerPhaseCard key={phase.index} phase={phase} />
-              ))}
-            </>
-          )}
-        </div>
-      </div>
+            {stranglerPlan && !planLoading && (
+              <>
+                <div style={{
+                  background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+                  padding: '16px 20px', marginBottom: 12,
+                }}>
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
+                        {lang === 'es' ? 'Fases' : 'Phases'}
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
+                        {stranglerPlan.phases?.length || 0}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
+                        {lang === 'es' ? 'Esfuerzo' : 'Effort'}
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
+                        {totalEffortDays}d
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
+                        {lang === 'es' ? 'Módulos' : 'Modules'}
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
+                        {stranglerPlan.total_modules || 0}
+                      </div>
+                    </div>
+                  </div>
+                  {stranglerPlan.narrative && (
+                    <div style={{ fontSize: 13, color: '#4B5563', marginTop: 14, lineHeight: 1.5 }}>
+                      {stranglerPlan.narrative}
+                    </div>
+                  )}
+                </div>
+
+                {(stranglerPlan.phases || []).map(phase => (
+                  <StranglerPhaseCard key={phase.index} phase={phase} />
+                ))}
+              </>
+            )}
+          </div>
+        )
+
+        if (isMobile) {
+          // Mobile: interleave the plan directly under the selected app card
+          return (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>
+                {lang === 'es' ? 'Aplicaciones' : 'Applications'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {(report.apps || []).map(app => (
+                  <div key={app.codename}>
+                    <AppCard
+                      app={app}
+                      onSelect={setSelectedApp}
+                      selected={selectedApp === app.codename}
+                      lang={lang}
+                    />
+                    {selectedApp === app.codename && (
+                      <div style={{ marginTop: 12, marginLeft: 0 }}>
+                        {planPanel}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        }
+
+        // Desktop: classic 2-column split
+        return (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '380px 1fr',
+            gap: 16, marginBottom: 24,
+          }}>
+            <div>
+              <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10 }}>
+                {lang === 'es' ? 'Aplicaciones' : 'Applications'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {(report.apps || []).map(app => (
+                  <AppCard
+                    key={app.codename}
+                    app={app}
+                    onSelect={setSelectedApp}
+                    selected={selectedApp === app.codename}
+                    lang={lang}
+                  />
+                ))}
+              </div>
+            </div>
+            {planPanel}
+          </div>
+        )
+      })()}
 
       {/* Narrative footer */}
       <div style={{
