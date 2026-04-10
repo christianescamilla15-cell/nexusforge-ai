@@ -540,6 +540,28 @@ async def get_showcase_report(tenant_id: str):
         raise HTTPException(status_code=500, detail="Corrupt showcase report")
 
 
+@router.get("/showcase/{tenant_id}/compliance")
+async def get_compliance_profile(tenant_id: str):
+    """Return the compliance countdown data for one tenant.
+
+    Structured as a ComplianceProfile.to_dict() payload: hard_deadline,
+    certifications, phases, audit_cadence and narrative. Frontend uses
+    this to render a countdown card and a per-certification readiness
+    widget on the /showcase page.
+    """
+    if "/" in tenant_id or ".." in tenant_id or "\\" in tenant_id:
+        raise HTTPException(status_code=400, detail="Invalid tenant id")
+
+    compliance_path = _SHOWCASE_DATA_DIR / tenant_id / "compliance.json"
+    if not compliance_path.exists():
+        raise HTTPException(status_code=404, detail="Compliance profile not found")
+    try:
+        return json.loads(compliance_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.exception("Corrupt compliance profile for %s", tenant_id)
+        raise HTTPException(status_code=500, detail="Corrupt compliance profile")
+
+
 @router.get("/showcase/{tenant_id}/strangler/{app_codename}")
 async def get_strangler_plan(tenant_id: str, app_codename: str):
     """Return the pre-computed strangler migration plan for a single app."""

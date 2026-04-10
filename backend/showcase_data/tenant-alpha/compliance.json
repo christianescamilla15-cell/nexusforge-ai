@@ -1,0 +1,75 @@
+{
+  "tenant_id": "tenant-alpha",
+  "display_name": "Alpha Corp",
+  "hard_deadline": "2026-09-30",
+  "certifications": [
+    {
+      "name": "SOX Section 404",
+      "framework": "Sarbanes-Oxley Act / PCAOB AS 2201",
+      "due_date": "2026-09-30",
+      "status": "in_progress",
+      "owner": "cfo-office",
+      "description": "Internal controls over financial reporting. Revenue-accounting systems are in scope because they feed the general ledger.\n"
+    },
+    {
+      "name": "SOC 2 Type II",
+      "framework": "AICPA Trust Services Criteria",
+      "due_date": "2026-09-30",
+      "status": "in_progress",
+      "owner": "ciso",
+      "description": "Operational controls attestation covering security, availability and confidentiality. 12-month audit window ends at the hard deadline. Failure risks customer-contract renewals.\n"
+    },
+    {
+      "name": "Data Privacy Regulation",
+      "framework": "Generic GDPR-style data protection",
+      "due_date": "2026-09-30",
+      "status": "at_risk",
+      "owner": "dpo",
+      "description": "Personal data exposure during a prior incident triggered a regulator review. Encryption at rest, access logs and retention policies must be certified before the hard deadline.\n"
+    }
+  ],
+  "phases": [
+    {
+      "name": "Discovery",
+      "start_date": "2026-04-01",
+      "end_date": "2026-04-30",
+      "milestones": [
+        "Code access granted for all apps in scope",
+        "Architecture sign-off with steering committee",
+        "Per-app refactor decisions locked in"
+      ]
+    },
+    {
+      "name": "Execution",
+      "start_date": "2026-05-01",
+      "end_date": "2026-06-30",
+      "milestones": [
+        "Credentials centralization complete across all apps",
+        "SQL injection fixes landed in production for apps 01, 02, 04",
+        "Anti-corruption layer designed for legacy databases"
+      ]
+    },
+    {
+      "name": "Testing and UAT",
+      "start_date": "2026-07-01",
+      "end_date": "2026-08-31",
+      "milestones": [
+        "Automated test coverage >= 70% on critical paths",
+        "Security scan clean-up (0 BLOCKER / 0 CRITICAL remaining)",
+        "Compliance pre-audit walkthrough complete"
+      ]
+    },
+    {
+      "name": "Production cutover and compliance sign-off",
+      "start_date": "2026-09-01",
+      "end_date": "2026-09-30",
+      "milestones": [
+        "Production cutover for all apps on schedule",
+        "SOX + SOC 2 + privacy certifications signed off",
+        "Post-launch monitoring and incident runbooks in place"
+      ]
+    }
+  ],
+  "audit_cadence": "Monthly steering committee, day 14 of each month",
+  "narrative": "Publicly-traded enterprise with a 4.5-month modernization window from the start of execution to the hard production-readiness deadline. Three certifications in scope: a financial-controls framework, a security operations attestation and a data-privacy regulation. Each tracks against the same hard deadline to unify steering reporting.\n"
+}

@@ -180,6 +180,196 @@ function StranglerPhaseCard({ phase }) {
   )
 }
 
+const CERT_STATUS_COLORS = {
+  complete: { bg: '#DCFCE7', fg: '#166534', border: '#86EFAC', label: 'Complete' },
+  in_progress: { bg: '#DBEAFE', fg: '#1E40AF', border: '#93C5FD', label: 'In progress' },
+  at_risk: { bg: '#FEF3C7', fg: '#92400E', border: '#FCD34D', label: 'At risk' },
+  blocked: { bg: '#FEE2E2', fg: '#991B1B', border: '#FCA5A5', label: 'Blocked' },
+}
+
+function daysBetween(from, to) {
+  const msPerDay = 24 * 60 * 60 * 1000
+  const diff = to.getTime() - from.getTime()
+  return Math.round(diff / msPerDay)
+}
+
+function formatDateIso(iso) {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return iso
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return iso
+  }
+}
+
+function CertCard({ cert, lang }) {
+  const status = CERT_STATUS_COLORS[cert.status] || CERT_STATUS_COLORS.in_progress
+  const due = cert.due_date ? new Date(cert.due_date) : null
+  const daysLeft = due ? daysBetween(new Date(), due) : null
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 10, border: '1px solid #E5E7EB',
+      padding: '14px 16px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{cert.name}</div>
+          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{cert.framework}</div>
+        </div>
+        <div style={{
+          padding: '3px 9px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+          background: status.bg, color: status.fg, border: `1px solid ${status.border}`,
+          textTransform: 'uppercase', letterSpacing: 0.4, whiteSpace: 'nowrap',
+        }}>
+          {status.label}
+        </div>
+      </div>
+      {cert.description && (
+        <div style={{ fontSize: 12, color: '#4B5563', marginTop: 8, lineHeight: 1.5 }}>
+          {cert.description.trim()}
+        </div>
+      )}
+      {due && daysLeft !== null && (
+        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+          <span>{lang === 'es' ? 'Vence' : 'Due'}: {formatDateIso(cert.due_date)}</span>
+          <span style={{ fontWeight: 700, color: daysLeft < 60 ? '#DC2626' : '#374151' }}>
+            {daysLeft >= 0
+              ? (lang === 'es' ? `${daysLeft}d restantes` : `${daysLeft}d remaining`)
+              : (lang === 'es' ? `${-daysLeft}d vencido` : `${-daysLeft}d overdue`)}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PhaseTimeline({ phases, lang }) {
+  if (!phases || phases.length === 0) return null
+  const today = new Date()
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>
+        {lang === 'es' ? 'Fases del programa' : 'Program phases'}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {phases.map((phase, idx) => {
+          const start = phase.start_date ? new Date(phase.start_date) : null
+          const end = phase.end_date ? new Date(phase.end_date) : null
+          let state = 'future'
+          if (start && end) {
+            if (today > end) state = 'past'
+            else if (today >= start) state = 'current'
+          }
+          const colors = {
+            past: { bg: '#F3F4F6', fg: '#6B7280', accent: '#9CA3AF' },
+            current: { bg: '#EEF2FF', fg: '#3730A3', accent: '#6366F1' },
+            future: { bg: '#FFFFFF', fg: '#374151', accent: '#D1D5DB' },
+          }[state]
+          return (
+            <div key={idx} style={{
+              background: colors.bg, borderRadius: 8,
+              border: `1px solid ${colors.accent}`,
+              padding: '10px 12px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: colors.fg }}>
+                  {phase.name}
+                </div>
+                <div style={{ fontSize: 11, color: colors.fg, opacity: 0.8 }}>
+                  {formatDateIso(phase.start_date)} → {formatDateIso(phase.end_date)}
+                </div>
+              </div>
+              {phase.milestones?.length > 0 && (
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 11, color: colors.fg, opacity: 0.85 }}>
+                  {phase.milestones.map((ms, i) => (
+                    <li key={i} style={{ marginBottom: 2 }}>{ms}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function ComplianceCard({ data, lang, isMobile }) {
+  if (!data) return null
+  const hardDeadline = data.hard_deadline ? new Date(data.hard_deadline) : null
+  const daysLeft = hardDeadline ? daysBetween(new Date(), hardDeadline) : null
+  const atRiskCount = (data.certifications || []).filter(c => c.status === 'at_risk' || c.status === 'blocked').length
+  const countdownColor = daysLeft !== null
+    ? (daysLeft < 30 ? '#DC2626' : daysLeft < 90 ? '#F59E0B' : '#10B981')
+    : '#6B7280'
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+      padding: '20px 24px', marginBottom: 24,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+            {lang === 'es' ? 'Cumplimiento y fecha objetivo' : 'Compliance and hard deadline'}
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', marginTop: 4 }}>
+            {formatDateIso(data.hard_deadline)}
+          </div>
+          {data.audit_cadence && (
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{data.audit_cadence}</div>
+          )}
+        </div>
+        {daysLeft !== null && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: countdownColor, lineHeight: 1 }}>
+              {daysLeft >= 0 ? daysLeft : `-${-daysLeft}`}
+            </div>
+            <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
+              {daysLeft >= 0
+                ? (lang === 'es' ? 'días restantes' : 'days remaining')
+                : (lang === 'es' ? 'días vencido' : 'days overdue')}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {data.narrative && (
+        <div style={{ fontSize: 13, color: '#4B5563', marginTop: 12, lineHeight: 1.5 }}>
+          {data.narrative.trim()}
+        </div>
+      )}
+
+      {atRiskCount > 0 && (
+        <div style={{
+          marginTop: 12, padding: '10px 14px', background: '#FEF3C7',
+          borderRadius: 8, border: '1px solid #FCD34D',
+          fontSize: 12, color: '#92400E', fontWeight: 600,
+        }}>
+          {lang === 'es'
+            ? `⚠️ ${atRiskCount} certificación${atRiskCount > 1 ? 'es' : ''} en riesgo`
+            : `⚠️ ${atRiskCount} certification${atRiskCount > 1 ? 's' : ''} at risk`}
+        </div>
+      )}
+
+      {data.certifications?.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: 10, marginTop: 14,
+        }}>
+          {data.certifications.map((cert, idx) => (
+            <CertCard key={idx} cert={cert} lang={lang} />
+          ))}
+        </div>
+      )}
+
+      <PhaseTimeline phases={data.phases} lang={lang} />
+    </div>
+  )
+}
+
 export default function TenantShowcase({ lang = 'en' }) {
   const isMobile = useIsMobile()
   const [loading, setLoading] = useState(true)
@@ -188,6 +378,7 @@ export default function TenantShowcase({ lang = 'en' }) {
   const [selectedApp, setSelectedApp] = useState(null)
   const [stranglerPlan, setStranglerPlan] = useState(null)
   const [planLoading, setPlanLoading] = useState(false)
+  const [compliance, setCompliance] = useState(null)
 
   const tenantId = 'tenant-alpha'
 
@@ -206,6 +397,20 @@ export default function TenantShowcase({ lang = 'en' }) {
         }
       }
       setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  // Load the compliance profile (independent of the main report)
+  useEffect(() => {
+    let cancelled = false
+    fetchAPI(`/refactor/showcase/${tenantId}/compliance`).then(res => {
+      if (cancelled) return
+      if (!res.error && res.data) {
+        setCompliance(res.data)
+      }
+      // Compliance absence is silent — endpoint returns 404 if the tenant
+      // has no compliance profile, and the rest of the page should still render.
     })
     return () => { cancelled = true }
   }, [])
@@ -299,6 +504,9 @@ export default function TenantShowcase({ lang = 'en' }) {
           </div>
         </div>
       </div>
+
+      {/* Compliance countdown (Batch 3, deliverable D) */}
+      <ComplianceCard data={compliance} lang={lang} isMobile={isMobile} />
 
       {/* Totals KPIs */}
       <div style={{

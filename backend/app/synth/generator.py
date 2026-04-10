@@ -228,6 +228,27 @@ def _count_loc(dir_path: Path) -> int:
     return total
 
 
+def _write_compliance_artifact(profile: TenantProfile, tenant_out: Path) -> int:
+    """Write a compliance.json summary at the tenant root.
+
+    Consumed by the /api/refactor/showcase/<id>/compliance endpoint and
+    rendered as a countdown card on the /showcase frontend. Returns the
+    number of files written (0 if the tenant has no compliance block).
+    """
+    if profile.compliance is None:
+        return 0
+    import json as _json
+
+    payload = {
+        "tenant_id": profile.tenant_id,
+        "display_name": profile.display_name,
+        **profile.compliance.to_dict(),
+    }
+    path = tenant_out / "compliance.json"
+    path.write_text(_json.dumps(payload, indent=2), encoding="utf-8")
+    return 1
+
+
 def generate_tenant(
     profile: TenantProfile,
     output_dir: Path,
@@ -272,6 +293,9 @@ def generate_tenant(
         report.apps_generated.append(app.codename)
         report.total_files += files
         report.total_vulnerabilities += app.vulnerabilities.total()
+
+    # Tenant-wide compliance artifact
+    report.total_files += _write_compliance_artifact(profile, tenant_out)
 
     report.output_path = tenant_out
     report.total_loc = _count_loc(tenant_out)

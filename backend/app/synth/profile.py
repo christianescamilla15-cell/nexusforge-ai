@@ -8,7 +8,7 @@ deterministic: the same profile + seed always produces the same output.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -142,6 +142,53 @@ class AppRecipe:
 
 
 @dataclass
+class ComplianceCertification:
+    """One regulatory certification or audit the tenant must achieve."""
+
+    name: str  # e.g., "SOC 2 Type II"
+    framework: str  # e.g., "AICPA Trust Services Criteria"
+    due_date: str  # ISO date, e.g., "2026-09-30"
+    status: str = "in_progress"  # in_progress / at_risk / blocked / complete
+    owner: str = "compliance"  # team that owns this certification
+    description: str = ""
+
+
+@dataclass
+class ModernizationPhase:
+    """One phase in the modernization roadmap with start/end dates."""
+
+    name: str  # e.g., "Discovery", "Execution", "Testing + UAT"
+    start_date: str  # ISO date
+    end_date: str  # ISO date
+    milestones: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ComplianceProfile:
+    """Tenant-wide compliance and deadline metadata.
+
+    Loaded from an optional ``compliance`` block in the tenant YAML
+    fixture. Used by the /showcase frontend to render a countdown to
+    the hard deadline and a readiness summary for each certification.
+    """
+
+    hard_deadline: str = ""  # ISO date — the single go-live commitment
+    certifications: list[ComplianceCertification] = field(default_factory=list)
+    phases: list[ModernizationPhase] = field(default_factory=list)
+    audit_cadence: str = ""  # e.g., "Monthly steering committee, day 14"
+    narrative: str = ""  # short stakeholder-facing summary
+
+    def to_dict(self) -> dict:
+        return {
+            "hard_deadline": self.hard_deadline,
+            "certifications": [asdict(c) for c in self.certifications],
+            "phases": [asdict(p) for p in self.phases],
+            "audit_cadence": self.audit_cadence,
+            "narrative": self.narrative,
+        }
+
+
+@dataclass
 class TenantProfile:
     """Top-level tenant configuration."""
 
@@ -150,6 +197,7 @@ class TenantProfile:
     seed: int = 42
     apps: list[AppRecipe] = field(default_factory=list)
     description: str = ""
+    compliance: ComplianceProfile | None = None
 
     def app_by_codename(self, codename: str) -> AppRecipe | None:
         for app in self.apps:
@@ -233,10 +281,40 @@ def load_profile(path: str | Path) -> TenantProfile:
             )
         )
 
+    compliance = None
+    raw_compliance = raw.get("compliance")
+    if raw_compliance:
+        compliance = ComplianceProfile(
+            hard_deadline=raw_compliance.get("hard_deadline", ""),
+            audit_cadence=raw_compliance.get("audit_cadence", ""),
+            narrative=raw_compliance.get("narrative", ""),
+            certifications=[
+                ComplianceCertification(
+                    name=c["name"],
+                    framework=c.get("framework", ""),
+                    due_date=c.get("due_date", ""),
+                    status=c.get("status", "in_progress"),
+                    owner=c.get("owner", "compliance"),
+                    description=c.get("description", ""),
+                )
+                for c in raw_compliance.get("certifications", [])
+            ],
+            phases=[
+                ModernizationPhase(
+                    name=p["name"],
+                    start_date=p.get("start_date", ""),
+                    end_date=p.get("end_date", ""),
+                    milestones=p.get("milestones", []),
+                )
+                for p in raw_compliance.get("phases", [])
+            ],
+        )
+
     return TenantProfile(
         tenant_id=raw["tenant_id"],
         display_name=raw["display_name"],
         seed=raw.get("seed", 42),
         description=raw.get("description", ""),
         apps=apps,
+        compliance=compliance,
     )
