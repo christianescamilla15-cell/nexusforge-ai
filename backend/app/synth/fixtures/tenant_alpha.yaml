@@ -146,6 +146,66 @@ commercial_risk:
       cap_usd: 500000
       driver: Annualized loss from data-integrity issues in the reconciliation pipeline.
 
+# ─── Governance profile (Batch 3 follow-up) ───────────────────────────────
+# Organizational structure of the modernization program: steering
+# committee cadence, delivery teams, code access gate, and the state of
+# the post-launch tech lead slot. All names are generic role labels.
+governance:
+  narrative: >
+    Two delivery teams run in parallel under a single program manager
+    hired specifically to coordinate them. The legacy-platform vendor
+    controls write access to the target repositories via an
+    intermediate reviewer, which is a known delivery bottleneck but
+    not a security control. A post-launch tech lead role is being
+    recruited to own knowledge transfer from the modernization teams.
+  raci_summary: >
+    Responsible: delivery teams. Accountable: program manager.
+    Consulted: architecture steering + compliance. Informed: CEO +
+    CFO + CISO.
+  steering:
+    cadence: Monthly, day 14 of each month
+    owner_role: program-manager
+    first_formal_review: "2026-04-15"
+    attendees:
+      - program-manager
+      - architecture-lead
+      - compliance-lead
+      - ciso
+      - cfo-delegate
+      - legacy-vendor-liaison
+  teams:
+    - name: team-primary
+      role: primary-delivery
+      app_scope: [app-01, app-02, app-03, app-04, app-05]
+      headcount: 4
+      status: active
+    - name: team-secondary
+      role: parallel-delivery
+      app_scope: []  # owns apps outside this tenant's scope
+      headcount: 5
+      status: active
+    - name: team-core
+      role: external-vendor
+      app_scope: []  # owns the legacy core workstream
+      headcount: 8
+      status: active
+  code_access:
+    model: intermediate-reviewer
+    owner_role: legacy-vendor-reviewer
+    bottleneck: true
+    notes: >
+      All code changes are routed through an intermediate reviewer
+      owned by the legacy-platform vendor before they reach the
+      target branches. This is a delivery bottleneck (not a security
+      control) and must be modeled when estimating throughput.
+  tech_lead:
+    status: recruiting
+    scope: >
+      Post-launch ownership of the refactored apps, knowledge
+      transfer from external delivery teams, and incident response
+      runbooks for production cutover.
+    target_start_date: "2026-06-01"
+
 apps:
   # ─── app-01: Transaction Reconciliation Service ──────────────────────
   # Single-project C# ASP.NET / .NET Framework 4.6.1 app with a legacy

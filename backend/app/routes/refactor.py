@@ -643,6 +643,44 @@ def _static_commercial_risk(tenant_id: str) -> dict | None:
         return None
 
 
+def _static_governance(tenant_id: str) -> dict | None:
+    """Load the static governance.json for a tenant if present."""
+    path = _SHOWCASE_DATA_DIR / tenant_id / "governance.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.exception("Corrupt governance profile for %s", tenant_id)
+        return None
+
+
+@router.get("/showcase/{tenant_id}/governance")
+async def get_governance_profile(tenant_id: str):
+    """Return the governance metadata for one tenant.
+
+    Payload describes steering committee cadence, delivery teams,
+    code access gate and the post-launch tech lead slot. All names
+    are generic role labels, no real people or firms. DB-first
+    strategy with static fallback, like the other showcase endpoints.
+    """
+    if "/" in tenant_id or ".." in tenant_id or "\\" in tenant_id:
+        raise HTTPException(status_code=400, detail="Invalid tenant id")
+
+    run = await _latest_db_run(tenant_id)
+    if run:
+        report = run.get("report") or {}
+        if "governance" in report and report["governance"]:
+            return report["governance"]
+
+    static = _static_governance(tenant_id)
+    if static is None:
+        raise HTTPException(
+            status_code=404, detail="Governance profile not found"
+        )
+    return static
+
+
 @router.get("/showcase/{tenant_id}/commercial-risk")
 async def get_commercial_risk_profile(tenant_id: str):
     """Return the commercial risk metadata for one tenant.

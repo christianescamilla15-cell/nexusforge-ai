@@ -348,6 +348,28 @@ def _write_commercial_risk_artifact(
     return 1
 
 
+def _write_governance_artifact(
+    profile: TenantProfile, tenant_out: Path
+) -> int:
+    """Write a governance.json summary at the tenant root.
+
+    Consumed by the /api/refactor/showcase/<id>/governance endpoint.
+    Returns 0 if the tenant has no governance block.
+    """
+    if profile.governance is None:
+        return 0
+    import json as _json
+
+    payload = {
+        "tenant_id": profile.tenant_id,
+        "display_name": profile.display_name,
+        **profile.governance.to_dict(),
+    }
+    path = tenant_out / "governance.json"
+    path.write_text(_json.dumps(payload, indent=2), encoding="utf-8")
+    return 1
+
+
 def generate_tenant(
     profile: TenantProfile,
     output_dir: Path,
@@ -398,6 +420,9 @@ def generate_tenant(
 
     # Tenant-wide commercial risk artifact (Batch 3 follow-up)
     report.total_files += _write_commercial_risk_artifact(profile, tenant_out)
+
+    # Tenant-wide governance artifact (Batch 3 follow-up)
+    report.total_files += _write_governance_artifact(profile, tenant_out)
 
     # Parallel core workstream marker (Batch 3, deliverable E).
     # Only emitted when generating the full tenant (not when --app is

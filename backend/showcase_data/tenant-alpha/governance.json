@@ -1,0 +1,59 @@
+{
+  "tenant_id": "tenant-alpha",
+  "display_name": "Alpha Corp",
+  "steering": {
+    "cadence": "Monthly, day 14 of each month",
+    "attendees": [
+      "program-manager",
+      "architecture-lead",
+      "compliance-lead",
+      "ciso",
+      "cfo-delegate",
+      "legacy-vendor-liaison"
+    ],
+    "owner_role": "program-manager",
+    "first_formal_review": "2026-04-15"
+  },
+  "teams": [
+    {
+      "name": "team-primary",
+      "role": "primary-delivery",
+      "app_scope": [
+        "app-01",
+        "app-02",
+        "app-03",
+        "app-04",
+        "app-05"
+      ],
+      "headcount": 4,
+      "status": "active"
+    },
+    {
+      "name": "team-secondary",
+      "role": "parallel-delivery",
+      "app_scope": [],
+      "headcount": 5,
+      "status": "active"
+    },
+    {
+      "name": "team-core",
+      "role": "external-vendor",
+      "app_scope": [],
+      "headcount": 8,
+      "status": "active"
+    }
+  ],
+  "code_access": {
+    "model": "intermediate-reviewer",
+    "owner_role": "legacy-vendor-reviewer",
+    "bottleneck": true,
+    "notes": "All code changes are routed through an intermediate reviewer owned by the legacy-platform vendor before they reach the target branches. This is a delivery bottleneck (not a security control) and must be modeled when estimating throughput.\n"
+  },
+  "tech_lead": {
+    "status": "recruiting",
+    "scope": "Post-launch ownership of the refactored apps, knowledge transfer from external delivery teams, and incident response runbooks for production cutover.\n",
+    "target_start_date": "2026-06-01"
+  },
+  "raci_summary": "Responsible: delivery teams. Accountable: program manager. Consulted: architecture steering + compliance. Informed: CEO + CFO + CISO.\n",
+  "narrative": "Two delivery teams run in parallel under a single program manager hired specifically to coordinate them. The legacy-platform vendor controls write access to the target repositories via an intermediate reviewer, which is a known delivery bottleneck but not a security control. A post-launch tech lead role is being recruited to own knowledge transfer from the modernization teams.\n"
+}

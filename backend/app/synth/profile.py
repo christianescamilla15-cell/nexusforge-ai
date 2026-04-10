@@ -211,6 +211,75 @@ class PenaltyExposure:
 
 
 @dataclass
+class GovernanceTeam:
+    """One team involved in the modernization program."""
+
+    name: str  # codename only (e.g., "team-primary", "team-secondary")
+    role: str  # primary-delivery / parallel-delivery / steering / audit / external-vendor
+    app_scope: list[str] = field(default_factory=list)  # codenames of apps this team owns
+    headcount: int = 0
+    status: str = "active"  # active / forming / ramping / exiting
+
+
+@dataclass
+class SteeringCommittee:
+    """Governance committee configuration."""
+
+    cadence: str = ""  # e.g., "Monthly, day 14"
+    attendees: list[str] = field(default_factory=list)  # role names only
+    owner_role: str = ""  # chair
+    first_formal_review: str = ""  # ISO date
+
+
+@dataclass
+class CodeAccessGate:
+    """Who controls write access to the target repositories."""
+
+    model: str = "direct"  # direct / pr-only / intermediate-reviewer / sandbox-only
+    owner_role: str = ""  # e.g., "legacy-vendor-lead"
+    bottleneck: bool = False  # True if this gate is a known delivery bottleneck
+    notes: str = ""
+
+
+@dataclass
+class TechLeadRole:
+    """Post-modernization tech lead slot."""
+
+    status: str = "unfilled"  # unfilled / recruiting / hired / onboarding
+    scope: str = ""  # what the tech lead will own after delivery
+    target_start_date: str = ""  # ISO date
+
+
+@dataclass
+class GovernanceProfile:
+    """Tenant-wide governance metadata.
+
+    Captures the organizational structure around a modernization
+    program: who runs the steering committee, which teams deliver
+    what, how code access is gated, and the state of the post-launch
+    tech lead slot. The /showcase frontend renders this as a
+    governance card so stakeholders understand non-technical risk.
+    """
+
+    steering: SteeringCommittee | None = None
+    teams: list[GovernanceTeam] = field(default_factory=list)
+    code_access: CodeAccessGate | None = None
+    tech_lead: TechLeadRole | None = None
+    raci_summary: str = ""
+    narrative: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "steering": asdict(self.steering) if self.steering else None,
+            "teams": [asdict(t) for t in self.teams],
+            "code_access": asdict(self.code_access) if self.code_access else None,
+            "tech_lead": asdict(self.tech_lead) if self.tech_lead else None,
+            "raci_summary": self.raci_summary,
+            "narrative": self.narrative,
+        }
+
+
+@dataclass
 class CommercialRiskProfile:
     """Tenant-wide commercial risk metadata.
 
@@ -248,6 +317,7 @@ class TenantProfile:
     description: str = ""
     compliance: ComplianceProfile | None = None
     commercial_risk: CommercialRiskProfile | None = None
+    governance: GovernanceProfile | None = None
 
     def app_by_codename(self, codename: str) -> AppRecipe | None:
         for app in self.apps:
@@ -389,6 +459,59 @@ def load_profile(path: str | Path) -> TenantProfile:
             ],
         )
 
+    governance = None
+    raw_gov = raw.get("governance")
+    if raw_gov:
+        steering_raw = raw_gov.get("steering")
+        steering = (
+            SteeringCommittee(
+                cadence=steering_raw.get("cadence", ""),
+                attendees=steering_raw.get("attendees", []),
+                owner_role=steering_raw.get("owner_role", ""),
+                first_formal_review=steering_raw.get("first_formal_review", ""),
+            )
+            if steering_raw
+            else None
+        )
+        code_raw = raw_gov.get("code_access")
+        code_access = (
+            CodeAccessGate(
+                model=code_raw.get("model", "direct"),
+                owner_role=code_raw.get("owner_role", ""),
+                bottleneck=code_raw.get("bottleneck", False),
+                notes=code_raw.get("notes", ""),
+            )
+            if code_raw
+            else None
+        )
+        lead_raw = raw_gov.get("tech_lead")
+        tech_lead = (
+            TechLeadRole(
+                status=lead_raw.get("status", "unfilled"),
+                scope=lead_raw.get("scope", ""),
+                target_start_date=lead_raw.get("target_start_date", ""),
+            )
+            if lead_raw
+            else None
+        )
+        governance = GovernanceProfile(
+            steering=steering,
+            code_access=code_access,
+            tech_lead=tech_lead,
+            raci_summary=raw_gov.get("raci_summary", ""),
+            narrative=raw_gov.get("narrative", ""),
+            teams=[
+                GovernanceTeam(
+                    name=t["name"],
+                    role=t.get("role", "primary-delivery"),
+                    app_scope=t.get("app_scope", []),
+                    headcount=t.get("headcount", 0),
+                    status=t.get("status", "active"),
+                )
+                for t in raw_gov.get("teams", [])
+            ],
+        )
+
     return TenantProfile(
         tenant_id=raw["tenant_id"],
         display_name=raw["display_name"],
@@ -397,4 +520,5 @@ def load_profile(path: str | Path) -> TenantProfile:
         apps=apps,
         compliance=compliance,
         commercial_risk=commercial_risk,
+        governance=governance,
     )
