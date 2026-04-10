@@ -122,6 +122,7 @@ class AppRecipe:
     db_inactive_since: str = ""  # ISO date — if set, triggers retirement-path logic
     decision: RefactorDecision | None = None
     inject_legacy_db_schema: bool = False  # if True, generate a SQL dump fixture with 0-FK legacy schema
+    inject_god_method_cc: int = 0  # if > 0, emit a god method with ~this cyclomatic complexity
 
     @property
     def all_languages(self) -> list[str]:
@@ -398,6 +399,7 @@ def load_profile(path: str | Path) -> TenantProfile:
                 db_inactive_since=raw_app.get("db_inactive_since", ""),
                 decision=decision,
                 inject_legacy_db_schema=raw_app.get("inject_legacy_db_schema", False),
+                inject_god_method_cc=raw_app.get("inject_god_method_cc", 0),
             )
         )
 

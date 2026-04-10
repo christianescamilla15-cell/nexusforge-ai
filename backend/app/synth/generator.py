@@ -186,6 +186,31 @@ def _generate_app(
         db_rng = random.Random(_derive_seed(seed, "db-schema"))
         files_written += len(generate_legacy_schema(scaled, db_rng, out_dir))
 
+    # God-method cyclomatic complexity injection (Batch 3 follow-up).
+    # Only applies to C# apps; sub-project-mode apps handle their own
+    # complexity inside the sub-project language generators.
+    if (
+        scaled.inject_god_method_cc > 0
+        and scaled.primary_language == "csharp"
+        and not scaled.sub_projects
+    ):
+        from .complexity import render_god_class
+
+        cc_rng = random.Random(_derive_seed(seed, "god-method"))
+        slug = scaled.codename.replace("-", "")
+        ns = f"{slug.capitalize()}.LegacyCore"
+        god_code = render_god_class(
+            class_name="LegacyRuleRouter",
+            namespace=ns,
+            target_cc=scaled.inject_god_method_cc,
+            rng=cc_rng,
+        )
+        god_dir = out_dir / "Shared"
+        god_dir.mkdir(parents=True, exist_ok=True)
+        god_path = god_dir / "LegacyRuleRouter.cs"
+        god_path.write_text(god_code, encoding="utf-8")
+        files_written += 1
+
     # Refactor decision markdown (Batch 3) — one per app with an assigned decision
     if scaled.decision is not None:
         decision_path = out_dir / "refactor_decision.md"

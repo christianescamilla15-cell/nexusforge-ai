@@ -218,6 +218,11 @@ apps:
     primary_language: csharp
     modules: 12
     inject_legacy_db_schema: true
+    # Batch 3 follow-up: real enterprise apps at this scale consistently
+    # have 1-2 god methods with cyclomatic complexity >= 150. Inject one
+    # so the refactor engine's god-class detector (CC > 20) trips on
+    # realistic numbers during showcase runs.
+    inject_god_method_cc: 150
     databases:
       - engine: mysql
         tables: 51
