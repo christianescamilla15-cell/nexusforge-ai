@@ -45,16 +45,18 @@ synth_output/
 
 # Internal dev artifacts (hidden from client-facing repo tree, kept local)
 # NOTE: these folders still exist on disk, they are just not tracked.
-.kiro/
-ai-memory/
-ai-system/
-evaluation/
-specs/
-tests/
-api/
-N8N WorkFlows/
-plugins/
-packages/
+# The leading slash restricts the match to the repo root, so
+# `backend/tests/`, `backend/specs/`, etc. are NOT affected.
+/.kiro/
+/ai-memory/
+/ai-system/
+/evaluation/
+/specs/
+/tests/
+/api/
+/N8N WorkFlows/
+/plugins/
+/packages/
 
 # Stale top-level docs (superseded by docs/ folder)
 ARCHITECTURE.md

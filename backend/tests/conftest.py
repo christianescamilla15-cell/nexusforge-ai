@@ -1,7 +1,28 @@
-"""Shared fixtures for NexusForge tests."""
+"""Shared fixtures for NexusForge tests.
 
-import pytest
-from app.models.workflow import DAGDefinition, StepDefinition
+Also sets fake environment variables for required settings BEFORE any
+app module is imported, so importing `app.config` (which validates
+DATABASE_URL and JWT_SECRET at module load time) does not crash when
+tests run in CI or locally without a .env file.
+"""
+
+import os
+
+# Must run BEFORE any `from app.*` import below, otherwise app.config
+# raises RuntimeError on module load. CI and bare-repo test runs rely
+# on this.
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql://test_user:test_pass@localhost:5432/nexusforge_test"
+)
+os.environ.setdefault(
+    "JWT_SECRET",
+    "test-jwt-secret-for-pytest-only-do-not-use-in-production-32bytes",
+)
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
+os.environ.setdefault("DEBUG", "false")
+
+import pytest  # noqa: E402
+from app.models.workflow import DAGDefinition, StepDefinition  # noqa: E402
 
 
 @pytest.fixture

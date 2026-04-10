@@ -69,12 +69,14 @@ def test_login_missing_fields(client):
     assert resp.status_code == 422
 
 
-def test_oauth_demo_mode(client):
-    resp = client.post('/auth/oauth', json={'provider': 'google', 'id_token': 'demo'})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body['role'] == 'member'
-    assert 'access_token' in body
+def test_oauth_rejects_invalid_token(client):
+    """OAuth endpoint rejects invalid Google id_tokens with 401.
+
+    Demo mode was removed during production hardening — every token
+    must be verified against Google's public keys.
+    """
+    resp = client.post('/auth/oauth', json={'provider': 'google', 'id_token': 'invalid-token'})
+    assert resp.status_code == 401
 
 
 def test_get_me_with_token(client):
