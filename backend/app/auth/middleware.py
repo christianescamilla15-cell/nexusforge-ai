@@ -23,6 +23,8 @@ PUBLIC_PREFIXES = [
     "/api/templates",
     "/api/automations/webhook/",
     "/api/mythos",  # Self-protected via X-Mythos-Key (returns 404 without it)
+    "/api/refactor/showcase",  # Public read-only demo reports (static JSON)
+    "/api/v1/refactor/showcase",
 ]
 
 # Swagger/docs: always available, auth-protected in production

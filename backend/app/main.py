@@ -88,6 +88,7 @@ async def lifespan(app: FastAPI):
         pass
 
 # ── Sentry Error Tracking ───────────────────────────────────────────────────
+import os as _main_os  # noqa: E402 — needed at module load for SENTRY_DSN check
 _sentry_dsn = _main_os.environ.get("SENTRY_DSN", "")
 if _sentry_dsn:
     try:

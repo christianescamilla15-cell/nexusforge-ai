@@ -1,0 +1,33 @@
+{
+  "app_name": "app-03",
+  "app_path": "app-03",
+  "total_modules": 2,
+  "total_loc": 4009,
+  "total_vulns": 49,
+  "total_effort_days": 11,
+  "phases": [
+    {
+      "index": 1,
+      "title": "Phase 1: Audit and reclassify (1 module)",
+      "role": "unknown",
+      "modules": [
+        {
+          "name": "app",
+          "role": "unknown",
+          "path": "app",
+          "lines_of_code": 3966,
+          "vulnerability_count": 49,
+          "depended_by_count": 0
+        }
+      ],
+      "strategy": "Audit the module before extraction. If it matches the shared library pattern, treat it as high risk and handle it near the end of the plan.",
+      "risk": "low",
+      "effort_days": 11,
+      "rollback": "Document the fall-back procedure before starting this phase",
+      "rationale": "These modules could not be classified automatically. Audit them before starting extraction to determine the correct strangler strategy. Scope: 1 module(s), 3,966 LOC, 49 known vulnerabilities.",
+      "total_loc": 3966,
+      "total_vulns": 49
+    }
+  ],
+  "narrative": "The app-03 application contains 2 modules (4,009 lines of code, 49 known vulnerabilities). NexusForge proposes a 1-phase strangler decomposition covering unknown. Total estimated effort: 11 engineer-days (~2 working weeks for a single engineer, or ~1 weeks for a 4-engineer team working in parallel). Each phase is independently deployable and reversible \u2014 no big-bang cut-over."
+}

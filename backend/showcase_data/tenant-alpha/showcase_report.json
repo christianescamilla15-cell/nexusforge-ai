@@ -1,0 +1,178 @@
+{
+  "tenant_id": "tenant-alpha",
+  "generated_at": "2026-04-10T17:05:07Z",
+  "totals": {
+    "apps": 5,
+    "files": 1626,
+    "lines_of_code": 77289,
+    "findings": 4260,
+    "risk_score": 39190,
+    "findings_by_category": {
+      "hardcoded_cred": 65,
+      "sql_injection": 3578,
+      "weak_crypto": 27,
+      "missing_auth": 510,
+      "suppressed_exception": 80
+    },
+    "findings_by_severity": {
+      "critical": 3642,
+      "high": 538,
+      "low": 80
+    }
+  },
+  "apps": [
+    {
+      "codename": "app-01",
+      "path": "app-01",
+      "total_files": 362,
+      "total_lines": 16897,
+      "languages": {
+        "markdown": 1,
+        "csharp": 361
+      },
+      "findings": {
+        "total": 874,
+        "csharp_analyzer": 874,
+        "multi_lang_scanner": 0,
+        "by_category": {
+          "hardcoded_cred": 9,
+          "sql_injection": 741,
+          "weak_crypto": 4,
+          "missing_auth": 120
+        },
+        "by_severity": {
+          "critical": 750,
+          "high": 124
+        }
+      },
+      "risk_score": 8120,
+      "timing": {
+        "ingest_ms": 157,
+        "analyze_ms": 467
+      }
+    },
+    {
+      "codename": "app-02",
+      "path": "app-02",
+      "total_files": 302,
+      "total_lines": 13822,
+      "languages": {
+        "markdown": 1,
+        "csharp": 301
+      },
+      "findings": {
+        "total": 679,
+        "csharp_analyzer": 679,
+        "multi_lang_scanner": 0,
+        "by_category": {
+          "hardcoded_cred": 9,
+          "sql_injection": 565,
+          "weak_crypto": 5,
+          "missing_auth": 100
+        },
+        "by_severity": {
+          "critical": 574,
+          "high": 105
+        }
+      },
+      "risk_score": 6265,
+      "timing": {
+        "ingest_ms": 141,
+        "analyze_ms": 375
+      }
+    },
+    {
+      "codename": "app-03",
+      "path": "app-03",
+      "total_files": 83,
+      "total_lines": 3976,
+      "languages": {
+        "markdown": 1,
+        "python": 82
+      },
+      "findings": {
+        "total": 178,
+        "csharp_analyzer": 0,
+        "multi_lang_scanner": 178,
+        "by_category": {
+          "sql_injection": 87,
+          "hardcoded_cred": 9,
+          "suppressed_exception": 80,
+          "weak_crypto": 2
+        },
+        "by_severity": {
+          "critical": 95,
+          "high": 3,
+          "low": 80
+        }
+      },
+      "risk_score": 1045,
+      "timing": {
+        "ingest_ms": 46,
+        "analyze_ms": 78
+      }
+    },
+    {
+      "codename": "app-04",
+      "path": "app-04",
+      "total_files": 272,
+      "total_lines": 12422,
+      "languages": {
+        "markdown": 1,
+        "csharp": 271
+      },
+      "findings": {
+        "total": 609,
+        "csharp_analyzer": 609,
+        "multi_lang_scanner": 0,
+        "by_category": {
+          "hardcoded_cred": 11,
+          "sql_injection": 502,
+          "weak_crypto": 6,
+          "missing_auth": 90
+        },
+        "by_severity": {
+          "critical": 513,
+          "high": 96
+        }
+      },
+      "risk_score": 5610,
+      "timing": {
+        "ingest_ms": 108,
+        "analyze_ms": 359
+      }
+    },
+    {
+      "codename": "app-05",
+      "path": "app-05",
+      "total_files": 607,
+      "total_lines": 30172,
+      "languages": {
+        "markdown": 2,
+        "cobol": 4,
+        "csharp": 601
+      },
+      "findings": {
+        "total": 1920,
+        "csharp_analyzer": 1920,
+        "multi_lang_scanner": 0,
+        "by_category": {
+          "hardcoded_cred": 27,
+          "sql_injection": 1683,
+          "weak_crypto": 10,
+          "missing_auth": 200
+        },
+        "by_severity": {
+          "critical": 1710,
+          "high": 210
+        }
+      },
+      "risk_score": 18150,
+      "timing": {
+        "ingest_ms": 250,
+        "analyze_ms": 781
+      }
+    }
+  ],
+  "duration_ms": 2781
+}
