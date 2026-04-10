@@ -497,7 +497,15 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
 
         {/* Page content */}
         <main style={{
+          // On mobile we leave room at the bottom for the fixed
+          // bottom-nav (~56px tall) plus the device safe-area inset
+          // (iPhone notch / gesture bar). Without this, the last
+          // rows of any page are hidden behind the bottom-nav —
+          // most visible on the Settings sub-menu.
           padding: isMobile ? 12 : 24,
+          paddingBottom: isMobile
+            ? 'calc(76px + env(safe-area-inset-bottom, 0px))'
+            : 24,
           minHeight: isMobile ? 'auto' : `calc(100vh - ${topBarHeight}px)`,
         }}>
           {children}
