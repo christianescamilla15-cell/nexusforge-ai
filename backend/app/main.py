@@ -114,6 +114,12 @@ app = FastAPI(
     description="Enterprise AI Agent Orchestration + Automated Code Remediation Platform",
     lifespan=lifespan,
     redirect_slashes=True,
+    # Interactive docs are exposed only in debug/dev mode. In production
+    # (DEBUG=false) /docs, /redoc and /openapi.json return 404 so the full
+    # API surface is not browsable by anonymous visitors.
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
 )
 
 # Request ID middleware — adds X-Request-ID header for debugging
