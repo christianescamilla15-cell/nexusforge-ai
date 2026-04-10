@@ -1,6 +1,6 @@
 """Multi-Repo Orchestrator — process multiple repositories in parallel.
 
-Designed for enterprise clients like Aeromexico with 5+ apps:
+Designed for enterprise clients with 5+ interdependent apps:
   1. Ingest all repos concurrently
   2. Build cross-repo dependency map
   3. Determine safe refactoring order across repos
@@ -10,11 +10,11 @@ Designed for enterprise clients like Aeromexico with 5+ apps:
 Example:
   orchestrator = MultiRepoOrchestrator()
   report = await orchestrator.process([
-      {"path": "/repos/robot-bsp", "name": "Robot BSP"},
-      {"path": "/repos/prod-fob", "name": "Comisiones Directas"},
-      {"path": "/repos/mi-commission", "name": "Comisiones Indirectas"},
-      {"path": "/repos/mi-special-refunds", "name": "Reembolsos ASR"},
-      {"path": "/repos/mi-refund-arc", "name": "Reembolsos ARC"},
+      {"path": "/repos/app-01", "name": "app-01"},
+      {"path": "/repos/app-02", "name": "app-02"},
+      {"path": "/repos/app-03", "name": "app-03"},
+      {"path": "/repos/app-04", "name": "app-04"},
+      {"path": "/repos/app-05", "name": "app-05"},
   ])
 """
 

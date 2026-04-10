@@ -1,10 +1,10 @@
 """C# / .NET Analyzer — deep analysis for ASP.NET, .NET Framework, and .NET Core projects.
 
-Purpose-built for Aeromexico-scale enterprise systems:
-- SICOFAV (C# ASP.NET/IIS + Aurora MySQL)
-- SRG (C# .NET/IIS + SQL Server)
-- Descarga CFDIs (.NET/IIS + SQL Server)
-- Comisiones Directas (C# + Cobol + Java + 4 DB engines)
+Purpose-built for enterprise-scale legacy systems:
+- Transaction reconciliation services (C# ASP.NET/IIS + managed MySQL)
+- Batch sales management (C# .NET/IIS + SQL Server)
+- Document batch ingestion (.NET/IIS + SQL Server)
+- Commission engines (C# + Cobol + Java + multi-DB)
 
 Detects:
   1. SQL injection (string concatenation in queries)

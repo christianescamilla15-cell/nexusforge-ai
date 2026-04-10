@@ -1,10 +1,10 @@
 """Database Integrity Analyzer — detect missing FK, PII exposure, schema issues.
 
-Designed for Aeromexico-scale databases:
-  - 97% of tables missing foreign keys
+Designed for enterprise-scale legacy databases:
+  - 97% of tables missing foreign keys (typical legacy anti-pattern)
   - 15-20% monthly growth with no archiving
   - 25 types of personal data across 318 inputs
-  - Multiple DB engines: SQL Server, Aurora MySQL, DB2, Oracle
+  - Multiple DB engines: SQL Server, managed MySQL, DB2, Oracle
 
 Analysis modes:
   1. SCHEMA SCAN: Parse SQL migration files, DDL scripts, or connect to live DB

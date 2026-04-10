@@ -1,6 +1,6 @@
 """Issue Triage Engine — prioritize 166K+ issues for enterprise-scale remediation.
 
-Designed for Aeromexico-scale systems:
+Designed for enterprise-scale legacy systems:
   - 166,714 total issues across 31 apps + 57 components
   - 13,547 critical/blocker (8.1%)
   - 3,000+ SQL injection vulnerabilities
@@ -189,9 +189,8 @@ _AUTO_FIXABLE = {
 }
 
 _SHARED_MODULES = {
-    "BusinessLayer.Shared", "BusinessLayer", "Shared",
-    "ParametersContext", "AuthService", "Praxis",
-    "CommonLibrary", "Utils", "Core",
+    "BusinessLayer", "Shared", "SharedKernel",
+    "AuthService", "CommonLibrary", "Utils", "Core",
 }
 
 
@@ -310,8 +309,8 @@ class IssuTriageEngine:
         """Check if issue involves personal data."""
         pii_keywords = [
             "personal", "pii", "email", "phone", "address", "name", "passport",
-            "credit_card", "card_number", "ssn", "rfc", "curp", "pnr",
-            "passenger", "customer", "birth", "gender",
+            "credit_card", "card_number", "ssn", "tax_id", "national_id",
+            "customer", "client", "subscriber", "birth", "gender",
         ]
         text = f"{issue.title} {issue.file_path} {issue.component}".lower()
         return any(kw in text for kw in pii_keywords)

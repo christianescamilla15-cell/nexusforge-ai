@@ -6,7 +6,7 @@ Generates:
   - Deploy to AWS (EC2 or ECS Fargate)
   - Environment-specific configs (dev/staging/prod)
 
-Tailored for Aeromexico apps:
+Tailored for legacy enterprise apps:
   - .NET Framework → windows-latest runner
   - .NET Core → ubuntu-latest runner
   - Python → ubuntu-latest runner

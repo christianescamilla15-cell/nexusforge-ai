@@ -1,10 +1,10 @@
 """Batch Remediation Pipeline — process 3,000+ SQL injections in parallel.
 
-Designed for Aeromexico-scale:
+Designed for enterprise scale:
   - 166,714 issues to process
   - 3,000+ SQL injection queries to parameterize
   - 5.6M LOC across 31 apps + 57 components
-  - 4 developers, deadline Sept 2026
+  - Small team, multi-month deadline pressure
 
 Architecture:
   1. TRIAGE: Issues prioritized into 7 batches (from triage.py)

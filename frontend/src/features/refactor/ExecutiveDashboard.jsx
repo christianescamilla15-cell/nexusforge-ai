@@ -5,7 +5,7 @@ import { useIsMobile } from '../../shared/hooks/useIsMobile'
 /**
  * Executive Dashboard — C-Level view of remediation progress.
  *
- * Designed for Aeromexico executives (CEO, VP Revenue, VP IT):
+ * Designed for enterprise executives (CEO, CTO, CFO, CISO):
  * - Risk reduction over time
  * - Issues fixed vs remaining (by severity)
  * - PII exposure status
@@ -416,7 +416,7 @@ export default function ExecutiveDashboard({ lang = 'es' }) {
                   {lang === 'es' ? 'Riesgo Reputacional' : 'Reputational Risk'}
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800 }}>$13M USD</div>
-                <div style={{ fontSize: 11, color: '#818CF8' }}>NYSE/BMV exposure</div>
+                <div style={{ fontSize: 11, color: '#818CF8' }}>Public-market exposure</div>
               </div>
               <div>
                 <div style={{ fontSize: 12, color: '#A5B4FC' }}>

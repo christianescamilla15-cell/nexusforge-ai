@@ -1,11 +1,11 @@
 """C# SQL Injection Fixer — auto-convert string concatenation to parameterized queries.
 
-Handles patterns found in Aeromexico apps:
+Handles patterns commonly found in legacy enterprise C# apps:
   1. "SELECT * FROM x WHERE id = " + variable  →  @param with SqlParameter
   2. $"SELECT * FROM x WHERE id = {variable}"  →  @param with SqlParameter
   3. String.Format("SELECT ... {0}", var)       →  @param with SqlParameter
   4. cmd.CommandText = "..." + var              →  parameterized
-  5. generarSentenciasSQL() patterns            →  parameterized
+  5. Dynamic query builder patterns             →  parameterized
 
 Also fixes:
   - Hardcoded credentials → Configuration/Environment pattern

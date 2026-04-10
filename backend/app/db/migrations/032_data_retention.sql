@@ -1,5 +1,5 @@
 -- Data retention policies + auto-archive support
--- Prevents unbounded DB growth (Aeromexico: 15-20% monthly growth)
+-- Prevents unbounded DB growth (enterprise-scale: 15-20% monthly growth typical)
 
 -- Archive tables for old data
 CREATE TABLE IF NOT EXISTS workflow_runs_archive (

@@ -1,10 +1,10 @@
 """PII Scanner — detect personal data exposure across 5.6M LOC.
 
-Aeromexico context:
+Enterprise context:
   - 25 types of personal data
   - 318 input points
-  - Data breach Sept-Oct 2025 exposed PNRs
-  - $5M USD penalty risk (GDPR-level)
+  - Recent data exposure incidents drive remediation priority
+  - Multi-million-dollar penalty risk under modern privacy regulations
 
 Scans:
   1. Source code: variable names, comments, string literals
@@ -29,7 +29,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Aeromexico's 25 PII types (from Softtek assessment)
+# 25 PII types common across regulated enterprise industries
 PII_TYPES = {
     # Critical — immediate encryption required
     "credit_card": {
@@ -39,26 +39,19 @@ PII_TYPES = {
         "mask": "****-****-****-{last4}",
         "retention": "PCI: delete after transaction + 90 days",
     },
-    "passport": {
-        "patterns": [r"(?i)\b(?:passport|pasaporte|passport[-_]?num)\b"],
+    "government_id": {
+        "patterns": [r"(?i)\b(?:passport|passport[-_]?num|national[-_]?id|tax[-_]?id|gov[-_]?id)\b"],
         "severity": "critical",
         "encryption": "AES-256-GCM",
         "mask": "***{last3}",
-        "retention": "Delete after travel + 1 year",
+        "retention": "Jurisdiction-dependent, typically 5+ years post-relationship",
     },
-    "national_id_mx": {
-        "patterns": [r"(?i)\b(?:rfc|curp|ine|credencial[-_]?elector)\b"],
-        "severity": "critical",
-        "encryption": "AES-256-GCM",
-        "mask": "{first4}******{last2}",
-        "retention": "Mexican law: 5 years after relationship ends",
-    },
-    "pnr": {
-        "patterns": [r"(?i)\b(?:pnr|booking[-_]?ref|record[-_]?locator|localizador)\b"],
-        "severity": "critical",
+    "transaction_reference": {
+        "patterns": [r"(?i)\b(?:transaction[-_]?ref|confirmation[-_]?number|order[-_]?ref)\b"],
+        "severity": "high",
         "encryption": "AES-256-GCM",
         "mask": "***{last3}",
-        "retention": "IATA: 13 months after travel",
+        "retention": "Regulatory-dependent, typically 12-24 months",
     },
     "password": {
         "patterns": [r"(?i)\b(?:password|contraseña|pwd|passwd|secret[-_]?key|api[-_]?key)\b"],
@@ -84,7 +77,7 @@ PII_TYPES = {
         "retention": "Consent-based",
     },
     "full_name": {
-        "patterns": [r"(?i)\b(?:full[-_]?name|nombre[-_]?completo|passenger[-_]?name|customer[-_]?name|first[-_]?name|last[-_]?name|apellido)\b"],
+        "patterns": [r"(?i)\b(?:full[-_]?name|nombre[-_]?completo|customer[-_]?name|client[-_]?name|subscriber[-_]?name|first[-_]?name|last[-_]?name|apellido)\b"],
         "severity": "high",
         "encryption": "AES-256",
         "mask": "{first_initial}. {last_initial}.",

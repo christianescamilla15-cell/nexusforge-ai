@@ -5,9 +5,9 @@ import os
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-VULN = "C:/Users/DANNY/Desktop/nexusforge-test-repos/vuln-test"
-AERO = "C:/Users/DANNY/Desktop/aeromexico-security-platform"
-NXF = "C:/Users/DANNY/Desktop/portafolio-completo/proyectos/07-nexusforge-ai"
+VULN = os.environ.get("NEXUSFORGE_VULN_TEST_REPO", "C:/Users/DANNY/Desktop/nexusforge-test-repos/vuln-test")
+SYNTH = os.environ.get("NEXUSFORGE_SYNTH_REPO", "C:/Users/DANNY/Desktop/nexusforge-test-repos/synth-tenant-alpha")
+NXF = os.environ.get("NEXUSFORGE_REPO", "C:/Users/DANNY/Desktop/portafolio-completo/proyectos/07-nexusforge-ai")
 
 results = {}
 
@@ -22,8 +22,8 @@ async def run():
     from app.refactor.ingestion import RepoIngestionEngine
     e = RepoIngestionEngine()
     g1 = await e.ingest(VULN, "vuln-test")
-    g2 = await e.ingest(AERO, "aeromexico")
-    log(1, "INGESTION", f"vuln:{g1.total_files}f aero:{g2.total_files}f")
+    g2 = await e.ingest(SYNTH, "tenant-alpha")
+    log(1, "INGESTION", f"vuln:{g1.total_files}f synth:{g2.total_files}f")
     results["ingestion"] = "PASS"
 
     # 2: C# Analyzer
@@ -61,7 +61,7 @@ async def run():
 
     # 6: PII Scanner
     from app.refactor.pii_scanner import PIIScanner
-    pii = await PIIScanner(AERO).scan()
+    pii = await PIIScanner(SYNTH).scan()
     pr = pii.to_dict()
     log(6, "PII SCANNER", f"{pr['summary']['total']} findings, {pr['summary']['critical']} critical")
     results["pii_scanner"] = "PASS" if pr["summary"]["total"] > 0 else "FAIL"
@@ -75,7 +75,7 @@ async def run():
 
     # 8: Test Generator
     from app.refactor.test_generator import TestGeneratorEngine
-    tg = await TestGeneratorEngine(AERO, dry_run=True).generate_tests(g2)
+    tg = await TestGeneratorEngine(SYNTH, dry_run=True).generate_tests(g2)
     log(8, "TEST GENERATOR", f"{tg.to_dict()['test_files_generated']} files, {tg.to_dict()['functions_tested']} funcs")
     results["test_generator"] = "PASS" if tg.to_dict()["test_files_generated"] > 0 else "FAIL"
 
@@ -88,14 +88,14 @@ async def run():
 
     # 10: RPA Scanner
     from app.refactor.rpa_scanner import RPAScanner
-    rpa = await RPAScanner(AERO).scan()
+    rpa = await RPAScanner(SYNTH).scan()
     log(10, "RPA SCANNER", f"{rpa.to_dict()['total_files']} files, stability:{rpa.to_dict()['stability_score']}%")
     results["rpa_scanner"] = "PASS"
 
     # 11: Multi-Repo
     from app.refactor.multi_repo import MultiRepoOrchestrator
     mr = await MultiRepoOrchestrator(use_llm=False, dry_run=True).process(
-        [{"path": AERO, "name": "aero"}, {"path": VULN, "name": "vuln"}], generate_tests=True)
+        [{"path": SYNTH, "name": "tenant-alpha"}, {"path": VULN, "name": "vuln"}], generate_tests=True)
     mrr = mr.to_dict()
     log(11, "MULTI-REPO", f"{mrr['summary']['completed']}/{mrr['summary']['repos']} repos, {mrr['summary']['tests_generated']} tests")
     results["multi_repo"] = "PASS" if mrr["summary"]["completed"] == 2 else "FAIL"

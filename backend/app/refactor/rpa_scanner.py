@@ -1,8 +1,8 @@
 """RPA Stability Scanner — detect fragile Playwright/Selenium selectors.
 
-Built for Robot BSP (mi-automation-rfndbsplink) which uses Playwright
-to automate BSPLink portal interactions. Hardcoded CSS selectors break
-when the portal updates its UI.
+Built for legacy RPA automations that use Playwright or Selenium to
+drive third-party portal interactions. Hardcoded CSS selectors break
+whenever the target portal updates its UI.
 
 Detects:
   1. Hardcoded CSS selectors (fragile)
