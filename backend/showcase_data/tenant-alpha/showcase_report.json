@@ -1,178 +1,214 @@
 {
   "tenant_id": "tenant-alpha",
-  "generated_at": "2026-04-10T17:05:07Z",
+  "generated_at": "2026-04-10T21:20:10Z",
   "totals": {
     "apps": 5,
-    "files": 1626,
-    "lines_of_code": 77289,
-    "findings": 4260,
-    "risk_score": 39190,
+    "files": 171,
+    "lines_of_code": 23254,
+    "findings": 3855,
+    "risk_score": 38035,
     "findings_by_category": {
-      "hardcoded_cred": 65,
-      "sql_injection": 3578,
-      "weak_crypto": 27,
-      "missing_auth": 510,
-      "suppressed_exception": 80
+      "hardcoded_cred": 80,
+      "sql_injection": 3688,
+      "weak_crypto": 29,
+      "missing_auth": 43,
+      "suppressed_exception": 15
     },
     "findings_by_severity": {
-      "critical": 3642,
-      "high": 538,
-      "low": 80
+      "critical": 3764,
+      "high": 76,
+      "low": 15
     }
   },
   "apps": [
     {
       "codename": "app-01",
+      "label": "Transaction Reconciliation Service",
       "path": "app-01",
-      "total_files": 362,
-      "total_lines": 16897,
+      "total_files": 40,
+      "total_lines": 5808,
       "languages": {
-        "markdown": 1,
-        "csharp": 361
+        "markdown": 2,
+        "csharp": 37,
+        "sql": 1
       },
       "findings": {
-        "total": 874,
-        "csharp_analyzer": 874,
+        "total": 793,
+        "csharp_analyzer": 793,
         "multi_lang_scanner": 0,
         "by_category": {
-          "hardcoded_cred": 9,
-          "sql_injection": 741,
+          "hardcoded_cred": 12,
+          "sql_injection": 765,
           "weak_crypto": 4,
-          "missing_auth": 120
+          "missing_auth": 12
         },
         "by_severity": {
-          "critical": 750,
-          "high": 124
+          "critical": 777,
+          "high": 16
         }
       },
-      "risk_score": 8120,
+      "risk_score": 7850,
       "timing": {
-        "ingest_ms": 157,
-        "analyze_ms": 467
-      }
+        "ingest_ms": 16,
+        "analyze_ms": 0
+      },
+      "decision": {
+        "action": "refactor",
+        "phase": "Q3"
+      },
+      "db_inactive_since": "",
+      "total_effort_days": 23
     },
     {
       "codename": "app-02",
+      "label": "Batch Sales Management",
       "path": "app-02",
-      "total_files": 302,
-      "total_lines": 13822,
+      "total_files": 33,
+      "total_lines": 3507,
       "languages": {
-        "markdown": 1,
-        "csharp": 301
+        "markdown": 2,
+        "csharp": 31
       },
       "findings": {
-        "total": 679,
-        "csharp_analyzer": 679,
+        "total": 581,
+        "csharp_analyzer": 581,
         "multi_lang_scanner": 0,
         "by_category": {
-          "hardcoded_cred": 9,
-          "sql_injection": 565,
+          "hardcoded_cred": 12,
+          "sql_injection": 554,
           "weak_crypto": 5,
-          "missing_auth": 100
+          "missing_auth": 10
         },
         "by_severity": {
-          "critical": 574,
-          "high": 105
+          "critical": 566,
+          "high": 15
         }
       },
-      "risk_score": 6265,
+      "risk_score": 5735,
       "timing": {
-        "ingest_ms": 141,
-        "analyze_ms": 375
-      }
+        "ingest_ms": 16,
+        "analyze_ms": 0
+      },
+      "decision": {
+        "action": "refactor",
+        "phase": "Q3"
+      },
+      "db_inactive_since": "",
+      "total_effort_days": 17
     },
     {
       "codename": "app-03",
+      "label": "Automated Refund Processing",
       "path": "app-03",
-      "total_files": 83,
-      "total_lines": 3976,
+      "total_files": 22,
+      "total_lines": 2218,
       "languages": {
-        "markdown": 1,
-        "python": 82
+        "markdown": 3,
+        "python": 19
       },
       "findings": {
-        "total": 178,
+        "total": 227,
         "csharp_analyzer": 0,
-        "multi_lang_scanner": 178,
+        "multi_lang_scanner": 227,
         "by_category": {
-          "sql_injection": 87,
-          "hardcoded_cred": 9,
-          "suppressed_exception": 80,
-          "weak_crypto": 2
+          "sql_injection": 188,
+          "hardcoded_cred": 20,
+          "suppressed_exception": 15,
+          "weak_crypto": 4
         },
         "by_severity": {
-          "critical": 95,
-          "high": 3,
-          "low": 80
+          "critical": 204,
+          "low": 15,
+          "high": 8
         }
       },
-      "risk_score": 1045,
+      "risk_score": 2095,
       "timing": {
-        "ingest_ms": 46,
-        "analyze_ms": 78
-      }
+        "ingest_ms": 31,
+        "analyze_ms": 0
+      },
+      "decision": {
+        "action": "tbd",
+        "phase": "IMMEDIATE"
+      },
+      "db_inactive_since": "2023-03-15",
+      "total_effort_days": 6
     },
     {
       "codename": "app-04",
+      "label": "Document Batch Ingestion",
       "path": "app-04",
-      "total_files": 272,
-      "total_lines": 12422,
+      "total_files": 30,
+      "total_lines": 3139,
       "languages": {
-        "markdown": 1,
-        "csharp": 271
+        "markdown": 2,
+        "csharp": 28
       },
       "findings": {
-        "total": 609,
-        "csharp_analyzer": 609,
+        "total": 521,
+        "csharp_analyzer": 521,
         "multi_lang_scanner": 0,
         "by_category": {
           "hardcoded_cred": 11,
-          "sql_injection": 502,
+          "sql_injection": 495,
           "weak_crypto": 6,
-          "missing_auth": 90
+          "missing_auth": 9
         },
         "by_severity": {
-          "critical": 513,
-          "high": 96
+          "critical": 506,
+          "high": 15
         }
       },
-      "risk_score": 5610,
+      "risk_score": 5135,
       "timing": {
-        "ingest_ms": 108,
-        "analyze_ms": 359
-      }
+        "ingest_ms": 16,
+        "analyze_ms": 0
+      },
+      "decision": {
+        "action": "tbd",
+        "phase": "TBD"
+      },
+      "db_inactive_since": "",
+      "total_effort_days": 8
     },
     {
       "codename": "app-05",
+      "label": "Commission Engine",
       "path": "app-05",
-      "total_files": 607,
-      "total_lines": 30172,
+      "total_files": 46,
+      "total_lines": 8582,
       "languages": {
-        "markdown": 2,
+        "markdown": 5,
         "cobol": 4,
-        "csharp": 601
+        "csharp": 37
       },
       "findings": {
-        "total": 1920,
-        "csharp_analyzer": 1920,
+        "total": 1733,
+        "csharp_analyzer": 1733,
         "multi_lang_scanner": 0,
         "by_category": {
-          "hardcoded_cred": 27,
-          "sql_injection": 1683,
+          "hardcoded_cred": 25,
+          "sql_injection": 1686,
           "weak_crypto": 10,
-          "missing_auth": 200
+          "missing_auth": 12
         },
         "by_severity": {
-          "critical": 1710,
-          "high": 210
+          "critical": 1711,
+          "high": 22
         }
       },
-      "risk_score": 18150,
+      "risk_score": 17220,
       "timing": {
-        "ingest_ms": 250,
-        "analyze_ms": 781
-      }
+        "ingest_ms": 30,
+        "analyze_ms": 0
+      },
+      "decision": {
+        "action": "refactor",
+        "phase": "Phase-2"
+      },
+      "db_inactive_since": "",
+      "total_effort_days": 52
     }
   ],
-  "duration_ms": 2781
+  "duration_ms": 718
 }

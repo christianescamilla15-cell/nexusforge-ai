@@ -1,33 +1,65 @@
 {
   "app_name": "app-03",
   "app_path": "app-03",
-  "total_modules": 2,
-  "total_loc": 4009,
-  "total_vulns": 49,
-  "total_effort_days": 11,
+  "total_modules": 4,
+  "total_loc": 2218,
+  "total_vulns": 102,
+  "total_effort_days": 6,
   "phases": [
     {
       "index": 1,
-      "title": "Phase 1: Audit and reclassify (1 module)",
-      "role": "unknown",
+      "title": "Phase 1: Discovery",
+      "role": "discovery",
       "modules": [
         {
-          "name": "app",
+          "name": "operator-ui",
           "role": "unknown",
-          "path": "app",
-          "lines_of_code": 3966,
-          "vulnerability_count": 49,
+          "path": "operator-ui",
+          "lines_of_code": 4,
+          "vulnerability_count": 0,
+          "depended_by_count": 0
+        },
+        {
+          "name": "rest-backend",
+          "role": "unknown",
+          "path": "rest-backend",
+          "lines_of_code": 1063,
+          "vulnerability_count": 48,
+          "depended_by_count": 0
+        },
+        {
+          "name": "rpa-robot",
+          "role": "unknown",
+          "path": "rpa-robot",
+          "lines_of_code": 1116,
+          "vulnerability_count": 54,
           "depended_by_count": 0
         }
       ],
-      "strategy": "Audit the module before extraction. If it matches the shared library pattern, treat it as high risk and handle it near the end of the plan.",
-      "risk": "low",
-      "effort_days": 11,
-      "rollback": "Document the fall-back procedure before starting this phase",
-      "rationale": "These modules could not be classified automatically. Audit them before starting extraction to determine the correct strangler strategy. Scope: 1 module(s), 3,966 LOC, 49 known vulnerabilities.",
-      "total_loc": 3966,
-      "total_vulns": 49
+      "strategy": "This app has not been assessed yet. A discovery phase is required to build a baseline before the refactor plan can be written.\n\nDiscovery checklist:\n- Business ownership confirmation (is this system truly orphaned?)\n- Attack-surface validation (are reported CVEs actually exploitable?)\n- Downstream consumer audit (any scheduled job still hits the DB?)\n- Data archival plan signed off by compliance\n\nKnown blockers:\n- Legacy vendor has veto rights on decommission decisions\n- Business owner contact is ambiguous (no clear RACI)",
+      "risk": "medium",
+      "effort_days": 6,
+      "rollback": "Discovery phases are non-destructive. If scope changes during discovery, update the decision file and re-run the planner.",
+      "rationale": "Database has been inactive for ~2.5 years (zero transactional volume since 2023-03-15). Vendor recommends retirement. Team requires dual validation before decommission: (1) confirm exploits are not actually reachable through the operator UI, (2) confirm no business process still depends on the engine. Default to refactor if either validation fails.",
+      "total_loc": 2183,
+      "total_vulns": 102
     }
   ],
-  "narrative": "The app-03 application contains 2 modules (4,009 lines of code, 49 known vulnerabilities). NexusForge proposes a 1-phase strangler decomposition covering unknown. Total estimated effort: 11 engineer-days (~2 working weeks for a single engineer, or ~1 weeks for a 4-engineer team working in parallel). Each phase is independently deployable and reversible \u2014 no big-bang cut-over."
+  "narrative": "**Pre-assigned decision: TBD** (phase IMMEDIATE). Rationale: Database has been inactive for ~2.5 years (zero transactional volume since 2023-03-15). Vendor recommends retirement. Team requires dual validation before decommission: (1) confirm exploits are not actually reachable through the operator UI, (2) confirm no business process still depends on the engine. Default to refactor if either validation fails. The app-03 application contains 4 modules (2,218 lines of code, 102 known vulnerabilities). NexusForge proposes a 1-phase strangler decomposition covering discovery. Total estimated effort: 6 engineer-days (~1 working weeks for a single engineer, or ~1 weeks for a 4-engineer team working in parallel). Each phase is independently deployable and reversible \u2014 no big-bang cut-over.",
+  "pre_assigned_decision": {
+    "action": "tbd",
+    "phase": "IMMEDIATE",
+    "rationale": "Database has been inactive for ~2.5 years (zero transactional volume since 2023-03-15). Vendor recommends retirement. Team requires dual validation before decommission: (1) confirm exploits are not actually reachable through the operator UI, (2) confirm no business process still depends on the engine. Default to refactor if either validation fails.",
+    "validation_checklist": [
+      "Business ownership confirmation (is this system truly orphaned?)",
+      "Attack-surface validation (are reported CVEs actually exploitable?)",
+      "Downstream consumer audit (any scheduled job still hits the DB?)",
+      "Data archival plan signed off by compliance"
+    ],
+    "blockers": [
+      "Legacy vendor has veto rights on decommission decisions",
+      "Business owner contact is ambiguous (no clear RACI)"
+    ]
+  },
+  "db_inactive_since": "2023-03-15"
 }

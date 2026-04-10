@@ -25,6 +25,7 @@ incrementally instead of attempting a big-bang rewrite.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -187,6 +188,28 @@ class StranglerPhase:
 
 
 @dataclass
+class PreAssignedDecision:
+    """Refactor decision read from a ``refactor_decision.md`` file.
+
+    When the synth generator emits this file for an app (Batch 3+), the
+    planner honors the pre-assigned action and phase instead of running
+    its default role-based decomposition. This lets the Plan Componer
+    Deuda pattern override the generic planner — e.g., an app can be
+    marked ``RETIRE`` with dual-validation blockers, and the planner
+    will produce a retirement plan rather than a refactor plan.
+    """
+
+    action: str = "refactor"  # refactor / retire / retain / tbd
+    phase: str = "Q3"
+    rationale: str = ""
+    validation_checklist: list[str] = field(default_factory=list)
+    blockers: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class StranglerPlan:
     app_name: str
     app_path: str
@@ -195,6 +218,8 @@ class StranglerPlan:
     total_vulns: int = 0
     phases: list[StranglerPhase] = field(default_factory=list)
     narrative: str = ""
+    pre_assigned_decision: PreAssignedDecision | None = None
+    db_inactive_since: str = ""  # ISO date if the app has an inactive DB marker
 
     @property
     def total_effort_days(self) -> int:
@@ -210,7 +235,107 @@ class StranglerPlan:
             "total_effort_days": self.total_effort_days,
             "phases": [p.to_dict() for p in self.phases],
             "narrative": self.narrative,
+            "pre_assigned_decision": (
+                self.pre_assigned_decision.to_dict()
+                if self.pre_assigned_decision
+                else None
+            ),
+            "db_inactive_since": self.db_inactive_since,
         }
+
+
+# ── refactor_decision.md parser ────────────────────────────────────────────
+
+
+_DECISION_ACTION_RE = re.compile(r"\*\*Action:\*\*\s*`([A-Z]+)`", re.IGNORECASE)
+_DECISION_PHASE_RE = re.compile(r"\*\*Phase:\*\*\s*([^\n]+)")
+
+
+def _read_pre_assigned_decision(app_dir: Path) -> PreAssignedDecision | None:
+    """Parse an optional ``refactor_decision.md`` at the app root.
+
+    The file format is the one produced by
+    ``app.synth.profile.RefactorDecision.to_markdown``: markdown with an
+    Action line, a Phase line, a Rationale section, a Validation checklist
+    section and a Blockers section. We parse just enough to recover the
+    structured fields — anything we cannot parse is left at defaults.
+    """
+    path = app_dir / "refactor_decision.md"
+    if not path.exists():
+        return None
+
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError as exc:
+        logger.warning("Failed to read %s: %s", path, exc)
+        return None
+
+    decision = PreAssignedDecision()
+
+    m = _DECISION_ACTION_RE.search(text)
+    if m:
+        decision.action = m.group(1).strip().lower()
+    m = _DECISION_PHASE_RE.search(text)
+    if m:
+        decision.phase = m.group(1).strip()
+
+    # Extract rationale section
+    rationale_match = re.search(
+        r"##\s*Rationale\s*\n\s*(.+?)(?:\n##|\Z)", text, re.DOTALL
+    )
+    if rationale_match:
+        decision.rationale = rationale_match.group(1).strip()
+
+    # Extract checklist (lines starting with "- [ ]" or "- [x]")
+    checklist: list[str] = []
+    in_checklist = False
+    for line in text.splitlines():
+        if line.startswith("## Validation checklist"):
+            in_checklist = True
+            continue
+        if in_checklist:
+            if line.startswith("## "):
+                break
+            stripped = line.strip()
+            if stripped.startswith(("- [ ]", "- [x]", "- [X]")):
+                checklist.append(stripped[5:].strip())
+    decision.validation_checklist = checklist
+
+    # Extract blockers
+    blockers: list[str] = []
+    in_blockers = False
+    for line in text.splitlines():
+        if line.startswith("## Blockers"):
+            in_blockers = True
+            continue
+        if in_blockers:
+            if line.startswith("## "):
+                break
+            stripped = line.strip()
+            if stripped.startswith("- ") and stripped != "- (none)":
+                blockers.append(stripped[2:].strip())
+    decision.blockers = blockers
+
+    return decision
+
+
+def _read_db_inactive_marker(app_dir: Path) -> str:
+    """Read a ``db_inactive_since.txt`` marker and return the ISO date.
+
+    The file may contain additional human-readable comment lines prefixed
+    with ``#``; we only care about the first non-comment line.
+    """
+    marker = app_dir / "db_inactive_since.txt"
+    if not marker.exists():
+        return ""
+    try:
+        for raw in marker.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = raw.strip()
+            if line and not line.startswith("#"):
+                return line
+    except OSError as exc:
+        logger.warning("Failed to read %s: %s", marker, exc)
+    return ""
 
 
 # ── Planner ────────────────────────────────────────────────────────────────
@@ -255,6 +380,26 @@ def _build_narrative(plan: StranglerPlan) -> str:
     )
 
 
+def _build_narrative_with_decision(
+    plan: StranglerPlan,
+    decision: PreAssignedDecision | None,
+) -> str:
+    """Like ``_build_narrative`` but prepends a pre-assigned-decision note."""
+    base = _build_narrative(plan)
+    if decision is None:
+        return base
+    action = decision.action.upper()
+    prefix = (
+        f"**Pre-assigned decision: {action}** "
+        f"(phase {decision.phase}). "
+    )
+    if decision.rationale:
+        # Collapse whitespace in rationale so it fits the narrative paragraph
+        rationale = " ".join(decision.rationale.split())
+        prefix += f"Rationale: {rationale} "
+    return prefix + base
+
+
 class StranglerPlanner:
     """Produces a strangler-pattern migration plan for a single app."""
 
@@ -274,11 +419,27 @@ class StranglerPlanner:
             m.vulnerability_count for m in self.graph.modules.values()
         )
 
-        # Group modules by role
+        # Read pre-assigned decision + db-inactive marker if present
+        app_dir = Path(self.graph.root)
+        plan.pre_assigned_decision = _read_pre_assigned_decision(app_dir)
+        plan.db_inactive_since = _read_db_inactive_marker(app_dir)
+
+        # Short-circuit on non-refactor decisions
+        decision = plan.pre_assigned_decision
+        if decision is not None and decision.action != "refactor":
+            self._apply_non_refactor_decision(plan, decision)
+            plan.narrative = _build_narrative_with_decision(plan, decision)
+            return plan
+
+        # Default refactor path — group modules by role
+        self._build_refactor_phases(plan)
+        plan.narrative = _build_narrative_with_decision(plan, decision)
+        return plan
+
+    def _build_refactor_phases(self, plan: StranglerPlan) -> None:
         by_role: dict[str, list[PhaseModule]] = {}
         for name, module in self.graph.modules.items():
             if name == "_root":
-                # Root is an aggregate; skip if we have other modules
                 if len(self.graph.modules) > 1:
                     continue
             role = classify_module(name, module.path)
@@ -292,7 +453,6 @@ class StranglerPlanner:
             )
             by_role.setdefault(role, []).append(pm)
 
-        # Sort roles by extraction order
         phase_idx = 0
         for role in sorted(by_role, key=lambda r: _ROLE_ORDER.get(r, 99)):
             modules = sorted(by_role[role], key=lambda m: -m.lines_of_code)
@@ -315,8 +475,116 @@ class StranglerPlanner:
             )
             plan.phases.append(phase)
 
-        plan.narrative = _build_narrative(plan)
-        return plan
+    def _apply_non_refactor_decision(
+        self, plan: StranglerPlan, decision: PreAssignedDecision
+    ) -> None:
+        """Generate a special plan for retire / retain / tbd actions."""
+        action = decision.action.lower()
+        all_modules = [
+            PhaseModule(
+                name=name,
+                role=classify_module(name, m.path),
+                path=m.path,
+                lines_of_code=m.total_lines,
+                vulnerability_count=m.vulnerability_count,
+                depended_by_count=len(m.depended_by),
+            )
+            for name, m in self.graph.modules.items()
+            if name != "_root" or len(self.graph.modules) == 1
+        ]
+
+        if action == "retire":
+            checklist_text = (
+                "\n".join(f"- {item}" for item in decision.validation_checklist)
+                or "- (no checklist provided)"
+            )
+            blockers_text = (
+                "\n".join(f"- {item}" for item in decision.blockers)
+                or "- (no blockers listed)"
+            )
+            phase = StranglerPhase(
+                index=1,
+                title="Phase 1: Decommission with dual validation",
+                role="retirement",
+                modules=all_modules,
+                strategy=(
+                    "This app is marked for retirement. Before decommission, "
+                    "validate BOTH (1) that remaining exploits are not actually "
+                    "reachable, and (2) that no downstream business process "
+                    "still depends on the app. If either check fails, reclassify "
+                    "as refactor.\n\nValidation checklist:\n" + checklist_text
+                    + "\n\nKnown blockers:\n" + blockers_text
+                ),
+                risk="high",
+                effort_days=max(10, len(all_modules) * 3),
+                rollback=(
+                    "Halt decommission, restore traffic routing to the legacy "
+                    "app, and reopen the ticket as a refactor candidate."
+                ),
+                rationale=decision.rationale or "Pre-assigned retirement decision.",
+            )
+            plan.phases.append(phase)
+            if plan.db_inactive_since:
+                phase.rationale += (
+                    f"\n\nDatabase has been inactive since {plan.db_inactive_since}, "
+                    "which is the primary signal driving the retirement recommendation."
+                )
+
+        elif action == "retain":
+            phase = StranglerPhase(
+                index=1,
+                title="Phase 1: Retain as-is with monitoring",
+                role="retention",
+                modules=all_modules,
+                strategy=(
+                    "This app is marked for retention. No refactor work is "
+                    "planned. Add monitoring, incident runbooks and a formal "
+                    "end-of-life review date."
+                ),
+                risk="low",
+                effort_days=max(3, len(all_modules)),
+                rollback="N/A — retention decision has no destructive steps.",
+                rationale=decision.rationale or "Pre-assigned retention decision.",
+            )
+            plan.phases.append(phase)
+
+        elif action == "tbd":
+            blockers_text = (
+                "\n".join(f"- {item}" for item in decision.blockers)
+                or "- (no blockers listed)"
+            )
+            checklist_text = (
+                "\n".join(f"- {item}" for item in decision.validation_checklist)
+                or "- (no checklist provided)"
+            )
+            phase = StranglerPhase(
+                index=1,
+                title="Phase 1: Discovery",
+                role="discovery",
+                modules=all_modules,
+                strategy=(
+                    "This app has not been assessed yet. A discovery phase is "
+                    "required to build a baseline before the refactor plan "
+                    "can be written.\n\nDiscovery checklist:\n" + checklist_text
+                    + "\n\nKnown blockers:\n" + blockers_text
+                ),
+                risk="medium",
+                effort_days=max(5, len(all_modules) * 2),
+                rollback=(
+                    "Discovery phases are non-destructive. If scope changes "
+                    "during discovery, update the decision file and re-run "
+                    "the planner."
+                ),
+                rationale=decision.rationale or "Pre-assigned TBD (discovery required).",
+            )
+            plan.phases.append(phase)
+
+        else:
+            logger.warning(
+                "Unknown pre-assigned action '%s' — falling back to refactor path",
+                action,
+            )
+            self._build_refactor_phases(plan)
 
 
 def _phase_title(idx: int, role: str, module_count: int) -> str:

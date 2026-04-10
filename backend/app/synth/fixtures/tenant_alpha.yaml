@@ -1,32 +1,42 @@
-# Tenant Alpha — showcase profile for Phase A (5 apps, ~900K LOC)
+# Tenant Alpha — showcase profile for Phase A
 #
 # This file is committed to the repo but contains NO real client data.
 # All names are generic codenames approved per docs/integration/01_agent_mapping.md.
 #
-# Phase B will scale the same structural pattern to 31 apps (~5.6M LOC)
-# by adding entries to the `apps` list.
+# Phase A: 5 apps representing a typical legacy nexus architecture.
+# Phase B will scale the same structural pattern to 31 apps by adding entries.
+#
+# Batch 3 update (2026-04-10): apps now support sub_projects arrays, legacy
+# DB schema injection, db_inactive_since flags, and refactor decisions.
+# See docs/integration/03_future_platform_vision.md section 15 for the
+# rationale behind these per-app numbers.
 
 tenant_id: tenant-alpha
 display_name: Alpha Corp
 seed: 42
 description: >
   Synthetic showcase tenant demonstrating NexusForge's ability to modernize
-  enterprise-scale legacy systems. 5 applications representing a typical
-  legacy nexus architecture: one shared monolithic core (app-05) with
-  4 satellites depending on it. Mirrors real-world structural patterns
-  without referencing any specific client or industry.
+  enterprise-scale legacy systems. Five applications representing a typical
+  legacy nexus architecture — one shared monolithic core (app-05) with
+  four satellites, mixed single-stack and multi-sub-project apps, and a
+  retirement candidate with an inactive database. Mirrors real-world
+  structural patterns without referencing any specific client or industry.
 
 apps:
   # ─── app-01: Transaction Reconciliation Service ──────────────────────
+  # Single-project C# ASP.NET / .NET Framework 4.6.1 app with a legacy
+  # SQL Server / MySQL backend. The classic "mature but neglected" case:
+  # workable code, terrible database integrity (0 FK), stored procedures
+  # unchanged since 2012.
   - codename: app-01
     label: Transaction Reconciliation Service
-    loc_target: 180000
+    loc_target: 65000
     primary_language: csharp
-    additional_languages: []
     modules: 12
+    inject_legacy_db_schema: true
     databases:
       - engine: mysql
-        tables: 45
+        tables: 51
         pii_columns: 8
     vulnerabilities:
       sql_injection: 600
@@ -34,12 +44,28 @@ apps:
       weak_crypto: 4
       pii_leak: 30
       suppressed_exceptions: 85
-      missing_fk: 40
+      missing_fk: 51
+    decision:
+      action: refactor
+      phase: Q3
+      rationale: >
+        Mature app with well-understood domain and the highest documentation
+        coverage in the portfolio. Refactor rather than replace. Priority
+        focus: credentials centralization, FK restoration, stored procedure
+        modernization, cyclomatic complexity reduction.
+      validation_checklist:
+        - All hardcoded credentials migrated to secrets manager
+        - Foreign keys restored on all 51 tables with data clean-up
+        - Stored procedures 67→20 via consolidation
+        - Index optimization complete (slow queries 27→10)
+        - Test coverage 0%→70% on critical paths
 
   # ─── app-02: Batch Sales Management ──────────────────────────────────
+  # Lowest-risk app in the portfolio — well-documented, fewer findings,
+  # lowest BLOCKER density. Also first to finish in the phase plan.
   - codename: app-02
     label: Batch Sales Management
-    loc_target: 150000
+    loc_target: 40000
     primary_language: csharp
     modules: 10
     databases:
@@ -53,14 +79,48 @@ apps:
       pii_leak: 25
       suppressed_exceptions: 70
       missing_fk: 55
+    decision:
+      action: refactor
+      phase: Q3
+      rationale: >
+        Mid-complexity app with good documentation. Backend refactor plus
+        frontend XSS sanitization. Low BLOCKER density means the team can
+        start here to build momentum before tackling the harder cases.
+      validation_checklist:
+        - XSS sanitization via DOMPurify-equivalent
+        - Legal data endpoint authorization restored
+        - Cyclomatic complexity reduced from 45→<15
+        - Secrets centralization complete
 
   # ─── app-03: Automated Refund Processing ─────────────────────────────
+  # Multi-stack refund automation with an INACTIVE database (0% transactions
+  # for ~2.5 years). Candidate for decommission but requires dual validation
+  # (technical + business) before retirement. Now modelled as 3 sub-projects
+  # because real-world RPA apps always bundle: RPA robot + REST backend +
+  # thin operator UI.
   - codename: app-03
     label: Automated Refund Processing
     loc_target: 80000
     primary_language: python
-    modules: 8
     has_rpa: true
+    db_inactive_since: "2023-03-15"
+    sub_projects:
+      - name: rpa-robot
+        language: python
+        loc_share: 0.35
+        vuln_share: 0.4
+        modules: 8
+        has_rpa: true
+      - name: rest-backend
+        language: python
+        loc_share: 0.4
+        vuln_share: 0.5
+        modules: 7
+      - name: operator-ui
+        language: typescript
+        loc_share: 0.25
+        vuln_share: 0.1
+        modules: 5
     databases:
       - engine: sqlite
         tables: 15
@@ -76,11 +136,33 @@ apps:
       pii_leak: 18
       suppressed_exceptions: 45
       missing_fk: 25
+    decision:
+      action: tbd
+      phase: IMMEDIATE
+      rationale: >
+        Database has been inactive for ~2.5 years (zero transactional volume
+        since 2023-03-15). Vendor recommends retirement. Team requires dual
+        validation before decommission: (1) confirm exploits are not
+        actually reachable through the operator UI, (2) confirm no business
+        process still depends on the engine. Default to refactor if either
+        validation fails.
+      validation_checklist:
+        - Business ownership confirmation (is this system truly orphaned?)
+        - Attack-surface validation (are reported CVEs actually exploitable?)
+        - Downstream consumer audit (any scheduled job still hits the DB?)
+        - Data archival plan signed off by compliance
+      blockers:
+        - Legacy vendor has veto rights on decommission decisions
+        - Business owner contact is ambiguous (no clear RACI)
 
   # ─── app-04: Document Batch Ingestion ────────────────────────────────
+  # NOT yet analyzed by the vendor assessment. Discovery phase required
+  # before any refactoring plan can be written. Kept as a placeholder
+  # single-project with modest vulnerability budget so the pipeline still
+  # finds something during the discovery run.
   - codename: app-04
     label: Document Batch Ingestion
-    loc_target: 120000
+    loc_target: 30000
     primary_language: csharp
     additional_languages: [vbnet]
     modules: 9
@@ -95,16 +177,55 @@ apps:
       pii_leak: 22
       suppressed_exceptions: 60
       missing_fk: 35
+    decision:
+      action: tbd
+      phase: TBD
+      rationale: >
+        Not analyzed by the vendor Report Out. No Kardex report, no code
+        findings summary, no cyclomatic complexity data. A discovery
+        workshop is required to establish a baseline before the refactor
+        plan can be written.
+      validation_checklist:
+        - Schedule discovery workshop with SMEs
+        - Run full vulnerability scan (parity with other apps)
+        - Confirm external integration sandbox availability
+        - Produce a phase-assignment proposal
+      blockers:
+        - External integration has no known test/sandbox environment
+        - SMEs for the legacy document pipeline are scattered across teams
 
   # ─── app-05: Commission Engine (the shared legacy nexus) ─────────────
+  # The hardest case in the portfolio: on-premise, multi-language, multi-DB,
+  # and shares core data classes with modules owned by other teams. Modelled
+  # as 4 sub-projects representing the 4 runtime languages. Mainframe COBOL
+  # component is WRAP-ONLY — never rewrite.
   - codename: app-05
     label: Commission Engine
-    loc_target: 370000
+    loc_target: 161000
     primary_language: csharp
-    additional_languages: [java]
     has_cobol_layer: true
     is_shared_nexus: true
-    modules: 20
+    sub_projects:
+      - name: cobol-core
+        language: cobol
+        loc_share: 0.25
+        vuln_share: 0.2
+        modules: 4
+      - name: java-analytics
+        language: java
+        loc_share: 0.3
+        vuln_share: 0.35
+        modules: 10
+      - name: csharp-orchestrator
+        language: csharp
+        loc_share: 0.3
+        vuln_share: 0.35
+        modules: 12
+      - name: typescript-admin-ui
+        language: typescript
+        loc_share: 0.15
+        vuln_share: 0.1
+        modules: 6
     databases:
       - engine: sqlserver
         tables: 80
@@ -126,3 +247,21 @@ apps:
       pii_leak: 55
       suppressed_exceptions: 180
       missing_fk: 120
+    decision:
+      action: refactor
+      phase: Phase-2
+      rationale: >
+        Nexus app — shared core data classes with modules outside the
+        current tenant scope (cross-team coupling). Full refactor is
+        multi-phase: extract outer API, lift shared models, introduce
+        anti-corruption layer on the database, untangle the shared
+        libraries, and WRAP the mainframe COBOL component behind a REST
+        adapter. Never rewrite the COBOL core.
+      validation_checklist:
+        - Cross-team coupling dependencies mapped
+        - Anti-corruption layer designed for legacy DB
+        - COBOL wrapper API contract approved
+        - Shared-library migration path agreed with consumer teams
+      blockers:
+        - Shared core classes require sign-off from at least 2 external teams
+        - Mainframe infrastructure is on a vendor-managed platform

@@ -20,8 +20,9 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .databases import generate_legacy_schema
 from .languages import CSharpGenerator, CobolGenerator, PythonGenerator
-from .profile import AppRecipe, TenantProfile, load_profile
+from .profile import AppRecipe, SubProject, TenantProfile, VulnerabilityDensity, load_profile
 
 
 logger = logging.getLogger(__name__)
@@ -60,36 +61,154 @@ def _scale_app(app: AppRecipe, scale: float) -> AppRecipe:
     from dataclasses import replace
 
     new_modules = max(1, int(round(app.modules * scale)))
-    return replace(app, modules=new_modules)
+    scaled_subs = [
+        replace(sub, modules=max(1, int(round(sub.modules * scale))))
+        for sub in app.sub_projects
+    ]
+    return replace(app, modules=new_modules, sub_projects=scaled_subs)
+
+
+def _carve_sub_recipe(
+    parent: AppRecipe, sub: SubProject, scale: float
+) -> AppRecipe:
+    """Derive a single-project AppRecipe for one sub-project.
+
+    Splits the parent's vulnerability budget by ``sub.vuln_share`` and its
+    LOC target by ``sub.loc_share``. The returned recipe has no
+    ``sub_projects`` of its own so the existing single-project generator
+    paths can consume it unchanged.
+    """
+    from dataclasses import replace
+
+    vulns = parent.vulnerabilities
+    share_vulns = VulnerabilityDensity(
+        sql_injection=int(round(vulns.sql_injection * sub.vuln_share)),
+        hardcoded_creds=int(round(vulns.hardcoded_creds * sub.vuln_share)),
+        weak_crypto=int(round(vulns.weak_crypto * sub.vuln_share)),
+        command_injection=int(round(vulns.command_injection * sub.vuln_share)),
+        missing_fk=int(round(vulns.missing_fk * sub.vuln_share)),
+        pii_leak=int(round(vulns.pii_leak * sub.vuln_share)),
+        suppressed_exceptions=int(round(vulns.suppressed_exceptions * sub.vuln_share)),
+    )
+    scaled_modules = max(1, int(round(sub.modules * scale)))
+    return replace(
+        parent,
+        codename=f"{parent.codename}-{sub.name}",
+        label=f"{parent.label} — {sub.name}",
+        loc_target=int(round(parent.loc_target * sub.loc_share)),
+        primary_language=sub.language,
+        additional_languages=[],
+        modules=scaled_modules,
+        sub_projects=[],
+        has_rpa=sub.has_rpa,
+        # The parent's has_cobol_layer flag is only meaningful for the
+        # legacy Cobol injection path; sub-project paths always bypass it
+        # since the Cobol sub-project is explicit in the recipe already.
+        has_cobol_layer=False,
+        # DB schema injection lives at the parent level; do not re-emit
+        # from every sub-project.
+        inject_legacy_db_schema=False,
+        decision=None,
+    )
+
+
+def _dispatch_language(
+    app: AppRecipe, rng: random.Random, out_dir: Path
+) -> int:
+    """Call the right language generator for a single-project app."""
+    lang = app.primary_language
+    if lang == "csharp":
+        return len(CSharpGenerator(app=app, rng=rng).generate(out_dir))
+    if lang == "python":
+        return len(PythonGenerator(app=app, rng=rng).generate(out_dir))
+    if lang == "cobol":
+        return len(CobolGenerator(app=app, rng=rng).generate(out_dir))
+    logger.warning(
+        "Unsupported language '%s' for %s — writing placeholder README",
+        lang,
+        app.codename,
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    placeholder = out_dir / "README.md"
+    placeholder.write_text(
+        f"# {app.label}\n\n"
+        f"Placeholder for `{lang}` sub-project. Language generator not "
+        f"yet implemented — contributions welcome.\n",
+        encoding="utf-8",
+    )
+    return 1
 
 
 def _generate_app(
     app: AppRecipe, tenant_seed: int, out_dir: Path, scale: float = 1.0
 ) -> int:
-    """Generate one app and return the file count written."""
+    """Generate one app and return the file count written.
+
+    If the recipe has ``sub_projects``, each sub-project is written to its
+    own subdirectory using its language and its share of the parent's
+    vulnerability / LOC budget. Otherwise the single-project path is
+    used (unchanged from pre-Batch-3 behaviour).
+    """
     scaled = _scale_app(app, scale)
     seed = _derive_seed(tenant_seed, scaled.codename)
-    rng = random.Random(seed)
 
     files_written = 0
 
-    if scaled.primary_language == "csharp":
-        gen = CSharpGenerator(app=scaled, rng=rng)
-        files_written += len(gen.generate(out_dir))
-    elif scaled.primary_language == "python":
-        gen = PythonGenerator(app=scaled, rng=rng)
-        files_written += len(gen.generate(out_dir))
+    if scaled.sub_projects:
+        for sub in scaled.sub_projects:
+            sub_out = out_dir / sub.name
+            sub_recipe = _carve_sub_recipe(scaled, sub, scale)
+            sub_rng = random.Random(_derive_seed(seed, sub.name))
+            files_written += _dispatch_language(sub_recipe, sub_rng, sub_out)
     else:
-        logger.warning(
-            "Unsupported primary_language '%s' for %s — skipping",
-            scaled.primary_language,
-            scaled.codename,
-        )
+        rng = random.Random(seed)
+        if scaled.primary_language == "csharp":
+            files_written += len(CSharpGenerator(app=scaled, rng=rng).generate(out_dir))
+        elif scaled.primary_language == "python":
+            files_written += len(PythonGenerator(app=scaled, rng=rng).generate(out_dir))
+        else:
+            logger.warning(
+                "Unsupported primary_language '%s' for %s — skipping",
+                scaled.primary_language,
+                scaled.codename,
+            )
 
-    # Additional Cobol layer if requested (app-05)
-    if scaled.has_cobol_layer:
-        cobol_gen = CobolGenerator(app=scaled, rng=rng)
-        files_written += len(cobol_gen.generate(out_dir))
+        # Additional Cobol layer if requested (single-project apps only).
+        # Multi-sub-project apps should list cobol explicitly as a sub-project.
+        if scaled.has_cobol_layer and not scaled.sub_projects:
+            cobol_rng = random.Random(_derive_seed(seed, "cobol"))
+            files_written += len(
+                CobolGenerator(app=scaled, rng=cobol_rng).generate(out_dir)
+            )
+
+    # Legacy DB schema fixture (Batch 3) — single schema per app at the app root
+    if scaled.inject_legacy_db_schema:
+        db_rng = random.Random(_derive_seed(seed, "db-schema"))
+        files_written += len(generate_legacy_schema(scaled, db_rng, out_dir))
+
+    # Refactor decision markdown (Batch 3) — one per app with an assigned decision
+    if scaled.decision is not None:
+        decision_path = out_dir / "refactor_decision.md"
+        decision_path.parent.mkdir(parents=True, exist_ok=True)
+        decision_path.write_text(
+            scaled.decision.to_markdown(scaled.codename, scaled.label),
+            encoding="utf-8",
+        )
+        files_written += 1
+
+    # db_inactive_since marker (Batch 3) — signals retirement-path heuristics
+    # to the strangler planner without requiring a full decision block.
+    if scaled.db_inactive_since:
+        marker_path = out_dir / "db_inactive_since.txt"
+        marker_path.write_text(
+            f"{scaled.db_inactive_since}\n"
+            f"# This file is emitted by the synth generator when a recipe sets\n"
+            f"# db_inactive_since. The strangler planner reads it as a signal\n"
+            f"# that the underlying database has been inactive for long enough\n"
+            f"# to consider retirement, pending dual validation.\n",
+            encoding="utf-8",
+        )
+        files_written += 1
 
     return files_written
 

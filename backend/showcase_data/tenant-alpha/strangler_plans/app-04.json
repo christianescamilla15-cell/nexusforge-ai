@@ -2,98 +2,72 @@
   "app_name": "app-04",
   "app_path": "app-04",
   "total_modules": 5,
-  "total_loc": 12512,
-  "total_vulns": 108,
-  "total_effort_days": 32,
+  "total_loc": 3139,
+  "total_vulns": 106,
+  "total_effort_days": 8,
   "phases": [
     {
       "index": 1,
-      "title": "Phase 1: Extract outer API layer (1 module)",
-      "role": "controller",
+      "title": "Phase 1: Discovery",
+      "role": "discovery",
       "modules": [
         {
           "name": "Controllers",
           "role": "controller",
           "path": "Controllers",
-          "lines_of_code": 4476,
-          "vulnerability_count": 21,
+          "lines_of_code": 451,
+          "vulnerability_count": 3,
           "depended_by_count": 0
-        }
-      ],
-      "strategy": "Place API Gateway in front. Route new requests to extracted microservice; legacy endpoints stay live until traffic shifts.",
-      "risk": "low",
-      "effort_days": 10,
-      "rollback": "Switch API Gateway route back to legacy endpoints",
-      "rationale": "Controllers are the outermost layer \u2014 they hold routing and input validation but no persistent state. Extracting them first lets us place a gateway over the legacy monolith and start splitting traffic. Scope: 1 module(s), 4,476 LOC, 21 known vulnerabilities.",
-      "total_loc": 4476,
-      "total_vulns": 21
-    },
-    {
-      "index": 2,
-      "title": "Phase 2: Extract shared domain models (1 module)",
-      "role": "model",
-      "modules": [
+        },
         {
           "name": "Models",
           "role": "model",
           "path": "Models",
-          "lines_of_code": 2430,
+          "lines_of_code": 243,
           "vulnerability_count": 0,
           "depended_by_count": 0
-        }
-      ],
-      "strategy": "Extract domain entities into a shared contracts package consumed by both the legacy app and the new service.",
-      "risk": "low",
-      "effort_days": 4,
-      "rollback": "Revert contracts package version; legacy model remains authoritative",
-      "rationale": "Domain models are the contracts between caller and callee. Lifting them into a shared package unblocks parallel work on the dependent services. Scope: 1 module(s), 2,430 LOC, 0 known vulnerabilities.",
-      "total_loc": 2430,
-      "total_vulns": 0
-    },
-    {
-      "index": 3,
-      "title": "Phase 3: Extract data access layer (1 module)",
-      "role": "repository",
-      "modules": [
+        },
         {
           "name": "Repositories",
           "role": "repository",
           "path": "Repositories",
-          "lines_of_code": 4815,
-          "vulnerability_count": 52,
+          "lines_of_code": 483,
+          "vulnerability_count": 7,
           "depended_by_count": 0
-        }
-      ],
-      "strategy": "Introduce an anti-corruption layer over the legacy DB. New service reads via views; writes flow through the legacy path until the schema is owned by the new service.",
-      "risk": "low",
-      "effort_days": 14,
-      "rollback": "Remove anti-corruption layer; reads/writes resume on legacy schema",
-      "rationale": "Data access is high risk because schema changes require coordination with every consumer. We use an anti-corruption layer to decouple the new service from legacy SQL. Scope: 1 module(s), 4,815 LOC, 52 known vulnerabilities.",
-      "total_loc": 4815,
-      "total_vulns": 52
-    },
-    {
-      "index": 4,
-      "title": "Phase 4: Untangle shared legacy libraries (1 module)",
-      "role": "shared",
-      "modules": [
+        },
         {
           "name": "Shared",
           "role": "shared",
           "path": "Shared",
-          "lines_of_code": 691,
-          "vulnerability_count": 35,
+          "lines_of_code": 1927,
+          "vulnerability_count": 96,
           "depended_by_count": 0
         }
       ],
-      "strategy": "Identify consumers and lift the shared module into a versioned package. Extract one consumer at a time; deprecate the shared copy once all consumers migrate.",
-      "risk": "high",
-      "effort_days": 4,
-      "rollback": "Restore shared library import; republish legacy version",
-      "rationale": "Shared libraries are the hardest to extract \u2014 every consumer is affected. We handle them after leaf modules are stable so we can migrate consumers one at a time. Scope: 1 module(s), 691 LOC, 35 known vulnerabilities.",
-      "total_loc": 691,
-      "total_vulns": 35
+      "strategy": "This app has not been assessed yet. A discovery phase is required to build a baseline before the refactor plan can be written.\n\nDiscovery checklist:\n- Schedule discovery workshop with SMEs\n- Run full vulnerability scan (parity with other apps)\n- Confirm external integration sandbox availability\n- Produce a phase-assignment proposal\n\nKnown blockers:\n- External integration has no known test/sandbox environment\n- SMEs for the legacy document pipeline are scattered across teams",
+      "risk": "medium",
+      "effort_days": 8,
+      "rollback": "Discovery phases are non-destructive. If scope changes during discovery, update the decision file and re-run the planner.",
+      "rationale": "Not analyzed by the vendor Report Out. No Kardex report, no code findings summary, no cyclomatic complexity data. A discovery workshop is required to establish a baseline before the refactor plan can be written.",
+      "total_loc": 3104,
+      "total_vulns": 106
     }
   ],
-  "narrative": "The app-04 application contains 5 modules (12,512 lines of code, 108 known vulnerabilities). NexusForge proposes a 4-phase strangler decomposition covering controller, model, repository, shared. Total estimated effort: 32 engineer-days (~6 working weeks for a single engineer, or ~1 weeks for a 4-engineer team working in parallel). Each phase is independently deployable and reversible \u2014 no big-bang cut-over."
+  "narrative": "**Pre-assigned decision: TBD** (phase TBD). Rationale: Not analyzed by the vendor Report Out. No Kardex report, no code findings summary, no cyclomatic complexity data. A discovery workshop is required to establish a baseline before the refactor plan can be written. The app-04 application contains 5 modules (3,139 lines of code, 106 known vulnerabilities). NexusForge proposes a 1-phase strangler decomposition covering discovery. Total estimated effort: 8 engineer-days (~1 working weeks for a single engineer, or ~1 weeks for a 4-engineer team working in parallel). Each phase is independently deployable and reversible \u2014 no big-bang cut-over.",
+  "pre_assigned_decision": {
+    "action": "tbd",
+    "phase": "TBD",
+    "rationale": "Not analyzed by the vendor Report Out. No Kardex report, no code findings summary, no cyclomatic complexity data. A discovery workshop is required to establish a baseline before the refactor plan can be written.",
+    "validation_checklist": [
+      "Schedule discovery workshop with SMEs",
+      "Run full vulnerability scan (parity with other apps)",
+      "Confirm external integration sandbox availability",
+      "Produce a phase-assignment proposal"
+    ],
+    "blockers": [
+      "External integration has no known test/sandbox environment",
+      "SMEs for the legacy document pipeline are scattered across teams"
+    ]
+  },
+  "db_inactive_since": ""
 }
