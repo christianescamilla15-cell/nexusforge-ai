@@ -54,23 +54,75 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
   }
 
   const handleGoogleClick = () => {
-    if (!window.google?.accounts?.oauth2) {
-      setError('Google SDK not loaded yet. Try again in a moment.')
+    // Google Identity Services exposes the credential flow under
+    // `google.accounts.id` (NOT `google.accounts.oauth2` — that is a
+    // different product). Check for the correct namespace, and if the
+    // SDK script is still loading, retry once after a short delay.
+    const gsi = window.google?.accounts?.id
+    if (!gsi) {
+      setError(
+        lang === 'es'
+          ? 'El SDK de Google aún está cargando. Intenta de nuevo en un momento.'
+          : 'Google SDK still loading. Please try again in a moment.'
+      )
       return
     }
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: (response) => handleGoogleCredential(response.credential),
-      auto_select: false,
-      cancel_on_tap_outside: true,
-    })
-    window.google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // Fallback: render button in a popup
-        const div = document.getElementById('google-signin-btn')
-        if (div) window.google.accounts.id.renderButton(div, { theme: 'outline', size: 'large', width: 320 })
+    setError(null)
+    try {
+      gsi.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => {
+          if (response?.credential) {
+            handleGoogleCredential(response.credential)
+          } else {
+            setError(
+              lang === 'es'
+                ? 'Google no devolvió credenciales.'
+                : 'Google did not return credentials.'
+            )
+          }
+        },
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      })
+
+      // Render a real Google button inside the hidden div. This is the
+      // reliable path — One Tap (`prompt()`) is blocked by many
+      // third-party cookie restrictions, so the rendered button is the
+      // primary UX, not a fallback.
+      const div = document.getElementById('google-signin-btn')
+      if (div) {
+        div.innerHTML = ''  // clear any previous render
+        div.style.display = 'flex'
+        div.style.justifyContent = 'center'
+        div.style.marginTop = '12px'
+        gsi.renderButton(div, {
+          theme: 'outline',
+          size: 'large',
+          width: 320,
+          type: 'standard',
+          text: 'signin_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+        })
       }
-    })
+
+      // Also attempt the One Tap prompt as a convenience for users who
+      // have third-party cookies enabled. If it fails, the rendered
+      // button above still works.
+      gsi.prompt((notification) => {
+        if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
+          // Silent — the rendered button is already visible.
+        }
+      })
+    } catch (err) {
+      console.error('Google OAuth init failed', err)
+      setError(
+        lang === 'es'
+          ? `Error al iniciar Google: ${err.message}`
+          : `Google sign-in failed: ${err.message}`
+      )
+    }
   }
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
