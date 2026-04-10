@@ -457,6 +457,39 @@ async def scan_multilang(body: MultiLangScanRequest, request: Request):
     return report.to_dict()
 
 
+class ComplianceMiddlewareRequest(BaseModel):
+    out_dir: str
+    target: str = "both"  # python / dotnet / both
+
+
+@router.post("/generate-compliance-middleware")
+async def generate_compliance_middleware_endpoint(
+    body: ComplianceMiddlewareRequest, request: Request
+):
+    """Emit a drop-in compliance middleware package.
+
+    Generates self-contained templates for Segregation of Duties,
+    transactional audit logging, global exception handling, RBAC
+    with scope enforcement, and PII masking — in Python (FastAPI),
+    .NET (ASP.NET Core), or both. Use as a starting point for teams
+    that need the five compliance controls at once.
+    """
+    _get_user_id(request)
+
+    from pathlib import Path as _Path
+
+    from app.refactor.compliance_enforcer import generate_compliance_middleware
+
+    try:
+        result = generate_compliance_middleware(
+            out_dir=_Path(body.out_dir),
+            target=body.target,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result.to_dict()
+
+
 class GenerateIacRequest(BaseModel):
     project_path: str
     out_dir: str
