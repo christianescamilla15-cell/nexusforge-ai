@@ -47,29 +47,48 @@ def _derive_seed(tenant_seed: int, codename: str) -> int:
     return tenant_seed ^ (abs(hash(codename)) & 0xFFFFFFFF)
 
 
-def _generate_app(app: AppRecipe, tenant_seed: int, out_dir: Path) -> int:
+def _scale_app(app: AppRecipe, scale: float) -> AppRecipe:
+    """Return a copy of the app recipe with modules count multiplied by scale.
+
+    Vulnerability budget is left unchanged so it distributes across the
+    larger module set, which lowers per-module vulnerability density —
+    the realistic outcome when a real codebase grows: more benign code,
+    same absolute number of known vulns.
+    """
+    if scale == 1.0:
+        return app
+    from dataclasses import replace
+
+    new_modules = max(1, int(round(app.modules * scale)))
+    return replace(app, modules=new_modules)
+
+
+def _generate_app(
+    app: AppRecipe, tenant_seed: int, out_dir: Path, scale: float = 1.0
+) -> int:
     """Generate one app and return the file count written."""
-    seed = _derive_seed(tenant_seed, app.codename)
+    scaled = _scale_app(app, scale)
+    seed = _derive_seed(tenant_seed, scaled.codename)
     rng = random.Random(seed)
 
     files_written = 0
 
-    if app.primary_language == "csharp":
-        gen = CSharpGenerator(app=app, rng=rng)
+    if scaled.primary_language == "csharp":
+        gen = CSharpGenerator(app=scaled, rng=rng)
         files_written += len(gen.generate(out_dir))
-    elif app.primary_language == "python":
-        gen = PythonGenerator(app=app, rng=rng)
+    elif scaled.primary_language == "python":
+        gen = PythonGenerator(app=scaled, rng=rng)
         files_written += len(gen.generate(out_dir))
     else:
         logger.warning(
             "Unsupported primary_language '%s' for %s — skipping",
-            app.primary_language,
-            app.codename,
+            scaled.primary_language,
+            scaled.codename,
         )
 
     # Additional Cobol layer if requested (app-05)
-    if app.has_cobol_layer:
-        cobol_gen = CobolGenerator(app=app, rng=rng)
+    if scaled.has_cobol_layer:
+        cobol_gen = CobolGenerator(app=scaled, rng=rng)
         files_written += len(cobol_gen.generate(out_dir))
 
     return files_written
@@ -94,8 +113,15 @@ def generate_tenant(
     profile: TenantProfile,
     output_dir: Path,
     only_app: str | None = None,
+    scale: float = 1.0,
 ) -> GenerationReport:
-    """Generate the full tenant tree. Returns a report with metrics."""
+    """Generate the full tenant tree. Returns a report with metrics.
+
+    ``scale`` multiplies each app's module count. Use scale>1 to hit
+    larger LOC targets (e.g., scale=10 turns a 12-module recipe into
+    120 modules, producing roughly 10x the LOC with the same absolute
+    vulnerability budget spread across more files).
+    """
     start = time.monotonic()
     report = GenerationReport(tenant_id=profile.tenant_id)
 
@@ -109,7 +135,7 @@ def generate_tenant(
         app_out = tenant_out / app.codename
         logger.info("Generating %s (%s) at %s", app.codename, app.label, app_out)
 
-        files = _generate_app(app, profile.seed, app_out)
+        files = _generate_app(app, profile.seed, app_out, scale=scale)
 
         # Write a synthetic README.md per app so ingestion picks up metadata
         (app_out / "README.md").write_text(
@@ -139,6 +165,16 @@ def main() -> int:
     parser.add_argument("--fixture", default=str(DEFAULT_FIXTURE), help="Path to tenant YAML")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Output root directory")
     parser.add_argument("--app", default=None, help="Generate only this app codename")
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help=(
+            "Module-count multiplier for LOC scaling. 1.0 = recipe defaults "
+            "(~21K LOC tenant). 10 = ~200K LOC. ~43 = phase A target ~900K LOC. "
+            "~260 = phase B target ~5.6M LOC."
+        ),
+    )
     parser.add_argument("--quiet", action="store_true", help="Suppress INFO logs")
     args = parser.parse_args()
 
@@ -158,10 +194,12 @@ def main() -> int:
         f"Profile: {len(profile.apps)} apps, ~{profile.total_loc():,} LOC target, "
         f"{profile.total_vulnerabilities():,} vulnerabilities"
     )
+    if args.scale != 1.0:
+        print(f"Scale: {args.scale}x (module counts multiplied)")
     if args.app:
         print(f"Filter: only {args.app}")
 
-    report = generate_tenant(profile, output_dir, only_app=args.app)
+    report = generate_tenant(profile, output_dir, only_app=args.app, scale=args.scale)
 
     print("\n=== Generation Report ===")
     print(f"Tenant:              {report.tenant_id}")
