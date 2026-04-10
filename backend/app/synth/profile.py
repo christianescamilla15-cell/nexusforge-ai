@@ -1,0 +1,156 @@
+"""Profile data classes for synthetic tenant generation.
+
+A TenantProfile holds the overall parameters for a tenant showcase. Each
+AppRecipe describes one synthetic application inside that tenant.
+
+Profiles are loaded from YAML fixtures under ``fixtures/``. They are
+deterministic: the same profile + seed always produces the same output.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+@dataclass
+class VulnerabilityDensity:
+    """Per-app vulnerability injection density.
+
+    Values are absolute counts. The generator inserts exactly this many
+    instances of each pattern into the generated code so the refactor
+    engine's detectors find predictable numbers.
+    """
+
+    sql_injection: int = 0
+    hardcoded_creds: int = 0
+    weak_crypto: int = 0
+    command_injection: int = 0
+    missing_fk: int = 0
+    pii_leak: int = 0
+    suppressed_exceptions: int = 0
+
+    def total(self) -> int:
+        return (
+            self.sql_injection
+            + self.hardcoded_creds
+            + self.weak_crypto
+            + self.command_injection
+            + self.missing_fk
+            + self.pii_leak
+            + self.suppressed_exceptions
+        )
+
+
+@dataclass
+class DatabaseSpec:
+    """Describes a database this app talks to."""
+
+    engine: str  # sqlserver, mysql, db2, oracle, sqlite, redis
+    tables: int = 20
+    pii_columns: int = 5
+
+
+@dataclass
+class AppRecipe:
+    """One synthetic application inside a tenant."""
+
+    codename: str  # e.g., "app-01"
+    label: str  # user-facing display, e.g., "Transaction Reconciliation Service"
+    loc_target: int  # approximate lines of code
+    primary_language: str  # csharp, python, vbnet, java, php, typescript, cobol, cpp
+    additional_languages: list[str] = field(default_factory=list)
+    databases: list[DatabaseSpec] = field(default_factory=list)
+    vulnerabilities: VulnerabilityDensity = field(default_factory=VulnerabilityDensity)
+    has_cobol_layer: bool = False
+    is_shared_nexus: bool = False  # if True, other apps will import from this
+    has_rpa: bool = False  # if True, include Playwright/Selenium fragile selectors
+    modules: int = 10  # number of sub-modules to generate
+
+    @property
+    def all_languages(self) -> list[str]:
+        seen = [self.primary_language]
+        for lang in self.additional_languages:
+            if lang not in seen:
+                seen.append(lang)
+        if self.has_cobol_layer and "cobol" not in seen:
+            seen.append("cobol")
+        return seen
+
+
+@dataclass
+class TenantProfile:
+    """Top-level tenant configuration."""
+
+    tenant_id: str  # slug, e.g., "tenant-alpha"
+    display_name: str  # e.g., "Alpha Corp"
+    seed: int = 42
+    apps: list[AppRecipe] = field(default_factory=list)
+    description: str = ""
+
+    def app_by_codename(self, codename: str) -> AppRecipe | None:
+        for app in self.apps:
+            if app.codename == codename:
+                return app
+        return None
+
+    def total_loc(self) -> int:
+        return sum(a.loc_target for a in self.apps)
+
+    def total_vulnerabilities(self) -> int:
+        return sum(a.vulnerabilities.total() for a in self.apps)
+
+
+def load_profile(path: str | Path) -> TenantProfile:
+    """Load a TenantProfile from a YAML fixture file."""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Tenant profile fixture not found: {path}")
+    with path.open("r", encoding="utf-8") as f:
+        raw: dict[str, Any] = yaml.safe_load(f)
+
+    apps: list[AppRecipe] = []
+    for raw_app in raw.get("apps", []):
+        dbs = [
+            DatabaseSpec(
+                engine=d["engine"],
+                tables=d.get("tables", 20),
+                pii_columns=d.get("pii_columns", 5),
+            )
+            for d in raw_app.get("databases", [])
+        ]
+        vuln_raw = raw_app.get("vulnerabilities", {})
+        vulns = VulnerabilityDensity(
+            sql_injection=vuln_raw.get("sql_injection", 0),
+            hardcoded_creds=vuln_raw.get("hardcoded_creds", 0),
+            weak_crypto=vuln_raw.get("weak_crypto", 0),
+            command_injection=vuln_raw.get("command_injection", 0),
+            missing_fk=vuln_raw.get("missing_fk", 0),
+            pii_leak=vuln_raw.get("pii_leak", 0),
+            suppressed_exceptions=vuln_raw.get("suppressed_exceptions", 0),
+        )
+        apps.append(
+            AppRecipe(
+                codename=raw_app["codename"],
+                label=raw_app["label"],
+                loc_target=raw_app.get("loc_target", 50_000),
+                primary_language=raw_app["primary_language"],
+                additional_languages=raw_app.get("additional_languages", []),
+                databases=dbs,
+                vulnerabilities=vulns,
+                has_cobol_layer=raw_app.get("has_cobol_layer", False),
+                is_shared_nexus=raw_app.get("is_shared_nexus", False),
+                has_rpa=raw_app.get("has_rpa", False),
+                modules=raw_app.get("modules", 10),
+            )
+        )
+
+    return TenantProfile(
+        tenant_id=raw["tenant_id"],
+        display_name=raw["display_name"],
+        seed=raw.get("seed", 42),
+        description=raw.get("description", ""),
+        apps=apps,
+    )

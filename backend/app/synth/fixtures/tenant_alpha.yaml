@@ -1,0 +1,128 @@
+# Tenant Alpha — showcase profile for Phase A (5 apps, ~900K LOC)
+#
+# This file is committed to the repo but contains NO real client data.
+# All names are generic codenames approved per docs/integration/01_agent_mapping.md.
+#
+# Phase B will scale the same structural pattern to 31 apps (~5.6M LOC)
+# by adding entries to the `apps` list.
+
+tenant_id: tenant-alpha
+display_name: Alpha Corp
+seed: 42
+description: >
+  Synthetic showcase tenant demonstrating NexusForge's ability to modernize
+  enterprise-scale legacy systems. 5 applications representing a typical
+  legacy nexus architecture: one shared monolithic core (app-05) with
+  4 satellites depending on it. Mirrors real-world structural patterns
+  without referencing any specific client or industry.
+
+apps:
+  # ─── app-01: Transaction Reconciliation Service ──────────────────────
+  - codename: app-01
+    label: Transaction Reconciliation Service
+    loc_target: 180000
+    primary_language: csharp
+    additional_languages: []
+    modules: 12
+    databases:
+      - engine: mysql
+        tables: 45
+        pii_columns: 8
+    vulnerabilities:
+      sql_injection: 600
+      hardcoded_creds: 12
+      weak_crypto: 4
+      pii_leak: 30
+      suppressed_exceptions: 85
+      missing_fk: 40
+
+  # ─── app-02: Batch Sales Management ──────────────────────────────────
+  - codename: app-02
+    label: Batch Sales Management
+    loc_target: 150000
+    primary_language: csharp
+    modules: 10
+    databases:
+      - engine: sqlserver
+        tables: 60
+        pii_columns: 12
+    vulnerabilities:
+      sql_injection: 450
+      hardcoded_creds: 10
+      weak_crypto: 5
+      pii_leak: 25
+      suppressed_exceptions: 70
+      missing_fk: 55
+
+  # ─── app-03: Automated Refund Processing ─────────────────────────────
+  - codename: app-03
+    label: Automated Refund Processing
+    loc_target: 80000
+    primary_language: python
+    modules: 8
+    has_rpa: true
+    databases:
+      - engine: sqlite
+        tables: 15
+        pii_columns: 4
+      - engine: db2
+        tables: 30
+        pii_columns: 10
+    vulnerabilities:
+      sql_injection: 200
+      hardcoded_creds: 8
+      weak_crypto: 2
+      command_injection: 3
+      pii_leak: 18
+      suppressed_exceptions: 45
+      missing_fk: 25
+
+  # ─── app-04: Document Batch Ingestion ────────────────────────────────
+  - codename: app-04
+    label: Document Batch Ingestion
+    loc_target: 120000
+    primary_language: csharp
+    additional_languages: [vbnet]
+    modules: 9
+    databases:
+      - engine: sqlserver
+        tables: 40
+        pii_columns: 6
+    vulnerabilities:
+      sql_injection: 400
+      hardcoded_creds: 9
+      weak_crypto: 6
+      pii_leak: 22
+      suppressed_exceptions: 60
+      missing_fk: 35
+
+  # ─── app-05: Commission Engine (the shared legacy nexus) ─────────────
+  - codename: app-05
+    label: Commission Engine
+    loc_target: 370000
+    primary_language: csharp
+    additional_languages: [java]
+    has_cobol_layer: true
+    is_shared_nexus: true
+    modules: 20
+    databases:
+      - engine: sqlserver
+        tables: 80
+        pii_columns: 15
+      - engine: db2
+        tables: 50
+        pii_columns: 8
+      - engine: mysql
+        tables: 30
+        pii_columns: 6
+      - engine: oracle
+        tables: 40
+        pii_columns: 10
+    vulnerabilities:
+      sql_injection: 1350
+      hardcoded_creds: 25
+      weak_crypto: 10
+      command_injection: 1
+      pii_leak: 55
+      suppressed_exceptions: 180
+      missing_fk: 120
