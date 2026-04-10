@@ -77,10 +77,11 @@ function SeverityBar({ findingsBySeverity }) {
   )
 }
 
-function AppCard({ app, onSelect, selected }) {
+function AppCard({ app, onSelect, selected, lang }) {
   const bySev = app.findings?.by_severity || {}
   const byCat = app.findings?.by_category || {}
   const total = app.findings?.total || 0
+  const effortDays = app.total_effort_days || 0
   return (
     <button
       onClick={() => onSelect(app.codename)}
@@ -92,20 +93,34 @@ function AppCard({ app, onSelect, selected }) {
         transition: 'all 0.15s',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600 }}>{app.codename}</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginTop: 2 }}>
             {app.label || app.codename}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#DC2626' }}>
             {total.toLocaleString()}
           </div>
-          <div style={{ fontSize: 11, color: '#9CA3AF' }}>findings</div>
+          <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+            {lang === 'es' ? 'hallazgos' : 'findings'}
+          </div>
         </div>
       </div>
+
+      {(app.decision || effortDays > 0) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <DecisionBadge decision={app.decision} lang={lang} />
+          {effortDays > 0 && (
+            <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>
+              ~{effortDays}d {lang === 'es' ? 'esfuerzo' : 'effort'}
+            </span>
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#6B7280', marginTop: 10 }}>
         <span>{app.total_files?.toLocaleString() || 0} files</span>
         <span>•</span>
@@ -113,7 +128,21 @@ function AppCard({ app, onSelect, selected }) {
         <span>•</span>
         <span>risk {app.risk_score?.toLocaleString() || 0}</span>
       </div>
+
+      {app.db_inactive_since && (
+        <div style={{
+          marginTop: 8, padding: '6px 10px', borderRadius: 8,
+          background: '#FEF2F2', border: '1px solid #FECACA',
+          fontSize: 11, color: '#991B1B', fontWeight: 600,
+        }}>
+          {lang === 'es'
+            ? `⚠ BD inactiva desde ${app.db_inactive_since}`
+            : `⚠ DB inactive since ${app.db_inactive_since}`}
+        </div>
+      )}
+
       <SeverityBar findingsBySeverity={bySev} />
+
       {Object.keys(byCat).length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
           {Object.entries(byCat).slice(0, 3).map(([cat, n]) => (
@@ -185,6 +214,36 @@ const CERT_STATUS_COLORS = {
   in_progress: { bg: '#DBEAFE', fg: '#1E40AF', border: '#93C5FD', label: 'In progress' },
   at_risk: { bg: '#FEF3C7', fg: '#92400E', border: '#FCD34D', label: 'At risk' },
   blocked: { bg: '#FEE2E2', fg: '#991B1B', border: '#FCA5A5', label: 'Blocked' },
+}
+
+// Visual styles for pre-assigned refactor decisions on each app card.
+// Values match the action strings emitted by the strangler planner
+// (refactor / retire / retain / tbd). Unknown actions fall back to a
+// neutral gray chip.
+const DECISION_STYLES = {
+  refactor: { bg: '#EEF2FF', fg: '#3730A3', border: '#C7D2FE', label: 'Refactor' },
+  retire:   { bg: '#FEE2E2', fg: '#991B1B', border: '#FCA5A5', label: 'Retire' },
+  retain:   { bg: '#DCFCE7', fg: '#166534', border: '#86EFAC', label: 'Retain' },
+  tbd:      { bg: '#FEF3C7', fg: '#92400E', border: '#FCD34D', label: 'TBD' },
+}
+
+function DecisionBadge({ decision, lang }) {
+  if (!decision || !decision.action) return null
+  const style = DECISION_STYLES[decision.action] || {
+    bg: '#F3F4F6', fg: '#374151', border: '#D1D5DB',
+    label: decision.action,
+  }
+  const phase = decision.phase ? ` · ${decision.phase}` : ''
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '3px 9px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+      background: style.bg, color: style.fg, border: `1px solid ${style.border}`,
+      textTransform: 'uppercase', letterSpacing: 0.4, whiteSpace: 'nowrap',
+    }}>
+      {style.label}{phase}
+    </span>
+  )
 }
 
 function daysBetween(from, to) {
@@ -586,6 +645,7 @@ export default function TenantShowcase({ lang = 'en' }) {
                 app={app}
                 onSelect={setSelectedApp}
                 selected={selectedApp === app.codename}
+                lang={lang}
               />
             ))}
           </div>
