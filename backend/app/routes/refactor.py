@@ -489,55 +489,146 @@ async def strangler_plan(body: StranglerPlanRequest, request: Request):
 
 # ── Showcase endpoints (public — no auth required) ───────────────────────
 #
-# These serve static JSON fixtures representing pre-computed showcase
-# tenants. They let the frontend render a polished "platform of the
-# future" demo without running live scans. Anyone visiting /showcase
-# on the frontend can browse the synthetic tenant-alpha results.
+# These serve showcase pipeline output with a two-layer read strategy:
+#   1. DB first: the latest row from showcase_runs (populated by the
+#      persist_showcase script or a live pipeline run)
+#   2. Static fallback: backend/showcase_data/<tenant>/ JSON fixtures
+#      committed to the repo, used when the DB has no row for that
+#      tenant yet.
+#
+# The switch is transparent to the frontend — the same endpoint shape
+# is returned in both cases. This keeps /showcase working in fresh
+# environments (no DB data yet) and upgrades cleanly once real runs
+# land in the database.
+
+
+async def _latest_db_run(tenant_slug: str):
+    """Return the latest persisted run for a tenant, or None on any DB error."""
+    try:
+        from app.showcase import storage
+        return await storage.latest_run(tenant_slug)
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("showcase DB read failed for %s: %s", tenant_slug, exc)
+        return None
+
+
+def _static_report(tenant_id: str) -> dict | None:
+    """Load the static showcase_report.json for a tenant if present."""
+    report_path = _SHOWCASE_DATA_DIR / tenant_id / "showcase_report.json"
+    if not report_path.exists():
+        return None
+    try:
+        return json.loads(report_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.exception("Corrupt showcase report for %s", tenant_id)
+        return None
+
+
+def _static_compliance(tenant_id: str) -> dict | None:
+    """Load the static compliance.json for a tenant if present."""
+    path = _SHOWCASE_DATA_DIR / tenant_id / "compliance.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.exception("Corrupt compliance profile for %s", tenant_id)
+        return None
+
+
+def _static_strangler_plan(tenant_id: str, app_codename: str) -> dict | None:
+    """Load the static strangler_plans/<app>.json for a tenant if present."""
+    path = (
+        _SHOWCASE_DATA_DIR / tenant_id / "strangler_plans" / f"{app_codename}.json"
+    )
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.exception(
+            "Corrupt strangler plan for %s/%s", tenant_id, app_codename
+        )
+        return None
 
 
 @router.get("/showcase")
 async def list_showcase_tenants():
-    """List the showcase tenants for which static reports are available."""
-    if not _SHOWCASE_DATA_DIR.exists():
-        return {"tenants": []}
-    tenants = []
-    for tenant_dir in sorted(_SHOWCASE_DATA_DIR.iterdir()):
-        if not tenant_dir.is_dir():
-            continue
-        report_path = tenant_dir / "showcase_report.json"
-        if not report_path.exists():
-            continue
-        try:
-            data = json.loads(report_path.read_text(encoding="utf-8"))
-            totals = data.get("totals", {})
-            tenants.append({
-                "tenant_id": tenant_dir.name,
+    """List the showcase tenants visible to the /showcase frontend.
+
+    Combines persisted tenants (from showcase_runs) with static fixture
+    tenants (from backend/showcase_data/). A tenant that exists in both
+    places is listed once, using DB data, with ``source = 'db'``.
+    """
+    tenants: dict[str, dict] = {}
+
+    # 1. Persisted tenants
+    try:
+        from app.showcase import storage
+        for summary in await storage.list_tenants():
+            slug = summary["tenant_slug"]
+            run = await storage.latest_run(slug)
+            if not run or not run.get("report"):
+                continue
+            totals = run["report"].get("totals", {})
+            tenants[slug] = {
+                "tenant_id": slug,
                 "apps": totals.get("apps", 0),
                 "files": totals.get("files", 0),
                 "lines_of_code": totals.get("lines_of_code", 0),
                 "findings": totals.get("findings", 0),
                 "risk_score": totals.get("risk_score", 0),
-            })
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Failed to read showcase report for %s: %s", tenant_dir.name, exc)
-    return {"tenants": tenants}
+                "source": "db",
+                "latest_run_at": summary.get("latest_generated_at"),
+                "run_count": summary.get("run_count", 1),
+            }
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("showcase list from DB failed: %s", exc)
+
+    # 2. Static fallback for anything not already listed
+    if _SHOWCASE_DATA_DIR.exists():
+        for tenant_dir in sorted(_SHOWCASE_DATA_DIR.iterdir()):
+            if not tenant_dir.is_dir():
+                continue
+            slug = tenant_dir.name
+            if slug in tenants:
+                continue
+            data = _static_report(slug)
+            if data is None:
+                continue
+            totals = data.get("totals", {})
+            tenants[slug] = {
+                "tenant_id": slug,
+                "apps": totals.get("apps", 0),
+                "files": totals.get("files", 0),
+                "lines_of_code": totals.get("lines_of_code", 0),
+                "findings": totals.get("findings", 0),
+                "risk_score": totals.get("risk_score", 0),
+                "source": "static",
+            }
+
+    return {"tenants": sorted(tenants.values(), key=lambda t: t["tenant_id"])}
 
 
 @router.get("/showcase/{tenant_id}")
 async def get_showcase_report(tenant_id: str):
-    """Return the full showcase report JSON for one tenant."""
-    # Guard against path traversal — tenant_id must be a plain directory name
+    """Return the full showcase report for one tenant.
+
+    Prefers the latest persisted run from showcase_runs; falls back to
+    the static fixture under backend/showcase_data when the DB has no
+    row for this tenant.
+    """
     if "/" in tenant_id or ".." in tenant_id or "\\" in tenant_id:
         raise HTTPException(status_code=400, detail="Invalid tenant id")
 
-    report_path = _SHOWCASE_DATA_DIR / tenant_id / "showcase_report.json"
-    if not report_path.exists():
+    run = await _latest_db_run(tenant_id)
+    if run and run.get("report"):
+        return run["report"]
+
+    static = _static_report(tenant_id)
+    if static is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    try:
-        return json.loads(report_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        logger.exception("Corrupt showcase report for %s", tenant_id)
-        raise HTTPException(status_code=500, detail="Corrupt showcase report")
+    return static
 
 
 @router.get("/showcase/{tenant_id}/compliance")
@@ -545,40 +636,46 @@ async def get_compliance_profile(tenant_id: str):
     """Return the compliance countdown data for one tenant.
 
     Structured as a ComplianceProfile.to_dict() payload: hard_deadline,
-    certifications, phases, audit_cadence and narrative. Frontend uses
-    this to render a countdown card and a per-certification readiness
-    widget on the /showcase page.
+    certifications, phases, audit_cadence and narrative. Prefers the
+    persisted run; falls back to the static compliance.json fixture.
     """
     if "/" in tenant_id or ".." in tenant_id or "\\" in tenant_id:
         raise HTTPException(status_code=400, detail="Invalid tenant id")
 
-    compliance_path = _SHOWCASE_DATA_DIR / tenant_id / "compliance.json"
-    if not compliance_path.exists():
+    run = await _latest_db_run(tenant_id)
+    if run and run.get("compliance"):
+        return run["compliance"]
+
+    static = _static_compliance(tenant_id)
+    if static is None:
         raise HTTPException(status_code=404, detail="Compliance profile not found")
-    try:
-        return json.loads(compliance_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        logger.exception("Corrupt compliance profile for %s", tenant_id)
-        raise HTTPException(status_code=500, detail="Corrupt compliance profile")
+    return static
 
 
 @router.get("/showcase/{tenant_id}/strangler/{app_codename}")
 async def get_strangler_plan(tenant_id: str, app_codename: str):
-    """Return the pre-computed strangler migration plan for a single app."""
+    """Return the pre-computed strangler migration plan for a single app.
+
+    DB-first: if the tenant has a persisted run whose strangler_plans
+    blob contains this app_codename, that plan is returned. Otherwise
+    the static fixture at
+    ``backend/showcase_data/<tenant>/strangler_plans/<app>.json`` is
+    used as a fallback.
+    """
     for component in (tenant_id, app_codename):
         if "/" in component or ".." in component or "\\" in component:
             raise HTTPException(status_code=400, detail="Invalid path component")
 
-    plan_path = (
-        _SHOWCASE_DATA_DIR / tenant_id / "strangler_plans" / f"{app_codename}.json"
-    )
-    if not plan_path.exists():
+    run = await _latest_db_run(tenant_id)
+    if run:
+        plans = run.get("strangler_plans") or {}
+        if app_codename in plans and plans[app_codename]:
+            return plans[app_codename]
+
+    static = _static_strangler_plan(tenant_id, app_codename)
+    if static is None:
         raise HTTPException(status_code=404, detail="Strangler plan not found")
-    try:
-        return json.loads(plan_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        logger.exception("Corrupt strangler plan for %s/%s", tenant_id, app_codename)
-        raise HTTPException(status_code=500, detail="Corrupt strangler plan")
+    return static
 
 
 @router.get("/status/{project_path:path}")
