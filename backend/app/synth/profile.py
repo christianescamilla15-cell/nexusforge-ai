@@ -189,6 +189,55 @@ class ComplianceProfile:
 
 
 @dataclass
+class VendorDependency:
+    """One external vendor the tenant depends on."""
+
+    name: str  # codename only, e.g., "legacy-platform-vendor"
+    category: str  # legacy-platform / consulting / cloud / saas / audit
+    revenue_share_pct: float = 0.0  # how much of vendor's revenue comes from this tenant
+    spend_2y_usd: float = 0.0  # 2-year spend with this vendor in USD
+    contract_coverage_pct: float = 100.0  # % of spend under a written contract
+    lock_in_level: str = "medium"  # low / medium / high
+    notes: str = ""
+
+
+@dataclass
+class PenaltyExposure:
+    """Upper-bound penalty scenarios."""
+
+    category: str  # reputational / privacy / integrity / regulatory
+    cap_usd: float  # worst-case dollar cap
+    driver: str = ""  # short sentence describing the trigger
+
+
+@dataclass
+class CommercialRiskProfile:
+    """Tenant-wide commercial risk metadata.
+
+    Captures the non-technical factors that shape phase ordering:
+    vendor concentration, contract gaps and penalty exposure. The
+    strangler planner reads this profile to bring forward phases whose
+    apps carry high commercial risk (e.g., hit the apps whose vendor
+    contract is about to expire first).
+    """
+
+    vendors: list[VendorDependency] = field(default_factory=list)
+    penalty_exposure: list[PenaltyExposure] = field(default_factory=list)
+    contract_gap_pct: float = 0.0  # tenant-wide % of spend without contract coverage
+    total_exposure_usd: float = 0.0  # sum of penalty caps
+    narrative: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "vendors": [asdict(v) for v in self.vendors],
+            "penalty_exposure": [asdict(p) for p in self.penalty_exposure],
+            "contract_gap_pct": self.contract_gap_pct,
+            "total_exposure_usd": self.total_exposure_usd,
+            "narrative": self.narrative,
+        }
+
+
+@dataclass
 class TenantProfile:
     """Top-level tenant configuration."""
 
@@ -198,6 +247,7 @@ class TenantProfile:
     apps: list[AppRecipe] = field(default_factory=list)
     description: str = ""
     compliance: ComplianceProfile | None = None
+    commercial_risk: CommercialRiskProfile | None = None
 
     def app_by_codename(self, codename: str) -> AppRecipe | None:
         for app in self.apps:
@@ -310,6 +360,35 @@ def load_profile(path: str | Path) -> TenantProfile:
             ],
         )
 
+    commercial_risk = None
+    raw_cr = raw.get("commercial_risk")
+    if raw_cr:
+        commercial_risk = CommercialRiskProfile(
+            contract_gap_pct=raw_cr.get("contract_gap_pct", 0.0),
+            total_exposure_usd=raw_cr.get("total_exposure_usd", 0.0),
+            narrative=raw_cr.get("narrative", ""),
+            vendors=[
+                VendorDependency(
+                    name=v["name"],
+                    category=v.get("category", "saas"),
+                    revenue_share_pct=v.get("revenue_share_pct", 0.0),
+                    spend_2y_usd=v.get("spend_2y_usd", 0.0),
+                    contract_coverage_pct=v.get("contract_coverage_pct", 100.0),
+                    lock_in_level=v.get("lock_in_level", "medium"),
+                    notes=v.get("notes", ""),
+                )
+                for v in raw_cr.get("vendors", [])
+            ],
+            penalty_exposure=[
+                PenaltyExposure(
+                    category=p["category"],
+                    cap_usd=p.get("cap_usd", 0.0),
+                    driver=p.get("driver", ""),
+                )
+                for p in raw_cr.get("penalty_exposure", [])
+            ],
+        )
+
     return TenantProfile(
         tenant_id=raw["tenant_id"],
         display_name=raw["display_name"],
@@ -317,4 +396,5 @@ def load_profile(path: str | Path) -> TenantProfile:
         description=raw.get("description", ""),
         apps=apps,
         compliance=compliance,
+        commercial_risk=commercial_risk,
     )

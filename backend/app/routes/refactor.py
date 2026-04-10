@@ -631,6 +631,44 @@ async def get_showcase_report(tenant_id: str):
     return static
 
 
+def _static_commercial_risk(tenant_id: str) -> dict | None:
+    """Load the static commercial_risk.json for a tenant if present."""
+    path = _SHOWCASE_DATA_DIR / tenant_id / "commercial_risk.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.exception("Corrupt commercial_risk profile for %s", tenant_id)
+        return None
+
+
+@router.get("/showcase/{tenant_id}/commercial-risk")
+async def get_commercial_risk_profile(tenant_id: str):
+    """Return the commercial risk metadata for one tenant.
+
+    Mirrors the compliance endpoint shape: tries the latest persisted
+    run first, then falls back to the static commercial_risk.json
+    fixture. Payload includes vendor concentration, contract coverage
+    gaps and penalty exposure, all with generic codenames.
+    """
+    if "/" in tenant_id or ".." in tenant_id or "\\" in tenant_id:
+        raise HTTPException(status_code=400, detail="Invalid tenant id")
+
+    run = await _latest_db_run(tenant_id)
+    if run:
+        report = run.get("report") or {}
+        if "commercial_risk" in report and report["commercial_risk"]:
+            return report["commercial_risk"]
+
+    static = _static_commercial_risk(tenant_id)
+    if static is None:
+        raise HTTPException(
+            status_code=404, detail="Commercial risk profile not found"
+        )
+    return static
+
+
 @router.get("/showcase/{tenant_id}/compliance")
 async def get_compliance_profile(tenant_id: str):
     """Return the compliance countdown data for one tenant.

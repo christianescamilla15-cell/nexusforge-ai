@@ -1,0 +1,53 @@
+{
+  "tenant_id": "tenant-alpha",
+  "display_name": "Alpha Corp",
+  "vendors": [
+    {
+      "name": "legacy-platform-vendor",
+      "category": "legacy-platform",
+      "revenue_share_pct": 60.0,
+      "spend_2y_usd": 8600000,
+      "contract_coverage_pct": 60.0,
+      "lock_in_level": "high",
+      "notes": "Operates and maintains the legacy core plus ~15 satellite apps. 60% of vendor's total revenue comes from this tenant. Historical other customers have churned, limiting the vendor's ability to invest in modernization.\n"
+    },
+    {
+      "name": "cloud-hyperscaler",
+      "category": "cloud",
+      "revenue_share_pct": 0.1,
+      "spend_2y_usd": 2400000,
+      "contract_coverage_pct": 100.0,
+      "lock_in_level": "medium",
+      "notes": "Hosts ~90% of non-mainframe workloads under a standard enterprise agreement."
+    },
+    {
+      "name": "consulting-partner",
+      "category": "consulting",
+      "revenue_share_pct": 5.0,
+      "spend_2y_usd": 1200000,
+      "contract_coverage_pct": 100.0,
+      "lock_in_level": "low",
+      "notes": "Short-term engagements for discovery, assessment and program management."
+    }
+  ],
+  "penalty_exposure": [
+    {
+      "category": "reputational",
+      "cap_usd": 13000000,
+      "driver": "Public-market exposure from a major security or data incident during the modernization window."
+    },
+    {
+      "category": "privacy",
+      "cap_usd": 5000000,
+      "driver": "Regulatory fines under generic data-protection frameworks if PII exposure persists past the hard deadline."
+    },
+    {
+      "category": "integrity",
+      "cap_usd": 500000,
+      "driver": "Annualized loss from data-integrity issues in the reconciliation pipeline."
+    }
+  ],
+  "contract_gap_pct": 40.0,
+  "total_exposure_usd": 18500000,
+  "narrative": "The tenant runs on a legacy platform operated by a single external vendor that derives the majority of its revenue from this account. Roughly 40% of current billings are executed without a written contract, creating commercial exposure independent of technical debt. Worst-case penalty caps sum to ~$18.5M USD across reputational, privacy and data-integrity scenarios.\n"
+}
