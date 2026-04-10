@@ -457,6 +457,59 @@ async def scan_multilang(body: MultiLangScanRequest, request: Request):
     return report.to_dict()
 
 
+class CobolAnalyzeRequest(BaseModel):
+    project_path: str
+
+
+@router.post("/analyze-cobol")
+async def analyze_cobol(body: CobolAnalyzeRequest, request: Request):
+    """Scan a project tree for COBOL programs and JCL jobs.
+
+    Returns a structured report with PROGRAM-IDs, file bindings,
+    JCL steps, copybooks, plus findings for hardcoded credentials,
+    hardcoded dataset paths, Y2K-style dates, missing error handlers
+    and oversized PIC widths.
+    """
+    _get_user_id(request)
+
+    from app.refactor.cobol_scanner import scan_cobol
+
+    report = await scan_cobol(body.project_path)
+    return report.to_dict()
+
+
+class CobolWrapRequest(BaseModel):
+    project_path: str
+    out_dir: str
+
+
+@router.post("/wrap-cobol")
+async def wrap_cobol(body: CobolWrapRequest, request: Request):
+    """Generate a FastAPI wrapper project for the COBOL code at project_path.
+
+    Runs the scanner first, then renders one REST endpoint per
+    PROGRAM-ID into `out_dir`. The wrapper does not modify the COBOL
+    source — it shells out to the existing JCL via subprocess. This
+    is the strangler-pattern "wrap, do not rewrite" realization for
+    mainframe components.
+    """
+    _get_user_id(request)
+
+    from pathlib import Path as _Path
+
+    from app.refactor.cobol_scanner import scan_cobol
+    from app.refactor.cobol_wrapper_generator import generate_wrapper
+
+    report = await scan_cobol(body.project_path)
+    if not report.programs:
+        raise HTTPException(
+            status_code=400,
+            detail="No COBOL programs found at project_path",
+        )
+    result = generate_wrapper(report, _Path(body.out_dir))
+    return result.to_dict()
+
+
 class StranglerPlanRequest(BaseModel):
     project_path: str
     name: str = ""
