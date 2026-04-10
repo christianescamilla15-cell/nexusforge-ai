@@ -457,6 +457,43 @@ async def scan_multilang(body: MultiLangScanRequest, request: Request):
     return report.to_dict()
 
 
+class GenerateIacRequest(BaseModel):
+    project_path: str
+    out_dir: str
+    cloud: str = "aws"
+    app_name: str | None = None
+
+
+@router.post("/generate-iac")
+async def generate_iac_endpoint(body: GenerateIacRequest, request: Request):
+    """Emit a full IaC bundle (Terraform + Helm + kustomize overlays).
+
+    Ingests the target project to pick sensible defaults (e.g., include
+    a managed SQL module when the codebase uses SQL), then renders an
+    AWS baseline Terraform module, a Helm chart with templates, and
+    dev/staging/prod kustomize overlays. All secrets are referenced,
+    never inlined; all placeholders are obviously fake so a
+    misconfigured apply fails loudly rather than using a dev default.
+    """
+    _get_user_id(request)
+
+    from pathlib import Path as _Path
+
+    from app.refactor.ingestion import RepoIngestionEngine
+    from app.refactor.iac_generator import generate_iac
+
+    graph = await RepoIngestionEngine().ingest(
+        body.project_path, body.app_name or ""
+    )
+    result = generate_iac(
+        graph,
+        out_dir=_Path(body.out_dir),
+        cloud=body.cloud,
+        app_name=body.app_name,
+    )
+    return result.to_dict()
+
+
 class CobolAnalyzeRequest(BaseModel):
     project_path: str
 
