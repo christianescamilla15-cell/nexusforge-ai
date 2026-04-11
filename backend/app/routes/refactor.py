@@ -636,6 +636,47 @@ async def wrap_cobol(body: CobolWrapRequest, request: Request):
     return result.to_dict()
 
 
+class DataPipelinePlanRequest(BaseModel):
+    project_path: str
+    app_name: str = ""
+    format: str = "json"  # "json" or "markdown"
+
+
+@router.post("/plan-data-pipelines")
+async def plan_data_pipelines(body: DataPipelinePlanRequest, request: Request):
+    """Gap 6 — Data pipeline modernization planner.
+
+    Walks a legacy codebase, detects flat-file batch ingestion, cron
+    schedulers, manual triggers, FTP transfers, DB bulk inserts, and
+    absence of streaming infrastructure. Produces a phased modernization
+    plan recommending AWS-native replacements (S3 + Lambda, EventBridge
+    Scheduler, Transfer Family, Kinesis / MSK, DMS) with rationale,
+    effort, risk, and rollback strategy per step.
+
+    Detection-only — this route does not modify code or provision
+    infrastructure. Downstream consumers of the plan are the IaC
+    generator (Gap 4) for scaffolding and the compliance enforcer
+    (Gap 7) for wrapping the new pipelines with encryption.
+
+    Response format:
+      - "json" (default): DataPipelinePlan.to_dict()
+      - "markdown": {"markdown": "<rendered plan>"}
+    """
+    _get_user_id(request)
+
+    from app.refactor.data_pipeline_planner import (
+        plan_data_pipelines as _plan,
+        render_markdown,
+    )
+
+    app_name = body.app_name or _Path(body.project_path).name or "unknown-app"
+    plan = _plan(app_name=app_name, app_path=body.project_path)
+
+    if body.format.lower() == "markdown":
+        return {"markdown": render_markdown(plan)}
+    return plan.to_dict()
+
+
 class StranglerPlanRequest(BaseModel):
     project_path: str
     name: str = ""
