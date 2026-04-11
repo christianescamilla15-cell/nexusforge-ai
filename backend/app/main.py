@@ -48,6 +48,25 @@ async def lifespan(app: FastAPI):
         app.state.redis_available = False
         print(f"Warning: Redis not available: {e}")
 
+    # Diagnostics: log SDK versions so we know which Anthropic features are reachable.
+    # anthropic>=0.40 is needed for client.beta.messages.create (Context Editing, Memory Tool).
+    try:
+        import anthropic as _anthropic_pkg
+        _anthropic_version = getattr(_anthropic_pkg, "__version__", "unknown")
+        print(f"anthropic SDK version: {_anthropic_version}")
+        logger.info("anthropic SDK version: %s", _anthropic_version)
+    except Exception as e:
+        print(f"Warning: anthropic SDK not importable: {e}")
+    try:
+        from app.meta.agent_sdk_bridge import _SDK_VERSION as _agent_sdk_version, _SDK_AVAILABLE
+        if _SDK_AVAILABLE:
+            print(f"claude-agent-sdk version: {_agent_sdk_version}")
+            logger.info("claude-agent-sdk version: %s", _agent_sdk_version)
+        else:
+            print("claude-agent-sdk: not installed (Agent SDK bridge disabled)")
+    except Exception as e:
+        print(f"Warning: claude-agent-sdk diagnostics failed: {e}")
+
     # Start automation scheduler
     try:
         from app.routes.automations import start_scheduler

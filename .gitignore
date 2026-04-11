@@ -43,6 +43,11 @@ BRIEFING.md
 .confidential/
 synth_output/
 
+# Anthropic Memory Tool storage — per-agent scratchpads written at runtime.
+# The directory itself is kept via .gitkeep so bootstraps don't fail.
+backend/data/memories/*
+!backend/data/memories/.gitkeep
+
 # Internal dev artifacts (hidden from client-facing repo tree, kept local)
 # NOTE: these folders still exist on disk, they are just not tracked.
 # The leading slash restricts the match to the repo root, so

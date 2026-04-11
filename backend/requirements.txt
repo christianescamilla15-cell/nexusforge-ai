@@ -9,6 +9,9 @@ psycopg2-binary==2.9.9
 python-multipart==0.0.9
 websockets==12.0
 anthropic==0.34.0
+# Agent SDK bridge — enables Claude Agent SDK subagents + tool use in backend/app/meta/agent_sdk_bridge.py
+# TODO(Feature 1): bump anthropic to >=0.40.0 to unlock client.beta.messages.create for Context Editing + Memory Tool
+claude-agent-sdk>=0.1.58,<0.2.0
 voyageai==0.3.7
 motor>=3.6.0
 PyJWT>=2.8.0
