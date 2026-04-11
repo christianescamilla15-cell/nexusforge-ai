@@ -120,6 +120,22 @@ class MythosScanner:
         self.backend = self.root / "backend"
         self.frontend = self.root / "frontend"
         self.findings: list[Finding] = []
+        # Phase 6 — diff-aware scan support. When set to a non-None
+        # frozenset of resolved absolute Paths, file-based scanners
+        # only process files in the allowlist. None = scan everything
+        # (legacy full-scan behavior, unchanged).
+        self._file_allowlist: frozenset[Path] | None = None
+
+    def _should_scan(self, fpath: Path) -> bool:
+        """Return True if ``fpath`` is in the current allowlist (or if
+        no allowlist is set). Used by file-walking scanners to skip
+        non-diff files when running in diff-aware mode."""
+        if self._file_allowlist is None:
+            return True
+        try:
+            return fpath.resolve() in self._file_allowlist
+        except OSError:
+            return False
 
     async def full_scan(self) -> AuditReport:
         """Execute all security checks."""
@@ -165,6 +181,89 @@ class MythosScanner:
         )
         return report
 
+    # ── Phase 6 — Diff-aware scan ───────────────────────────────────────────
+    #
+    # Runs the file-walking scanners (secrets + injection) scoped to an
+    # explicit list of changed files, instead of the whole project tree.
+    # The caller is responsible for computing the diff (typically via
+    # `git diff --name-only <base>...<head>`) and posting the resulting
+    # list to POST /api/mythos/scan/diff.
+    #
+    # Non-file scanners (crypto, config, rate limits, dependencies) are
+    # skipped in diff mode: they analyze a fixed set of well-known config
+    # files (jwt_handler.py, requirements.txt, etc.) which rarely change
+    # in a typical PR, and running them on every diff scan adds noise
+    # without providing incremental value. The full scan endpoint is
+    # still the right tool for tenant-wide audits.
+
+    async def diff_scan(self, changed_files: list[str]) -> AuditReport:
+        """Run file-walking security scanners against a bounded allowlist
+        of changed files.
+
+        Args:
+            changed_files: list of paths RELATIVE to the project root
+                (e.g. ``backend/app/routes/foo.py``). Absolute paths and
+                paths that escape the project root are silently skipped.
+                Missing files are also skipped — no error is raised for
+                a deleted file in the diff.
+
+        Returns:
+            An AuditReport with findings scoped to the allowed files.
+            ``scanned_files`` counts only files that actually passed
+            path safety and existence checks (may be < ``len(changed_files)``).
+        """
+        start = time.monotonic()
+
+        # Resolve the allowlist: turn each relative path into an absolute
+        # Path, drop anything that fails safety or doesn't exist.
+        root_resolved = self.root.resolve()
+        allow: set[Path] = set()
+        for rel in changed_files:
+            if not rel or "\x00" in rel:
+                continue
+            # Refuse absolute paths and obvious traversal
+            candidate = Path(rel)
+            if candidate.is_absolute() or ".." in candidate.parts:
+                logger.debug("Mythos diff-scan: refused unsafe path %r", rel)
+                continue
+            abs_path = (self.root / rel).resolve()
+            try:
+                abs_path.relative_to(root_resolved)
+            except ValueError:
+                logger.debug("Mythos diff-scan: path escapes root %r", rel)
+                continue
+            if not abs_path.is_file():
+                continue
+            allow.add(abs_path)
+
+        self._file_allowlist = frozenset(allow)
+        self.findings = []  # fresh report, don't inherit any prior state
+
+        try:
+            files_scanned = 0
+
+            # Only the file-walking scanners are scoped. Non-file-walking
+            # scanners (crypto, config, rate limits, dependencies, auth)
+            # look at fixed known paths and are skipped in diff mode.
+            files_scanned += self._scan_secrets()
+            files_scanned += self._scan_injection_vectors()
+            files_scanned += self._scan_frontend_security()
+        finally:
+            # Always clear the allowlist on exit so a subsequent full
+            # scan on the same scanner instance does not silently
+            # inherit the scoped state.
+            self._file_allowlist = None
+
+        duration = int((time.monotonic() - start) * 1000)
+
+        report = AuditReport(
+            duration_ms=duration,
+            findings=self.findings,
+            scanned_files=files_scanned,
+            scanned_endpoints=0,  # auth scanner not run in diff mode
+        )
+        return report
+
     # ── 1. Secret Scanner ───────────────────────────────────────────────────
 
     _SECRET_PATTERNS = [
@@ -199,6 +298,8 @@ class MythosScanner:
             for fpath in self.root.rglob(ext):
                 rel = str(fpath.relative_to(self.root))
                 if any(re.search(p, rel) for p in self._SECRET_IGNORE_PATTERNS):
+                    continue
+                if not self._should_scan(fpath):
                     continue
                 count += 1
                 try:
@@ -303,6 +404,8 @@ class MythosScanner:
         for fpath in self.backend.rglob("*.py"):
             if "__pycache__" in str(fpath) or "security" in str(fpath):
                 continue
+            if not self._should_scan(fpath):
+                continue
             rel = str(fpath.relative_to(self.root))
             count += 1
             try:
@@ -338,6 +441,8 @@ class MythosScanner:
         # Frontend: XSS
         for fpath in self.frontend.rglob("*.jsx"):
             if "node_modules" in str(fpath):
+                continue
+            if not self._should_scan(fpath):
                 continue
             rel = str(fpath.relative_to(self.root))
             count += 1
@@ -606,6 +711,8 @@ class MythosScanner:
 
         for fpath in src_dir.rglob("*.jsx"):
             if "node_modules" in str(fpath):
+                continue
+            if not self._should_scan(fpath):
                 continue
             rel = str(fpath.relative_to(self.root))
             count += 1

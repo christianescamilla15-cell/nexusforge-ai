@@ -9,6 +9,7 @@ To get your key: python -c "from app.security.mythos import _derive_mythos_key; 
 import logging
 import os
 from fastapi import APIRouter, Request, HTTPException
+from pydantic import BaseModel, Field
 
 from app.security.mythos import MythosScanner, verify_mythos_access
 
@@ -101,6 +102,60 @@ async def category_scan(category: str, request: Request):
             }
             for f in sorted(filtered, key=lambda x: {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}.get(x.severity, 5))
         ],
+    }
+
+
+class MythosDiffScanRequest(BaseModel):
+    """Request body for POST /api/mythos/scan/diff.
+
+    Phase 6 — diff-aware Mythos scanning. The client is responsible
+    for computing the changed-file list (e.g. via
+    ``git diff --name-only <base>...<head>``) and posting it here.
+    Running git inside the request path is intentionally avoided to
+    eliminate shell-injection and missing-git risk on the server.
+    """
+
+    changed_files: list[str] = Field(
+        ...,
+        description=(
+            "List of paths RELATIVE to the project root "
+            "(e.g. 'backend/app/routes/foo.py'). Absolute paths "
+            "or paths containing '..' are silently skipped. Max 500 "
+            "entries per request."
+        ),
+        max_length=500,
+    )
+
+
+@router.post("/scan/diff")
+async def diff_security_scan(body: MythosDiffScanRequest, request: Request):
+    """Run a diff-aware security scan scoped to a changed-file list.
+
+    Only runs the file-walking scanners (secrets, injection vectors,
+    frontend security). Non-file scanners (crypto, config, deps,
+    rate limits) are skipped — they look at a fixed set of known
+    config files and rarely shift on a typical PR.
+
+    Requires: X-Mythos-Key header (same as /scan and /scan/{category})
+    """
+    _verify_admin(request)
+
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    scanner = MythosScanner(project_root)
+    report = await scanner.diff_scan(body.changed_files)
+
+    logger.info(
+        "Mythos diff-scan complete: %d findings across %d files in %dms",
+        len(report.findings),
+        report.scanned_files,
+        report.duration_ms,
+    )
+
+    return {
+        "mode": "diff",
+        "requested_files": len(body.changed_files),
+        "scanned_files": report.scanned_files,
+        **report.to_dict(),
     }
 
 
