@@ -143,7 +143,63 @@ class ComplianceAgent(BaseAgent):
         ]
 
         try:
-            resp = await self._resilient_llm_call(messages, temperature=0.1, max_tokens=1024)
+            # Phase 3 Feature 3 — Memory Tool opt-in path.
+            # When NEXUSFORGE_MEMORY_TOOL_COMPLIANCE=1 is set AND the
+            # Anthropic API key is configured, route the LLM call
+            # through a multi-turn agent loop with the memory_20250818
+            # tool enabled. The agent can then accumulate learned
+            # false-positive patterns and tenant-specific policy
+            # deltas across runs (see docs/anthropic-features-
+            # research.md §5). OFF BY DEFAULT — production behavior
+            # is byte-identical to pre-Phase-3.
+            import os as _os
+            if _os.environ.get("NEXUSFORGE_MEMORY_TOOL_COMPLIANCE", "0") == "1":
+                from app.llm.agent_loop import run_memory_loop_for_agent
+                from app.llm.provider import LLMResponse as _LLMResponse
+                from app.config import settings as _settings
+
+                api_key = getattr(_settings, "anthropic_api_key", "") or ""
+                if not api_key:
+                    # No key -> fall back to the legacy router path.
+                    resp = await self._resilient_llm_call(
+                        messages, temperature=0.1, max_tokens=1024
+                    )
+                else:
+                    # Extract system + non-system messages for the loop.
+                    system_content = ""
+                    loop_messages: list[dict] = []
+                    for _m in messages:
+                        if _m.get("role") == "system":
+                            system_content = _m.get("content", "")
+                        else:
+                            loop_messages.append(_m)
+
+                    loop_resp = await run_memory_loop_for_agent(
+                        agent_id="ComplianceAgent",
+                        system=system_content,
+                        messages=loop_messages,
+                        api_key=api_key,
+                        max_tokens=1024,
+                        temperature=0.1,
+                        max_turns=5,
+                    )
+                    # Adapt AgentLoopResponse to the LLMResponse shape
+                    # so the rest of this method stays unchanged.
+                    resp = _LLMResponse(
+                        text=loop_resp.text,
+                        tokens_input=loop_resp.tokens_input,
+                        tokens_output=loop_resp.tokens_output,
+                        model=loop_resp.model,
+                        provider=loop_resp.provider,
+                        cost_usd=loop_resp.cost_usd,
+                        thinking=loop_resp.thinking,
+                    )
+            else:
+                # Legacy path — unchanged.
+                resp = await self._resilient_llm_call(
+                    messages, temperature=0.1, max_tokens=1024
+                )
+
             parsed = clean_llm_json(resp.text)
             # Merge PII findings as authoritative
             parsed["pii_detected"] = pii_findings
