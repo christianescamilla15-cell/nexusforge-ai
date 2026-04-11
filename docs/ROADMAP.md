@@ -7,7 +7,7 @@
 > this file to match and leave the detailed doc as the archived source
 > of that decision.
 >
-> **Last updated:** 2026-04-10 (post Feature 1 + Gap 6 + Gap 8 + Phase 3 — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`)
+> **Last updated:** 2026-04-10 (Feature 1 + Gap 6 + Gap 8 + Phase 3 + §4.F audit verification — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`, plus audit verification pass on same day)
 > **Maintainer:** Christian Hernandez (sole owner)
 
 ## 1. Current state snapshot
@@ -103,6 +103,8 @@ expansions for Phase B / 31-app scale / post-MVP polish.
 | Item | Effort | Notes |
 |---|---|---|
 | Phase B scale: 5 apps → 31 apps in synthetic generator | M (1-2 sessions) | Per `integration/02_phase2_plan.md` — extend per-app recipes, target 5.6M LOC total, hit "real scale" for the demo narrative |
+| **P1 #5 State machine enforcement** (audit follow-up) | XS (~1h, ~20 LOC) | Add `transition_workflow` calls in `backend/app/engine/executor.py` at status-write sites (where it already writes 'queued'/'running'/'completed'/'failed' to the DB) and `transition_step` calls in `backend/app/engine/step_runner.py`. The imports already exist — the calls do not. Risk: low; the functions raise `InvalidTransitionError` on violation, which catches state-drift bugs that today go silent. Test: add 2-3 tests asserting invalid transitions raise. |
+| Phase 3 follow-up: wire PlannerAgent through the memory loop | XS (~1h) | Mirror the ComplianceAgent opt-in pattern in `planner.py:106`. Same feature flag style, different agent_id. |
 | Gap 12: Post-modernization knowledge transfer mode | S/M | Persistent AI agent that stays after delivery to mentor internal team. Leverages existing Agent SDK bridge + memory tiers |
 | `backend/scripts/audit_confidentiality.py` — confirm exists + blocklist automation | XS | Per `integration/02_phase2_plan.md` §confidentiality audit; if script exists, verify it blocks real names across the tree and is wired into pre-commit |
 | Update `CHANGELOG.md` (root) — stale since v2.5.0 2026-04-04 | S | Capture the 12+ days of work since (Gaps 1-5, 7, 11 shipped, Batch 3 deliverables, mobile fixes, Feature 1 prep) |
@@ -157,22 +159,51 @@ deferred follow-up. Phases 4-6 remain ahead.
 - Integration tests (currently zero per IMPLEMENTATION_AUDIT)
 - Frontend dashboard real-data wiring (if not already fixed by later commits — needs verification)
 
-### 4.F — Stale audit items needing verification
+### 4.F — Audit verification pass — DONE 2026-04-10
 
-[`IMPLEMENTATION_AUDIT.md`](./IMPLEMENTATION_AUDIT.md) is from **2026-03-29** —
-~315 commits ago. Many P0/P1 items are probably fixed but not confirmed. A
-**5-minute audit refresh pass** would be worth doing before any new work:
+[`IMPLEMENTATION_AUDIT.md`](./IMPLEMENTATION_AUDIT.md) was from 2026-03-29
+— ~315 commits and ~12 days ago. A verification pass was run against
+its Section 7 "Priority Fixes" on 2026-04-10 with the following results
+(the audit doc now has a banner at the top pointing to this table):
 
-- [ ] P0 #1: Self-healing wired into `step_runner.py`? Check `backend/app/engine/step_runner.py` for `SelfHealer.attempt_heal` call
-- [ ] P0 #2: Observability unified? Check `backend/app/routes/executions.py` line 52 for `ctx.tracker` passing (likely fixed by `d0a86bd`)
-- [ ] P0 #3: Frontend dashboard real data? Check `frontend/src/features/dashboard/DashboardPage.jsx` — was 100% demo in audit
-- [ ] P1 #4: Migration runner exists? **Confirmed yes** — `97f1112 fix(migrations): unblock 031 CREATE POLICY + harden runner on failure` implies the runner is present and hardened
-- [ ] P1 #5: State machine enforced? Check `engine/executor.py` for `transition_workflow` calls
-- [ ] P1 #6: Memory used by agents during execution? Check any agent's `execute()` for `MemoryManager.recall` / `remember` calls
-- [ ] P1 #7: Auth middleware enforcing routes? Check `main.py` for `AuthMiddleware` — **confirmed yes** per session read (line 159)
+- [x] **P0 #1 Self-healing wired into `step_runner.py`** — ✅ FIXED.
+      `backend/app/engine/step_runner.py:15` imports SelfHealer;
+      line 174 calls `SelfHealer().attempt_heal(...)`; line 180
+      handles healer-internal errors.
+- [x] **P0 #2 Observability unified (engine passes ctx.tracker)** —
+      ✅ FIXED. `backend/app/routes/executions.py:77-83` builds
+      `ExecutionContext(tracker=SafeExecutionTracker(MetricsCollectorTracker()))`.
+      Likely closed by commit `d0a86bd` observability bootstrapper.
+- [x] **P0 #3 Frontend dashboard fetches real data** — ✅ FIXED.
+      `DashboardPage.jsx` no longer has `DEMO_KPIS` or `DEMO_RUNS`.
+      It imports `fetchAPI` and uses `KPICard` / `RecentRuns` /
+      `AgentActivity` components that fetch live data.
+- [x] **P1 #4 Migration runner exists** — ✅ FIXED. Confirmed via
+      `97f1112`.
+- [ ] **P1 #5 State machine enforced** — ❌ **STILL BROKEN**.
+      `transition_workflow` is imported in `executor.py:10` and
+      `transition_step` in `step_runner.py:14`, but neither function
+      is actually called anywhere. A full recursive grep across
+      `backend/app/` finds only the imports and the definitions in
+      `state_machine.py`. Dead imports. **Listed in §4.A as a
+      ready-now follow-up.**
+- [x] **P1 #6 Memory used by agents during execution** — ✅ FIXED.
+      `backend/app/agents/base.py:85` docstring: "Public entrypoint:
+      circuit breaker check → recall → execute → remember." Line 106
+      calls `self._memory.recall(...)`; line 134 calls the remember
+      side of the lifecycle.
+- [x] **P1 #7 Auth middleware enforcing routes** — ✅ FIXED.
+      `main.py:158-159` registers `AuthMiddleware` before CORS.
 
-After the verification pass, either retire the audit file (mark as historical,
-superseded by this roadmap) or update it in place with "fixed by commit X" tags.
+**Outcome:** 6 of 7 audit items are fixed. Only P1 #5 remains, and
+it is a small contained fix (~20 lines across 2 files, add the
+`transition_workflow` / `transition_step` calls at the status-write
+sites). Moved to §4.A as a ready-now follow-up rather than leaving
+it stale in this section.
+
+The audit doc remains in the repo as historical context — it is NOT
+deleted, just annotated with a verification banner at the top. Going
+forward, this ROADMAP.md is the canonical source for current status.
 
 ---
 
