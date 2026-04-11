@@ -636,6 +636,70 @@ async def wrap_cobol(body: CobolWrapRequest, request: Request):
     return result.to_dict()
 
 
+class KnowledgeTransferRequest(BaseModel):
+    project_path: str
+    app_name: str = ""
+    include_git_history: bool = True
+
+
+@router.post("/knowledge-transfer")
+async def knowledge_transfer_route(body: KnowledgeTransferRequest, request: Request):
+    """Gap 12 — Post-modernization knowledge transfer agent.
+
+    Walks an app, ingests its documentation bundle (from Gap 8 +
+    pre-existing markdown) and a slice of git history, builds a
+    structured Q&A index with citations, and returns the full report
+    including an onboarding walkthrough.
+
+    Use the companion ``/knowledge-query`` endpoint to ask individual
+    questions against the index.
+    """
+    _get_user_id(request)
+
+    from app.refactor.knowledge_transfer_agent import run_knowledge_transfer
+
+    app_name = body.app_name or _Path(body.project_path).name or "unknown-app"
+    report = run_knowledge_transfer(
+        app_name=app_name,
+        app_path=body.project_path,
+        include_git_history=body.include_git_history,
+    )
+    return report.to_dict()
+
+
+class KnowledgeQueryRequest(BaseModel):
+    project_path: str
+    app_name: str = ""
+    query: str
+    top_n: int = 5
+    include_git_history: bool = True
+
+
+@router.post("/knowledge-query")
+async def knowledge_query_route(body: KnowledgeQueryRequest, request: Request):
+    """Gap 12 — Query the knowledge transfer index.
+
+    Builds the index (or refreshes it) and runs a natural-language
+    query against it, returning the top-N matching entries with
+    citations. Deterministic keyword ranking, no LLM calls.
+    """
+    _get_user_id(request)
+
+    from app.refactor.knowledge_transfer_agent import (
+        query_knowledge,
+        run_knowledge_transfer,
+    )
+
+    app_name = body.app_name or _Path(body.project_path).name or "unknown-app"
+    report = run_knowledge_transfer(
+        app_name=app_name,
+        app_path=body.project_path,
+        include_git_history=body.include_git_history,
+    )
+    response = query_knowledge(report, body.query, top_n=body.top_n)
+    return response.to_dict()
+
+
 class GenerateDocsRequest(BaseModel):
     project_path: str
     app_name: str = ""
