@@ -7,7 +7,7 @@
 > this file to match and leave the detailed doc as the archived source
 > of that decision.
 >
-> **Last updated:** 2026-04-10
+> **Last updated:** 2026-04-10 (post Feature 1 merge — `0fd895c` + `13b5263`)
 > **Maintainer:** Christian Hernandez (sole owner)
 
 ## 1. Current state snapshot
@@ -38,11 +38,13 @@
 - Executive C-level dashboard (`/executive`)
 - Chat-first UX with WebSocket execution tracking
 
-### What is in feature branches pending merge (as of 2026-04-10)
-- `feature/anthropic-sdk-bump` (commit `7514157`) — `anthropic==0.34.0 → 0.94.0`
-- `feature/context-editing` (commits `04cf05d` + `e7555bb`) — Feature 1 of the
-  Anthropic 4-feature adoption: provider chain plumbing + batch pipeline wiring
-  with 25 new tests (all green)
+### What is in feature branches pending merge
+
+**None as of 2026-04-10.** The 2 previously-pending branches were merged
+to master:
+
+- `feature/anthropic-sdk-bump` merged as `0fd895c` (bump only — `anthropic==0.34.0 → 0.94.0`). Feature branch deleted from local + remote.
+- `feature/context-editing` merged as `13b5263` (Feature 1 end-to-end — provider chain plumbing + batch pipeline wiring + 25 new tests, all green). Feature branch deleted from local + remote.
 
 ### What is in research/planning (no code yet)
 - **Anthropic 4-feature adoption Phases 3–6** — see
@@ -59,10 +61,10 @@ detail document; this file only surfaces status.
 
 | # | Workstream | Canonical doc | Status |
 |---|---|---|---|
-| 1 | **Tenant-alpha showcase** — the synthetic-codebase demo of NexusForge modernizing 5 (then 31) legacy apps in "weeks not years" | [`integration/01_agent_mapping.md`](./integration/01_agent_mapping.md), [`integration/02_phase2_plan.md`](./integration/02_phase2_plan.md), [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) | Phase A (5 apps, 900K LOC) **shipped**; Phase B scale (31 apps, 5.6M LOC) **pending** |
+| 1 | **Tenant-alpha showcase** — the synthetic-codebase demo of NexusForge modernizing 5 (then 31, then 60) legacy apps in "weeks not years" | [`integration/01_agent_mapping.md`](./integration/01_agent_mapping.md), [`integration/02_phase2_plan.md`](./integration/02_phase2_plan.md), [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) | Phase A (5 apps, ~400K LOC corrected) **shipped**; Phase B baseline (31 apps, 5.6M LOC exact) + Phase C stress (10M LOC headroom) **pending** — see `integration/02_phase2_plan.md` §3.3 for the 3-phase scale plan |
 | 2 | **Platform of the Future — 12 capability gaps** driving the showcase narrative | [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) §Gaps | **7 of 12 shipped** (1, 2, 3, 4, 5, 7, 11); 5 pending (6, 8, 9, 10, 12) |
-| 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-2 done** (quick wins shipped + Feature 1 on feature branches); Phases 3-6 pending |
-| 4 | **Orchestrator improvements** — Claude Code customizations for this project (not part of NexusForge the product) | Local to `.claude/` + memory (gitignored) | 3 subagents + 2 skills + 2 hooks + 2 feedback memories **active**; Render/GitHub/Postgres MCPs **waiting for API keys** |
+| 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-2 SHIPPED to master** (quick wins in `c15323f` + SDK bump in `0fd895c` + Feature 1 plumbing + batch wiring in `13b5263`, all on master 2026-04-10). Phases 3-6 (Memory Tool, Agent SDK subagent memory, Skills migration, Mythos upgrades) pending. |
+| 4 | **Orchestrator improvements** — Claude Code customizations for this project (not part of NexusForge the product) | Local to `.claude/` + memory (gitignored) | 4 subagents + 3 skills + 3 hooks + 2 feedback memories **active**; Render/GitHub/Postgres MCPs **waiting for API keys** (see [`mcp-servers-setup.md`](./mcp-servers-setup.md)) |
 
 ---
 
@@ -121,21 +123,29 @@ Recipes already written and tested: see [`mcp-servers-setup.md`](./mcp-servers-s
 
 ### 4.C — Waiting for PR merge
 
-| Branch | Commits | Unblocks |
-|---|---|---|
-| `feature/anthropic-sdk-bump` | `7514157` | Feature 1 (Context Editing), Feature 3 (Memory Tool) — both need `anthropic>=0.50.0` which is 0.94.0 in this bump |
-| `feature/context-editing` (based on bump) | `04cf05d` + `e7555bb` | Feature 1 end-to-end: provider chain plumbing + batch pipeline stub replacement |
+**None as of 2026-04-10 post-session.** The 2 feature branches that were
+listed here earlier were merged to master in this session:
 
-**Merge order:** bump first, then context-editing. **Validation before merge:** see `anthropic-features-research.md` §12.1.5 (4-item checklist including `ANTHROPIC_API_KEY` on Render, full pytest, sanity remediation run, merge order).
+- `feature/anthropic-sdk-bump` → merged as `0fd895c` (bump only)
+- `feature/context-editing` → merged as `13b5263` (Feature 1 end-to-end)
+
+Both feature branches deleted from local + remote after merge. The SDK
+bump and Feature 1 are now live in master and deployed to Render via
+auto-deploy (pending build confirmation at deploy time). Rollback path
+if Render build breaks: `git revert <merge-commit-sha> && git push`
+surgically reverts either or both merges independently.
 
 ### 4.D — Research-pending (Anthropic 4-feature adoption Phases 3-6)
 
-From [`anthropic-features-research.md`](./anthropic-features-research.md) §12:
+From [`anthropic-features-research.md`](./anthropic-features-research.md) §12.
+**Prerequisite unblocked 2026-04-10**: SDK bump merged to master as `0fd895c`,
+Feature 1 (plumbing + batch wiring) merged as `13b5263`. Phases 3-6 are now
+clear to start.
 
 | Phase | Feature | Effort | Prereq |
 |---|---|---|---|
-| 3 | Feature 3: Memory Tool (ComplianceAgent + PlannerAgent integration) | M/L (12-18h) | SDK bump PR merged |
-| 4 | Feature 4: Agent SDK subagent memory + resume | S/M (4-8h) | SDK bump PR merged, Redis for session persistence |
+| 3 | Feature 3: Memory Tool (ComplianceAgent + PlannerAgent integration) | M/L (12-18h) | ✅ unblocked (bump landed) |
+| 4 | Feature 4: Agent SDK subagent memory + resume | S/M (4-8h) | ✅ unblocked (bump landed). Still needs Redis for session persistence and a resolution for Render ephemeral-FS caveat (see `anthropic-features-research.md` §6.2) |
 | 5a | Feature 2 (PR 5a): Skills infrastructure (`skill_loader.py`, `_build_system_prompt_v2`) | M (8-12h) | None |
 | 5b | Feature 2 (PR 5b): Skills migration — ClassifierAgent, ComplianceAgent, PlannerAgent, 4 Agent SDK subagents, + 19 more | L (20-30h across multiple PRs) | Infrastructure from 5a |
 | 6 | Mythos upgrades — second-pass FP filter, diff-aware mode, category-per-skill migration, memory="project" on security-auditor subagent | M (8-12h) | Optional: Features 2 and 4 make it nicer but not blocking |
