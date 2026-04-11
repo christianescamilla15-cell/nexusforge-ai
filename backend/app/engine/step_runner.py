@@ -63,6 +63,11 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
     user_cfg = await _load_user_agent_config(user_id, step_type)
     merged_config = {**config, **user_cfg}
 
+    # State machine enforcement — step is conceptually PENDING before
+    # it is inserted, and transitions to RUNNING on insert. The tracked
+    # variable catches state drift that would otherwise go silent.
+    current_step_status = transition_step("pending", "running")
+
     # Record step start
     async with pool.acquire() as conn:
         await conn.execute(
@@ -85,6 +90,15 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
     last_error = None
 
     for attempt in range(retry_max + 1):
+        # At the start of each attempt the step is conceptually RUNNING.
+        # If the previous iteration marked it RETRYING, normalize the
+        # tracked state back to RUNNING (retrying → running is a valid
+        # transition). No DB write — the row was not updated during
+        # the retry_policy.wait either. This keeps multi-retry flows
+        # legal in the state machine.
+        if current_step_status == "retrying":
+            current_step_status = transition_step(current_step_status, "running")
+
         try:
             start = time.monotonic()
 
@@ -94,7 +108,8 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
 
             duration_ms = int((time.monotonic() - start) * 1000)
 
-            # Record success
+            # Record success — running → completed
+            current_step_status = transition_step(current_step_status, "completed")
             async with pool.acquire() as conn:
                 await conn.execute(
                     """UPDATE step_executions
@@ -131,7 +146,8 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
         except Exception as e:
             last_error = e
             if policy.should_retry(attempt, e):
-                # Mark as retrying
+                # Mark as retrying — running → retrying
+                current_step_status = transition_step(current_step_status, "retrying")
                 async with pool.acquire() as conn:
                     await conn.execute(
                         "UPDATE step_executions SET status = 'retrying', retry_count = $1, error_message = $2 WHERE id = $3",
@@ -181,7 +197,8 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
         heal_result = None
 
     if heal_result and heal_result.success:
-        # Recovery succeeded — mark step as healed
+        # Recovery succeeded — mark step as healed (running → completed)
+        current_step_status = transition_step(current_step_status, "completed")
         async with pool.acquire() as conn:
             await conn.execute(
                 """UPDATE step_executions
@@ -222,7 +239,8 @@ async def run_step(run_id: UUID, step_name: str, step_type: str,
             step_name, heal_result.strategy_used, heal_result.message,
         )
 
-    # Mark failed and write to dead letter queue
+    # Mark failed and write to dead letter queue — running → failed
+    current_step_status = transition_step(current_step_status, "failed")
     async with pool.acquire() as conn:
         await conn.execute(
             """UPDATE step_executions

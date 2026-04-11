@@ -20,7 +20,9 @@ class StepState(str, Enum):
 
 VALID_WORKFLOW_TRANSITIONS = {
     WorkflowState.PENDING: [WorkflowState.QUEUED, WorkflowState.CANCELLED],
-    WorkflowState.QUEUED: [WorkflowState.RUNNING, WorkflowState.CANCELLED],
+    # QUEUED → FAILED covers pre-run errors like DAG validation
+    # failures that abort the run before it ever reaches RUNNING.
+    WorkflowState.QUEUED: [WorkflowState.RUNNING, WorkflowState.CANCELLED, WorkflowState.FAILED],
     WorkflowState.RUNNING: [WorkflowState.COMPLETED, WorkflowState.FAILED, WorkflowState.CANCELLED],
     WorkflowState.COMPLETED: [],
     WorkflowState.FAILED: [WorkflowState.QUEUED],  # allow retry

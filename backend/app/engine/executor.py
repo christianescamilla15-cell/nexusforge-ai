@@ -40,11 +40,20 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
         redis = None
         logger.warning("Redis unavailable — executing without live event broadcasting")
 
+    # State machine enforcement — catches drift that would otherwise
+    # go silent (e.g. writing 'completed' from a cancelled run, or
+    # 'running' from a completed one). Entry state is 'queued': the
+    # executor is only invoked after a run has been dequeued by the
+    # API layer, which wrote 'queued' when the run was created.
+    current_workflow_status = "queued"
+
     # Validate DAG
     try:
         order = validate_dag(dag)
         groups = get_parallel_groups(dag, order)
     except DAGValidationError as e:
+        # queued → failed (pre-run validation failure)
+        current_workflow_status = transition_workflow(current_workflow_status, "failed")
         async with pool.acquire() as conn:
             await conn.execute(
                 "UPDATE workflow_runs SET status = 'failed', error_message = $1, completed_at = now() WHERE id = $2",
@@ -54,7 +63,8 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
 
     steps_by_name = {s.name: s for s in dag.steps}
 
-    # Transition to running
+    # Transition to running (queued → running)
+    current_workflow_status = transition_workflow(current_workflow_status, "running")
     async with pool.acquire() as conn:
         await conn.execute(
             "UPDATE workflow_runs SET status = 'running', started_at = now() WHERE id = $1",
@@ -147,6 +157,8 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
 
                 # If any step failed, abort remaining
                 if results[step_name]["status"] == "failed":
+                    # running → failed (step failure aborts workflow)
+                    current_workflow_status = transition_workflow(current_workflow_status, "failed")
                     async with pool.acquire() as conn:
                         await conn.execute(
                             """UPDATE workflow_runs
@@ -167,7 +179,8 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
                         )
                     return {"status": "failed", "results": results, "total_tokens": total_tokens, "total_cost_usd": total_cost}
 
-        # All steps completed
+        # All steps completed — running → completed
+        current_workflow_status = transition_workflow(current_workflow_status, "completed")
         async with pool.acquire() as conn:
             await conn.execute(
                 """UPDATE workflow_runs
@@ -191,6 +204,18 @@ async def execute_workflow(workflow_id: UUID, run_id: UUID, dag: DAGDefinition,
         return {"status": "completed", "results": results, "total_tokens": total_tokens, "total_cost_usd": total_cost}
 
     except Exception as e:
+        # Unhandled exception during execution — whatever the current
+        # status is, transition to failed. Guarded with try/except so
+        # a legitimately-unreachable transition (e.g. status already
+        # completed when we re-raised) does not mask the original
+        # exception.
+        try:
+            current_workflow_status = transition_workflow(current_workflow_status, "failed")
+        except Exception as transition_exc:
+            logger.warning(
+                "State machine refused %s → failed during exception path: %s",
+                current_workflow_status, transition_exc,
+            )
         async with pool.acquire() as conn:
             await conn.execute(
                 "UPDATE workflow_runs SET status = 'failed', error_message = $1, completed_at = now() WHERE id = $2",
