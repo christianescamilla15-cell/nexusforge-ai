@@ -454,3 +454,130 @@ apps:
       blockers:
         - Shared core classes require sign-off from at least 2 external teams
         - Mainframe infrastructure is on a vendor-managed platform
+
+# ─── Phase B scaffolding — non-scope apps (discovery-pending stubs) ───────
+#
+# The 5 apps above are the full modernization scope with corrected Report Out
+# numbers. The remaining 26 apps below make the tenant footprint reach the
+# 31-app enterprise total documented in integration/03_future_platform_vision.md
+# §15. Each stub emits a single ``DISCOVERY_PENDING.md`` file — NO code trees,
+# NO vulnerabilities, NO databases. The refactor engine treats them as
+# "scope requires discovery" during ingestion so they count toward the
+# footprint without polluting the finding totals from the 5 scope apps.
+#
+# Categories (informational only — consumers can filter by them):
+#   - satellite         : peripheral app around the shared core
+#   - shared-library    : internal library used by multiple apps
+#   - archival          : read-only historical data access
+#   - utility           : small operational tool
+#   - integration       : ETL/messaging/API glue
+#
+# When one of these apps enters scope in a future phase, MOVE the entry
+# from this section to the ``apps:`` section above with a full recipe and
+# then DELETE it from here. The stub will disappear from the tenant tree
+# on the next generator run.
+non_scope_apps:
+  - codename: app-06
+    label: Customer Portal Facade
+    category: satellite
+    notes: Lightweight public-facing portal that proxies app-01 transactions. Ownership unclear.
+  - codename: app-07
+    label: Partner Integration Gateway
+    category: integration
+    notes: B2B EDI gateway. Runbook exists but no code ownership claimed.
+  - codename: app-08
+    label: Finance Reporting Pack
+    category: archival
+    notes: Read-only monthly close reports. Scheduled to retire after SOX remediation.
+  - codename: app-09
+    label: Internal Admin Console
+    category: utility
+    notes: Ops tool used by ~3 engineers for manual data fixes.
+  - codename: app-10
+    label: Document Archive Service
+    category: archival
+    notes: Large binary blob store. In scope only if legal holds are triggered.
+  - codename: app-11
+    label: Audit Log Aggregator
+    category: shared-library
+    notes: Consumed by apps 01, 02 and 05. Contract is stable but has no owner.
+  - codename: app-12
+    label: Notifications Dispatcher
+    category: integration
+    notes: Email/SMS fan-out used by the Commission Engine (app-05) and partner gateway.
+  - codename: app-13
+    label: Batch Export Tool
+    category: utility
+    notes: Nightly CSV exports to the data lake. Slated for decommission.
+  - codename: app-14
+    label: Legacy Customer Lookup
+    category: archival
+    notes: Pre-2018 customer records, read-only.
+  - codename: app-15
+    label: Vendor Invoice Importer
+    category: integration
+    notes: Pulls vendor invoices via SFTP. Under 5K LOC but completely undocumented.
+  - codename: app-16
+    label: Shared Authentication Service
+    category: shared-library
+    notes: Internal SSO. Already identified as a high-coupling risk.
+  - codename: app-17
+    label: Configuration Cache
+    category: shared-library
+    notes: Consumed by apps 01-05 at startup. Dependency on the COBOL core.
+  - codename: app-18
+    label: Rate Card Editor
+    category: satellite
+    notes: Low-volume editorial tool for finance analysts.
+  - codename: app-19
+    label: Reconciliation Replay Harness
+    category: utility
+    notes: Dev-only replay tool. May overlap with app-01 during refactor.
+  - codename: app-20
+    label: Historical Commissions Viewer
+    category: archival
+    notes: Frozen snapshot of pre-migration commission data.
+  - codename: app-21
+    label: Legacy SSO Bridge
+    category: integration
+    notes: Temporary bridge between the new IdP and pre-2020 apps.
+  - codename: app-22
+    label: Daily Backfill Worker
+    category: utility
+    notes: Idle most of the day. Only runs during outages.
+  - codename: app-23
+    label: Customer Onboarding Form
+    category: satellite
+    notes: Intake form that feeds app-02. Low traffic but external-facing.
+  - codename: app-24
+    label: Shared Data Dictionary
+    category: shared-library
+    notes: Centralized schema catalog consumed by apps 01, 02 and 05.
+  - codename: app-25
+    label: Compliance Export Job
+    category: archival
+    notes: Monthly regulator export. Hard-coded file paths.
+  - codename: app-26
+    label: Integration Test Runner
+    category: utility
+    notes: Internal tool used by QA. No external consumers.
+  - codename: app-27
+    label: Legacy Employee Directory
+    category: archival
+    notes: Deprecated but still consulted during audits.
+  - codename: app-28
+    label: Partner Webhook Receiver
+    category: integration
+    notes: Accepts async callbacks from partner gateway (app-07).
+  - codename: app-29
+    label: Monitoring Dashboard Shim
+    category: utility
+    notes: Thin wrapper over Prometheus metrics. Low code volume.
+  - codename: app-30
+    label: Data Quality Sampler
+    category: utility
+    notes: Produces quality-of-data snapshots for the commission engine.
+  - codename: app-31
+    label: Shared Cron Library
+    category: shared-library
+    notes: Tiny utility library used for scheduled jobs. Widely imported.

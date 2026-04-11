@@ -22,7 +22,14 @@ from pathlib import Path
 
 from .databases import generate_legacy_schema
 from .languages import CSharpGenerator, CobolGenerator, PythonGenerator
-from .profile import AppRecipe, SubProject, TenantProfile, VulnerabilityDensity, load_profile
+from .profile import (
+    AppRecipe,
+    NonScopeAppStub,
+    SubProject,
+    TenantProfile,
+    VulnerabilityDensity,
+    load_profile,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -41,6 +48,17 @@ class GenerationReport:
     total_vulnerabilities: int = 0
     duration_seconds: float = 0.0
     output_path: Path | None = None
+    # Phase B scaffolding — apps emitted as discovery-pending stubs
+    # only (no code tree). Counted separately from
+    # ``apps_generated`` so downstream tooling can distinguish
+    # "scope apps with full recipe" from "non-scope stubs".
+    non_scope_stubs_generated: list[str] = field(default_factory=list)
+
+    @property
+    def total_apps(self) -> int:
+        """Total apps in the emitted tenant tree (scope + stubs).
+        Counting both is useful for the 31-app footprint headline."""
+        return len(self.apps_generated) + len(self.non_scope_stubs_generated)
 
 
 def _derive_seed(tenant_seed: int, codename: str) -> int:
@@ -395,6 +413,25 @@ def _write_governance_artifact(
     return 1
 
 
+def _write_non_scope_stub(stub: NonScopeAppStub, tenant_out: Path) -> int:
+    """Emit the Phase B scaffolding for one non-scope app.
+
+    Creates ``<tenant_out>/<codename>/DISCOVERY_PENDING.md`` with a
+    short stub that describes the app at a classification level only.
+    No code trees, no vulnerabilities, no databases — the refactor
+    engine should treat this directory as "scope requires discovery"
+    when it walks the tenant tree.
+
+    Returns the number of files written (always 1 on success) so
+    the caller can update ``GenerationReport.total_files``.
+    """
+    stub_dir = tenant_out / stub.codename
+    stub_dir.mkdir(parents=True, exist_ok=True)
+    stub_path = stub_dir / "DISCOVERY_PENDING.md"
+    stub_path.write_text(stub.to_stub_markdown(), encoding="utf-8")
+    return 1
+
+
 def generate_tenant(
     profile: TenantProfile,
     output_dir: Path,
@@ -439,6 +476,16 @@ def generate_tenant(
         report.apps_generated.append(app.codename)
         report.total_files += files
         report.total_vulnerabilities += app.vulnerabilities.total()
+
+    # Phase B scaffolding — emit non-scope discovery-pending stubs.
+    # Only when generating the full tenant; skipped when --app is
+    # used to generate a single scope app in isolation.
+    if only_app is None:
+        for stub in profile.non_scope_apps:
+            logger.info("Stub %s (non-scope, discovery-pending)", stub.codename)
+            files_written = _write_non_scope_stub(stub, tenant_out)
+            report.total_files += files_written
+            report.non_scope_stubs_generated.append(stub.codename)
 
     # Tenant-wide compliance artifact (Batch 3, deliverable D)
     report.total_files += _write_compliance_artifact(profile, tenant_out)
@@ -504,7 +551,14 @@ def main() -> int:
 
     print("\n=== Generation Report ===")
     print(f"Tenant:              {report.tenant_id}")
-    print(f"Apps generated:      {len(report.apps_generated)} ({', '.join(report.apps_generated)})")
+    print(f"Scope apps:          {len(report.apps_generated)} ({', '.join(report.apps_generated)})")
+    if report.non_scope_stubs_generated:
+        print(
+            f"Non-scope stubs:     {len(report.non_scope_stubs_generated)} "
+            f"(discovery-pending — {', '.join(report.non_scope_stubs_generated[:5])}"
+            f"{'...' if len(report.non_scope_stubs_generated) > 5 else ''})"
+        )
+        print(f"Total app footprint: {report.total_apps}")
     print(f"Files written:       {report.total_files}")
     print(f"LOC produced:        {report.total_loc:,}")
     print(f"Vulnerabilities:     {report.total_vulnerabilities:,} (configured in recipe)")
