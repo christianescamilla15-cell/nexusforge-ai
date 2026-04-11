@@ -457,6 +457,38 @@ async def scan_multilang(body: MultiLangScanRequest, request: Request):
     return report.to_dict()
 
 
+class GenerateObservabilityRequest(BaseModel):
+    out_dir: str
+    service_name: str = "my-service"
+
+
+@router.post("/generate-observability")
+async def generate_observability_endpoint(
+    body: GenerateObservabilityRequest, request: Request
+):
+    """Emit an observability bootstrap bundle.
+
+    Produces SLO definitions (latency + availability), Prometheus
+    scrape config and multi-window multi-burn-rate alerting rules,
+    Grafana dashboards (golden signals + error budget), an OTel
+    Collector config covering traces + metrics + logs, language-
+    specific instrumentation guides (Python/FastAPI, .NET/ASP.NET
+    Core), runbook templates, and a docker-compose for running the
+    stack locally. 16 files per bundle, ready to commit to a repo.
+    """
+    _get_user_id(request)
+
+    from pathlib import Path as _Path
+
+    from app.refactor.observability_bootstrapper import generate_observability_bundle
+
+    result = generate_observability_bundle(
+        out_dir=_Path(body.out_dir),
+        service_name=body.service_name,
+    )
+    return result.to_dict()
+
+
 class GenerateGitflowRequest(BaseModel):
     out_dir: str
 
