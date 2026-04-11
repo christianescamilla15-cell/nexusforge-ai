@@ -103,7 +103,13 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
         style={{
           width: isMobile ? sidebarWidth : w,
           minWidth: isMobile ? sidebarWidth : w,
-          height: '100vh',
+          // On mobile we reserve room for the fixed bottom nav (~76px)
+          // plus the device safe-area inset. Without this, the last
+          // sidebar items (Settings, Integrations) ended up hidden
+          // behind the bottom nav and were unreachable.
+          height: isMobile
+            ? 'calc(100vh - 76px - env(safe-area-inset-bottom, 0px))'
+            : '100vh',
           position: 'fixed',
           top: 0,
           left: isMobile ? (mobileOpen ? 0 : -sidebarWidth) : 0,
@@ -112,6 +118,9 @@ export default function Layout({ currentPage, onNavigate, children, lang, toggle
           display: 'flex',
           flexDirection: 'column',
           transition: isMobile ? 'left 0.3s ease' : 'width 0.2s ease',
+          // Keep the sidebar above the overlay (z-index 40 below) but
+          // below the bottom nav (z-index 100) so the bottom nav
+          // remains visible as context even with the sidebar open.
           zIndex: 50,
           overflow: 'hidden',
         }}
