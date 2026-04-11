@@ -331,6 +331,62 @@ Production uses a rolling deployment strategy:
 - Readiness probe must pass before traffic is routed
 - Rollback on failed health checks: `kubectl rollout undo deployment/api`
 
+### 4. Render ephemeral filesystem caveat (Agent SDK subagent memory)
+
+**Applies to:** the Render-hosted backend (`nexusforge-api.onrender.com`)
+and anything that uses `AgentSDKBridge` subagents with
+`memory="project"` (Phase 4 — Feature 4).
+
+Render's container filesystem is **ephemeral**: every `git push` to
+`master` rebuilds the container from scratch, and any files written by
+the process during its lifetime are discarded. The Claude Agent SDK
+stores session transcripts on the local filesystem by default, which
+means:
+
+1. **Session ids survive**, because Phase 4 persists them to Redis
+   under `nexusforge:sdk:session:{user_id}:{agent_name}` with a 7-day
+   TTL. `POST /api/sdk/resume/{agent_name}` reads this key.
+2. **SDK transcript files do NOT survive** the redeploy. When the new
+   container is given a stale session id via `resume=`, the SDK cannot
+   re-hydrate the conversation history from disk and silently starts a
+   fresh session under the same id.
+3. **Subagent `memory="project"` scope** is effectively a per-container
+   cache, not durable storage. Cross-deploy continuity for subagent
+   memory is NOT available on Render today.
+
+**Mitigations in the current code:**
+
+- `_load_session` / `_save_session` in
+  [`backend/app/meta/agent_sdk_bridge.py`](../backend/app/meta/agent_sdk_bridge.py)
+  wrap all Redis I/O in try/except so a Redis outage degrades
+  gracefully to in-memory session ids (process-lifetime only).
+- `AgentSDKBridge.resume()` returns a normal SDK response even when
+  the resume silently starts fresh, so callers never see a hard
+  failure from a stale session.
+- The 7-day TTL matches a conservative Render redeploy cadence; after
+  7 days of no activity the key is auto-pruned.
+
+**What would make this truly durable:**
+
+- Externalize SDK transcripts to Postgres (e.g. a `sdk_transcripts`
+  `jsonb` column keyed by session id) or to S3, via an SDK
+  persistence hook. As of the SDK version pinned in
+  [`backend/requirements.txt`](../backend/requirements.txt), this
+  requires a custom `storage_backend` and is out of scope for
+  Phase 4. Track as a Phase 4.1 follow-up if subagent continuity
+  becomes a hard requirement.
+- Alternatively, move the backend off Render to a host with a
+  persistent volume (Fly.io volumes, Railway persistent disks, a
+  managed K8s StatefulSet with a PVC). This removes the root cause
+  but adds operational complexity.
+
+**Kubernetes production:** the caveat is avoidable by mounting a
+PersistentVolume at the SDK's configured session directory, so
+transcripts survive pod restarts and rolling updates. **Verify the
+current `k8s/overlays/production` kustomization before relying on
+this** — the Render deploy is the only one we can confirm hits the
+ephemeral-FS limitation today.
+
 ---
 
 ## Environment Variables

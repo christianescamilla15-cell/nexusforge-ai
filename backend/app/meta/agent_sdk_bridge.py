@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 # Check if Agent SDK is available
 _SDK_AVAILABLE = False
 _SDK_VERSION = "unknown"
+_SDK_SUPPORTS_MEMORY = False  # set by probe below
 try:
     from claude_agent_sdk import query, ClaudeAgentOptions, AgentDefinition
     _SDK_AVAILABLE = True
@@ -31,8 +32,60 @@ try:
         _SDK_VERSION = getattr(claude_agent_sdk, "__version__", "installed")
     except Exception:
         _SDK_VERSION = "installed"
+
+    # Phase 4 — probe whether the installed SDK version supports the
+    # ``memory`` kwarg on AgentDefinition. Older pins (<0.1.x) do not.
+    # We probe once at import time rather than try/except on every
+    # construction. If probe fails, we silently fall back to the no-
+    # memory construction path so production stays green on old SDKs.
+    try:
+        _probe = AgentDefinition(
+            description="probe",
+            prompt="probe",
+            tools=["Read"],
+            memory="project",
+        )
+        _SDK_SUPPORTS_MEMORY = True
+        del _probe
+    except TypeError:
+        # SDK rejects memory kwarg — stay on legacy construction
+        _SDK_SUPPORTS_MEMORY = False
+    except Exception:
+        # Any other error during probe: treat as unsupported to be safe
+        _SDK_SUPPORTS_MEMORY = False
 except ImportError:
     logger.info("Claude Agent SDK not installed — SDK bridge disabled. Install with: pip install claude-agent-sdk")
+
+
+# Redis key template for Phase 4 session persistence. Scoped by
+# user_id AND agent_name so a single user can run parallel sessions
+# against different subagent contexts without stomping each other.
+_SESSION_REDIS_KEY = "nexusforge:sdk:session:{user_id}:{agent_name}"
+_SESSION_TTL_SECONDS = 7 * 24 * 3600  # 7 days — covers ~1 Render redeploy cycle
+
+
+def _make_agent_definition(*, description: str, prompt: str, tools: list[str]):
+    """Construct an AgentDefinition, passing ``memory="project"`` when
+    the installed SDK supports it (probed once at import time).
+
+    This keeps the hot path out of try/except. Older SDK versions that
+    do not know the ``memory`` kwarg fall through to a plain
+    construction so the bridge still works on the pinned baseline.
+    """
+    if not _SDK_AVAILABLE:
+        return None  # pragma: no cover — unreachable when used from _execute
+    if _SDK_SUPPORTS_MEMORY:
+        return AgentDefinition(
+            description=description,
+            prompt=prompt,
+            tools=tools,
+            memory="project",
+        )
+    return AgentDefinition(
+        description=description,
+        prompt=prompt,
+        tools=tools,
+    )
 
 
 class AgentSDKBridge:
@@ -96,6 +149,8 @@ class AgentSDKBridge:
         effort: str = "medium",
         permission_mode: str = "dontAsk",
         max_turns: int = 15,
+        user_id: str | None = None,
+        agent_name: str = "default",
     ) -> dict[str, Any]:
         """Run a query through the Claude Agent SDK.
 
@@ -103,10 +158,21 @@ class AgentSDKBridge:
             prompt: The task to perform
             tools: Allowed tools (Read, Edit, Bash, Glob, Grep, WebSearch, etc.)
             agents: Custom subagent definitions {name: {description, prompt, tools}}
-            resume_session: Resume previous session context
+            resume_session: Resume previous session context. If user_id
+                is provided, the session id is looked up in Redis under
+                ``nexusforge:sdk:session:{user_id}:{agent_name}`` rather
+                than the in-memory singleton attribute.
             effort: Thinking effort (low, medium, high, max)
             permission_mode: acceptEdits | dontAsk | default
             max_turns: Max agent loop iterations
+            user_id: Optional user identifier used for Phase 4 Redis-
+                backed session persistence. When present, session ids
+                captured during ``_execute`` are written to Redis at the
+                end of a successful run.
+            agent_name: Namespace within the per-user session keyspace.
+                Defaults to ``"default"``. Use one of the subagent keys
+                in ``NEXUSFORGE_AGENTS`` (or any custom string) to keep
+                parallel sessions separate.
         """
         if not self._available:
             return {
@@ -118,10 +184,24 @@ class AgentSDKBridge:
                 "status": "unavailable",
             }
 
+        # Phase 4 — if caller asked to resume and we have a user scope,
+        # look up the durable session id from Redis and seed
+        # self._session_id so _execute will pass it through resume=.
+        if resume_session and user_id:
+            persisted = await self._load_session(user_id, agent_name)
+            if persisted:
+                self._session_id = persisted
+
         try:
             start = time.monotonic()
             result = await self._execute(prompt, tools, agents, resume_session, effort, permission_mode, max_turns)
             result["duration_ms"] = int((time.monotonic() - start) * 1000)
+
+            # Phase 4 — persist the (possibly new) session id so the
+            # next call can resume it even after a process restart.
+            if user_id and result.get("session_id"):
+                await self._save_session(user_id, agent_name, result["session_id"])
+                result["session_persisted"] = True
             self._audit_log.append({
                 "timestamp": time.time(),
                 "prompt": prompt[:200],
@@ -160,17 +240,22 @@ class AgentSDKBridge:
         if resume_session and self._session_id:
             options_kwargs["resume"] = self._session_id
 
-        # Sub-agents — merge NexusForge defaults with custom agents
+        # Sub-agents — merge NexusForge defaults with custom agents.
+        # Phase 4: when the installed SDK supports it, pass
+        # memory="project" on each AgentDefinition so the subagent
+        # can retain context across invocations within a project
+        # scope. Falls back to the no-memory construction if the SDK
+        # is too old (probed once at import time).
         sdk_agents = {}
         for name, config in self.NEXUSFORGE_AGENTS.items():
-            sdk_agents[name] = AgentDefinition(
+            sdk_agents[name] = _make_agent_definition(
                 description=config["description"],
                 prompt=config["prompt"],
                 tools=config["tools"],
             )
         if agents:
             for name, config in agents.items():
-                sdk_agents[name] = AgentDefinition(
+                sdk_agents[name] = _make_agent_definition(
                     description=config.get("description", ""),
                     prompt=config.get("prompt", ""),
                     tools=config.get("tools", ["Read", "Glob", "Grep"]),
@@ -216,6 +301,82 @@ class AgentSDKBridge:
             "cost_usd": round(cost_usd, 4),
             "status": "success",
         }
+
+    # ── Phase 4: Redis-backed session persistence ──────────────────────────
+    #
+    # Session ids issued by the SDK normally live in ``self._session_id``
+    # as an in-memory attribute. On Render that dies with the process —
+    # every redeploy loses all sessions. Persisting the id to Redis lets
+    # ``resume()`` pick up where a previous process left off, subject to
+    # the Render ephemeral-FS caveat documented in docs/DEPLOYMENT.md:
+    # the SDK's own transcript files may be gone even when the id is
+    # still valid, in which case the resume degrades to a fresh start.
+
+    async def _load_session(self, user_id: str, agent_name: str) -> str | None:
+        """Fetch a previously persisted session id from Redis.
+
+        Returns None if Redis is unavailable, the key does not exist,
+        or the stored value is not a string. Errors are swallowed —
+        this is a best-effort enhancement and must never crash
+        ``run()``.
+        """
+        try:
+            from app.db.client import get_redis
+            redis = await get_redis()
+            if redis is None:
+                return None
+            key = _SESSION_REDIS_KEY.format(user_id=user_id, agent_name=agent_name)
+            value = await redis.get(key)
+            if value is None:
+                return None
+            if isinstance(value, bytes):
+                return value.decode("utf-8", errors="ignore")
+            return str(value)
+        except Exception as exc:
+            logger.debug("SDK bridge: failed to load session for %s/%s: %s", user_id, agent_name, exc)
+            return None
+
+    async def _save_session(self, user_id: str, agent_name: str, session_id: str) -> None:
+        """Persist a session id to Redis with a 7-day TTL. Best effort."""
+        try:
+            from app.db.client import get_redis
+            redis = await get_redis()
+            if redis is None:
+                return
+            key = _SESSION_REDIS_KEY.format(user_id=user_id, agent_name=agent_name)
+            await redis.set(key, session_id, ex=_SESSION_TTL_SECONDS)
+        except Exception as exc:
+            logger.debug("SDK bridge: failed to save session for %s/%s: %s", user_id, agent_name, exc)
+
+    async def resume(
+        self,
+        prompt: str,
+        user_id: str,
+        agent_name: str = "default",
+        tools: list[str] | None = None,
+        agents: dict[str, dict] | None = None,
+        effort: str = "medium",
+        permission_mode: str = "dontAsk",
+        max_turns: int = 15,
+    ) -> dict[str, Any]:
+        """Resume a previously persisted SDK session for this user/agent.
+
+        Thin wrapper over ``run(..., resume_session=True)`` that makes
+        the intent explicit and keeps the caller path free of kwarg
+        noise. If no session is persisted, the SDK will start a new
+        one and ``run`` will persist it on the way out.
+        """
+        return await self.run(
+            prompt=prompt,
+            tools=tools,
+            agents=agents,
+            resume_session=True,
+            effort=effort,
+            permission_mode=permission_mode,
+            max_turns=max_turns,
+            user_id=user_id,
+            agent_name=agent_name,
+        )
 
     # ── Convenience methods ─────────────────────────────────────────────────
 
