@@ -7,7 +7,7 @@
 > this file to match and leave the detailed doc as the archived source
 > of that decision.
 >
-> **Last updated:** 2026-04-10 (Feature 1 + Gap 6 + Gap 8 + Phase 3 + §4.F audit verification — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`, plus audit verification pass on same day)
+> **Last updated:** 2026-04-10 (Feature 1 + Gap 6 + Gap 8 + Phase 3 + §4.F + Gap 12 — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`, `4f7a935`, `e24f50d`)
 > **Maintainer:** Christian Hernandez (sole owner)
 
 ## 1. Current state snapshot
@@ -62,7 +62,7 @@ detail document; this file only surfaces status.
 | # | Workstream | Canonical doc | Status |
 |---|---|---|---|
 | 1 | **Tenant-alpha showcase** — the synthetic-codebase demo of NexusForge modernizing 5 (then 31, then 60) legacy apps in "weeks not years" | [`integration/01_agent_mapping.md`](./integration/01_agent_mapping.md), [`integration/02_phase2_plan.md`](./integration/02_phase2_plan.md), [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) | Phase A (5 apps, ~400K LOC corrected) **shipped**; Phase B baseline (31 apps, 5.6M LOC exact) + Phase C stress (10M LOC headroom) **pending** — see `integration/02_phase2_plan.md` §3.3 for the 3-phase scale plan |
-| 2 | **Platform of the Future — 12 capability gaps** driving the showcase narrative | [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) §Gaps | **9 of 12 shipped** (1, 2, 3, 4, 5, 6, 7, 8, 11); 3 pending (9, 10, 12) |
+| 2 | **Platform of the Future — 12 capability gaps** driving the showcase narrative | [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) §Gaps | **10 of 12 shipped** (1, 2, 3, 4, 5, 6, 7, 8, 11, 12); 2 pending (9, 10) — both are long-term post-MVP per §4.E |
 | 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-3 SHIPPED to master** (quick wins in `c15323f` + SDK bump in `0fd895c` + Feature 1 in `13b5263` + Memory Tool infrastructure in `9b66113`, all on master 2026-04-10). Phase 3 wired to ComplianceAgent only; PlannerAgent deferred. Phases 4-6 (Agent SDK subagent memory, Skills migration, Mythos upgrades) pending. |
 | 4 | **Orchestrator improvements** — Claude Code customizations for this project (not part of NexusForge the product) | Local to `.claude/` + memory (gitignored) | 4 subagents + 3 skills + 3 hooks + 2 feedback memories **active**; Render/GitHub/Postgres MCPs **waiting for API keys** (see [`mcp-servers-setup.md`](./mcp-servers-setup.md)) |
 
@@ -87,7 +87,7 @@ as "Platform of the Future" for enterprise modernization.
 | 9 | **Vendor lock-in escape analyzer** (contract obsolescence audit, portability recommendations) | 6 | ❌ PENDING | — |
 | 10 | **Encrypted data pipeline scaffolder** (field-level encryption at source, PII tokenization, data-flow viz) | 6 | ❌ PENDING | — |
 | 11 | Observability stack bootstrapper (SLO + cloud-native monitoring + business anomaly alerting) | 6 | ✅ SHIPPED | `d0a86bd feat(refactor): observability stack bootstrapper (Gap 11)` |
-| 12 | **Post-modernization knowledge transfer mode** (persistent tech-lead AI agent) | 7 | ❌ PENDING | — |
+| 12 | Post-modernization knowledge transfer mode (persistent tech-lead AI agent) | 7 | ✅ SHIPPED | `e24f50d feat(refactor): post-modernization knowledge transfer agent (Gap 12)` |
 
 **Showcase minimum viable scope** per the vision doc: Gaps **1, 2, 3, 5, 7**
 must ship to prove "weeks not years". **All 5 are shipped.** The remaining
