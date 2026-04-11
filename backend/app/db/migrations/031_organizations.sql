@@ -53,19 +53,63 @@ ALTER TABLE workflow_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
--- RLS policies: users can only see rows in their org
--- Note: app connects as 'nexusforge_app' role, sets current_setting('app.org_id')
-CREATE POLICY IF NOT EXISTS org_isolation_workflows ON workflows
-    USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+-- RLS policies: users can only see rows in their org.
+-- Note: app connects as 'nexusforge_app' role, sets current_setting('app.org_id').
+--
+-- PostgreSQL does NOT support `CREATE POLICY IF NOT EXISTS` (it is the
+-- one CREATE statement missing that clause, even in PG 16). We wrap
+-- each CREATE in a DO block that checks pg_policies first, so the
+-- migration stays idempotent and re-running it is safe.
 
-CREATE POLICY IF NOT EXISTS org_isolation_automations ON automations
-    USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename = 'workflows'
+          AND policyname = 'org_isolation_workflows'
+    ) THEN
+        CREATE POLICY org_isolation_workflows ON workflows
+            USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    END IF;
 
-CREATE POLICY IF NOT EXISTS org_isolation_runs ON workflow_runs
-    USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename = 'automations'
+          AND policyname = 'org_isolation_automations'
+    ) THEN
+        CREATE POLICY org_isolation_automations ON automations
+            USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    END IF;
 
-CREATE POLICY IF NOT EXISTS org_isolation_configs ON agent_configs
-    USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename = 'workflow_runs'
+          AND policyname = 'org_isolation_runs'
+    ) THEN
+        CREATE POLICY org_isolation_runs ON workflow_runs
+            USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    END IF;
 
-CREATE POLICY IF NOT EXISTS org_isolation_documents ON documents
-    USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename = 'agent_configs'
+          AND policyname = 'org_isolation_configs'
+    ) THEN
+        CREATE POLICY org_isolation_configs ON agent_configs
+            USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename = 'documents'
+          AND policyname = 'org_isolation_documents'
+    ) THEN
+        CREATE POLICY org_isolation_documents ON documents
+            USING (org_id IS NULL OR org_id = current_setting('app.org_id', true)::uuid);
+    END IF;
+END $$;
