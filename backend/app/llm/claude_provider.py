@@ -31,7 +31,8 @@ class ClaudeProvider(BaseLLMProvider):
         return self._client
 
     async def chat(self, messages: list[dict], temperature: float = 0.3,
-                   max_tokens: int = 2048, thinking: bool = False) -> LLMResponse:
+                   max_tokens: int = 2048, thinking: bool = False,
+                   context_management: dict | None = None) -> LLMResponse:
         client = self._get_client()
 
         # Separate system message from conversation messages
@@ -66,7 +67,21 @@ class ClaudeProvider(BaseLLMProvider):
             # Temperature must be 1 when using thinking
             kwargs["temperature"] = 1
 
-        response = await client.messages.create(**kwargs, timeout=httpx.Timeout(60.0))
+        # Context Editing (Feature 1) — Anthropic beta context-management-2025-06-27.
+        # When caller provides a context_management config, route through the beta
+        # messages endpoint so the server auto-clears stale tool_use results and
+        # thinking blocks once the context window grows beyond configured thresholds.
+        # When None, keep the existing non-beta path unchanged (zero behavioral change
+        # for the 99% of call sites that do not opt in).
+        if context_management is not None:
+            kwargs["context_management"] = context_management
+            response = await client.beta.messages.create(
+                **kwargs,
+                betas=["context-management-2025-06-27"],
+                timeout=httpx.Timeout(60.0),
+            )
+        else:
+            response = await client.messages.create(**kwargs, timeout=httpx.Timeout(60.0))
 
         # Extract text and thinking from response
         text = ""

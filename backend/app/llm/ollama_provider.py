@@ -27,8 +27,18 @@ class OllamaProvider(BaseLLMProvider):
         self._model = model
 
     async def chat(self, messages: list[dict], temperature: float = 0.3,
-                   max_tokens: int = 2048) -> LLMResponse:
-        """Route to thinking or standard chat based on model."""
+                   max_tokens: int = 2048,
+                   context_management: dict | None = None) -> LLMResponse:
+        """Route to thinking or standard chat based on model.
+
+        context_management is accepted for interface compatibility with the
+        Anthropic providers (ClaudeProvider, HaikuProvider) but silently
+        ignored here — Ollama has no equivalent of Anthropic's beta context
+        editing feature. The parameter is consumed by the router layer and
+        passed to every provider uniformly, so rather than making the router
+        aware of which providers support it, each provider drops it locally.
+        """
+        del context_management  # explicit: intentionally unused
         if self._model in THINKING_MODELS:
             return await self._chat_with_thinking(messages, temperature, max_tokens)
         return await self._chat_standard(messages, temperature, max_tokens)

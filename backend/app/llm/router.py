@@ -165,8 +165,16 @@ class LLMRouter:
         agent_name: str = "",
         ctx: ExecutionContext = None,
         step_id: str = None,
+        context_management: dict | None = None,
     ) -> LLMResponse:
-        """Route call through provider chain. Respects per-agent model map and circuit breakers."""
+        """Route call through provider chain. Respects per-agent model map and circuit breakers.
+
+        context_management: optional Anthropic beta context editing config.
+            Propagated to every provider in the fallback chain. Only
+            ClaudeProvider and HaikuProvider actually honor it; Ollama and
+            Groq accept and silently drop it. See Feature 1 in
+            docs/anthropic-features-research.md for the design rationale.
+        """
 
         # Set Ollama model based on agent
         ollama_model = _AGENT_MODEL_MAP.get(agent_name)
@@ -214,7 +222,12 @@ class LLMRouter:
                 continue
 
             try:
-                response = await provider.chat(messages, temperature, max_tokens)
+                response = await provider.chat(
+                    messages,
+                    temperature,
+                    max_tokens,
+                    context_management=context_management,
+                )
                 breaker.reset()
                 response.cost_usd = calculate_cost(
                     response.provider, response.tokens_input, response.tokens_output
