@@ -7,7 +7,7 @@
 > this file to match and leave the detailed doc as the archived source
 > of that decision.
 >
-> **Last updated:** 2026-04-10 (post Feature 1 merge + Gap 6 ship — `0fd895c`, `13b5263`, `0a2e57b`)
+> **Last updated:** 2026-04-10 (post Feature 1 merge + Gap 6 + Gap 8 ship — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`)
 > **Maintainer:** Christian Hernandez (sole owner)
 
 ## 1. Current state snapshot
@@ -62,7 +62,7 @@ detail document; this file only surfaces status.
 | # | Workstream | Canonical doc | Status |
 |---|---|---|---|
 | 1 | **Tenant-alpha showcase** — the synthetic-codebase demo of NexusForge modernizing 5 (then 31, then 60) legacy apps in "weeks not years" | [`integration/01_agent_mapping.md`](./integration/01_agent_mapping.md), [`integration/02_phase2_plan.md`](./integration/02_phase2_plan.md), [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) | Phase A (5 apps, ~400K LOC corrected) **shipped**; Phase B baseline (31 apps, 5.6M LOC exact) + Phase C stress (10M LOC headroom) **pending** — see `integration/02_phase2_plan.md` §3.3 for the 3-phase scale plan |
-| 2 | **Platform of the Future — 12 capability gaps** driving the showcase narrative | [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) §Gaps | **8 of 12 shipped** (1, 2, 3, 4, 5, 6, 7, 11); 4 pending (8, 9, 10, 12) |
+| 2 | **Platform of the Future — 12 capability gaps** driving the showcase narrative | [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) §Gaps | **9 of 12 shipped** (1, 2, 3, 4, 5, 6, 7, 8, 11); 3 pending (9, 10, 12) |
 | 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-2 SHIPPED to master** (quick wins in `c15323f` + SDK bump in `0fd895c` + Feature 1 plumbing + batch wiring in `13b5263`, all on master 2026-04-10). Phases 3-6 (Memory Tool, Agent SDK subagent memory, Skills migration, Mythos upgrades) pending. |
 | 4 | **Orchestrator improvements** — Claude Code customizations for this project (not part of NexusForge the product) | Local to `.claude/` + memory (gitignored) | 4 subagents + 3 skills + 3 hooks + 2 feedback memories **active**; Render/GitHub/Postgres MCPs **waiting for API keys** (see [`mcp-servers-setup.md`](./mcp-servers-setup.md)) |
 
@@ -83,7 +83,7 @@ as "Platform of the Future" for enterprise modernization.
 | 5 | GitFlow + pipeline governance template | 5 | ✅ SHIPPED | `8c6a367 feat(refactor): GitFlow governance template generator (Gap 5)` |
 | 6 | Data pipeline modernization planner (flat-file batch → Kafka/Kinesis/MSK recommendation + schema inference) | 5 | ✅ SHIPPED | `0a2e57b feat(refactor): data pipeline modernization planner (Gap 6)` |
 | 7 | Compliance-by-design enforcer (template security middleware) | 5 | ✅ SHIPPED | `86bc0ae feat(refactor): compliance-by-design enforcer (middleware templates) — Gap 7` |
-| 8 | **AI-powered documentation generator** (runbooks, C4 diagrams, ADRs from refactored code) | 5 | ❌ PENDING | — |
+| 8 | AI-powered documentation generator (runbooks, C4 diagrams, ADRs from refactored code) | 5 | ✅ SHIPPED | `ac1f249 feat(refactor): AI-powered documentation generator (Gap 8)` |
 | 9 | **Vendor lock-in escape analyzer** (contract obsolescence audit, portability recommendations) | 6 | ❌ PENDING | — |
 | 10 | **Encrypted data pipeline scaffolder** (field-level encryption at source, PII tokenization, data-flow viz) | 6 | ❌ PENDING | — |
 | 11 | Observability stack bootstrapper (SLO + cloud-native monitoring + business anomaly alerting) | 6 | ✅ SHIPPED | `d0a86bd feat(refactor): observability stack bootstrapper (Gap 11)` |
@@ -103,7 +103,6 @@ expansions for Phase B / 31-app scale / post-MVP polish.
 | Item | Effort | Notes |
 |---|---|---|
 | Phase B scale: 5 apps → 31 apps in synthetic generator | M (1-2 sessions) | Per `integration/02_phase2_plan.md` — extend per-app recipes, target 5.6M LOC total, hit "real scale" for the demo narrative |
-| Gap 8: AI-powered documentation generator | M (1 session) | Runbooks, C4 diagrams, ADRs auto-generated from refactored code — closes the "no docs" gap in every synthetic app |
 | Gap 12: Post-modernization knowledge transfer mode | S/M | Persistent AI agent that stays after delivery to mentor internal team. Leverages existing Agent SDK bridge + memory tiers |
 | `backend/scripts/audit_confidentiality.py` — confirm exists + blocklist automation | XS | Per `integration/02_phase2_plan.md` §confidentiality audit; if script exists, verify it blocks real names across the tree and is wired into pre-commit |
 | Update `CHANGELOG.md` (root) — stale since v2.5.0 2026-04-04 | S | Capture the 12+ days of work since (Gaps 1-5, 7, 11 shipped, Batch 3 deliverables, mobile fixes, Feature 1 prep) |
