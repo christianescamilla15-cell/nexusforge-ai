@@ -32,7 +32,8 @@ class HaikuProvider(BaseLLMProvider):
         return self._client
 
     async def chat(self, messages: list[dict], temperature: float = 0.1,
-                   max_tokens: int = 512) -> LLMResponse:
+                   max_tokens: int = 512,
+                   context_management: dict | None = None) -> LLMResponse:
         client = self._get_client()
 
         system_text = ""
@@ -58,7 +59,18 @@ class HaikuProvider(BaseLLMProvider):
                 }
             ]
 
-        response = await client.messages.create(**kwargs, timeout=httpx.Timeout(30.0))
+        # Context Editing (Feature 1) — beta path only when the caller opts in.
+        # See claude_provider.py for the full explanation of why the two branches
+        # are kept separate.
+        if context_management is not None:
+            kwargs["context_management"] = context_management
+            response = await client.beta.messages.create(
+                **kwargs,
+                betas=["context-management-2025-06-27"],
+                timeout=httpx.Timeout(30.0),
+            )
+        else:
+            response = await client.messages.create(**kwargs, timeout=httpx.Timeout(30.0))
 
         text = response.content[0].text if response.content else ""
         usage = response.usage

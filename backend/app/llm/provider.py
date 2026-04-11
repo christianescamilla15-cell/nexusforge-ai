@@ -23,8 +23,17 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def chat(self, messages: list[dict], temperature: float = 0.3,
-                   max_tokens: int = 2048) -> LLMResponse:
-        """Send messages and get a completion response."""
+                   max_tokens: int = 2048,
+                   context_management: dict | None = None) -> LLMResponse:
+        """Send messages and get a completion response.
+
+        context_management: optional dict passed to Anthropic's beta
+            context editing API (beta header context-management-2025-06-27).
+            Shape: {"edits": [{"type": "clear_tool_uses_20250919", ...}, ...]}.
+            Providers that do not implement beta context editing (Ollama, Groq)
+            silently ignore this parameter. Only ClaudeProvider and HaikuProvider
+            actually consume it today.
+        """
         pass
 
     @abstractmethod

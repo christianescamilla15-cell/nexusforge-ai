@@ -18,7 +18,11 @@ class GroqProvider(BaseLLMProvider):
         return bool(self._api_key)
 
     async def chat(self, messages: list[dict], temperature: float = 0.3,
-                   max_tokens: int = 2048) -> LLMResponse:
+                   max_tokens: int = 2048,
+                   context_management: dict | None = None) -> LLMResponse:
+        # context_management accepted for interface parity with Anthropic
+        # providers but silently ignored — Groq has no equivalent feature.
+        del context_management
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",

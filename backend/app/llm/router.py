@@ -57,7 +57,11 @@ _LLAMA_AGENTS = {
 _CLOUD_PREFERRED_AGENTS = {"ReporterAgent", "ResearcherAgent"}
 
 # Claude-only agents: bypass Groq, use Claude directly for critical tasks
-_CLAUDE_ONLY_AGENTS = {"ComplianceAgent"}
+# - ComplianceAgent: regulatory/PII analysis, must use Claude quality
+# - RefactorFixerAgent: virtual agent used by batch_pipeline._fix_claude_batch
+#   for complex code remediation (CWE category selected claude_batch strategy).
+#   Already tried Ollama upstream via a different strategy tier; skip it here.
+_CLAUDE_ONLY_AGENTS = {"ComplianceAgent", "RefactorFixerAgent"}
 
 _AGENT_MODEL_MAP: dict[str, str] = {
     **{a: "gemma4:4b" for a in _GEMMA_AGENTS},
@@ -165,8 +169,16 @@ class LLMRouter:
         agent_name: str = "",
         ctx: ExecutionContext = None,
         step_id: str = None,
+        context_management: dict | None = None,
     ) -> LLMResponse:
-        """Route call through provider chain. Respects per-agent model map and circuit breakers."""
+        """Route call through provider chain. Respects per-agent model map and circuit breakers.
+
+        context_management: optional Anthropic beta context editing config.
+            Propagated to every provider in the fallback chain. Only
+            ClaudeProvider and HaikuProvider actually honor it; Ollama and
+            Groq accept and silently drop it. See Feature 1 in
+            docs/anthropic-features-research.md for the design rationale.
+        """
 
         # Set Ollama model based on agent
         ollama_model = _AGENT_MODEL_MAP.get(agent_name)
@@ -214,7 +226,12 @@ class LLMRouter:
                 continue
 
             try:
-                response = await provider.chat(messages, temperature, max_tokens)
+                response = await provider.chat(
+                    messages,
+                    temperature,
+                    max_tokens,
+                    context_management=context_management,
+                )
                 breaker.reset()
                 response.cost_usd = calculate_cost(
                     response.provider, response.tokens_input, response.tokens_output
