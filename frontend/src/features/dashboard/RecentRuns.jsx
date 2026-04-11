@@ -61,8 +61,8 @@ export default function RecentRuns({ runs, lang = 'en', onClearAll }) {
         </div>
       ) : (
         <>
-          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <div style={{ maxHeight: 400, overflowY: 'auto', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 480 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #E5E7EB', position: 'sticky', top: 0, background: '#F9FAFB', zIndex: 1 }}>
                   <th style={thStyle}>{lang === 'es' ? 'Estado' : 'Status'}</th>

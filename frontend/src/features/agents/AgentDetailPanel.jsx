@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchAPI } from '../../services/api'
+import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
 const TYPE_COLORS = {
   classifier: '#818CF8', extractor: '#10B981', summarizer: '#F59E0B',
@@ -72,6 +73,7 @@ function TestAgentSection({ agentType, lang }) {
 }
 
 export default function AgentDetailPanel({ agent, onClose, lang = 'en' }) {
+  const isMobile = useIsMobile()
   const [tab, setTab] = useState('config')
   const [cfg, setCfg] = useState(null)
   const [availableProviders, setAvailableProviders] = useState([])
@@ -373,7 +375,11 @@ export default function AgentDetailPanel({ agent, onClose, lang = 'en' }) {
               <div style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 10 }}>
                 {label('Statistics', 'Estadísticas', lang)}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: isMobile ? 6 : 12,
+              }}>
                 {[
                   { label: label('Runs', 'Ejecuciones', lang), value: agent.stats.total_runs?.toLocaleString() || '0' },
                   { label: label('Avg Duration', 'Duración Prom.', lang), value: agent.stats.avg_duration ? `${(agent.stats.avg_duration / 1000).toFixed(1)}s` : '--' },
