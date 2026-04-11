@@ -636,6 +636,47 @@ async def wrap_cobol(body: CobolWrapRequest, request: Request):
     return result.to_dict()
 
 
+class GenerateDocsRequest(BaseModel):
+    project_path: str
+    app_name: str = ""
+    write_to_disk: bool = False
+    output_dir: str | None = None
+    overwrite: bool = False
+
+
+@router.post("/generate-docs")
+async def generate_docs_route(body: GenerateDocsRequest, request: Request):
+    """Gap 8 — AI-powered documentation generator.
+
+    Walks a legacy codebase, infers the stack + entry points + HTTP
+    endpoints + external integrations + top-level modules, and produces
+    a canonical documentation bundle: README.md, ARCHITECTURE.md (with
+    C4 Context/Container/Component Mermaid diagrams), ADR-0001-initial-
+    architecture.md, RUNBOOK.md, API.md, and INTEGRATIONS.md.
+
+    Purely additive. Never modifies source code. Existing doc files are
+    NOT overwritten unless ``overwrite=True``.
+
+    Response: DocGenerationReport.to_dict() — includes the full rendered
+    content of every generated file under the ``files`` key, plus
+    ``written_to_disk`` (absolute paths of files actually written) and
+    ``warnings`` (any skipped writes).
+    """
+    _get_user_id(request)
+
+    from app.refactor.docs_generator import generate_docs
+
+    app_name = body.app_name or _Path(body.project_path).name or "unknown-app"
+    report = generate_docs(
+        app_name=app_name,
+        app_path=body.project_path,
+        write_to_disk=body.write_to_disk,
+        output_dir=body.output_dir,
+        overwrite=body.overwrite,
+    )
+    return report.to_dict()
+
+
 class DataPipelinePlanRequest(BaseModel):
     project_path: str
     app_name: str = ""
