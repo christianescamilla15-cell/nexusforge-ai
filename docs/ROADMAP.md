@@ -7,7 +7,7 @@
 > this file to match and leave the detailed doc as the archived source
 > of that decision.
 >
-> **Last updated:** 2026-04-10 (post Feature 1 merge + Gap 6 + Gap 8 ship — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`)
+> **Last updated:** 2026-04-10 (post Feature 1 + Gap 6 + Gap 8 + Phase 3 — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`)
 > **Maintainer:** Christian Hernandez (sole owner)
 
 ## 1. Current state snapshot
@@ -63,7 +63,7 @@ detail document; this file only surfaces status.
 |---|---|---|---|
 | 1 | **Tenant-alpha showcase** — the synthetic-codebase demo of NexusForge modernizing 5 (then 31, then 60) legacy apps in "weeks not years" | [`integration/01_agent_mapping.md`](./integration/01_agent_mapping.md), [`integration/02_phase2_plan.md`](./integration/02_phase2_plan.md), [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) | Phase A (5 apps, ~400K LOC corrected) **shipped**; Phase B baseline (31 apps, 5.6M LOC exact) + Phase C stress (10M LOC headroom) **pending** — see `integration/02_phase2_plan.md` §3.3 for the 3-phase scale plan |
 | 2 | **Platform of the Future — 12 capability gaps** driving the showcase narrative | [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) §Gaps | **9 of 12 shipped** (1, 2, 3, 4, 5, 6, 7, 8, 11); 3 pending (9, 10, 12) |
-| 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-2 SHIPPED to master** (quick wins in `c15323f` + SDK bump in `0fd895c` + Feature 1 plumbing + batch wiring in `13b5263`, all on master 2026-04-10). Phases 3-6 (Memory Tool, Agent SDK subagent memory, Skills migration, Mythos upgrades) pending. |
+| 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-3 SHIPPED to master** (quick wins in `c15323f` + SDK bump in `0fd895c` + Feature 1 in `13b5263` + Memory Tool infrastructure in `9b66113`, all on master 2026-04-10). Phase 3 wired to ComplianceAgent only; PlannerAgent deferred. Phases 4-6 (Agent SDK subagent memory, Skills migration, Mythos upgrades) pending. |
 | 4 | **Orchestrator improvements** — Claude Code customizations for this project (not part of NexusForge the product) | Local to `.claude/` + memory (gitignored) | 4 subagents + 3 skills + 3 hooks + 2 feedback memories **active**; Render/GitHub/Postgres MCPs **waiting for API keys** (see [`mcp-servers-setup.md`](./mcp-servers-setup.md)) |
 
 ---
@@ -133,16 +133,17 @@ auto-deploy (pending build confirmation at deploy time). Rollback path
 if Render build breaks: `git revert <merge-commit-sha> && git push`
 surgically reverts either or both merges independently.
 
-### 4.D — Research-pending (Anthropic 4-feature adoption Phases 3-6)
+### 4.D — Research-pending (Anthropic 4-feature adoption Phases 4-6)
 
 From [`anthropic-features-research.md`](./anthropic-features-research.md) §12.
-**Prerequisite unblocked 2026-04-10**: SDK bump merged to master as `0fd895c`,
-Feature 1 (plumbing + batch wiring) merged as `13b5263`. Phases 3-6 are now
-clear to start.
+**Phase 3 infrastructure SHIPPED** on 2026-04-10 in `9b66113`:
+`MemoryToolHandler` + `run_memory_loop` + ComplianceAgent feature-flag
+opt-in (default OFF). Wiring PlannerAgent to the same loop is a small
+deferred follow-up. Phases 4-6 remain ahead.
 
 | Phase | Feature | Effort | Prereq |
 |---|---|---|---|
-| 3 | Feature 3: Memory Tool (ComplianceAgent + PlannerAgent integration) | M/L (12-18h) | ✅ unblocked (bump landed) |
+| 3 (follow-up) | Wire PlannerAgent through the memory loop | XS (~1h) | ✅ infrastructure landed |
 | 4 | Feature 4: Agent SDK subagent memory + resume | S/M (4-8h) | ✅ unblocked (bump landed). Still needs Redis for session persistence and a resolution for Render ephemeral-FS caveat (see `anthropic-features-research.md` §6.2) |
 | 5a | Feature 2 (PR 5a): Skills infrastructure (`skill_loader.py`, `_build_system_prompt_v2`) | M (8-12h) | None |
 | 5b | Feature 2 (PR 5b): Skills migration — ClassifierAgent, ComplianceAgent, PlannerAgent, 4 Agent SDK subagents, + 19 more | L (20-30h across multiple PRs) | Infrastructure from 5a |
