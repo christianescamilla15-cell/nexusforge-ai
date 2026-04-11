@@ -7,7 +7,7 @@
 > this file to match and leave the detailed doc as the archived source
 > of that decision.
 >
-> **Last updated:** 2026-04-10 (Feature 1 + Gap 6 + Gap 8 + Phase 3 + §4.F + Gap 12 — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`, `4f7a935`, `e24f50d`)
+> **Last updated:** 2026-04-11 (Phase 3 follow-up + P1 #5 state machine + Phase 4 Agent SDK subagent memory — `0dfa38d`, `2666a84`, `1bacbab`). Earlier same-week: Feature 1, Gap 6, Gap 8, Phase 3 infra, §4.F, Gap 12 — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`, `4f7a935`, `e24f50d`.
 > **Maintainer:** Christian Hernandez (sole owner)
 
 ## 1. Current state snapshot
@@ -103,13 +103,12 @@ expansions for Phase B / 31-app scale / post-MVP polish.
 | Item | Effort | Notes |
 |---|---|---|
 | Phase B scale: 5 apps → 31 apps in synthetic generator | M (1-2 sessions) | Per `integration/02_phase2_plan.md` — extend per-app recipes, target 5.6M LOC total, hit "real scale" for the demo narrative |
-| **P1 #5 State machine enforcement** (audit follow-up) | XS (~1h, ~20 LOC) | Add `transition_workflow` calls in `backend/app/engine/executor.py` at status-write sites (where it already writes 'queued'/'running'/'completed'/'failed' to the DB) and `transition_step` calls in `backend/app/engine/step_runner.py`. The imports already exist — the calls do not. Risk: low; the functions raise `InvalidTransitionError` on violation, which catches state-drift bugs that today go silent. Test: add 2-3 tests asserting invalid transitions raise. |
-| Phase 3 follow-up: wire PlannerAgent through the memory loop | XS (~1h) | Mirror the ComplianceAgent opt-in pattern in `planner.py:106`. Same feature flag style, different agent_id. |
-| Gap 12: Post-modernization knowledge transfer mode | S/M | Persistent AI agent that stays after delivery to mentor internal team. Leverages existing Agent SDK bridge + memory tiers |
+| ~~**P1 #5 State machine enforcement**~~ | ~~XS~~ | ✅ **SHIPPED 2026-04-11 in `2666a84`** — `transition_workflow` / `transition_step` wired at every status-write site in `executor.py` and `step_runner.py`, with local `current_status` tracking, `retrying→running` normalization for multi-retry flows, and a try-guarded call in the unhandled-exception path so a late-stage FSM refusal cannot mask the original exception. 4 new unit tests. Full suite 568/568. |
+| ~~Phase 3 follow-up: wire PlannerAgent through the memory loop~~ | ~~XS~~ | ✅ **SHIPPED 2026-04-11 in `0dfa38d`** — ComplianceAgent opt-in pattern mirrored onto `planner.py:106`. Feature flag `NEXUSFORGE_MEMORY_TOOL_PLANNER=1`, `agent_id="PlannerAgent"`. Verify call at `planner.py:136` intentionally stays on the legacy path (design call per research doc §9.2.2). Default OFF = production byte-identical. |
 | `backend/scripts/audit_confidentiality.py` — confirm exists + blocklist automation | XS | Per `integration/02_phase2_plan.md` §confidentiality audit; if script exists, verify it blocks real names across the tree and is wired into pre-commit |
-| Update `CHANGELOG.md` (root) — stale since v2.5.0 2026-04-04 | S | Capture the 12+ days of work since (Gaps 1-5, 7, 11 shipped, Batch 3 deliverables, mobile fixes, Feature 1 prep) |
-| Update `PROJECT_SUMMARY.md` — stale counts ("22 agents", "260 tests") | XS | Refresh to match `CLAUDE.md` |
-| Verify P0/P1 items from `IMPLEMENTATION_AUDIT.md` (2026-03-29) — most are likely fixed | S | Cross-check against git log since audit date. Known-fixed: migration runner (`97f1112`), observability bootstrapper (`d0a86bd`), 5-tier memory (`43383f4`). Known-unknown: self-healing wiring into step_runner, state machine enforcement, memory used by agents during execution |
+| Update `CHANGELOG.md` (root) — stale since v2.5.0 2026-04-04 | S | Capture the 12+ days of work since (Gaps 1-5, 7, 11 shipped, Batch 3 deliverables, mobile fixes, Feature 1 prep, Phases 3-4, P1 #5) |
+| Update `PROJECT_SUMMARY.md` — stale counts ("22 agents", "260 tests") | XS | Refresh to match `CLAUDE.md`. Test count is now 578 (excluding `test_full_system.py` which has a pre-existing collection error from a missing external repo path). |
+| ~~Verify P0/P1 items from `IMPLEMENTATION_AUDIT.md` (2026-03-29)~~ | ~~S~~ | ✅ **DONE** — 7 of 7 P0/P1 items now closed (the last one, P1 #5 state machine, shipped in `2666a84`). Audit doc can be formally archived. See §4.F. |
 
 ### 4.B — Waiting for API keys (Christian to create)
 
@@ -135,21 +134,26 @@ auto-deploy (pending build confirmation at deploy time). Rollback path
 if Render build breaks: `git revert <merge-commit-sha> && git push`
 surgically reverts either or both merges independently.
 
-### 4.D — Research-pending (Anthropic 4-feature adoption Phases 4-6)
+### 4.D — Research-pending (Anthropic 4-feature adoption Phases 5-6)
 
 From [`anthropic-features-research.md`](./anthropic-features-research.md) §12.
-**Phase 3 infrastructure SHIPPED** on 2026-04-10 in `9b66113`:
-`MemoryToolHandler` + `run_memory_loop` + ComplianceAgent feature-flag
-opt-in (default OFF). Wiring PlannerAgent to the same loop is a small
-deferred follow-up. Phases 4-6 remain ahead.
+**Phases 0-4 all SHIPPED** as of 2026-04-11:
+
+- Phase 0: baseline SDK bump — `7514157`
+- Phase 1+2 (Feature 1): Context Editing + batch pipeline wiring — `04cf05d`, `e7555bb`
+- Phase 3: `MemoryToolHandler` + `run_memory_loop` + ComplianceAgent opt-in — `9b66113`
+- Phase 3 follow-up: PlannerAgent memory-loop opt-in — `0dfa38d`
+- Phase 4: Agent SDK subagent memory + Redis-backed resume + `/api/sdk/resume/{agent_name}` + DEPLOYMENT.md caveat — `1bacbab`
+
+Only Phases 5-6 remain, both independent tracks (pick in any order).
 
 | Phase | Feature | Effort | Prereq |
 |---|---|---|---|
-| 3 (follow-up) | Wire PlannerAgent through the memory loop | XS (~1h) | ✅ infrastructure landed |
-| 4 | Feature 4: Agent SDK subagent memory + resume | S/M (4-8h) | ✅ unblocked (bump landed). Still needs Redis for session persistence and a resolution for Render ephemeral-FS caveat (see `anthropic-features-research.md` §6.2) |
+| ~~3 (follow-up)~~ | ~~Wire PlannerAgent through the memory loop~~ | ~~XS~~ | ✅ SHIPPED `0dfa38d` |
+| ~~4~~ | ~~Feature 4: Agent SDK subagent memory + resume~~ | ~~S/M~~ | ✅ SHIPPED `1bacbab` — Redis session persistence with 7-day TTL, Render ephemeral-FS caveat documented in `docs/DEPLOYMENT.md §Production`. Externalizing SDK on-disk transcripts to Postgres/S3 is tracked as a Phase 4.1 follow-up if cross-deploy subagent continuity becomes a hard requirement. |
 | 5a | Feature 2 (PR 5a): Skills infrastructure (`skill_loader.py`, `_build_system_prompt_v2`) | M (8-12h) | None |
 | 5b | Feature 2 (PR 5b): Skills migration — ClassifierAgent, ComplianceAgent, PlannerAgent, 4 Agent SDK subagents, + 19 more | L (20-30h across multiple PRs) | Infrastructure from 5a |
-| 6 | Mythos upgrades — second-pass FP filter, diff-aware mode, category-per-skill migration, memory="project" on security-auditor subagent | M (8-12h) | Optional: Features 2 and 4 make it nicer but not blocking |
+| 6 | Mythos upgrades — second-pass FP filter, diff-aware mode, category-per-skill migration, `memory="project"` on security-auditor subagent | M (8-12h) | Optional: Features 2 and 4 make it nicer but not blocking |
 
 ### 4.E — Long-term / post-MVP gaps (can be deferred past the current demo)
 
@@ -159,12 +163,14 @@ deferred follow-up. Phases 4-6 remain ahead.
 - Integration tests (currently zero per IMPLEMENTATION_AUDIT)
 - Frontend dashboard real-data wiring (if not already fixed by later commits — needs verification)
 
-### 4.F — Audit verification pass — DONE 2026-04-10
+### 4.F — Audit verification pass — FULLY CLOSED 2026-04-11
 
 [`IMPLEMENTATION_AUDIT.md`](./IMPLEMENTATION_AUDIT.md) was from 2026-03-29
 — ~315 commits and ~12 days ago. A verification pass was run against
-its Section 7 "Priority Fixes" on 2026-04-10 with the following results
-(the audit doc now has a banner at the top pointing to this table):
+its Section 7 "Priority Fixes" on 2026-04-10 (6/7 closed), and the
+final remaining item (P1 #5 state machine enforcement) was closed on
+2026-04-11 in `2666a84`. **All 7 P0/P1 items are now resolved.** The
+audit doc has a banner at the top pointing to this table:
 
 - [x] **P0 #1 Self-healing wired into `step_runner.py`** — ✅ FIXED.
       `backend/app/engine/step_runner.py:15` imports SelfHealer;
@@ -180,13 +186,19 @@ its Section 7 "Priority Fixes" on 2026-04-10 with the following results
       `AgentActivity` components that fetch live data.
 - [x] **P1 #4 Migration runner exists** — ✅ FIXED. Confirmed via
       `97f1112`.
-- [ ] **P1 #5 State machine enforced** — ❌ **STILL BROKEN**.
-      `transition_workflow` is imported in `executor.py:10` and
-      `transition_step` in `step_runner.py:14`, but neither function
-      is actually called anywhere. A full recursive grep across
-      `backend/app/` finds only the imports and the definitions in
-      `state_machine.py`. Dead imports. **Listed in §4.A as a
-      ready-now follow-up.**
+- [x] **P1 #5 State machine enforced** — ✅ **FIXED 2026-04-11 in
+      `2666a84`**. `transition_workflow` is now called at every
+      status-write site in `executor.py` (queued→running, running→
+      completed, running→failed on step-abort, running→failed on
+      unhandled-exception, queued→failed on DAG validation error).
+      `transition_step` is called at every status-write site in
+      `step_runner.py` (pending→running INSERT, running→completed,
+      running→retrying, running→completed for the heal path,
+      running→failed dead-letter). Multi-retry flows stay legal via
+      a `retrying→running` normalization at the top of each retry
+      iteration. The state machine itself gained `QUEUED → FAILED`
+      as a valid transition. 4 new unit tests in
+      `test_state_machine.py`, full suite 568/568.
 - [x] **P1 #6 Memory used by agents during execution** — ✅ FIXED.
       `backend/app/agents/base.py:85` docstring: "Public entrypoint:
       circuit breaker check → recall → execute → remember." Line 106
@@ -195,15 +207,12 @@ its Section 7 "Priority Fixes" on 2026-04-10 with the following results
 - [x] **P1 #7 Auth middleware enforcing routes** — ✅ FIXED.
       `main.py:158-159` registers `AuthMiddleware` before CORS.
 
-**Outcome:** 6 of 7 audit items are fixed. Only P1 #5 remains, and
-it is a small contained fix (~20 lines across 2 files, add the
-`transition_workflow` / `transition_step` calls at the status-write
-sites). Moved to §4.A as a ready-now follow-up rather than leaving
-it stale in this section.
-
-The audit doc remains in the repo as historical context — it is NOT
-deleted, just annotated with a verification banner at the top. Going
-forward, this ROADMAP.md is the canonical source for current status.
+**Outcome:** **7 of 7 audit items are fixed.** The
+`IMPLEMENTATION_AUDIT.md` Priority Fixes section is fully closed as
+of 2026-04-11. The audit doc remains in the repo as historical
+context — it is NOT deleted, just annotated with a verification
+banner at the top. Going forward, this ROADMAP.md is the canonical
+source for current status.
 
 ---
 
