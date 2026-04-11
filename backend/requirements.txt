@@ -8,9 +8,13 @@ asyncpg==0.29.0
 psycopg2-binary==2.9.9
 python-multipart==0.0.9
 websockets==12.0
-anthropic==0.34.0
+anthropic==0.94.0
 # Agent SDK bridge — enables Claude Agent SDK subagents + tool use in backend/app/meta/agent_sdk_bridge.py
-# TODO(Feature 1): bump anthropic to >=0.40.0 to unlock client.beta.messages.create for Context Editing + Memory Tool
+# anthropic==0.94.0 unlocks client.beta.messages.create for Context Editing (context-management-2025-06-27)
+# and Memory Tool (memory_20250818). Validated in isolated venv 2026-04-10:
+# - httpx==0.27.0 pin still valid (anthropic requires httpx>=0.25,<1)
+# - All response.usage fields present (input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens)
+# - claude_provider.py and haiku_provider.py import and instantiate cleanly, no API surface changes.
 claude-agent-sdk>=0.1.58,<0.2.0
 voyageai==0.3.7
 motor>=3.6.0
