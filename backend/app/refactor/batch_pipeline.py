@@ -26,6 +26,7 @@ Throughput target: 500+ fixes/hour with 4 parallel workers.
 import asyncio
 import json
 import logging
+import re
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -34,6 +35,25 @@ from pathlib import Path
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
+
+
+# File extension → language name used in the Claude fix prompt code fence.
+# Drives both prompt rendering and response parsing (model is asked to wrap
+# its reply in ```<lang>\n...\n```). Unknown extensions fall back to "".
+_LANG_BY_EXT = {
+    ".py": "python",
+    ".cs": "csharp",
+    ".js": "javascript",
+    ".jsx": "jsx",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+    ".java": "java",
+    ".go": "go",
+    ".rb": "ruby",
+    ".php": "php",
+    ".rs": "rust",
+    ".sql": "sql",
+}
 
 
 @dataclass
@@ -388,14 +408,146 @@ class BatchRemediationPipeline:
             return fixed, count, 0
 
     async def _fix_claude_batch(self, code: str, unit: WorkUnit) -> tuple[str, int, int, float]:
-        """Fix using Claude Batch API (50% discount)."""
-        # For now, fallback to deterministic + ollama
+        """Fix using Claude via LLMRouter with Context Editing (Feature 1).
+
+        Sends a single-turn prompt containing the full file and all issues in
+        it, asks Claude to return the corrected file inside a code fence.
+        Falls back to Ollama / deterministic on any failure so the pipeline
+        always makes some progress.
+
+        The context_management config is passed even though a single-turn
+        call has nothing to clear (clear_tool_uses_20250919 needs prior
+        tool_use results). It is forward-compatible with a future multi-turn
+        worker model — see docs/anthropic-features-research.md §10.3 for
+        the design direction where tokens savings materialize.
+        """
         try:
-            fixed, count, tokens = await self._fix_ollama(code, unit)
-            return fixed, count, tokens, 0.0
-        except Exception:
-            fixed, count = await self._fix_deterministic(code, unit)
-            return fixed, count, 0, 0.0
+            from app.llm.router import get_router
+            router = get_router()
+
+            prompt = self._build_claude_fix_prompt(code, unit)
+            messages = [{"role": "user", "content": prompt}]
+
+            context_management = {
+                "edits": [
+                    {
+                        "type": "clear_tool_uses_20250919",
+                        "trigger": {"type": "input_tokens", "value": 35000},
+                        "keep": {"type": "tool_uses", "value": 5},
+                        "clear_at_least": {"type": "input_tokens", "value": 2000},
+                    }
+                ]
+            }
+
+            resp = await router.chat(
+                messages=messages,
+                temperature=0.1,
+                max_tokens=4096,
+                agent_name="RefactorFixerAgent",
+                context_management=context_management,
+            )
+
+            fixed = self._extract_fixed_code(resp.text)
+            # Sanity: if extractor returned None (no fence, prose response,
+            # empty) treat as malformed and fall back. For very large files
+            # we also guard against obvious truncation by rejecting responses
+            # that are under half the original size. For small files the
+            # ratio is unreliable so we skip it — downstream _validate_fix
+            # (syntax check + rollback) is the safety net for broken output.
+            malformed = (
+                fixed is None
+                or (len(code) > 200 and len(fixed) < len(code) * 0.5)
+            )
+            if malformed:
+                logger.warning(
+                    "Claude fix returned malformed/truncated response for %s (len=%d, orig=%d), falling back to Ollama",
+                    unit.file_path,
+                    len(fixed) if fixed else 0,
+                    len(code),
+                )
+                fixed_ollama, count, tokens = await self._fix_ollama(code, unit)
+                return fixed_ollama, count, tokens, 0.0
+
+            tokens = (resp.tokens_input or 0) + (resp.tokens_output or 0)
+            cost = float(getattr(resp, "cost_usd", 0.0) or 0.0)
+            # All issues in the unit were presented to Claude in one shot;
+            # if the fence came back non-trivial, assume they were addressed.
+            # Downstream _validate_fix will catch syntactic regressions.
+            return fixed, len(unit.issues), tokens, cost
+
+        except Exception as exc:
+            logger.warning("Claude batch fix failed for %s: %s", unit.file_path, exc)
+            # Graceful fallback chain: Ollama -> deterministic. Preserves the
+            # previous stub's "never fail the unit because cloud was down"
+            # semantics.
+            try:
+                fixed, count, tokens = await self._fix_ollama(code, unit)
+                return fixed, count, tokens, 0.0
+            except Exception:
+                fixed, count = await self._fix_deterministic(code, unit)
+                return fixed, count, 0, 0.0
+
+    def _build_claude_fix_prompt(self, code: str, unit: WorkUnit) -> str:
+        """Build the single-turn prompt for the Claude remediation call."""
+        lang = _LANG_BY_EXT.get(Path(unit.file_path).suffix.lower(), "")
+        lang_tag = lang  # empty string is a valid (language-agnostic) fence
+
+        issue_lines: list[str] = []
+        for i, issue in enumerate(unit.issues, 1):
+            cwe = issue.get("cwe", "no-CWE")
+            sev = str(issue.get("severity", "medium")).upper()
+            desc = issue.get("description", issue.get("title", "Unspecified issue"))
+            line_num = issue.get("line", "?")
+            remediation = issue.get("remediation", "Apply the recommended fix.")
+            issue_lines.append(
+                f"{i}. [{cwe}] {sev}: {desc}\n"
+                f"   Line {line_num}: {remediation}"
+            )
+        issue_block = "\n".join(issue_lines) if issue_lines else "(no structured issues provided)"
+
+        return (
+            "You are a code remediation specialist. Apply the listed security "
+            "and quality fixes to the file content below, then return the "
+            "corrected file.\n\n"
+            f"FILE: {unit.file_path}\n"
+            f"LANGUAGE: {lang or 'unknown'}\n\n"
+            f"ISSUES TO FIX ({len(unit.issues)} total):\n"
+            f"{issue_block}\n\n"
+            "ORIGINAL FILE CONTENT:\n"
+            f"```{lang_tag}\n"
+            f"{code}\n"
+            "```\n\n"
+            "RULES:\n"
+            "- Return ONLY the corrected file content, wrapped in a single code fence.\n"
+            f"- Fence format: ```{lang_tag}\n<corrected code>\n```\n"
+            "- No explanations, no prose, no commentary outside the fence.\n"
+            "- Preserve all comments, formatting, and code that is not part of a listed issue.\n"
+            "- If an issue is ambiguous, add a `TODO:` comment in the corrected code but still output valid, compilable code.\n"
+        )
+
+    @staticmethod
+    def _extract_fixed_code(text: str) -> str | None:
+        """Extract the inner content of a ```lang...``` fence.
+
+        Returns the corrected code on success, or None if no fence was found
+        AND the raw text does not look like code (e.g., the model answered
+        in prose). Callers treat None as malformed and fall back.
+        """
+        if not text:
+            return None
+        # Primary path: a properly fenced code block. lang is optional.
+        m = re.search(r"```(?:[\w+-]+)?\n(.*?)\n```", text, re.DOTALL)
+        if m:
+            return m.group(1)
+        # Last-resort: model forgot the fence but returned raw code. Only
+        # accept if the text does not start with a typical prose opener.
+        stripped = text.strip()
+        if not stripped:
+            return None
+        prose_openers = ("i ", "here ", "sure", "certainly", "of course", "the ", "this ")
+        if stripped.lower().startswith(prose_openers):
+            return None
+        return stripped
 
     async def _validate_fix(self, fpath: Path, unit: WorkUnit) -> bool:
         """Validate a fix (basic syntax check)."""

@@ -57,7 +57,11 @@ _LLAMA_AGENTS = {
 _CLOUD_PREFERRED_AGENTS = {"ReporterAgent", "ResearcherAgent"}
 
 # Claude-only agents: bypass Groq, use Claude directly for critical tasks
-_CLAUDE_ONLY_AGENTS = {"ComplianceAgent"}
+# - ComplianceAgent: regulatory/PII analysis, must use Claude quality
+# - RefactorFixerAgent: virtual agent used by batch_pipeline._fix_claude_batch
+#   for complex code remediation (CWE category selected claude_batch strategy).
+#   Already tried Ollama upstream via a different strategy tier; skip it here.
+_CLAUDE_ONLY_AGENTS = {"ComplianceAgent", "RefactorFixerAgent"}
 
 _AGENT_MODEL_MAP: dict[str, str] = {
     **{a: "gemma4:4b" for a in _GEMMA_AGENTS},
