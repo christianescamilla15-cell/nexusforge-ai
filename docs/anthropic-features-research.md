@@ -973,40 +973,79 @@ exactly as today. Zero overlap in storage.
 - [x] Audit: `anthropic==0.94.0` validated against current providers in
   isolated venv — no breaking changes
 
-### Phase 1 — SDK bump (1 PR, standalone)
+### Phase 1 — SDK bump (1 PR, standalone) — ✅ CODE DONE, PR UNMERGED
 
-- [ ] Branch `feature/anthropic-sdk-bump`
-- [ ] `requirements.txt`: `anthropic==0.34.0` → `anthropic==0.94.0`
-- [ ] Local `pytest backend/` (307 unit tests) — no failures expected
-- [ ] PR, wait for Render staging, manual validation
-- [ ] Merge
+Branch: [`feature/anthropic-sdk-bump`](https://github.com/christianescamilla15-cell/nexusforge-ai/tree/feature/anthropic-sdk-bump)
+Commit: `7514157 chore(deps): bump anthropic 0.34.0 -> 0.94.0 for Context Editing beta`
 
-**Estimated effort:** S (2-4h including manual validation)
-**Blast radius:** touches
-[`claude_provider.py`](../backend/app/llm/claude_provider.py) and
-[`haiku_provider.py`](../backend/app/llm/haiku_provider.py) at runtime.
-Rollback path: revert the PR, `requirements.txt` returns to 0.34.0.
+- [x] Branch `feature/anthropic-sdk-bump` created
+- [x] `requirements.txt`: `anthropic==0.34.0` → `anthropic==0.94.0`
+- [x] Local validation in isolated venv `/tmp/nf-bump-test/.venv`: pip
+      install succeeds, no dep conflicts, `httpx==0.27.0` pin survives,
+      `client.beta.messages` reachable, all 4 usage fields present,
+      ClaudeProvider + HaikuProvider import cleanly.
+- [ ] ⚠️ Full `pytest backend/` (307 tests) NOT run — requires DB/Redis/
+      Mongo/Ollama which are not available in the validation venv.
+      Instead: 34 targeted tests (router + provider chain + batch
+      pipeline) run green (see Phase 2).
+- [ ] PR not opened yet — link:
+      https://github.com/christianescamilla15-cell/nexusforge-ai/pull/new/feature/anthropic-sdk-bump
+- [ ] Merge pending user review + Render staging validation
 
-### Phase 2 — Feature 1: Context Editing (1 PR)
+**Actual effort:** ~1h for the bump + validation (vs S estimate of 2-4h)
+**Blast radius verified:** zero code changes required in
+[`claude_provider.py`](../backend/app/llm/claude_provider.py) or
+[`haiku_provider.py`](../backend/app/llm/haiku_provider.py) for the bump
+alone. Rollback path unchanged: revert the PR, requirements.txt returns
+to 0.34.0.
 
-- [ ] Extend
+### Phase 2 — Feature 1: Context Editing (1 PR) — ✅ CODE DONE, PR UNMERGED
+
+Branch: [`feature/context-editing`](https://github.com/christianescamilla15-cell/nexusforge-ai/tree/feature/context-editing)
+(based on `feature/anthropic-sdk-bump`)
+Commits:
+- `04cf05d feat(llm): wire Context Editing beta through provider chain`
+- `e7555bb feat(refactor): complete _fix_claude_batch with Claude + Context Editing`
+
+- [x] Extend
   [`claude_provider.py:33`](../backend/app/llm/claude_provider.py#L33)
-  `chat()` signature with `context_management` kwarg. Switch to
-  `beta.messages.create` when set.
-- [ ] Extend
+  `chat()` signature with `context_management` kwarg. Routes through
+  `client.beta.messages.create(..., betas=["context-management-2025-06-27"])`
+  when set, keeps legacy path otherwise.
+- [x] Extend
   [`router.py:160`](../backend/app/llm/router.py#L160) `chat()`
-  signature with same kwarg, propagate to provider.
-- [ ] Complete `_fix_claude_batch` at
+  signature with same kwarg, propagates to provider.
+- [x] Complete `_fix_claude_batch` at
   [`batch_pipeline.py:390`](../backend/app/refactor/batch_pipeline.py#L390)
-  (see §10.3.1).
-- [ ] Add `RefactorFixerAgent` to `_CLAUDE_ONLY_AGENTS` at
+  — see §10.3.1 for the original design and §12.1 post-mortem for the
+  divergences discovered during implementation.
+- [x] Add `RefactorFixerAgent` to `_CLAUDE_ONLY_AGENTS` at
   [`router.py:60`](../backend/app/llm/router.py#L60).
-- [ ] Unit tests that mock the Anthropic client and assert the `betas`
-  header + `context_management` payload are passed correctly.
+- [x] Unit tests: 25 tests across 2 new files
+  (`backend/tests/test_context_editing.py` 9 tests,
+  `backend/tests/test_batch_claude_fix.py` 16 tests). All green in
+  the validation venv. Regression: existing `test_router.py` (9 tests)
+  still passes. Total: 34 tests green, ~1.9s run time.
 
-**Estimated effort:** M (6-10h)
-**Expected benefit:** -40 to -60% tokens in `_fix_claude_batch` runs
-over 200+ files per batch.
+**Scope expansions discovered during implementation** (see §12.1):
+- [x] Also extended `HaikuProvider` — `_HAIKU_ELIGIBLE_AGENTS`
+      (RouterAgent, ClassifierAgent, SentimentAgent) can also opt in
+- [x] Also extended `OllamaProvider` + `GroqProvider` with silent
+      kwarg drop — required for uniform router propagation
+- [x] Also extended the `BaseLLMProvider` abstract method — signature
+      contract update
+- [x] Added helpers `_build_claude_fix_prompt`, `_extract_fixed_code`,
+      `_LANG_BY_EXT` (not in original checklist)
+
+**Actual effort:** ~4h (vs M estimate of 6-10h)
+**Expected benefit from original plan:** "-40 to -60% tokens in
+`_fix_claude_batch` runs over 200+ files per batch"
+**Actual benefit delivered:** **Does NOT match the -40/-60% claim.**
+See §12.1 — that number applies to a multi-turn worker pattern that
+was NOT built. What was built is single-turn per-file with Context
+Editing as a no-op (nothing to clear). The real benefit is qualitative:
+Claude actually runs on issues that `_select_strategy` routes to
+`claude_batch` tier. Previously those fell back to Ollama silently.
 
 ### Phase 3 — Feature 3: Memory Tool (1 PR)
 
@@ -1098,7 +1137,208 @@ in local dev.
 
 Phases 1 → 2 → 3 are sequential because each unlocks the next. Phases
 4, 5, 6 are independent and can be parallelized once Phase 2 is
-merged. Phase 0 is done.
+merged. Phase 0 is done. Phases 1 and 2 are **code-complete on feature
+branches** as of 2026-04-10 but not yet merged — see §12.1 post-mortem
+for what diverged between plan and execution.
+
+---
+
+## 12.1 Feature 1 post-mortem (2026-04-10)
+
+Feature 1 (Phases 1 + 2 of the roadmap) was implemented in a single
+session. This subsection captures the gap between the original plan
+and what actually shipped so future sessions reading the roadmap do
+not re-invent the same work or get misled by the estimated-benefit
+numbers.
+
+### 12.1.1 What was actually built
+
+**Three commits across two feature branches**:
+
+1. **`7514157`** on `feature/anthropic-sdk-bump` — a 1-line version
+   bump in `backend/requirements.txt:11` plus an expanded comment
+   documenting the validation findings.
+
+2. **`04cf05d`** on `feature/context-editing` — the provider-chain
+   plumbing. 6 files touched, +74/-11 lines:
+   - [`backend/app/llm/provider.py`](../backend/app/llm/provider.py) —
+     abstract `BaseLLMProvider.chat()` signature gains
+     `context_management: dict | None = None`.
+   - [`backend/app/llm/claude_provider.py`](../backend/app/llm/claude_provider.py) —
+     when `context_management` is set, route through
+     `client.beta.messages.create(..., betas=["context-management-2025-06-27"])`;
+     else keep the existing `client.messages.create` path untouched.
+   - [`backend/app/llm/haiku_provider.py`](../backend/app/llm/haiku_provider.py) —
+     same pattern. **Not in the original checklist** — see §12.1.2.
+   - [`backend/app/llm/ollama_provider.py`](../backend/app/llm/ollama_provider.py) and
+     [`backend/app/llm/groq_provider.py`](../backend/app/llm/groq_provider.py) —
+     accept and silently drop the kwarg. **Not in the original
+     checklist** — see §12.1.2.
+   - [`backend/app/llm/router.py`](../backend/app/llm/router.py) —
+     `LLMRouter.chat()` accepts and propagates `context_management`
+     to the selected provider.
+   - [`backend/tests/test_context_editing.py`](../backend/tests/test_context_editing.py)
+     (new, 9 tests).
+
+3. **`e7555bb`** on `feature/context-editing` — the batch pipeline
+   wiring. 3 files touched, +430/-8 lines:
+   - [`backend/app/refactor/batch_pipeline.py`](../backend/app/refactor/batch_pipeline.py) —
+     replaces the stub `_fix_claude_batch` with a real Claude call.
+     Adds `_build_claude_fix_prompt`, `_extract_fixed_code`, and the
+     module-level `_LANG_BY_EXT` map. Fallback chain
+     (Ollama → deterministic) preserved on any failure.
+   - [`backend/app/llm/router.py`](../backend/app/llm/router.py) —
+     adds `"RefactorFixerAgent"` to `_CLAUDE_ONLY_AGENTS` next to
+     `ComplianceAgent`.
+   - [`backend/tests/test_batch_claude_fix.py`](../backend/tests/test_batch_claude_fix.py)
+     (new, 16 tests).
+
+**Test inventory**: 34 tests total, all green.
+- 9 regression from `test_router.py` (pre-existing).
+- 9 from `test_context_editing.py` (new, provider chain).
+- 16 from `test_batch_claude_fix.py` (new, batch pipeline).
+
+Run time ~1.9s in the isolated venv (`/tmp/nf-bump-test/.venv`).
+
+### 12.1.2 Plan vs execution divergences
+
+The original Phase 2 checklist had 5 items. The implementation required
+**9 distinct edits + 3 new helpers**. The gap came from interface
+obligations the original plan did not surface:
+
+| Item | In original plan? | Why it was needed |
+|---|---|---|
+| `claude_provider.chat()` extension | ✅ Yes | Core of Feature 1 |
+| `haiku_provider.chat()` extension | ❌ No | Same Anthropic client, same beta namespace. Haiku-eligible agents (RouterAgent, ClassifierAgent, SentimentAgent) can opt in too. Excluding it would have created an asymmetric API. |
+| `ollama_provider.chat()` signature | ❌ No | The router uniformly passes kwargs to every provider in the chain. If Ollama raised `TypeError` on an unknown kwarg, the fallback chain would break. Had to accept and silently drop. |
+| `groq_provider.chat()` signature | ❌ No | Same reasoning as Ollama. |
+| `BaseLLMProvider.chat()` abstract | ❌ No | The abstract method contract had to be updated or subclasses that override it would fail linting. One-line docstring change. |
+| `router.chat()` extension | ✅ Yes | Core of Feature 1 |
+| `_fix_claude_batch` completion | ✅ Yes | Core of Feature 1 |
+| `_build_claude_fix_prompt` helper | ❌ No | The original plan said "build a prompt" but did not specify the shape. Had to design the prompt template with file path, language tag, numbered issue list with CWE/severity/line/remediation, and strict output rules. |
+| `_extract_fixed_code` helper | ❌ No | The original plan said "parse the response" but did not specify how. Had to handle fenced code (primary), prose rejection, and raw-code fallback. |
+| `_LANG_BY_EXT` map | ❌ No | Needed for the prompt fence tag and as an audit-friendly single source of truth. |
+| `RefactorFixerAgent` in `_CLAUDE_ONLY_AGENTS` | ✅ Yes | Core of Feature 1 |
+| Provider chain tests (9) | ✅ Yes | Core of Feature 1 |
+| Batch pipeline tests (16) | ❌ No (undercount) | Original plan said "unit tests" without a count. 16 is the right number to cover the parser edge cases (7), prompt formatting (3), happy path + 3 fallback paths (5), and router sanity (1). |
+
+**Actual effort ~4h** vs original M estimate of 6-10h — scope was
+wider but the plumbing was mechanically simple once the pattern was
+fixed for ClaudeProvider.
+
+### 12.1.3 The "-40 to -60% tokens" claim is WRONG for this implementation
+
+The original Phase 2 block said:
+
+> **Expected benefit:** -40 to -60% tokens in `_fix_claude_batch` runs
+> over 200+ files per batch.
+
+**This is not what was delivered.** That number comes from the
+memory cookbook's scenario where a long-running agent accumulates
+tool_use results across many turns in a single conversation, and
+`clear_tool_uses_20250919` prunes the oldest ones when the context
+grows past 35K input tokens.
+
+What was actually built is **stateless single-turn per file**:
+- Each call to `_fix_claude_batch(code, unit)` constructs one
+  `{"role": "user", "content": prompt}` message and sends it.
+- The conversation has exactly 1 user turn and 1 assistant response.
+- There are no `tool_use` results in the history (no tool calls at
+  all — just text in, text out).
+- `clear_tool_uses_20250919` has **nothing to clear**. It is a no-op
+  at runtime.
+
+The `context_management` config is passed anyway for two reasons:
+1. It is harmless (no-op) rather than wrong (broken).
+2. It is **forward-compatible** with a future multi-turn worker
+   pattern — see §12.1.4 below.
+
+**The real benefit delivered by Feature 1 is qualitative, not
+quantitative**:
+
+- Before: `_fix_claude_batch` was a stub that fell back to
+  `_fix_ollama`. Even when the strategy selector classified an issue
+  as complex enough to need Claude, the pipeline silently downgraded
+  it. The `claude_batch` tier existed in name only.
+- After: files whose issues fall in `_select_strategy`'s "complex,
+  needs full context" bucket actually reach Claude. For issues that
+  Ollama cannot fix well (complex SQL injection rewrites, cross-method
+  refactors, ambiguous auth gaps), Claude now does the work.
+
+Token savings vs Ollama? **None** — Claude costs $3/MTok input vs
+Ollama's $0. This is a **quality-and-correctness trade-off**, not a
+savings trade-off. The research doc's framing (and the memory
+cookbook's headline number) do not apply.
+
+### 12.1.4 What the "-40/-60%" benefit would actually require
+
+To realize the original Phase 2 expected benefit, a future PR would
+need to restructure the batch pipeline so that each worker owns a
+**conversation**, not a stateless per-file call:
+
+```
+Current (stateless):
+  for unit in work_units:
+      fix = router.chat(prompt_for_one_file(unit))    # N conversations
+
+Future (stateful worker):
+  conversation = []
+  for unit in work_units[:batch_size]:
+      conversation.append({"role": "user", "content": read_file_tool(unit)})
+      conversation.append({"role": "assistant", "content": fixed_content(unit)})
+      # After each file, context grows. clear_tool_uses_20250919 prunes
+      # when the input token budget crosses 35K.
+```
+
+This is a larger architectural change — the worker would need to
+maintain conversation state, handle tool_use/tool_result rounds for
+file I/O, and the prompt template would need to become a system
+prompt (cached) plus per-file user turns.
+
+**Not planned for the current PR**. Document here so a future session
+does not redo Phase 2 thinking the benefit was delivered.
+
+### 12.1.5 What to verify before merging to master
+
+Before opening and merging the PRs, a future session should:
+
+1. **Confirm `ANTHROPIC_API_KEY` is set on Render**. Without it, the
+   `ClaudeProvider.is_available()` returns False and the entire
+   `_fix_claude_batch` path falls through to Ollama. The feature
+   works locally (if the key is in `.env`) but silently no-ops on
+   Render unless the env var is present.
+
+2. **Run the full `pytest backend/`** (307 tests) on a machine with
+   DB/Redis/Mongo available. The validation venv only has the 34
+   LLM-scope tests. Integration tests for DAG, memory tiers, swarms,
+   etc. are untested against the bumped SDK.
+
+3. **Sanity-check one real remediation run** in a dev environment
+   with a small repo (vuln-test, 4 files). Confirm log output shows
+   `provider="claude"` for at least one `_fix_claude_batch` call. If
+   every call falls back to Ollama, either the API key is missing or
+   `_select_strategy` is not routing anything to `claude_batch`.
+
+4. **Merge order**: `feature/anthropic-sdk-bump` first (it has no
+   code-level dependencies), then `feature/context-editing` (it
+   imports nothing new from anthropic beyond what the bump PR
+   already ships).
+
+### 12.1.6 What did NOT change
+
+Deliberate scope boundary: this work did not touch any of the following,
+even though some of them are tempting targets:
+
+- `_select_strategy` in `batch_pipeline.py:114` — the mapping from
+  issue category to fix strategy is untouched. No files silently
+  reroute from Ollama to Claude without explicit review.
+- Any of the 22 non-Claude-only agents' prompts — Agent Skills
+  migration is still Phase 5.
+- The 5-tier `MemoryManager` — Memory Tool integration is still
+  Phase 3.
+- `agent_sdk_bridge.py` — Agent SDK subagent memory is still Phase 4.
+- `backend/app/security/mythos.py` — Mythos upgrades are still
+  Phase 6 (separate track).
 
 ---
 
