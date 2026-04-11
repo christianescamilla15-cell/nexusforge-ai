@@ -160,6 +160,29 @@ async def list_composable_blocks():
     }
 
 
+@router.get("/skills")
+async def list_agent_skills():
+    """Phase 5a — list available Agent Skills loaded from
+    ``backend/skills/<name>/SKILL.md``.
+
+    Reads the frontmatter of every skill directory and returns the
+    parsed ``name`` / ``description`` pairs. The skill body is NOT
+    included in the response to keep payloads small; callers can
+    look up individual bodies in the repo directly.
+
+    This endpoint is unauthenticated and read-only. The skills
+    directory is repo-local, not user-writable, so the listing is
+    stable across requests (cached in the loader singleton).
+    """
+    from app.agents.skill_loader import get_default_loader
+    loader = get_default_loader()
+    skills = loader.list_skills()
+    return {
+        "count": len(skills),
+        "skills": [skill.to_dict() for skill in skills],
+    }
+
+
 @router.get("/")
 async def list_all_agents():
     """Return all registered agents with metadata."""

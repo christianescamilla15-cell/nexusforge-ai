@@ -190,3 +190,51 @@ class BaseAgent(ABC):
             f"Your role: {self.description}\n\n"
             f"Task: {task_description}"
         )
+
+    def _build_system_prompt_v2(self, task_description: str) -> str:
+        """Phase 5a — Agent Skills-aware system prompt builder.
+
+        Attempts to load a skill file at
+        ``backend/skills/<self.agent_type>/SKILL.md`` and, if present,
+        uses its body as the core of the system prompt. If no skill is
+        found, or if skill loading fails for any reason (parse error,
+        disk read error, missing file), the method falls back to the
+        legacy ``_build_system_prompt`` output **byte-for-byte** so
+        callers can opt into this method without risk of drift.
+
+        Per the project rule "NEVER modify existing encapsulated
+        components", ``_build_system_prompt`` is left untouched.
+        Subclasses that want to use Agent Skills must explicitly call
+        ``_build_system_prompt_v2`` in their ``execute`` method.
+
+        Environment overrides:
+            NEXUSFORGE_SKILLS_DISABLED=1 — bypass skill loading
+            entirely and behave identically to
+            ``_build_system_prompt``. Useful for an emergency
+            rollback without redeploying.
+        """
+        import os as _os
+        if _os.environ.get("NEXUSFORGE_SKILLS_DISABLED", "0") == "1":
+            return self._build_system_prompt(task_description)
+
+        try:
+            from app.agents.skill_loader import get_default_loader
+            loader = get_default_loader()
+            skill = loader.load(self.agent_type)
+        except Exception as exc:
+            logger.debug("Skill loader error for %s: %s", self.agent_type, exc)
+            skill = None
+
+        if skill is None:
+            return self._build_system_prompt(task_description)
+
+        # Skill found — use the body as the role definition. We
+        # keep the "You are {name}" identity prefix so the agent's
+        # self-reference stays consistent with the legacy path, and
+        # we append the task_description at the end in the same
+        # position as the legacy method.
+        return (
+            f"You are {self.name}, a specialized AI agent.\n\n"
+            f"{skill.body}\n\n"
+            f"Task: {task_description}"
+        )
