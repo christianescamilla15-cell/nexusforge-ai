@@ -98,6 +98,62 @@ async def test_classifier_fallback_without_llm():
     assert result.provider in ("local", "fallback", "groq", "claude", "ollama")
 
 
+# ── Phase 5b PR 1 — ClassifierAgent migrated to _build_system_prompt_v2 ──
+
+
+def test_classifier_system_prompt_uses_skill_md_body():
+    """End-to-end check that Phase 5b PR 1 wired ClassifierAgent to the
+    Agent Skills loader landed in ba82cb5. The SKILL.md body ships in
+    backend/skills/classifier/SKILL.md with richer category definitions
+    than the bare legacy prompt — asserting the body appears in the
+    system prompt proves the v2 builder is reached and the loader
+    found the skill on disk."""
+    from app.agents.registry import get_agent
+    from app.agents.skill_loader import reset_default_loader
+
+    # Ensure we're not picking up a cached loader instance from an
+    # earlier test with a synthetic base_dir.
+    reset_default_loader()
+
+    agent = get_agent("classifier")
+    prompt = agent._build_system_prompt_v2("Classify the document.")
+
+    # Skill body markers (from backend/skills/classifier/SKILL.md).
+    # These phrases do NOT appear in the legacy _build_system_prompt
+    # output, so their presence proves the v2 path is active.
+    assert "document-classification specialist" in prompt
+    assert "Categories" in prompt
+    assert "Task: Classify the document." in prompt
+
+    # The legacy "Your role:" marker MUST be absent when the skill
+    # is loaded — it's the tell for a fallback to the legacy builder.
+    assert "Your role:" not in prompt
+
+    reset_default_loader()
+
+
+def test_classifier_system_prompt_falls_back_when_skills_disabled(monkeypatch):
+    """The NEXUSFORGE_SKILLS_DISABLED=1 emergency hatch must route
+    ClassifierAgent back to the legacy system prompt even though a
+    valid SKILL.md is present on disk. This is the rollback contract
+    documented in classifier.py and DEPLOYMENT.md."""
+    from app.agents.registry import get_agent
+    from app.agents.skill_loader import reset_default_loader
+
+    reset_default_loader()
+    monkeypatch.setenv("NEXUSFORGE_SKILLS_DISABLED", "1")
+
+    agent = get_agent("classifier")
+    prompt = agent._build_system_prompt_v2("Classify the document.")
+
+    # Legacy path: byte-identical to _build_system_prompt
+    assert prompt == agent._build_system_prompt("Classify the document.")
+    assert "Your role:" in prompt
+    assert "document-classification specialist" not in prompt
+
+    reset_default_loader()
+
+
 def test_agent_result_has_required_fields():
     from app.agents.base import AgentResult
     result = AgentResult(output={"test": True})

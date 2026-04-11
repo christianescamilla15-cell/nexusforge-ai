@@ -38,8 +38,17 @@ class ClassifierAgent(BaseAgent):
             )
 
         prompt = CLASSIFY_PROMPT.format(categories=", ".join(CATEGORIES), text=text)
+        # Phase 5b PR 1 — opt into the Agent Skills-aware prompt
+        # builder landed in `ba82cb5`. When
+        # backend/skills/classifier/SKILL.md is present on disk
+        # (it is, scaffolded 2026-04-10), the richer category
+        # definitions and output contract from that file are used
+        # as the system prompt. If the skill file is missing or
+        # NEXUSFORGE_SKILLS_DISABLED=1 is set, _build_system_prompt_v2
+        # falls back byte-identical to _build_system_prompt so the
+        # legacy behavior is preserved.
         messages = [
-            {"role": "system", "content": self._build_system_prompt("Classify the document.")},
+            {"role": "system", "content": self._build_system_prompt_v2("Classify the document.")},
             {"role": "user", "content": prompt},
         ]
 

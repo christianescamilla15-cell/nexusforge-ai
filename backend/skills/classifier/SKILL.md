@@ -47,8 +47,20 @@ prose. The schema is:
 
 ## Source of truth
 
-The canonical runtime prompt lives in
-[backend/app/agents/classifier.py](../../app/agents/classifier.py) as
-`CLASSIFY_PROMPT`. This SKILL.md is the target format for Feature 2 (Agent
-Skills migration) and is currently not loaded at runtime. Changes here must
-stay in sync with `CLASSIFY_PROMPT` until the loader is wired.
+Since Phase 5b PR 1 (2026-04-11) this SKILL.md body is loaded at runtime
+by [backend/app/agents/classifier.py](../../app/agents/classifier.py) via
+`BaseAgent._build_system_prompt_v2`. The output contract in the user
+message is still built from `CLASSIFY_PROMPT` in classifier.py — that
+template owns the JSON schema and placeholders, while this file owns the
+role definition and category guidance shown to the model as the system
+prompt.
+
+**Rules of engagement**
+- Edits here take effect immediately on the next process start (no
+  deploy required beyond restarting the worker pods on Render/K8s).
+- Keep the category list here in sync with `CATEGORIES` in
+  classifier.py — if one drifts, the model sees a mismatch between the
+  system prompt and the user-message schema.
+- For an emergency rollback without a redeploy, set
+  `NEXUSFORGE_SKILLS_DISABLED=1` in the environment — the agent will
+  fall back byte-identical to the pre-Phase-5b system prompt.
