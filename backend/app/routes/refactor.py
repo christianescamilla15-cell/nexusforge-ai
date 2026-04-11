@@ -457,6 +457,30 @@ async def scan_multilang(body: MultiLangScanRequest, request: Request):
     return report.to_dict()
 
 
+class GenerateGitflowRequest(BaseModel):
+    out_dir: str
+
+
+@router.post("/generate-gitflow")
+async def generate_gitflow_endpoint(body: GenerateGitflowRequest, request: Request):
+    """Emit a GitFlow governance bundle.
+
+    Generates a drop-in package with CODEOWNERS, PR/issue templates,
+    GitHub Actions workflows (PR title check, CODEOWNERS review gate,
+    daily branch-protection audit) and docs for the dual-branch
+    application + infrastructure flow. All values are placeholders
+    that teams replace with real GitHub team slugs before using.
+    """
+    _get_user_id(request)
+
+    from pathlib import Path as _Path
+
+    from app.refactor.gitflow_generator import generate_gitflow_bundle
+
+    result = generate_gitflow_bundle(_Path(body.out_dir))
+    return result.to_dict()
+
+
 class ComplianceMiddlewareRequest(BaseModel):
     out_dir: str
     target: str = "both"  # python / dotnet / both
