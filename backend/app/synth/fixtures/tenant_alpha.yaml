@@ -455,6 +455,65 @@ apps:
         - Shared core classes require sign-off from at least 2 external teams
         - Mainframe infrastructure is on a vendor-managed platform
 
+# ─── Discovery-sourced profiles (Gaps D, J, K, P-005 — 2026-04-12) ───────
+#
+# These fields come from the corpus analysis pipeline (90 hallazgos across
+# 31 transcribed discovery meetings). They capture infrastructure, program,
+# and dependency realities that the Softtek Report Out did NOT evaluate
+# (which focused on code/vulnerabilities, not operations/governance).
+
+orchestration_model: "none"  # H-111: no Control-M, no Airflow. Humans + notifications.
+
+infrastructure_risk:
+  orchestrator: "none"
+  blueprint_exists: false           # H-112: lost ~2015 when platform-vendor switched to services model
+  server_model: "IBM Power 9000"    # H-113: single server, Dev/QA/Prod on same instances
+  server_count: 1
+  environments_on_same_server: true
+  redundancy_type: "none"
+  capacity_planning_freq: "annual"
+
+modernization_program:
+  name: "dynamics"
+  total_apps: 350
+  migrated_apps: 200
+  strategies:
+    - retire
+    - refactor
+    - replatform
+    - rehost
+  activities_per_app: 170           # Atlas framework
+  tier_classification:
+    tier0: "5 min downtime max"
+    tier1: "4 hour downtime max"
+    tier2: "24 hour downtime max"
+  scope_apps_status:
+    app-01: "not-started"
+    app-02: "completed"
+    app-03: "completed"
+    app-04: "completed"
+    app-05: "not-started"
+
+third_party_deps:
+  - name: "valdemar-rpa"
+    role: "rpa-operator"
+    documented: false
+    risk_level: "high"
+    apps_affected:
+      - app-05
+  - name: "multiplica-dev"
+    role: "dev-contractor"
+    documented: false
+    risk_level: "medium"
+    apps_affected:
+      - app-01
+  - name: "doble-v"
+    role: "rpa-operator"
+    documented: false
+    risk_level: "high"
+    apps_affected:
+      - app-05
+
 # ─── Phase B scaffolding — non-scope apps (discovery-pending stubs) ───────
 #
 # The 5 apps above are the full modernization scope with corrected Report Out

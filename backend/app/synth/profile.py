@@ -308,6 +308,63 @@ class CommercialRiskProfile:
 
 
 @dataclass
+class InfrastructureRisk:
+    """Tenant-wide infrastructure risk factors.
+
+    Gap P-005 (2026-04-12) — captures the infrastructure-level risks
+    that the Report Out does not evaluate (it evaluates code, not
+    operations). Sourced from discovery corpus hallazgos H-111, H-112,
+    H-113: no orchestrator, no blueprint, single-server mainframe.
+    """
+
+    orchestrator: str = "none"             # "none" | "control-m" | "airflow" | "manual"
+    blueprint_exists: bool = True          # False → praxis-ecosystem lost its blueprint ~2015
+    server_model: str = ""                 # "IBM Power 9000" for tenant-alpha
+    server_count: int = 1                  # single point of failure
+    environments_on_same_server: bool = False  # True = Dev/QA/Prod on same instance
+    redundancy_type: str = "none"          # "none" | "active-passive" | "cloud-native"
+    capacity_planning_freq: str = "annual"
+
+
+@dataclass
+class ModernizationProgram:
+    """An existing institutional modernization program that the tenant
+    is already running (or has run).
+
+    Gap D correction (2026-04-12) — AM Dynamics is NOT an ERP. It is
+    the client's internal cloud-migration program (~350 apps, 200+
+    migrated, 4 R-strategies). Modeling it correctly lets the strangler
+    planner align refactor phases with what the institution already did
+    (e.g., 3 of the 5 scope apps already passed through Dynamics).
+    """
+
+    name: str = ""                         # "dynamics" for tenant-alpha
+    total_apps: int = 0                    # 350 for tenant-alpha
+    migrated_apps: int = 0                 # 200+ for tenant-alpha (~57%)
+    strategies: list[str] = field(default_factory=list)  # ["retire", "refactor", "replatform", "rehost"]
+    activities_per_app: int = 0            # 170 for tenant-alpha (Atlas framework)
+    tier_classification: dict = field(default_factory=dict)  # {"tier0": "5min downtime", "tier1": ...}
+    scope_apps_status: dict = field(default_factory=dict)  # {"app-01": "not-started", "app-03": "completed"}
+
+
+@dataclass
+class ThirdPartyDep:
+    """One third-party dependency that is not the main platform vendor.
+
+    Gap K (2026-04-12) — discovery corpus revealed operators and
+    contractors (RPA "Doble V", contractor "Multiplica") that touch
+    critical processes but are NOT inventoried anywhere. The refactor
+    engine should flag undocumented third-party dependencies as risk.
+    """
+
+    name: str                              # codename, e.g., "valdemar-rpa"
+    role: str = "unknown"                  # "rpa-operator" | "dev-contractor" | "infra-provider"
+    documented: bool = False               # False → this dependency has no documentation
+    risk_level: str = "medium"             # "low" | "medium" | "high" | "critical"
+    apps_affected: list[str] = field(default_factory=list)  # codenames
+
+
+@dataclass
 class NonScopeAppStub:
     """One non-scope application in the tenant ecosystem.
 
@@ -371,6 +428,11 @@ class TenantProfile:
     compliance: ComplianceProfile | None = None
     commercial_risk: CommercialRiskProfile | None = None
     governance: GovernanceProfile | None = None
+    # Discovery-sourced profiles (Gaps D, J, K, P-005 — 2026-04-12)
+    infrastructure_risk: InfrastructureRisk | None = None
+    modernization_program: ModernizationProgram | None = None
+    orchestration_model: str = "unknown"  # "none" | "manual" | "semi-auto" | "fully-orchestrated"
+    third_party_deps: list[ThirdPartyDep] = field(default_factory=list)
     # Phase B scaffolding — non-scope apps emitted as discovery-
     # pending stubs only. These count toward ``total_apps`` but NOT
     # toward ``total_loc`` or ``total_vulnerabilities``.
@@ -592,6 +654,45 @@ def load_profile(path: str | Path) -> TenantProfile:
             )
         )
 
+    # Discovery-sourced profiles (Gaps D, J, K, P-005 — 2026-04-12)
+    infrastructure_risk = None
+    raw_ir = raw.get("infrastructure_risk")
+    if raw_ir:
+        infrastructure_risk = InfrastructureRisk(
+            orchestrator=raw_ir.get("orchestrator", "none"),
+            blueprint_exists=raw_ir.get("blueprint_exists", True),
+            server_model=raw_ir.get("server_model", ""),
+            server_count=raw_ir.get("server_count", 1),
+            environments_on_same_server=raw_ir.get("environments_on_same_server", False),
+            redundancy_type=raw_ir.get("redundancy_type", "none"),
+            capacity_planning_freq=raw_ir.get("capacity_planning_freq", "annual"),
+        )
+
+    modernization_program = None
+    raw_mp = raw.get("modernization_program")
+    if raw_mp:
+        modernization_program = ModernizationProgram(
+            name=raw_mp.get("name", ""),
+            total_apps=raw_mp.get("total_apps", 0),
+            migrated_apps=raw_mp.get("migrated_apps", 0),
+            strategies=raw_mp.get("strategies", []),
+            activities_per_app=raw_mp.get("activities_per_app", 0),
+            tier_classification=raw_mp.get("tier_classification", {}),
+            scope_apps_status=raw_mp.get("scope_apps_status", {}),
+        )
+
+    third_party_deps: list[ThirdPartyDep] = []
+    for raw_tp in raw.get("third_party_deps", []) or []:
+        third_party_deps.append(
+            ThirdPartyDep(
+                name=raw_tp["name"],
+                role=raw_tp.get("role", "unknown"),
+                documented=raw_tp.get("documented", False),
+                risk_level=raw_tp.get("risk_level", "medium"),
+                apps_affected=raw_tp.get("apps_affected", []),
+            )
+        )
+
     return TenantProfile(
         tenant_id=raw["tenant_id"],
         display_name=raw["display_name"],
@@ -601,5 +702,9 @@ def load_profile(path: str | Path) -> TenantProfile:
         compliance=compliance,
         commercial_risk=commercial_risk,
         governance=governance,
+        infrastructure_risk=infrastructure_risk,
+        modernization_program=modernization_program,
+        orchestration_model=raw.get("orchestration_model", "unknown"),
+        third_party_deps=third_party_deps,
         non_scope_apps=non_scope_apps,
     )
