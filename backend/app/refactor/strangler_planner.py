@@ -28,10 +28,20 @@ import logging
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from .ingestion import ProjectGraph, RepoIngestionEngine
 
 logger = logging.getLogger(__name__)
+
+# Lazy import to avoid circular deps — discovery_loader is optional.
+# When not available, the planner works exactly as before (code-only).
+DiscoveryIndex = None  # type: Any
+try:
+    from .discovery_loader import DiscoveryIndex as _DI
+    DiscoveryIndex = _DI
+except ImportError:
+    pass
 
 
 # ── Role classification heuristics ─────────────────────────────────────────
@@ -220,6 +230,16 @@ class StranglerPlan:
     narrative: str = ""
     pre_assigned_decision: PreAssignedDecision | None = None
     db_inactive_since: str = ""  # ISO date if the app has an inactive DB marker
+    # Discovery context (Gap F wire-up, 2026-04-12). When the planner
+    # is given a DiscoveryIndex, it enriches the plan with findings
+    # from the corpus: blockers, quick wins, corrections, risk boosts.
+    # The discovery_summary is a human-readable digest appended to the
+    # narrative; discovery_findings_count tracks how many findings
+    # were relevant to this app.
+    discovery_findings_count: int = 0
+    discovery_blockers: list[str] = field(default_factory=list)
+    discovery_quick_wins: list[str] = field(default_factory=list)
+    discovery_corrections: list[str] = field(default_factory=list)
 
     @property
     def total_effort_days(self) -> int:
@@ -241,6 +261,10 @@ class StranglerPlan:
                 else None
             ),
             "db_inactive_since": self.db_inactive_since,
+            "discovery_findings_count": self.discovery_findings_count,
+            "discovery_blockers": self.discovery_blockers,
+            "discovery_quick_wins": self.discovery_quick_wins,
+            "discovery_corrections": self.discovery_corrections,
         }
 
 
@@ -401,10 +425,24 @@ def _build_narrative_with_decision(
 
 
 class StranglerPlanner:
-    """Produces a strangler-pattern migration plan for a single app."""
+    """Produces a strangler-pattern migration plan for a single app.
 
-    def __init__(self, graph: ProjectGraph):
+    When initialized with a ``discovery_index``, the planner enriches
+    its output with findings from the corpus analysis pipeline:
+
+    - Blockers are surfaced as plan-level warnings
+    - Quick wins are annotated on the plan for prioritization
+    - Corrections override or amend the code-only analysis
+    - Risk scores are boosted when discovery blockers are present
+    - The narrative includes a discovery context section
+
+    Without a discovery index, the planner works identically to its
+    pre-Gap-F behavior (code-only, deterministic).
+    """
+
+    def __init__(self, graph: ProjectGraph, discovery_index=None):
         self.graph = graph
+        self._discovery = discovery_index  # DiscoveryIndex | None
 
     def plan(self) -> StranglerPlan:
         plan = StranglerPlan(
@@ -429,12 +467,110 @@ class StranglerPlanner:
         if decision is not None and decision.action != "refactor":
             self._apply_non_refactor_decision(plan, decision)
             plan.narrative = _build_narrative_with_decision(plan, decision)
+            self._apply_discovery_context(plan)
             return plan
 
         # Default refactor path — group modules by role
         self._build_refactor_phases(plan)
         plan.narrative = _build_narrative_with_decision(plan, decision)
+
+        # Enrich with discovery context (if available)
+        self._apply_discovery_context(plan)
         return plan
+
+    def _apply_discovery_context(self, plan: StranglerPlan) -> None:
+        """Enrich the plan with findings from the corpus pipeline.
+
+        This method is a no-op when no discovery index was provided,
+        preserving the pre-Gap-F behavior byte-for-byte.
+        """
+        if self._discovery is None:
+            return
+
+        # Try to match the app name to a codename. The graph name may
+        # be "app-01", "sicofav", "Transaction Reconciliation Service",
+        # or a filesystem path. We do a fuzzy match against all app
+        # codenames mentioned in the discovery index.
+        app_name = plan.app_name.lower().strip()
+        codename = None
+        for candidate in self._discovery.apps_mentioned:
+            if candidate.lower() in app_name or app_name in candidate.lower():
+                codename = candidate
+                break
+        # Also try matching by the last directory component of app_path
+        if codename is None:
+            path_stem = Path(plan.app_path).name.lower()
+            for candidate in self._discovery.apps_mentioned:
+                if candidate.lower() in path_stem:
+                    codename = candidate
+                    break
+
+        if codename is None:
+            logger.debug(
+                "Discovery: no matching codename for app '%s'", plan.app_name
+            )
+            return
+
+        # Gather findings for this app
+        app_findings = self._discovery.findings_for_app(codename)
+        if not app_findings:
+            return
+
+        plan.discovery_findings_count = len(app_findings)
+
+        # Classify
+        for f in app_findings:
+            label = f"{f.id}: {f.title}"
+            if f.is_blocker:
+                plan.discovery_blockers.append(label)
+            if f.is_quick_win:
+                plan.discovery_quick_wins.append(label)
+            if f.is_correction:
+                plan.discovery_corrections.append(label)
+
+        # Risk boost: if there are discovery blockers, boost the risk
+        # of the highest-risk phase by one level
+        if plan.discovery_blockers and plan.phases:
+            for phase in plan.phases:
+                if phase.risk == "medium":
+                    phase.risk = "high"
+                    phase.rationale += (
+                        f" [RISK BOOSTED by {len(plan.discovery_blockers)} "
+                        f"discovery blocker(s)]"
+                    )
+                    break  # only boost one phase
+                elif phase.risk == "high":
+                    # Already high — add annotation only
+                    phase.rationale += (
+                        f" [Discovery confirms {len(plan.discovery_blockers)} "
+                        f"blocker(s)]"
+                    )
+                    break
+
+        # Narrative enrichment
+        discovery_lines: list[str] = []
+        discovery_lines.append(
+            f"\n\n## Discovery context ({plan.discovery_findings_count} "
+            f"findings from corpus)\n"
+        )
+        if plan.discovery_blockers:
+            discovery_lines.append(f"\n**Blockers ({len(plan.discovery_blockers)}):**")
+            for b in plan.discovery_blockers:
+                discovery_lines.append(f"- {b}")
+        if plan.discovery_quick_wins:
+            discovery_lines.append(
+                f"\n**Quick wins ({len(plan.discovery_quick_wins)}):**"
+            )
+            for q in plan.discovery_quick_wins:
+                discovery_lines.append(f"- {q}")
+        if plan.discovery_corrections:
+            discovery_lines.append(
+                f"\n**Model corrections ({len(plan.discovery_corrections)}):**"
+            )
+            for c in plan.discovery_corrections:
+                discovery_lines.append(f"- {c}")
+
+        plan.narrative += "\n".join(discovery_lines)
 
     def _build_refactor_phases(self, plan: StranglerPlan) -> None:
         by_role: dict[str, list[PhaseModule]] = {}
