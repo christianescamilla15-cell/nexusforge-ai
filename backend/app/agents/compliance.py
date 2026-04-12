@@ -132,7 +132,7 @@ class ComplianceAgent(BaseAgent):
         # Layer 2: LLM regulatory analysis
         pii_text = json.dumps(pii_findings, indent=2) if pii_findings else "No PII detected"
         messages = [
-            {"role": "system", "content": self._build_system_prompt(
+            {"role": "system", "content": self._build_system_prompt_v2(
                 "Analyze for regulatory compliance. Focus on GDPR, HIPAA, PCI-DSS, LFPDPPP."
             )},
             {"role": "user", "content": COMPLIANCE_PROMPT.format(

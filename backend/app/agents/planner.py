@@ -98,7 +98,7 @@ class PlannerAgent(BaseAgent):
 
         # Step 1: Generate plan
         messages = [
-            {"role": "system", "content": self._build_system_prompt("Plan task execution using ReAct methodology.")},
+            {"role": "system", "content": self._build_system_prompt_v2("Plan task execution using ReAct methodology.")},
             {"role": "user", "content": PLAN_PROMPT.format(agents=", ".join(available), task=task[:2000])},
         ]
 
