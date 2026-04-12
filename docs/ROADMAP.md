@@ -7,7 +7,7 @@
 > this file to match and leave the detailed doc as the archived source
 > of that decision.
 >
-> **Last updated:** 2026-04-11 (Phase 3 follow-up + P1 #5 state machine + Phase 4 Agent SDK subagent memory — `0dfa38d`, `2666a84`, `1bacbab`). Earlier same-week: Feature 1, Gap 6, Gap 8, Phase 3 infra, §4.F, Gap 12 — `0fd895c`, `13b5263`, `0a2e57b`, `ac1f249`, `9b66113`, `4f7a935`, `e24f50d`.
+> **Last updated:** 2026-04-12 (11-commit marathon: Phase 5a+5b PR1, Phase B 31-app scaffolding, Phase 6 diff-scan, CHANGELOG v2.6.0 — `ba82cb5`, `5c4a229`, `527c288`, `6a1af3a`, `56f1e2d` + discovery corpus pipeline complete: 31 videos transcribed, 90 hallazgos, 12 gaps A-L, 10 propuestas aplicadas al STATUS doc).
 > **Maintainer:** Christian Hernandez (sole owner)
 
 ## 1. Current state snapshot
@@ -19,7 +19,7 @@
 - **Repo:** PRIVATE at `christianescamilla15-cell/nexusforge-ai`
 
 ### Scale (confirmed via CLAUDE.md + codebase read on 2026-04-10)
-- **Backend:** Python 3.12 + FastAPI, ~95 endpoints, ~307 unit tests + 17 functional
+- **Backend:** Python 3.12 + FastAPI, ~95 endpoints, **626 unit tests** (up from 307 baseline)
 - **Frontend:** React 18 + Vite 8, 16 URL-routed pages, 40+ custom components
 - **DB:** PostgreSQL 16 + pgvector, 25+ tables, 9+ migrations (runner present + hardened in `97f1112`)
 - **24 agents** in `backend/app/agents/` with per-agent model routing
@@ -47,10 +47,10 @@ to master:
 - `feature/context-editing` merged as `13b5263` (Feature 1 end-to-end — provider chain plumbing + batch pipeline wiring + 25 new tests, all green). Feature branch deleted from local + remote.
 
 ### What is in research/planning (no code yet)
-- **Anthropic 4-feature adoption Phases 3–6** — see
+- **Anthropic 4-feature adoption Phases 5b (remaining 23 agents) + 6 (4 remaining sub-items)** — see
   [`anthropic-features-research.md`](./anthropic-features-research.md) §12
-- **Gaps 6, 8, 9, 10, 12** of the "Platform of the Future" vision — see §3
-  below
+- **Gaps 9, 10** of the "Platform of the Future" vision — deferred post-MVP, see §3
+- **Discovery corpus → NexusForge integration** — 90 hallazgos from 31 videos analyzed, 12 gaps (A-L) mapped against tenant-alpha. See `NexusForge-Shared/transcripciones-generales/NEXUSFORGE-STATUS-Y-MAPEO.md` (local, not committed) and §4.G below
 
 ---
 
@@ -61,10 +61,11 @@ detail document; this file only surfaces status.
 
 | # | Workstream | Canonical doc | Status |
 |---|---|---|---|
-| 1 | **Tenant-alpha showcase** — the synthetic-codebase demo of NexusForge modernizing 5 (then 31, then 60) legacy apps in "weeks not years" | [`integration/01_agent_mapping.md`](./integration/01_agent_mapping.md), [`integration/02_phase2_plan.md`](./integration/02_phase2_plan.md), [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) | Phase A (5 apps, ~400K LOC corrected) **shipped**; Phase B baseline (31 apps, 5.6M LOC exact) + Phase C stress (10M LOC headroom) **pending** — see `integration/02_phase2_plan.md` §3.3 for the 3-phase scale plan |
+| 1 | **Tenant-alpha showcase** — the synthetic-codebase demo of NexusForge modernizing 5 (then 31, then 60) legacy apps in "weeks not years" | [`integration/01_agent_mapping.md`](./integration/01_agent_mapping.md), [`integration/02_phase2_plan.md`](./integration/02_phase2_plan.md), [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) | Phase A (5 apps, ~400K LOC) **shipped**; **Phase B headline (31 apps) SHIPPED in `527c288`** via discovery-pending stubs. LOC scaling to 5.6M pending. Phase C stress (10M LOC headroom) **pending**. |
 | 2 | **Platform of the Future — 12 capability gaps** driving the showcase narrative | [`integration/03_future_platform_vision.md`](./integration/03_future_platform_vision.md) §Gaps | **10 of 12 shipped** (1, 2, 3, 4, 5, 6, 7, 8, 11, 12); 2 pending (9, 10) — both are long-term post-MVP per §4.E |
-| 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-3 SHIPPED to master** (quick wins in `c15323f` + SDK bump in `0fd895c` + Feature 1 in `13b5263` + Memory Tool infrastructure in `9b66113`, all on master 2026-04-10). Phase 3 wired to ComplianceAgent only; PlannerAgent deferred. Phases 4-6 (Agent SDK subagent memory, Skills migration, Mythos upgrades) pending. |
+| 3 | **Anthropic 4-feature adoption** — Context Editing, Memory Tool, Skills, Agent SDK subagents | [`anthropic-features-research.md`](./anthropic-features-research.md) §12, §12.1 | **Phases 0-5a SHIPPED**, Phase 5b PR 1 (ClassifierAgent) **SHIPPED in `5c4a229`**, Phase 6 sub-item 1 (diff-scan) **SHIPPED in `6a1af3a`**. Remaining: 23 agents in Phase 5b + 4 sub-items in Phase 6. |
 | 4 | **Orchestrator improvements** — Claude Code customizations for this project (not part of NexusForge the product) | Local to `.claude/` + memory (gitignored) | 4 subagents + 3 skills + 3 hooks + 2 feedback memories **active**; Render/GitHub/Postgres MCPs **waiting for API keys** (see [`mcp-servers-setup.md`](./mcp-servers-setup.md)) |
+| 5 | **Discovery corpus → NexusForge integration** (NEW 2026-04-12) | `NexusForge-Shared/transcripciones-generales/NEXUSFORGE-STATUS-Y-MAPEO.md` (local only, not committed) + `analisis/` subfolder | **Full pipeline cycle 1 COMPLETE**: 31 videos transcribed (234K words) → 90 hallazgos → 12 gaps (A-L) → 10 propuestas aplicadas. See §4.G. |
 
 ---
 
@@ -102,12 +103,12 @@ expansions for Phase B / 31-app scale / post-MVP polish.
 
 | Item | Effort | Notes |
 |---|---|---|
-| Phase B scale: 5 apps → 31 apps in synthetic generator | M (1-2 sessions) | Per `integration/02_phase2_plan.md` — extend per-app recipes, target 5.6M LOC total, hit "real scale" for the demo narrative |
+| ~~Phase B scale: 5 apps → 31 apps in synthetic generator~~ | ~~M~~ | ✅ **HEADLINE SHIPPED 2026-04-11 in `527c288`** — 26 discovery-pending stubs (app-06 to app-31) bring the footprint to 31 apps. Each stub emits `DISCOVERY_PENDING.md`, NO fabricated code. LOC scaling to 5.6M via `--scale` multiplier is a **separate follow-up** (Phase B.2). |
 | ~~**P1 #5 State machine enforcement**~~ | ~~XS~~ | ✅ **SHIPPED 2026-04-11 in `2666a84`** — `transition_workflow` / `transition_step` wired at every status-write site in `executor.py` and `step_runner.py`, with local `current_status` tracking, `retrying→running` normalization for multi-retry flows, and a try-guarded call in the unhandled-exception path so a late-stage FSM refusal cannot mask the original exception. 4 new unit tests. Full suite 568/568. |
 | ~~Phase 3 follow-up: wire PlannerAgent through the memory loop~~ | ~~XS~~ | ✅ **SHIPPED 2026-04-11 in `0dfa38d`** — ComplianceAgent opt-in pattern mirrored onto `planner.py:106`. Feature flag `NEXUSFORGE_MEMORY_TOOL_PLANNER=1`, `agent_id="PlannerAgent"`. Verify call at `planner.py:136` intentionally stays on the legacy path (design call per research doc §9.2.2). Default OFF = production byte-identical. |
 | `backend/scripts/audit_confidentiality.py` — confirm exists + blocklist automation | XS | Per `integration/02_phase2_plan.md` §confidentiality audit; if script exists, verify it blocks real names across the tree and is wired into pre-commit |
-| Update `CHANGELOG.md` (root) — stale since v2.5.0 2026-04-04 | S | Capture the 12+ days of work since (Gaps 1-5, 7, 11 shipped, Batch 3 deliverables, mobile fixes, Feature 1 prep, Phases 3-4, P1 #5) |
-| Update `PROJECT_SUMMARY.md` — stale counts ("22 agents", "260 tests") | XS | Refresh to match `CLAUDE.md`. Test count is now 578 (excluding `test_full_system.py` which has a pre-existing collection error from a missing external repo path). |
+| ~~Update `CHANGELOG.md` (root)~~ | ~~S~~ | ✅ **SHIPPED 2026-04-11 in `56f1e2d`** — v2.6.0, 212 commits grouped by 5 tracks. |
+| Update `PROJECT_SUMMARY.md` — stale counts ("22 agents", "260 tests") | XS | Refresh to match `CLAUDE.md`. Test count is now **626** (excluding `test_full_system.py` which has a pre-existing collection error from a missing external repo path). |
 | ~~Verify P0/P1 items from `IMPLEMENTATION_AUDIT.md` (2026-03-29)~~ | ~~S~~ | ✅ **DONE** — 7 of 7 P0/P1 items now closed (the last one, P1 #5 state machine, shipped in `2666a84`). Audit doc can be formally archived. See §4.F. |
 
 ### 4.B — Waiting for API keys (Christian to create)
@@ -151,15 +152,15 @@ Only Phases 5-6 remain, both independent tracks (pick in any order).
 |---|---|---|---|
 | ~~3 (follow-up)~~ | ~~Wire PlannerAgent through the memory loop~~ | ~~XS~~ | ✅ SHIPPED `0dfa38d` |
 | ~~4~~ | ~~Feature 4: Agent SDK subagent memory + resume~~ | ~~S/M~~ | ✅ SHIPPED `1bacbab` — Redis session persistence with 7-day TTL, Render ephemeral-FS caveat documented in `docs/DEPLOYMENT.md §Production`. Externalizing SDK on-disk transcripts to Postgres/S3 is tracked as a Phase 4.1 follow-up if cross-deploy subagent continuity becomes a hard requirement. |
-| 5a | Feature 2 (PR 5a): Skills infrastructure (`skill_loader.py`, `_build_system_prompt_v2`) | M (8-12h) | None |
-| 5b | Feature 2 (PR 5b): Skills migration — ClassifierAgent, ComplianceAgent, PlannerAgent, 4 Agent SDK subagents, + 19 more | L (20-30h across multiple PRs) | Infrastructure from 5a |
-| 6 | Mythos upgrades — second-pass FP filter, diff-aware mode, category-per-skill migration, `memory="project"` on security-auditor subagent | M (8-12h) | Optional: Features 2 and 4 make it nicer but not blocking |
+| ~~5a~~ | ~~Feature 2 (PR 5a): Skills infrastructure~~ | ~~M~~ | ✅ SHIPPED `ba82cb5` — `skill_loader.py` + `_build_system_prompt_v2` + `GET /api/agents/skills`. 26 tests. |
+| 5b | Feature 2 (PR 5b): Skills migration — ~~ClassifierAgent~~, ComplianceAgent, PlannerAgent, 4 Agent SDK subagents, + 19 more | L (20-30h across multiple PRs) | 🔄 **1/24 SHIPPED** — ClassifierAgent migrated in `5c4a229`. Infrastructure from 5a landed. |
+| 6 | Mythos upgrades — second-pass FP filter, ~~diff-aware mode~~, category-per-skill migration, `memory="project"` on security-auditor subagent | M (8-12h) | 🔄 **1/5 sub-items SHIPPED** — diff-aware scan `POST /api/mythos/scan/diff` in `6a1af3a`. 10 tests. |
 
 ### 4.E — Long-term / post-MVP gaps (can be deferred past the current demo)
 
 - **Gap 9**: Vendor lock-in escape analyzer — high value for real enterprise sales conversations, not needed for the tenant-alpha showcase
 - **Gap 10**: Encrypted data pipeline scaffolder — tied to Phase B compliance story
-- Phase B of tenant-alpha showcase (31 apps / 5.6M LOC)
+- **Phase B.2**: LOC scaling to 5.6M via `--scale` multiplier or expanded per-stub recipes. Headline 31-app count achieved; the volume is the remaining piece
 - Integration tests (currently zero per IMPLEMENTATION_AUDIT)
 - Frontend dashboard real-data wiring (if not already fixed by later commits — needs verification)
 
@@ -213,6 +214,58 @@ of 2026-04-11. The audit doc remains in the repo as historical
 context — it is NOT deleted, just annotated with a verification
 banner at the top. Going forward, this ROADMAP.md is the canonical
 source for current status.
+
+### 4.G — Discovery corpus integration (NEW 2026-04-12)
+
+A parallel workstream that processes transcriptions from real client
+discovery meetings and feeds validated findings back into NexusForge's
+`tenant-alpha` model. **Does NOT commit real-name content to this repo** —
+the pipeline lives in a local Syncthing-shared folder (`NexusForge-Shared/`)
+between 2 trusted machines and uses codename-encoding at the moderate level.
+
+**Current state** (2026-04-12):
+
+| Metric | Value |
+|---|---|
+| Videos transcribed | **31** (26 Teams meetings oct 2025 + 5 OBS apr 2026) |
+| Words transcribed | **~234,700** (99.87% coverage, Whisper medium) |
+| Phase 1 files (extraction per video) | **31 / 31** ✅ |
+| Phase 2 files (consolidation per domain) | **13 / 13** ✅ |
+| Phase 3 maestro (cross-domain dedup) | **90 hallazgos** (78 VALIDATED, 12 RAW) ✅ |
+| Phase 4 comparison vs docs oficiales | **14 cruzados** (3 confirmed, 1 contradiction resolved, 10 NOT-IN-DOCS) ✅ |
+| Phase 5 proposals for NexusForge | **10 applied** (P-001 thru P-007 + Gap J, K, L) ✅ |
+
+**Discovery-sourced gaps** (applied to `NEXUSFORGE-STATUS-Y-MAPEO.md` §4):
+
+| Gap | Title | Source hallazgos | Esfuerzo |
+|---|---|---|---|
+| **J** | Orquestador como componente a modelar (`orchestration_model` field) | H-111, H-094, H-098 | M |
+| **K** | Dependencia de terceros no inventariados (`third_party_dependencies` field) | H-063, H-062 | S |
+| **L** | Patrón "UI moderna sobre legacy" (`strangler_ui_over_legacy` pattern) | H-116, H-022, H-080 | S |
+
+**Discovery-sourced corrections**:
+
+- **Gap D reescrito**: AM Dynamics reclasificado de "ERP integration-hub" → "Cloud Modernization Program" (350 apps, 200+ migrated, 4 R's). Confirmed by Program Manager (M.A.M.) in R19.
+- **Gap G enriched**: 6 empirical compliance data points added (16 ITGC SOX controls, SOC non-compliant, PII minimization pending, incident committee discontinued).
+- **`app-01`**: ⚠️ V2 in parallel development by `platform-vendor` — duplication risk.
+- **`app-05`**: Directas (AS400 COBOL Peru) ≠ Indirectas (AWS Aurora) — 2 separate modules. Quick win: Salesforce interface (4-year backlog).
+- **`app-03` Reembolsos Especiales**: Python+Flask+React (NOT .NET as PM stated; developer confirmed).
+- **`InfrastructureRisk`** dataclass proposed for TenantProfile (no orchestrator, no blueprint, single server).
+
+**What feeds back into code** (next sessions):
+
+1. Implement `InfrastructureRisk` + `ModernizationProgram` + `ThirdPartyDep` dataclasses in `backend/app/synth/profile.py` — S effort each
+2. Add `orchestration_model` and `third_party_dependencies` to YAML fixture — XS
+3. Implement `strangler_ui_over_legacy` pattern in the refactoring engine — S
+4. Implement `discovery_loader.py` (Gap F) to close the loop corpus → code — M
+5. Enrich `compliance_profile` defaults per Gap G empirical data — S
+
+**Infrastructure** (already live, no code needed):
+
+- Syncthing v2.0.16 bidirectional LAN sync between PC GPU (`DESKTOP-78MNB2L`) and eTriber (`DESKTOP-QLQPL18`)
+- Whisper watcher auto-transcribes new videos dropped in `grabaciones-generales/`
+- Task Scheduler autostart for both Syncthing + watcher at login
+- Audit tooling (`_verify_changes.py`) for baseline comparison on PC GPU
 
 ---
 
@@ -297,23 +350,53 @@ source for current status.
 
 ---
 
-## 7. Next session kickstart checklist
+## 7. Next session kickstart checklist (updated 2026-04-12)
 
-When Christian opens a new session and asks "what's next?", the honest
-answer depends on which constraint is binding:
+When Christian opens a new session and asks "what's next?", prioritize
+by highest impact per unit of effort:
 
-1. **If API keys have arrived** → work §4.B top-down (Render first, it's
-   the highest value)
-2. **If PRs from feature branches are still unmerged** → review + merge
-   them (§4.C) before starting anything new
-3. **If everything is clean and you want to ship something new for the
-   showcase** → Gap 6 or Gap 8 from §4.A (data pipeline modernizer or AI
-   docs generator) — both are single-session MVPs
-4. **If you want to harden the existing platform** → verification pass
-   on §4.F stale audit items
-5. **If you want to continue the Anthropic adoption** → Phase 3 (Memory
-   Tool) from §4.D after the feature branches are merged
+### Tier 1 — Quick wins that close open loops (XS-S, 30 min each)
 
-Default recommendation if none of the above is urgent: **close out the 2
-unmerged feature branches first** (§4.C) so master reflects the full
-Feature 1, then pick Gap 6 from §4.A.
+1. **Phase 5b PR 2 — ComplianceAgent migration** to Agent Skills loader.
+   Highest ROI (only `_CLAUDE_ONLY_AGENT`, every call reaches Claude). ~1h.
+2. **Phase 5b PR 3 — PlannerAgent migration** (two skills: planner +
+   plan-verifier). ~1h.
+3. **`PROJECT_SUMMARY.md` refresh** — stale test count, agent count. XS.
+4. **`audit_confidentiality.py` wiring** — verify it exists + hook into
+   pre-commit chain. XS.
+
+### Tier 2 — Discovery-sourced code changes (S-M, 1-3h each)
+
+These come from the 12 gaps (A-L) in `NEXUSFORGE-STATUS-Y-MAPEO.md §4`
+identified via the corpus analysis pipeline:
+
+5. **Gap F — `discovery_loader.py`** — parse transcriptions into a JSON
+   index that feeds the strangler planner. M effort. **Highest priority**
+   because it closes the loop corpus → code.
+6. **Gap J — `orchestration_model` field** in TenantProfile. M effort.
+7. **Gap K — `third_party_dependencies` field** in TenantProfile. S effort.
+8. **Gap L — `strangler_ui_over_legacy` pattern** in the refactor engine. S.
+9. **Gap D (updated) — `ModernizationProgram` dataclass**. M effort.
+10. **Gaps B, E, I** — all XS, ~30 min each. Close in a batch.
+11. **`InfrastructureRisk` dataclass** in TenantProfile (P-005). S.
+
+### Tier 3 — Larger tracks (M-L, multi-session)
+
+12. **Phase 5b PRs 4-10** — remaining 21 agent migrations to Agent Skills.
+13. **Phase 6 PRs 2-5** — FP filter, category-as-skill, slash command.
+14. **Phase B.2** — LOC scaling to 5.6M via `--scale` multiplier.
+15. **Gap G enrichment** — implement compliance_profile defaults per
+    empirical data from R23/R26 (M effort per Gap G update in §4).
+16. **Gaps 9, 10** — vendor lock-in escape analyzer + encrypted data
+    pipeline scaffolder (long-term post-MVP).
+
+### If API keys have arrived
+
+→ work §4.B top-down (Render MCP server first — highest value).
+
+### Default recommendation
+
+Start with **Tier 1 items 1-2** (Phase 5b PR 2+3, ~2h combined) to build
+momentum, then attack **Tier 2 item 5** (Gap F discovery_loader) as the
+session's main deliverable. If time remains, batch-close **Tier 2 items
+10** (Gaps B, E, I — all XS).
