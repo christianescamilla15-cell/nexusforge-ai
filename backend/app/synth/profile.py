@@ -308,6 +308,31 @@ class CommercialRiskProfile:
 
 
 @dataclass
+class PlatformVendor:
+    """A platform vendor that owns and operates part of the tenant's
+    technology stack as a managed service.
+
+    Gap C (2026-04-12) — the corpus reveals that platform-vendor
+    (Miatech) is not just a commercial risk (already modeled in
+    CommercialRiskProfile.vendors) — it is a **technical dependency**
+    that controls hosting, deploys, credentials, monitoring, and
+    the mainframe. The refactor engine needs to know which apps are
+    hosted by the vendor, what surface area is under their control,
+    and what the exit plan looks like, to produce realistic phase
+    timelines.
+    """
+
+    name: str = ""                         # codename, e.g., "platform-vendor"
+    surface_area: list[str] = field(default_factory=list)  # ["hosting", "deploy", "credentials", "monitoring", "mainframe"]
+    lock_in_level: str = "high"            # low | medium | high | critical
+    exit_plan: str = ""                    # strategy text
+    dependent_apps: list[str] = field(default_factory=list)  # codenames of scope apps that depend
+    controls_production: bool = True       # True = vendor owns prod deploy
+    controls_credentials: bool = True      # True = vendor manages connection strings
+    sla_hours: int = 24                    # incident resolution SLA in hours
+
+
+@dataclass
 class InfrastructureRisk:
     """Tenant-wide infrastructure risk factors.
 
@@ -428,7 +453,8 @@ class TenantProfile:
     compliance: ComplianceProfile | None = None
     commercial_risk: CommercialRiskProfile | None = None
     governance: GovernanceProfile | None = None
-    # Discovery-sourced profiles (Gaps D, J, K, P-005 — 2026-04-12)
+    # Discovery-sourced profiles (Gaps C, D, J, K, P-005 — 2026-04-12)
+    platform_vendor: PlatformVendor | None = None
     infrastructure_risk: InfrastructureRisk | None = None
     modernization_program: ModernizationProgram | None = None
     orchestration_model: str = "unknown"  # "none" | "manual" | "semi-auto" | "fully-orchestrated"
@@ -654,7 +680,21 @@ def load_profile(path: str | Path) -> TenantProfile:
             )
         )
 
-    # Discovery-sourced profiles (Gaps D, J, K, P-005 — 2026-04-12)
+    # Discovery-sourced profiles (Gaps C, D, J, K, P-005 — 2026-04-12)
+    platform_vendor = None
+    raw_pv = raw.get("platform_vendor")
+    if raw_pv:
+        platform_vendor = PlatformVendor(
+            name=raw_pv.get("name", ""),
+            surface_area=raw_pv.get("surface_area", []),
+            lock_in_level=raw_pv.get("lock_in_level", "high"),
+            exit_plan=raw_pv.get("exit_plan", ""),
+            dependent_apps=raw_pv.get("dependent_apps", []),
+            controls_production=raw_pv.get("controls_production", True),
+            controls_credentials=raw_pv.get("controls_credentials", True),
+            sla_hours=raw_pv.get("sla_hours", 24),
+        )
+
     infrastructure_risk = None
     raw_ir = raw.get("infrastructure_risk")
     if raw_ir:
@@ -702,6 +742,7 @@ def load_profile(path: str | Path) -> TenantProfile:
         compliance=compliance,
         commercial_risk=commercial_risk,
         governance=governance,
+        platform_vendor=platform_vendor,
         infrastructure_risk=infrastructure_risk,
         modernization_program=modernization_program,
         orchestration_model=raw.get("orchestration_model", "unknown"),

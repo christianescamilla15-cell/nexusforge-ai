@@ -30,12 +30,21 @@ description: >
 compliance:
   hard_deadline: "2026-09-30"
   audit_cadence: Monthly steering committee, day 14 of each month
+  # Gap G enrichment (2026-04-12) — empirical data from R23 (compliance
+  # team) + R26 (modelo operaciones). The following narrative and cert
+  # statuses reflect what the corpus actually found, not generic defaults.
   narrative: >
-    Publicly-traded enterprise with a 4.5-month modernization window from
-    the start of execution to the hard production-readiness deadline.
-    Three certifications in scope: a financial-controls framework, a
-    security operations attestation and a data-privacy regulation. Each
-    tracks against the same hard deadline to unify steering reporting.
+    Publicly-traded enterprise (NYSE + BMV since Q4 2025) with a 4.5-month
+    modernization window. 16 ITGC SOX controls defined (seguridad lógica,
+    control de cambios, jobs, respaldos, DRP, políticas, segregación de
+    funciones, recertificación de accesos, segregación de ambientes,
+    ITACs). SOC I tipo II de platform-vendor NO cumple — faltantes: DRP,
+    vulnerabilidades, respuesta a incidentes. KPMG audita directo. SOC
+    1H-2025 no entregado al 23-oct. GRC tool: Workiva. IdP: Okta. 25
+    integraciones con PII innecesaria (data minimization pendiente).
+    Comité de incidentes cliente-platform-vendor descontinuado. Incidente
+    ciberseguridad reciente (servidor secundario, control fallido no
+    identificado).
   certifications:
     - name: SOX Section 404
       framework: Sarbanes-Oxley Act / PCAOB AS 2201
@@ -45,15 +54,17 @@ compliance:
       description: >
         Internal controls over financial reporting. Revenue-accounting
         systems are in scope because they feed the general ledger.
-    - name: SOC 2 Type II
+    - name: SOC 1 Type II
       framework: AICPA Trust Services Criteria
       due_date: "2026-09-30"
-      status: in_progress
+      status: non_compliant
       owner: ciso
       description: >
-        Operational controls attestation covering security, availability
-        and confidentiality. 12-month audit window ends at the hard
-        deadline. Failure risks customer-contract renewals.
+        Gap G (2026-04-12): corpus R23 confirms SOC 1 Type II of
+        platform-vendor does NOT comply. Missing: DRP, vulnerability
+        management, incident response. KPMG audits directly. SOC
+        1H-2025 report not delivered as of 23-oct-2025. Failure
+        risks customer-contract renewals and NYSE listing compliance.
     - name: Data Privacy Regulation
       framework: Generic GDPR-style data protection
       due_date: "2026-09-30"
@@ -496,6 +507,31 @@ apps:
 # and dependency realities that the Softtek Report Out did NOT evaluate
 # (which focused on code/vulnerabilities, not operations/governance).
 
+platform_vendor:
+  name: "platform-vendor"
+  surface_area:
+    - hosting           # AWS VPC with EC2 + RDS + S3
+    - deploy            # manual, no CI/CD
+    - credentials       # connection strings in config files
+    - monitoring        # reactive (users report failures)
+    - mainframe         # IBM Power 9000 (sole controller)
+    - database-admin    # DBA for all PRAXIS DBs
+  lock_in_level: "critical"
+  exit_plan: >
+    Code repatriation pending (Report Out p.162). If executed, direct
+    code access possible without vendor. NDA possibly expired since
+    2016 — AMX Legal must verify. Miatech dependency on AMX revenue
+    is ~60-70% (asymmetric).
+  dependent_apps:
+    - app-01
+    - app-02
+    - app-03
+    - app-04
+    - app-05
+  controls_production: true
+  controls_credentials: true
+  sla_hours: 24            # inherited from Praxis SLA
+
 orchestration_model: "none"  # H-111: no Control-M, no Airflow. Humans + notifications.
 
 infrastructure_risk:
@@ -575,21 +611,43 @@ non_scope_apps:
     category: satellite
     notes: Lightweight public-facing portal that proxies app-01 transactions. Ownership unclear.
   - codename: app-07
-    label: Partner Integration Gateway
+    label: Interline Settlement Gateway
     category: integration
-    notes: B2B EDI gateway. Runbook exists but no code ownership claimed.
+    notes: >
+      Gap A (2026-04-12): corpus R3 (Interlineal session, 14-oct-2025)
+      confirms this is the IATA cash settlement gateway between airlines.
+      Handles Prorate, SRP/MPA/SPA calculations, ~150 SPAs, 8 IATA
+      resolutions. Renamed from "Partner Integration Gateway" to reflect
+      its actual domain. Candidate for promotion to full recipe if the
+      interline modernization enters scope.
   - codename: app-08
-    label: Finance Reporting Pack
-    category: archival
-    notes: Read-only monthly close reports. Scheduled to retire after SOX remediation.
+    label: Volado Revenue Recognition Module
+    category: satellite
+    notes: >
+      Gap A (2026-04-12): corpus R2 (Volado session, 14-oct-2025) shows
+      this is the revenue recognition engine ("when the passenger flies").
+      PRAXIS Core Tier 0. Processes 63 BSP tapes. Depends on mainframe
+      DB2. Renamed from "Finance Reporting Pack" to reflect its actual
+      domain. Critical for SOX because it feeds the GL via Oracle EBS.
   - codename: app-09
-    label: Internal Admin Console
-    category: utility
-    notes: Ops tool used by ~3 engineers for manual data fixes.
+    label: Viajero Frecuente (Loyalty Program)
+    category: satellite
+    notes: >
+      Gap A (2026-04-12): corpus R6 (Viajero Frecuente session, 21-oct-2025)
+      confirms this is the loyalty/frequent-flyer program. Points accrual,
+      redemption, partner integrations. Renamed from "Internal Admin Console"
+      to reflect the actual domain. High business visibility but low
+      technical complexity per corpus.
   - codename: app-10
-    label: Document Archive Service
-    category: archival
-    notes: Large binary blob store. In scope only if legal holds are triggered.
+    label: Medios de Pago / Payment Gateway
+    category: integration
+    notes: >
+      Gap H (2026-04-12): corpus R7+R11+R15 (Medios de Pago sessions)
+      confirm this handles payment processing, referenced payments
+      (pagos referenciados), and reconciliation. Mainframe non-core
+      module. Renamed from "Document Archive Service" to reflect the
+      actual financial domain. ~3 reuniones de discovery dedicadas
+      (~22,900 palabras combinadas).
   - codename: app-11
     label: Audit Log Aggregator
     category: shared-library
@@ -599,9 +657,15 @@ non_scope_apps:
     category: integration
     notes: Email/SMS fan-out used by the Commission Engine (app-05) and partner gateway.
   - codename: app-13
-    label: Batch Export Tool
-    category: utility
-    notes: Nightly CSV exports to the data lake. Slated for decommission.
+    label: Facturación Electrónica (e-Invoicing / CFDI)
+    category: integration
+    notes: >
+      Gap H (2026-04-12): corpus R12 (Facturas Electrónicas session,
+      20-oct-2025) confirms this is the CFDI generation + SAT/PAC
+      integration module. Depends on external-xml-validator (Balanceador).
+      Bug: metadata SAT stopped arriving since May 2025 (H-072, blocker
+      for app-04). Renamed from "Batch Export Tool". ~9,300 palabras
+      de discovery dedicadas.
   - codename: app-14
     label: Legacy Customer Lookup
     category: archival
