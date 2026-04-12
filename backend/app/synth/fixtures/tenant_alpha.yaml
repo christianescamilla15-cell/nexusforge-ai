@@ -257,6 +257,31 @@ apps:
     loc_target: 40000
     primary_language: csharp
     modules: 10
+    # Gap I (2026-04-12): corpus R8 (Comercial) reveals 4 sub-domains
+    # under this app: audit/revision, TDIs, pólizas, consumo de datos.
+    # Modeled as sub_projects so the refactor engine can scope findings
+    # per sub-domain instead of treating the whole app as one block.
+    sub_projects:
+      - name: audit-revision
+        language: csharp
+        loc_share: 0.30
+        vuln_share: 0.25
+        modules: 3
+      - name: tdi-reporting
+        language: csharp
+        loc_share: 0.25
+        vuln_share: 0.25
+        modules: 3
+      - name: polizas
+        language: csharp
+        loc_share: 0.25
+        vuln_share: 0.30
+        modules: 2
+      - name: data-consumption
+        language: csharp
+        loc_share: 0.20
+        vuln_share: 0.20
+        modules: 2
     databases:
       - engine: sqlserver
         tables: 60
@@ -307,9 +332,18 @@ apps:
         modules: 7
       - name: operator-ui
         language: typescript
-        loc_share: 0.25
-        vuln_share: 0.1
+        loc_share: 0.20
+        vuln_share: 0.05
         modules: 5
+      # Gap B (2026-04-12): Reembolsos Especiales is a SEPARATE flow from
+      # the automated refund processing above. Pattern: "modern UI over
+      # legacy" (Python+Flask+React OVER praxis-ecosystem Core Cobol).
+      # Zenobio (developer) confirmed Python, NOT .NET as PM stated.
+      - name: reembolsos-especiales
+        language: python
+        loc_share: 0.05
+        vuln_share: 0.05
+        modules: 3
     databases:
       - engine: sqlite
         tables: 15
@@ -609,9 +643,14 @@ non_scope_apps:
     category: satellite
     notes: Intake form that feeds app-02. Low traffic but external-facing.
   - codename: app-24
-    label: Shared Data Dictionary
+    label: Shared Data Dictionary (Catálogos)
     category: shared-library
-    notes: Centralized schema catalog consumed by apps 01, 02 and 05.
+    notes: >
+      Gap E (2026-04-12): centralized schema catalog consumed by apps 01,
+      02, and 05. Corpus R16 (Catálogos session) confirms this is a
+      cross-cutting master data dependency — changes to the catalog
+      schema affect all 3 consumers. Should be promoted to a full
+      recipe if it enters scope.
   - codename: app-25
     label: Compliance Export Job
     category: archival
