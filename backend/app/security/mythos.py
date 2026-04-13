@@ -115,7 +115,16 @@ _SEV_DEDUCTION = {"critical": 15, "high": 8, "medium": 3, "low": 1, "info": 0}
 class MythosScanner:
     """Core security scanner. Run all checks and produce a unified report."""
 
-    def __init__(self, project_root: str):
+    def __init__(
+        self,
+        project_root: str,
+        *,
+        tenant_app: str = "",
+        baseline: "Any | None" = None,
+        exposure: "Any | None" = None,
+        edge_security: "Any | None" = None,
+        secret_management: "Any | None" = None,
+    ):
         self.root = Path(project_root)
         self.backend = self.root / "backend"
         self.frontend = self.root / "frontend"
@@ -125,6 +134,171 @@ class MythosScanner:
         # only process files in the allowlist. None = scan everything
         # (legacy full-scan behavior, unchanged).
         self._file_allowlist: frozenset[Path] | None = None
+
+        # P-013 — baseline calibration. When set, scanners consult the
+        # baseline to downgrade severity on mitigated findings, flag
+        # quick wins, and filter items already in active remediation.
+        # ``tenant_app`` narrows the match scope (e.g., "app-03-arc").
+        self.tenant_app = tenant_app
+        self.baseline = baseline
+        # P-009 / P-010 / P-011 (2026-04-13) — profile-aware calibration.
+        # When present, scanners also consider the app's exposure,
+        # edge security (WAF), and secret management (Vault) to apply
+        # additional severity downgrades or filter false positives.
+        self.exposure = exposure
+        self.edge_security = edge_security
+        self.secret_management = secret_management
+        self.calibration_stats: dict[str, int] = {
+            "matched": 0,
+            "downgraded": 0,
+            "filtered": 0,
+            "quick_wins": 0,
+            "profile_filtered": 0,
+            "profile_downgraded": 0,
+            "profile_tagged": 0,
+        }
+
+    def _apply_profile_calibration(self) -> None:
+        """Post-scan: apply profile-aware calibration (P-009/P-010/P-011).
+
+        Rules (in order):
+
+        1. **SecretManagement = Vault with hash_based_injection**:
+           findings in ``secrets`` category that mention env vars or
+           ``os.environ`` are likely Vault-injected (not hardcoded).
+           Downgrade to ``info`` unless the finding has CWE-798 set
+           (explicit hardcoded-credential CWE stays).
+
+        2. **EdgeSecurity WAF with sqli/xss in pattern_rules**:
+           injection-category findings whose title mentions sqli or xss
+           get effective severity downgraded (critical → high, high →
+           medium) and a ``[WAF-mitigated]`` annotation.
+
+        3. **ExposureProfile.surface = "internal-only"**:
+           non-secret findings get a ``[internal-only]`` tag appended —
+           severity unchanged, but the tag lets the UI lower their
+           urgency in dashboards.
+
+        No-op when no profile components are attached. Idempotent.
+        """
+        if not any([self.exposure, self.edge_security, self.secret_management]):
+            return
+
+        # Pre-compute reusable signals
+        waf_blocks_sqli_xss = (
+            self.edge_security is not None
+            and getattr(self.edge_security, "waf_present", False)
+            and any(
+                p.lower() in ("sqli", "xss")
+                for p in (getattr(self.edge_security, "pattern_rules", None) or [])
+            )
+        )
+        vault_injection = (
+            self.secret_management is not None
+            and getattr(self.secret_management, "product", "") == "hashicorp-vault"
+            and getattr(self.secret_management, "hash_based_injection", False)
+        )
+        internal_only = (
+            self.exposure is not None
+            and getattr(self.exposure, "surface", "") == "internal-only"
+        )
+
+        severity_down = {"critical": "high", "high": "medium", "medium": "low"}
+        survivors: list[Finding] = []
+        for f in self.findings:
+            desc_lower = f.description.lower()
+            title_lower = f.title.lower()
+
+            # Rule 1 — Vault-injected credentials false positive
+            if vault_injection and f.category == "secrets":
+                mentions_env = any(
+                    kw in desc_lower or kw in title_lower
+                    for kw in ("env var", "os.environ", "getenv", "env-var")
+                )
+                hardcoded_cwe = f.cwe.upper().replace(" ", "") == "CWE-798"
+                if mentions_env and not hardcoded_cwe:
+                    self.calibration_stats["profile_filtered"] += 1
+                    logger.debug(
+                        "Mythos profile filtered %s (Vault-injected env var)",
+                        f.title[:40],
+                    )
+                    continue
+
+            # Rule 2 — WAF mitigation for sqli/xss (idempotent: the
+            # [WAF-mitigated] tag doubles as a "already calibrated" guard)
+            if waf_blocks_sqli_xss and f.category == "injection":
+                matches_sqli_xss = any(
+                    kw in title_lower or kw in desc_lower
+                    for kw in ("sqli", "sql injection", "xss", "cross-site")
+                )
+                already_mitigated = "[WAF-mitigated]" in f.description
+                if matches_sqli_xss and f.severity in severity_down and not already_mitigated:
+                    self.calibration_stats["profile_downgraded"] += 1
+                    f.severity = severity_down[f.severity]
+                    f.description = f"{f.description} [WAF-mitigated]"
+
+            # Rule 3 — internal-only exposure tag
+            if internal_only and f.category != "secrets":
+                if "[internal-only]" not in f.description:
+                    f.description = f"{f.description} [internal-only]"
+                    self.calibration_stats["profile_tagged"] += 1
+
+            survivors.append(f)
+
+        self.findings = survivors
+
+    def _apply_baseline_calibration(self) -> None:
+        """Post-scan: apply baseline calibration to the collected findings.
+
+        Policy:
+          - If baseline matches AND `should_filter` is True → drop.
+          - If baseline matches with effective_severity → downgrade severity.
+          - If baseline marks quick_win → prepend "[QUICK WIN]" to description.
+          - Unmatched findings pass through unchanged.
+
+        Idempotent: re-running is safe; "[QUICK WIN]" is only prepended once.
+        """
+        if self.baseline is None or not getattr(self.baseline, "is_loaded", lambda: False)():
+            return
+
+        survivors: list[Finding] = []
+        for finding in self.findings:
+            match = self.baseline.match(
+                category=finding.category,
+                app=self.tenant_app,
+                title=finding.title,
+                description=finding.description,
+                cwe=finding.cwe,
+            )
+            if not match.matched:
+                survivors.append(finding)
+                continue
+
+            self.calibration_stats["matched"] += 1
+
+            if self.baseline.should_filter(match):
+                self.calibration_stats["filtered"] += 1
+                logger.debug(
+                    "Mythos baseline filtered %s (%s)",
+                    finding.title[:40],
+                    match.entry.id if match.entry else "",
+                )
+                continue
+
+            if match.effective_severity and match.effective_severity != finding.severity:
+                self.calibration_stats["downgraded"] += 1
+                finding.severity = match.effective_severity
+                if match.downgrade_reason and "[calibrated:" not in finding.description:
+                    finding.description = f"{finding.description} [calibrated: {match.downgrade_reason}]"
+
+            if match.quick_win:
+                self.calibration_stats["quick_wins"] += 1
+                if not finding.description.startswith("[QUICK WIN]"):
+                    finding.description = f"[QUICK WIN] {finding.description}"
+
+            survivors.append(finding)
+
+        self.findings = survivors
 
     def _should_scan(self, fpath: Path) -> bool:
         """Return True if ``fpath`` is in the current allowlist (or if
@@ -170,6 +344,11 @@ class MythosScanner:
 
         # 9. Frontend security
         files_scanned += self._scan_frontend_security()
+
+        # P-013 — apply baseline calibration (no-op if no baseline attached)
+        self._apply_baseline_calibration()
+        # P-009/P-010/P-011 — apply profile-aware calibration (no-op if no profile)
+        self._apply_profile_calibration()
 
         duration = int((time.monotonic() - start) * 1000)
 
@@ -253,6 +432,11 @@ class MythosScanner:
             # scan on the same scanner instance does not silently
             # inherit the scoped state.
             self._file_allowlist = None
+
+        # P-013 — apply baseline calibration (no-op if no baseline attached)
+        self._apply_baseline_calibration()
+        # P-009/P-010/P-011 — apply profile-aware calibration (no-op if no profile)
+        self._apply_profile_calibration()
 
         duration = int((time.monotonic() - start) * 1000)
 

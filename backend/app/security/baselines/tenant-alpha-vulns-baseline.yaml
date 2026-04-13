@@ -1,0 +1,234 @@
+# Mythos calibration baseline — tenant-alpha
+#
+# Purpose: operational context that `mythos-scanner` consumes to:
+#   1. Reduce false positives (findings in remediation → downgrade priority)
+#   2. Calibrate severities by mitigation layers (WAF, Vault, etc.)
+#   3. Flag quick wins (one-line fixes)
+#   4. Avoid re-reporting findings already documented externally
+#
+# Sources:
+#   - Informe Ejecutivo audit-vendor (per-app)
+#   - Hallazgos_Trazabilidad_5_Apps.xlsx (eng-partner, 2026-04-13)
+#   - Workshop platform-vendor ARC+BSP+Especiales 2026-04-13 (remediation confirmations)
+#   - Workshop app-01 2026-04-09 (mitigations confirmed)
+#
+# Format contract consumed by app.security.baseline_calibration.BaselineCalibration.
+# Keep this file idempotent: adding rows is safe; removing rows re-exposes findings.
+
+version: "1.0.0"
+generated: "2026-04-13"
+
+# Mitigation layers present in the environment (reduce effective severity)
+mitigations:
+  waf:
+    provider: "corporate-cliente"
+    applies_to: ["app-03-arc", "app-01"]
+    blocks_patterns: ["sqli", "xss", "geo-rusia", "geo-corea-sur", "rate-limit"]
+  vault:
+    provider: "hashicorp-vault"
+    internal_alias: "Bolt"
+    on_premise: true
+    applies_to: ["app-03-arc", "app-03-bsp", "app-03-special"]
+    effect: "credentials injected as runtime env vars from hashed store"
+  encrypted_config:
+    applies_to: ["app-01"]
+    effect: "connection strings encrypted in web.config (not plaintext)"
+
+# Known findings per app — matched by category + pattern heuristics
+findings:
+
+  # ── app-03-arc (ARC Public Refunds Portal) — 9 CRITICAL ──────────────
+  - id: "arc-jwt-hardcoded"
+    app: "app-03-arc"
+    category: "auth"
+    cwe: "CWE-798"
+    pattern_match: ["jwt-hardcoded", "jwt-secret-fallback", "hardcoded-secret"]
+    severity: "critical"
+    remediation_target: "vault"
+    remediation_phase: "emergencia-24-48h"
+    source: "Informe Ejecutivo ARC (audit-vendor)"
+
+  - id: "arc-cors-wildcard"
+    app: "app-03-arc"
+    category: "config"
+    cwe: "CWE-942"
+    pattern_match: ["cors-wildcard", "cors-allow-all-origin"]
+    severity: "critical"
+    remediation_phase: "emergencia-24-48h"
+    source: "Informe Ejecutivo ARC (audit-vendor)"
+
+  - id: "arc-ssl-disabled"
+    app: "app-03-arc"
+    category: "crypto"
+    pattern_match: ["ssl-verify-false", "verify=False", "insecure-request"]
+    severity: "critical"
+    remediation_phase: "emergencia-24-48h"
+    source: "Informe Ejecutivo ARC (audit-vendor)"
+
+  - id: "arc-sqli-concat"
+    app: "app-03-arc"
+    category: "injection"
+    pattern_match: ["sqli-string-concat", "sqli-concatenation"]
+    severity: "critical"
+    effective_severity: "high"     # downgraded: excel-batch-upload context + WAF partial
+    remediation_status: "in-remediation-2026Q2"
+    context: "batch-upload-to-temp-table"
+    mitigation_layer: "waf-partial"
+    source: "Informe Ejecutivo ARC (audit-vendor) + workshop W2"
+
+  - id: "arc-xss"
+    app: "app-03-arc"
+    category: "injection"
+    pattern_match: ["reflected-xss", "xss-unsanitized"]
+    severity: "critical"
+    effective_severity: "high"     # WAF blocks common patterns
+    mitigation_layer: "waf"
+    remediation_phase: "F1-3-7d"
+    source: "Informe Ejecutivo ARC (audit-vendor)"
+
+  - id: "arc-path-traversal"
+    app: "app-03-arc"
+    category: "injection"
+    pattern_match: ["path-traversal", "directory-traversal"]
+    severity: "critical"
+    remediation_phase: "F2-7-15d"
+    source: "Informe Ejecutivo ARC (audit-vendor)"
+
+  - id: "arc-endpoints-no-auth"
+    app: "app-03-arc"
+    category: "auth"
+    pattern_match: ["endpoints-unauthenticated", "missing-auth-check"]
+    severity: "critical"
+    remediation_phase: "F2-7-15d"
+    source: "Informe Ejecutivo ARC (audit-vendor)"
+
+  # 2 more CRITICAL specific to Report Out pending enumeration in Hallazgos_Trazabilidad
+
+  # ── app-03-bsp (BSP YATA Refunds Robot) — 6 BLOCKER ─────────────────
+  - id: "bsp-flask-debug-rce"
+    app: "app-03-bsp"
+    category: "config"
+    cwe: "CWE-16"
+    pattern_match: ["flask-debug-true", "flask-host-0.0.0.0", "werkzeug-debugger"]
+    severity: "critical"
+    quick_win: "single-line-disable"
+    priority: "URGENT-NOTIFY-PM"
+    source: "Informe Ejecutivo BSP + Report Out BLOCKER"
+    notes: "Remote Code Execution inmediato. Q B01 marcada URGENTE en PDF canonico."
+
+  - id: "bsp-aws-keys-exposed"
+    app: "app-03-bsp"
+    category: "secrets"
+    cwe: "CWE-798"
+    pattern_match: ["aws-access-keys-env", "aws-secret-access-key"]
+    severity: "critical"
+    conflict_note: "H-154 BSP hosting AWS-vs-on-premise pending; may be legacy unused keys"
+    source: "FindingsExamples.xlsx + Informe Ejecutivo BSP"
+
+  - id: "bsp-tokens-in-logs"
+    app: "app-03-bsp"
+    category: "data"
+    pattern_match: ["tokens-in-logs", "credentials-logged-plaintext"]
+    severity: "critical"
+    remediation_target: "log-masking"
+    source: "Informe Ejecutivo BSP (audit-vendor)"
+
+  - id: "bsp-upload-no-validation"
+    app: "app-03-bsp"
+    category: "config"
+    pattern_match: ["file-upload-no-type-check", "unvalidated-upload"]
+    severity: "high"
+    note: "Contradicts platform-vendor dev workshop: 'BSP no sube archivos'. Verify actual state."
+    source: "Informe Ejecutivo BSP (audit-vendor)"
+
+  - id: "bsp-complexity-153"
+    app: "app-03-bsp"
+    category: "config"
+    pattern_match: ["cyclomatic-complexity-over-50"]
+    severity: "high"
+    metric:
+      measured: 153
+      target: 50
+    source: "Kardex mi-automation-rfndbsplink"
+
+  - id: "bsp-zero-tests"
+    app: "app-03-bsp"
+    category: "config"
+    pattern_match: ["no-test-coverage"]
+    severity: "high"
+    metric:
+      measured: 0.0
+      target: 0.80
+    note: "Systemic across 12/12 apps in ecosystem"
+    source: "Kardex + Barrido servicios"
+
+  # ── app-01 — 3 CRITICAL ────────────────────────────────────
+  - id: "sicofav-creds-webconfig"
+    app: "app-01"
+    category: "secrets"
+    cwe: "CWE-522"
+    pattern_match: ["credentials-webconfig", "connection-string-config"]
+    severity: "critical"
+    effective_severity: "medium"    # downgraded: confirmed ENCRYPTED in app-01 (workshop 2026-04-09)
+    mitigation_layer: "encrypted_config"
+    note: "Better than systemic 8/12 pattern — app-01 credentials are encrypted in web.config"
+    source: "FindingsExamples.xlsx + workshop app-01 2026-04-09"
+
+  - id: "sicofav-onclick-no-auth"
+    app: "app-01"
+    category: "auth"
+    cwe: "CWE-20"
+    pattern_match: ["onclick-no-auth-check", "button-no-permission-check"]
+    severity: "critical"
+    source: "FindingsExamples.xlsx"
+
+  - id: "sicofav-downloadexcel-no-validation"
+    app: "app-01"
+    category: "auth"
+    cwe: "CWE-502"
+    pattern_match: ["unvalidated-download", "download-excel-no-auth"]
+    severity: "critical"
+    source: "FindingsExamples.xlsx"
+
+  # ── app-02 (SRG) — 2 BLOCKER ─────────────────────────────────────────
+  - id: "srg-xss-cliente-pnr"
+    app: "app-02"
+    category: "injection"
+    cwe: "CWE-79"
+    pattern_match: ["xss-cliente-field", "xss-pnr-field"]
+    severity: "critical"
+    source: "Informe Ejecutivo SRG"
+
+  - id: "srg-legal-data-exposed"
+    app: "app-02"
+    category: "data"
+    pattern_match: ["legal-data-exposed", "pii-exposed-no-auth"]
+    severity: "critical"
+    source: "Informe Ejecutivo SRG"
+
+  # ── app-05 (Commission Engine) — systemic god class ──────────────────
+  - id: "comisiones-parameterscontext-god-class"
+    app: "app-05"
+    category: "config"
+    pattern_match: ["god-class-cc-50-plus", "shared-dependency-highly-coupled"]
+    severity: "critical"
+    affected_modules: ["Medios_Pago", "PreCompras", "Comisiones"]
+    note: "Cross-cutting impact: change here affects 3 modules"
+    source: "Informe Ejecutivo Comisiones"
+
+# Ecosystem-wide signals (used for ranking, not per-finding matching)
+ecosystem_context:
+  total_loc: 5_634_738
+  total_issues: 189_997
+  critical_issues: 13_547
+  critical_density_pct: 8.1
+  apps_without_tests: 12
+  apps_without_cicd: 11
+  sql_concat_count: 3_000
+  tables_without_fk_pct: 97.0
+
+risk_exposure_usd:
+  reputational: 13_000_000
+  pii: 5_000_000
+  integrity: 500_000
+  total: 18_500_000
