@@ -449,6 +449,187 @@ function formatUsd(value) {
   return `$${n.toLocaleString()}`
 }
 
+// ── EcosystemHealthCard (P-021 + P-009/P-010/P-011 + P-020) ─────────────
+//
+// One-glance posture panel: ecosystem scale, risk exposure, security
+// posture (WAF / Vault alias / NDA status). Consumed from
+// GET /refactor/showcase/:tenant_id/ecosystem.
+function EcosystemHealthCard({ data, lang, isMobile }) {
+  if (!data) return null
+
+  const eco = data.ecosystem || {}
+  const risk = data.risk_exposure_usd || {}
+  const legal = data.legal || {}
+  const edge = data.edge_security || null
+  const secret = data.secret_management || null
+
+  const ndaBlocks = legal.nda_status && legal.nda_status !== 'current'
+  const ndaColor = ndaBlocks ? '#DC2626' : '#16A34A'
+  const ndaLabel = {
+    'current':           lang === 'es' ? 'Vigente'            : 'Current',
+    'possibly-expired':  lang === 'es' ? 'Posible vencimiento' : 'Possibly expired',
+    'expired':           lang === 'es' ? 'Vencido'             : 'Expired',
+    'missing':           lang === 'es' ? 'Sin NDA'             : 'Missing',
+  }[legal.nda_status] || legal.nda_status
+
+  const riskTotal = Number(risk.total || 0)
+
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+      padding: '20px 24px', marginBottom: 24,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+            {lang === 'es' ? 'Salud del ecosistema' : 'Ecosystem health'}
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#111827', marginTop: 4 }}>
+            {Number(eco.total_loc || 0).toLocaleString()} LOC · {Number(eco.total_issues || 0).toLocaleString()} {lang === 'es' ? 'hallazgos' : 'issues'}
+          </div>
+          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+            {eco.total_apps} {lang === 'es' ? 'aplicaciones' : 'apps'} · {eco.total_components} {lang === 'es' ? 'componentes' : 'components'}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: '#DC2626', lineHeight: 1 }}>
+            {formatUsd(riskTotal)}
+          </div>
+          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>
+            {lang === 'es' ? 'exposición total' : 'total exposure'}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: 12, marginTop: 16,
+      }}>
+        <KpiCard
+          label={lang === 'es' ? 'Críticos' : 'Critical issues'}
+          value={Number(eco.critical_issues || 0).toLocaleString()}
+          subtitle={`${Number(eco.critical_density_pct || 0).toFixed(1)}% density`}
+          color="#DC2626"
+        />
+        <KpiCard
+          label="SQL concat"
+          value={`+${Number(eco.sql_concat_queries || 0).toLocaleString()}`}
+          subtitle={`${Number(eco.tables_without_fk_pct || 0).toFixed(0)}% ${lang === 'es' ? 'tablas sin FK' : 'tables no FK'}`}
+          color="#EA580C"
+        />
+        <KpiCard
+          label={lang === 'es' ? 'Apps sin tests' : 'Apps no tests'}
+          value={`${eco.apps_without_tests || 0}/12`}
+          subtitle={`${eco.apps_without_cicd || 0}/12 ${lang === 'es' ? 'sin CI/CD' : 'no CI/CD'}`}
+          color="#7C3AED"
+        />
+        <KpiCard
+          label={lang === 'es' ? 'PII' : 'PII items'}
+          value={eco.pii_items || 0}
+          subtitle={`${eco.pii_inputs || 0} ${lang === 'es' ? 'entradas' : 'inputs'}`}
+          color="#0E7490"
+        />
+      </div>
+
+      {/* Security posture row */}
+      <div style={{
+        marginTop: 20, padding: '14px 16px', background: '#F9FAFB', borderRadius: 8,
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+        gap: 12,
+      }}>
+        {/* Edge security (WAF) */}
+        <div>
+          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+            {lang === 'es' ? 'Edge security' : 'Edge security'}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: edge?.waf_present ? '#16A34A' : '#9CA3AF', marginTop: 4 }}>
+            {edge?.waf_present ? `WAF ${edge.waf_provider || ''}` : (lang === 'es' ? 'Sin WAF' : 'No WAF')}
+          </div>
+          {edge?.geo_blocking?.length > 0 && (
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+              {lang === 'es' ? 'Bloquea' : 'Blocks'}: {edge.geo_blocking.join(', ')}
+            </div>
+          )}
+          {edge?.pattern_rules?.length > 0 && (
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+              {lang === 'es' ? 'Reglas' : 'Rules'}: {edge.pattern_rules.join(', ')}
+            </div>
+          )}
+        </div>
+
+        {/* Secret management (Bolt/Vault) */}
+        <div>
+          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+            {lang === 'es' ? 'Gestión de secretos' : 'Secret management'}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginTop: 4 }}>
+            {secret?.product || (lang === 'es' ? 'No configurado' : 'Not configured')}
+            {secret?.internal_alias && <span style={{ color: '#6B7280', fontWeight: 500 }}> · {secret.internal_alias}</span>}
+          </div>
+          {secret && (
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+              {secret.on_premise ? (lang === 'es' ? 'On-premise' : 'On-premise') : (lang === 'es' ? 'Nube' : 'Cloud')}
+              {' · '}
+              {secret.rotation_policy}
+              {secret.hash_based_injection && (lang === 'es' ? ' · hash-inject' : ' · hash-inject')}
+            </div>
+          )}
+        </div>
+
+        {/* Legal / NDA */}
+        <div>
+          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+            {lang === 'es' ? 'Estado legal (NDA)' : 'Legal status (NDA)'}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: ndaColor, marginTop: 4 }}>
+            {ndaLabel || (lang === 'es' ? 'Desconocido' : 'Unknown')}
+          </div>
+          {legal.nda_signed_date && (
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+              {lang === 'es' ? 'Firmado' : 'Signed'}: {legal.nda_signed_date}
+            </div>
+          )}
+          {legal.renewal_required_before_transfer && (
+            <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 600, marginTop: 2 }}>
+              ⚠ {lang === 'es' ? 'Renovación requerida' : 'Renewal required'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Per-app critical density ranking (top 3) */}
+      {data.per_app?.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+            {lang === 'es' ? 'Top densidad crítica por app' : 'Top critical density per app'}
+          </div>
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {[...data.per_app]
+              .filter(a => a.total_issues > 0)
+              .sort((a, b) => b.critical_density_pct - a.critical_density_pct)
+              .slice(0, 3)
+              .map(a => (
+                <div key={a.app} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <div style={{ color: '#374151' }}>
+                    <code style={{ fontSize: 11, color: '#6B7280' }}>{a.app}</code>
+                    {' '}
+                    <span>{a.label}</span>
+                  </div>
+                  <div style={{ color: a.critical_density_pct >= 50 ? '#DC2626' : '#374151', fontWeight: 600 }}>
+                    {a.critical_density_pct.toFixed(1)}% · {a.critical_issues}/{a.total_issues}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CommercialRiskCard({ data, lang, isMobile }) {
   if (!data) return null
   const vendors = data.vendors || []
@@ -979,6 +1160,7 @@ export default function TenantShowcase({ lang = 'en' }) {
   const [compliance, setCompliance] = useState(null)
   const [commercialRisk, setCommercialRisk] = useState(null)
   const [governance, setGovernance] = useState(null)
+  const [ecosystem, setEcosystem] = useState(null)
   const [reportOutMd, setReportOutMd] = useState(null)
   const [reportOutLoading, setReportOutLoading] = useState(false)
   const [reportOutOpen, setReportOutOpen] = useState(false)
@@ -1000,6 +1182,19 @@ export default function TenantShowcase({ lang = 'en' }) {
         }
       }
       setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  // Load the ecosystem posture (P-021 + P-009/P-010/P-011 + P-020).
+  // Independent of the main report and silent on 404 (same pattern as compliance).
+  useEffect(() => {
+    let cancelled = false
+    fetchAPI(`/refactor/showcase/${tenantId}/ecosystem`).then(res => {
+      if (cancelled) return
+      if (!res.error && res.data) {
+        setEcosystem(res.data)
+      }
     })
     return () => { cancelled = true }
   }, [])
@@ -1211,6 +1406,9 @@ export default function TenantShowcase({ lang = 'en' }) {
             : 'Single-document summary — ready for stakeholders.'}
         </span>
       </div>
+
+      {/* Ecosystem posture (P-021 + P-009/P-010/P-011 + P-020 — 2026-04-13) */}
+      <EcosystemHealthCard data={ecosystem} lang={lang} isMobile={isMobile} />
 
       {/* Compliance countdown (Batch 3, deliverable D) */}
       <ComplianceCard data={compliance} lang={lang} isMobile={isMobile} />

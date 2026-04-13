@@ -1105,6 +1105,139 @@ async def get_commercial_risk_profile(tenant_id: str):
     return static
 
 
+@router.get("/showcase/{tenant_id}/ecosystem")
+async def get_ecosystem_posture(tenant_id: str):
+    """Return ecosystem health + security posture for one tenant.
+
+    Combines P-021 (EcosystemMetrics: total LOC, issues, risk exposure,
+    per-app density, priority hints) with P-009/P-010/P-011 (exposure,
+    edge security, secret management) + P-020 (legal risk) into a single
+    payload consumed by the frontend ``TenantShowcase`` ecosystem card.
+
+    Only the canonical ``tenant-alpha`` fixture is wired today — other
+    tenant ids return 404 until their fixtures exist.
+    """
+    if "/" in tenant_id or ".." in tenant_id or "\\" in tenant_id:
+        raise HTTPException(status_code=400, detail="Invalid tenant id")
+
+    try:
+        from app.synth.ecosystem_metrics import load_ecosystem_metrics
+        from app.synth.profile import load_profile
+    except ImportError as exc:
+        logger.warning("Ecosystem posture endpoint: import failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Ecosystem data unavailable")
+
+    metrics = load_ecosystem_metrics()
+    if not metrics.is_loaded() or metrics.tenant_id != tenant_id:
+        raise HTTPException(
+            status_code=404, detail="Ecosystem posture not found for this tenant"
+        )
+
+    # Load the tenant profile to get security posture (edge/secret/legal)
+    from pathlib import Path
+    fixture_path = (
+        Path(__file__).parent.parent
+        / "synth"
+        / "fixtures"
+        / f"{tenant_id.replace('-', '_')}.yaml"
+    )
+    profile = None
+    if fixture_path.exists():
+        try:
+            profile = load_profile(fixture_path)
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning("Failed to load profile fixture %s: %s", fixture_path, exc)
+
+    payload: dict = {
+        "tenant_id": metrics.tenant_id,
+        "version": metrics.version,
+        "ecosystem": {
+            "total_loc": metrics.total_loc,
+            "total_apps": metrics.total_apps,
+            "total_components": metrics.total_components,
+            "total_issues": metrics.total_issues,
+            "satellite_issues": metrics.satellite_issues,
+            "core_cobol_issues": metrics.core_cobol_issues,
+            "critical_issues": metrics.critical_issues,
+            "critical_density_pct": metrics.critical_density_pct,
+            "apps_without_tests": metrics.apps_without_tests,
+            "apps_without_cicd": metrics.apps_without_cicd,
+            "sql_concat_queries": metrics.sql_concat_queries,
+            "tables_without_fk_pct": metrics.tables_without_fk_pct,
+            "pii_items": metrics.pii_items,
+            "pii_inputs": metrics.pii_inputs,
+            "db_growth_monthly_pct": metrics.db_growth_monthly_pct,
+        },
+        "risk_exposure_usd": {
+            "reputational": metrics.risk_reputational_usd,
+            "pii": metrics.risk_pii_usd,
+            "integrity": metrics.risk_integrity_usd,
+            "total": metrics.risk_total_usd,
+            "basis": metrics.risk_basis,
+        },
+        "commercial": {
+            "facturacion_usd": metrics.commercial.facturacion_usd,
+            "contract_coverage_pct": metrics.commercial.contract_coverage_pct,
+            "uncovered_spend_usd": metrics.commercial.uncovered_spend_usd,
+            "invoices_total": metrics.commercial.invoices_total,
+            "contracts_total": metrics.commercial.contracts_total,
+            "paraguas_contract_name": metrics.commercial.paraguas_contract_name,
+            "paraguas_contract_signed_year": metrics.commercial.paraguas_contract_signed_year,
+            "client_revenue_share_of_vendor_pct": metrics.commercial.client_revenue_share_of_vendor_pct,
+        },
+        "legal": {
+            "nda_signed_date": metrics.legal.nda_signed_date,
+            "nda_status": metrics.legal.nda_status,
+            "renewal_required_before_transfer": metrics.legal.renewal_required_before_transfer,
+            "nda_notes": metrics.legal.nda_notes,
+        },
+        "per_app": [
+            {
+                "app": a.app, "label": a.label,
+                "total_issues": a.total_issues,
+                "critical_issues": a.critical_issues,
+                "high_issues": a.high_issues,
+                "blocker_issues": a.blocker_issues,
+                "critical_density_pct": a.critical_density_pct,
+                "hosting": a.hosting,
+                "notes": a.notes,
+            }
+            for a in metrics.per_app
+        ],
+        "priority_hints": [
+            {"app": p.app, "priority_score": p.priority_score, "rationale": p.rationale}
+            for p in metrics.ranked_by_priority()
+        ],
+    }
+
+    # Security posture from the tenant profile (edge security, secret mgmt)
+    if profile is not None:
+        ir = profile.infrastructure_risk
+        if ir is not None and ir.edge_security is not None:
+            payload["edge_security"] = {
+                "waf_present": ir.edge_security.waf_present,
+                "waf_provider": ir.edge_security.waf_provider,
+                "geo_blocking": ir.edge_security.geo_blocking,
+                "pattern_rules": ir.edge_security.pattern_rules,
+                "scan_cadence": ir.edge_security.scan_cadence,
+                "remediation_channel": ir.edge_security.remediation_channel,
+            }
+        sm = profile.secret_management
+        if sm is not None:
+            payload["secret_management"] = {
+                "product": sm.product,
+                "internal_alias": sm.internal_alias,
+                "scope": sm.scope,
+                "rotation_policy": sm.rotation_policy,
+                "hash_based_injection": sm.hash_based_injection,
+                "on_premise": sm.on_premise,
+                "rotates_users": sm.rotates_users,
+                "rotates_db_creds": sm.rotates_db_creds,
+            }
+
+    return payload
+
+
 @router.get("/showcase/{tenant_id}/compliance")
 async def get_compliance_profile(tenant_id: str):
     """Return the compliance countdown data for one tenant.
