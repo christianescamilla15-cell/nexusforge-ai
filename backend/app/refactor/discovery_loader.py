@@ -41,6 +41,12 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+try:
+    import openpyxl  # type: ignore
+    _OPENPYXL_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    _OPENPYXL_AVAILABLE = False
+
 
 # ── Data model ────────────────────────────────────────────────────────
 
@@ -285,6 +291,201 @@ def _parse_domain_file(text: str, domain_name: str) -> list[DiscoveryFinding]:
     return findings
 
 
+# ── Entregables ingestion (Excels from eng-partner deliverables) ───────
+
+_SEVERITY_MAP = {
+    "critical": "critical",
+    "blocker": "critical",
+    "high": "high",
+    "major": "high",
+    "medium": "medium",
+    "med": "medium",
+    "low": "low",
+    "info": "low",
+    "informational": "low",
+}
+
+
+def _normalize_severity(value: str | None) -> str:
+    """Map spreadsheet severity labels to the loader's severity vocabulary."""
+    if not value:
+        return "medium"
+    key = str(value).strip().lower()
+    return _SEVERITY_MAP.get(key, "medium")
+
+
+def _app_codename_from_label(label: str | None) -> list[str]:
+    """Infer app codenames from a free-text label.
+
+    Handles both explicit codenames ("app-03-arc") and colloquial labels
+    ("ARC", "BSP", "app-01", "SRG", "CFDIs") that `eng-partner` uses in
+    spreadsheet rows.
+    """
+    if not label:
+        return []
+    text = str(label).strip()
+    explicit = sorted(set(_APP_CODENAME_RE.findall(text)))
+    if explicit:
+        return explicit
+
+    # Colloquial → codename mapping (sourced from analisis/README.md).
+    # The mapper accepts the real spreadsheet labels that `eng-partner`
+    # uses as inputs and always emits our codenames. These inputs are
+    # what the loader receives; the outputs are the sanitized codenames.
+    upper = text.upper()
+    colloquial: list[str] = []
+    if "SICOFAV" in upper or "P1" in upper:
+        colloquial.append("app-01")
+    if "SRG" in upper or "P2" in upper:
+        colloquial.append("app-02")
+    if "ARC" in upper and "BSP" not in upper:
+        colloquial.append("app-03-arc")
+    if "BSP" in upper and "ARC" not in upper:
+        colloquial.append("app-03-bsp")
+    if "ESPECIAL" in upper:
+        colloquial.append("app-03-special")
+    if "AMBOS" in upper or upper == "ARC/BSP":
+        colloquial.extend(["app-03-arc", "app-03-bsp"])
+    if "CFDI" in upper or "P4" in upper:
+        colloquial.append("app-04")
+    if "COMISIONES" in upper or "P5" in upper:
+        colloquial.append("app-05")
+    if "PRAXIS" in upper or "ECOSISTEMA" in upper:
+        colloquial.append("praxis-ecosystem")
+    return colloquial
+
+
+def _parse_trazabilidad_xlsx(
+    path: Path,
+    id_prefix: str = "TRZ",
+) -> list[DiscoveryFinding]:
+    """Parse an ``eng-partner`` Hallazgos_Trazabilidad-style workbook.
+
+    Expected row format (per sheet):
+        # | App | Hallazgo | Resumen / Sintesis | Severidad | Fuente / Documento
+
+    Each sheet typically corresponds to one app (app-01, ARC, BSP, ...)
+    plus an "Ecosistema PRAXIS" transversal sheet.
+    """
+    if not _OPENPYXL_AVAILABLE:
+        logger.warning("openpyxl not installed — skipping xlsx ingestion at %s", path)
+        return []
+
+    try:
+        wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    except Exception as exc:
+        logger.warning("Failed to open workbook %s: %s", path, exc)
+        return []
+
+    findings: list[DiscoveryFinding] = []
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        domain_guess = _domain_from_sheet_name(sheet_name)
+        header_seen = False
+        for row_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
+            if not row or all(c is None for c in row):
+                continue
+            # Look for header row: ['#', 'App', 'Hallazgo', 'Resumen...', 'Severidad', 'Fuente...']
+            if not header_seen:
+                cells = [str(c).strip().lower() if c else "" for c in row]
+                if "hallazgo" in cells and ("severidad" in cells or "severity" in cells):
+                    header_seen = True
+                continue
+
+            # Data row — expect 6 columns
+            if len(row) < 5:
+                continue
+            num, app_label, hallazgo, resumen, severidad = row[:5]
+            fuente = row[5] if len(row) > 5 else None
+
+            if hallazgo is None:
+                continue
+
+            title = str(hallazgo).strip()
+            if not title or title.lower().startswith("cobertura:"):
+                continue
+
+            # Build finding
+            fid = f"{id_prefix}-{sheet_name[:3].upper()}-{num:03d}" if isinstance(num, int) else f"{id_prefix}-{sheet_name[:3].upper()}-{row_idx:03d}"
+            apps = _app_codename_from_label(app_label) or _app_codename_from_label(title)
+            severity = _normalize_severity(severidad)
+            description = str(resumen).strip() if resumen else ""
+            source = str(fuente).strip() if fuente else ""
+
+            full_text = f"{title} {description}"
+            is_blocker = bool(_BLOCKER_RE.search(full_text)) or severity in ("critical",)
+            is_quick_win = bool(_QUICK_WIN_RE.search(full_text))
+            is_correction = bool(_CORRECTION_RE.search(full_text))
+
+            findings.append(DiscoveryFinding(
+                id=fid,
+                title=title[:200],
+                state="CONFIRMED-BY-DOCS",
+                domains=[domain_guess] if domain_guess else [],
+                apps_affected=apps,
+                severity=severity,
+                description=description[:500],
+                source_files=[f"{path.name}:{sheet_name}"] + ([source[:100]] if source else []),
+                is_blocker=is_blocker,
+                is_quick_win=is_quick_win,
+                is_correction=is_correction,
+            ))
+
+    wb.close()
+    logger.info("Parsed %d findings from %s", len(findings), path.name)
+    return findings
+
+
+def _domain_from_sheet_name(sheet_name: str) -> str:
+    """Guess a domain from a spreadsheet sheet name."""
+    s = sheet_name.lower()
+    if "sicofav" in s or "p1" in s:
+        return "sicofav"
+    if "srg" in s or "p2" in s:
+        return "ventas"
+    if "arc" in s or "bsp" in s or "reembolso" in s:
+        return "reembolsos"
+    if "cfdi" in s or "p4" in s:
+        return "facturas-electronicas"
+    if "comision" in s or "p5" in s:
+        return "comisiones"
+    if "praxis" in s or "ecosistema" in s:
+        return "miatech"
+    return ""
+
+
+def load_entregables_context(entregables_path: str | Path) -> list[DiscoveryFinding]:
+    """Load discovery findings from ``entregables-XXabr/`` canonical Excels.
+
+    Looks for known workbook names:
+      - ``Hallazgos_Trazabilidad_5_Apps.xlsx`` (primary — structured findings)
+      - ``Panorama_Completo_5_Aplicativos.xlsx`` (secondary — context data)
+
+    Args:
+        entregables_path: directory containing the Excels.
+
+    Returns:
+        A list of ``DiscoveryFinding`` extracted from the workbooks.
+        Returns an empty list if the directory or openpyxl is missing.
+    """
+    base = Path(entregables_path)
+    if not base.is_dir():
+        return []
+    if not _OPENPYXL_AVAILABLE:
+        logger.info("openpyxl not installed — entregables ingestion disabled")
+        return []
+
+    findings: list[DiscoveryFinding] = []
+
+    # Primary: trazabilidad workbook
+    for name in ("Hallazgos_Trazabilidad_5_Apps.xlsx",):
+        p = base / name
+        if p.is_file():
+            findings.extend(_parse_trazabilidad_xlsx(p, id_prefix="TRZ"))
+
+    return findings
+
+
 # ── Main loader ───────────────────────────────────────────────���───────
 
 
@@ -340,6 +541,23 @@ def load_discovery_context(
             )
         except Exception as exc:
             logger.warning("Failed to parse maestro: %s", exc)
+
+    # 1b. Supplement with entregables/ canonical Excels if present
+    #     (e.g., analisis/entregables-13abr/Hallazgos_Trazabilidad_5_Apps.xlsx)
+    for entregables_dir in sorted(analysis_dir.glob("entregables-*")):
+        if entregables_dir.is_dir():
+            ent_findings = load_entregables_context(entregables_dir)
+            added = 0
+            for f in ent_findings:
+                if f.id not in seen_ids:
+                    index.findings.append(f)
+                    seen_ids.add(f.id)
+                    added += 1
+            if added:
+                logger.info(
+                    "Added %d findings from %s (entregables)",
+                    added, entregables_dir.name,
+                )
 
     # 2. Supplement with domain files
     domain_dir = analysis_dir / "fase-2-por-dominio"

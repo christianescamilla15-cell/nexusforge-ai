@@ -20,8 +20,13 @@ from app.refactor.discovery_loader import (
     DiscoveryFinding,
     DiscoveryIndex,
     load_discovery_context,
+    load_entregables_context,
     _parse_maestro,
     _parse_domain_file,
+    _parse_trazabilidad_xlsx,
+    _app_codename_from_label,
+    _normalize_severity,
+    _OPENPYXL_AVAILABLE,
 )
 
 
@@ -105,6 +110,119 @@ def test_parse_maestro_detects_blockers():
     by_id = {f.id: f for f in findings}
     assert by_id["H-002"].is_blocker is True
     assert by_id["H-001"].is_blocker is False
+
+
+# ── Entregables xlsx ingestion ───────────────────────────────────────
+
+
+def test_normalize_severity_maps_labels():
+    assert _normalize_severity("CRITICAL") == "critical"
+    assert _normalize_severity("blocker") == "critical"
+    assert _normalize_severity("High") == "high"
+    assert _normalize_severity("Major") == "high"
+    assert _normalize_severity("MEDIUM") == "medium"
+    assert _normalize_severity("info") == "low"
+    assert _normalize_severity(None) == "medium"
+    assert _normalize_severity("weird-label") == "medium"
+
+
+def test_app_codename_explicit_takes_precedence():
+    assert _app_codename_from_label("app-03-arc") == ["app-03-arc"]
+    assert _app_codename_from_label("workshop ARC con app-03-bsp") == ["app-03-bsp"]
+
+
+def test_app_codename_colloquial_mapping():
+    assert "app-01" in _app_codename_from_label("SICOFAV")
+    assert "app-03-arc" in _app_codename_from_label("ARC")
+    assert "app-03-bsp" in _app_codename_from_label("BSP")
+    assert "app-03-special" in _app_codename_from_label("Reembolsos Especiales")
+    assert "app-04" in _app_codename_from_label("CFDIs")
+    assert "app-05" in _app_codename_from_label("Comisiones Directas")
+    assert "praxis-ecosystem" in _app_codename_from_label("Ecosistema PRAXIS")
+    # AMBOS should return both ARC + BSP
+    both = _app_codename_from_label("AMBOS")
+    assert "app-03-arc" in both and "app-03-bsp" in both
+
+
+@pytest.mark.skipif(not _OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+def test_parse_trazabilidad_xlsx_synthetic(tmp_path):
+    """Build a synthetic trazabilidad workbook and verify parsing."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    # Remove default sheet
+    wb.remove(wb.active)
+
+    # ARC sheet
+    ws = wb.create_sheet("Reembolsos ARC (P3)")
+    ws.append(["Reembolsos ARC — Plataforma USA", None, None, None, None, None])
+    ws.append(["#", "App", "Hallazgo", "Resumen / Sintesis", "Severidad", "Fuente"])
+    ws.append([1, "ARC", "JWT hardcodeado (CWE-798)", "Secret key en codigo Python", "CRITICAL", "Informe ARC"])
+    ws.append([2, "ARC", "CORS wildcard (CWE-942)", "Access-Control-Allow-Origin: *", "CRITICAL", "Informe ARC"])
+    ws.append([3, "ARC", "Stack Python/Flask", "Info del stack", "INFO", "BIA"])
+
+    # PRAXIS transversal sheet
+    ws2 = wb.create_sheet("Ecosistema PRAXIS")
+    ws2.append(["Hallazgos Ecosistema", None, None, None, None, None])
+    ws2.append(["#", "App", "Hallazgo", "Resumen", "Severidad", "Fuente"])
+    ws2.append([1, "PRAXIS", "189,997 issues totales", "Satellite + core COBOL", "CRITICAL", "Report Out Softtek"])
+
+    path = tmp_path / "Hallazgos_Trazabilidad_test.xlsx"
+    wb.save(path)
+
+    findings = _parse_trazabilidad_xlsx(path)
+    assert len(findings) == 4
+
+    # ARC findings should have app-03-arc
+    arc_jwt = next(f for f in findings if "JWT" in f.title)
+    assert "app-03-arc" in arc_jwt.apps_affected
+    assert arc_jwt.severity == "critical"
+    assert arc_jwt.is_blocker is True
+    assert arc_jwt.state == "CONFIRMED-BY-DOCS"
+
+    # Low-severity INFO row is not a blocker
+    stack_row = next(f for f in findings if "Stack" in f.title)
+    assert stack_row.severity == "low"
+    assert stack_row.is_blocker is False
+
+    # PRAXIS ecosystem mapping
+    praxis = next(f for f in findings if "189,997" in f.title)
+    assert "praxis-ecosystem" in praxis.apps_affected
+
+
+@pytest.mark.skipif(not _OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+def test_load_entregables_context_missing_dir(tmp_path):
+    """Missing entregables directory returns empty list, not an error."""
+    result = load_entregables_context(tmp_path / "does-not-exist")
+    assert result == []
+
+
+@pytest.mark.skipif(not _OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+def test_load_discovery_context_integrates_entregables(tmp_path):
+    """Verify load_discovery_context picks up entregables/ xlsx files."""
+    import openpyxl
+    analisis = tmp_path / "analisis"
+    analisis.mkdir()
+    (analisis / "fase-3-maestro.md").write_text(_MAESTRO_SAMPLE, encoding="utf-8")
+
+    entregables = analisis / "entregables-13abr"
+    entregables.mkdir()
+
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    ws = wb.create_sheet("SICOFAV (P1)")
+    ws.append(["SICOFAV — header", None, None, None, None, None])
+    ws.append(["#", "App", "Hallazgo", "Resumen", "Severidad", "Fuente"])
+    ws.append([1, "SICOFAV", "Credenciales en web.config", "CWE-522", "CRITICAL", "FindingsExamples"])
+    wb.save(entregables / "Hallazgos_Trazabilidad_5_Apps.xlsx")
+
+    idx = load_discovery_context(tmp_path)
+    # Should have 4 from maestro + 1 from entregables
+    assert idx.total_findings == 5
+    trz_ids = [f.id for f in idx.findings if f.id.startswith("TRZ")]
+    assert len(trz_ids) == 1
+    sicofav_f = next(f for f in idx.findings if f.id.startswith("TRZ"))
+    assert sicofav_f.severity == "critical"
+    assert "app-01" in sicofav_f.apps_affected
 
 
 def test_parse_maestro_detects_quick_wins():
