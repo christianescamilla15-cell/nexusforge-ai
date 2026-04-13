@@ -54,6 +54,45 @@ class DatabaseSpec:
 
 
 @dataclass
+class OperationalWindow:
+    """One operational time window for an app (P-012).
+
+    Captures the time-of-day + region pattern used by apps like
+    ``app-03-special`` where throughput is bounded to working hours.
+    Used by the strangler planner to schedule refactor work outside
+    active windows (no user impact) and by the capacity planner.
+    """
+
+    start: str = ""     # HH:MM (24h)
+    end: str = ""       # HH:MM (24h)
+    region: str = ""    # optional ISO code or region tag
+
+
+@dataclass
+class OperationalProfile:
+    """Operational metrics for an app (P-012).
+
+    Models the empirical scale signals captured in workshops / BIAs:
+    how many authorized users, daily request volume, and which
+    windows are active. Attached optionally to a SubProject so a
+    mega-app like ``app-03`` can model per-flow operational density
+    (ARC is public, Especiales has 81 users in 4 windows, BSP runs on
+    a schedule without an interactive user pool).
+
+    Sourced from H-140 (workshop W2, Reembolsos Especiales) + BIA BSP.
+    """
+
+    user_count: int = 0
+    user_roles: list[str] = field(default_factory=list)
+    daily_request_volume: int = 0
+    historical_volume: int = 0           # lifetime/since-inception totals
+    operational_windows: list[OperationalWindow] = field(default_factory=list)
+    vpn_required: bool = False
+    mfa_required: bool = False
+    planned_integrations: list[str] = field(default_factory=list)  # e.g. ["ram-refunds"]
+
+
+@dataclass
 class SubProject:
     """One sub-project inside an app.
 
@@ -70,6 +109,81 @@ class SubProject:
     vuln_share: float = 1.0  # fraction of parent app's vulnerability budget
     modules: int = 6  # modules to generate inside this sub-project
     has_rpa: bool = False  # if True, use the RPA-flavoured templates
+    # P-012 (2026-04-13) — optional operational profile (81 users, ventanas, VPN, ...).
+    operational: OperationalProfile | None = None
+
+
+@dataclass
+class MultiRobotPipeline:
+    """Orchestrated multi-robot pipeline pattern (P-019).
+
+    Models systems like ``app-03-bsp`` where multiple robots communicate
+    via a message broker to implement a staged workflow (e.g., download →
+    validate → respond). Captures risk signals the strangler planner
+    considers when prioritizing refactor phases:
+
+    - ``compensation_transactions=False`` means partial failures leave
+      the system in an inconsistent state — HIGH risk.
+    - ``scraping_based=True`` (Playwright/Selenium against a third-party
+      UI) means cosmetic changes to the upstream UI break the pipeline —
+      HIGH risk + calls for contract tests.
+    - ``failure_detection="none"`` means silent failures possible.
+
+    This dataclass is optional on ``AppRecipe``. When absent, the app
+    follows the default single-module refactor flow.
+    """
+
+    robot_count: int = 1
+    coordination: str = "none"           # "zmq-broker" | "kafka" | "redis-queue" | "direct-rpc" | "none"
+    stages: list[str] = field(default_factory=list)  # ordered stage names
+    compensation_transactions: bool = False
+    failure_detection: str = "none"      # "none" | "heartbeat" | "timeout" | "health-check"
+    scraping_based: bool = False         # True if uses Playwright/Selenium against external UI
+    upstream_ui_owner: str = ""          # free text, e.g. "external-iata-bsplink"
+    broker_location: str = ""            # where the broker runs (hostname, container, etc.)
+    schedule: str = ""                   # free text, e.g., "every 4h 08-20"
+
+    def risk_level(self) -> str:
+        """Heuristic risk classification based on signals."""
+        signals = 0
+        if not self.compensation_transactions and self.robot_count > 1:
+            signals += 2  # partial failures leave state inconsistent
+        if self.scraping_based:
+            signals += 2  # fragile to upstream UI changes
+        if self.failure_detection in ("none", ""):
+            signals += 1  # silent failures possible
+        if self.coordination in ("none", ""):
+            signals += 1  # no explicit coordination layer
+        if signals >= 4:
+            return "high"
+        if signals >= 2:
+            return "medium"
+        return "low"
+
+    def recommendations(self) -> list[str]:
+        """Concrete refactor recommendations derived from the risk signals."""
+        recs: list[str] = []
+        if not self.compensation_transactions and self.robot_count > 1:
+            recs.append(
+                "Add compensation transactions between robots so partial "
+                "failures can roll back cleanly."
+            )
+        if self.scraping_based and self.upstream_ui_owner:
+            recs.append(
+                f"Add contract tests against the upstream UI owner "
+                f"'{self.upstream_ui_owner}' to detect selector regressions."
+            )
+        if self.failure_detection in ("none", ""):
+            recs.append(
+                "Add inter-robot health-check + alerting so silent failures "
+                "surface within one pipeline cycle."
+            )
+        if self.coordination in ("none", "") and self.robot_count > 1:
+            recs.append(
+                "Introduce an explicit message broker (Redis/Kafka/ZMQ) so "
+                "coordination is observable and replayable."
+            )
+        return recs
 
 
 @dataclass
@@ -87,10 +201,32 @@ class RefactorDecision:
     validation_checklist: list[str] = field(default_factory=list)
     blockers: list[str] = field(default_factory=list)
 
+    # P-018 / Gap T (2026-04-13) — decision-gate framework.
+    # When an action is contested (typically ``tbd`` / ``gate``), these
+    # fields capture the evidence on each side of the decision plus the
+    # blocker that must be resolved before the team commits. The
+    # strangler planner surfaces this structure in the plan narrative so
+    # stakeholders see the pending call explicitly instead of an
+    # opaque "tbd".
+    #
+    # Sourced from H-149 (app-03-arc 0% activity since 2023 → audit-vendor
+    # recommends RETIRE, business owner not confirmed).
+    gate_type: str = ""                                    # e.g. "retire-vs-refactor" | ""
+    evidence_for: list[str] = field(default_factory=list)  # data supporting action
+    evidence_against: list[str] = field(default_factory=list)  # data against action
+    blocker_to_resolve: str = ""                           # single highest-priority blocker
+    estimated_savings_if_taken: str = ""                   # free text (effort, infra, etc.)
+    stakeholders_to_confirm: list[str] = field(default_factory=list)  # roles/people to ping
+
+    @property
+    def is_gate(self) -> bool:
+        """True when this decision is waiting on stakeholder input."""
+        return bool(self.gate_type) or self.action.lower() in ("tbd", "gate")
+
     def to_markdown(self, app_codename: str, app_label: str) -> str:
         checklist = "\n".join(f"- [ ] {item}" for item in self.validation_checklist) or "- (none)"
         blockers = "\n".join(f"- {item}" for item in self.blockers) or "- (none)"
-        return (
+        md = (
             f"# Refactor Decision — `{app_codename}`\n\n"
             f"**App:** {app_label}\n"
             f"**Action:** `{self.action.upper()}`\n"
@@ -98,9 +234,24 @@ class RefactorDecision:
             f"## Rationale\n\n{self.rationale or '(no rationale provided)'}\n\n"
             f"## Validation checklist\n\n{checklist}\n\n"
             f"## Blockers\n\n{blockers}\n\n"
+        )
+        if self.is_gate:
+            ev_for = "\n".join(f"- {e}" for e in self.evidence_for) or "- (none)"
+            ev_against = "\n".join(f"- {e}" for e in self.evidence_against) or "- (none)"
+            stakeholders = ", ".join(self.stakeholders_to_confirm) or "(not specified)"
+            md += (
+                f"## Decision gate — `{self.gate_type or self.action}`\n\n"
+                f"**Evidence FOR the proposed action:**\n{ev_for}\n\n"
+                f"**Evidence AGAINST (blockers for the action):**\n{ev_against}\n\n"
+                f"**Blocker to resolve:** {self.blocker_to_resolve or '(not specified)'}\n\n"
+                f"**Estimated savings if taken:** {self.estimated_savings_if_taken or '(not quantified)'}\n\n"
+                f"**Stakeholders to confirm:** {stakeholders}\n\n"
+            )
+        md += (
             f"_Auto-generated by synth. The strangler planner reads this file "
             f"and honors the action / phase when present._\n"
         )
+        return md
 
 
 @dataclass
@@ -123,6 +274,9 @@ class AppRecipe:
     decision: RefactorDecision | None = None
     inject_legacy_db_schema: bool = False  # if True, generate a SQL dump fixture with 0-FK legacy schema
     inject_god_method_cc: int = 0  # if > 0, emit a god method with ~this cyclomatic complexity
+    multi_robot: MultiRobotPipeline | None = None  # P-019 — present for systems like app-03-bsp
+    exposure: ExposureProfile | None = None  # P-009 — network exposure profile (public/vpn/internal)
+    regional_policies: list[RegionalPolicy] = field(default_factory=list)  # P-014 — per-region business rules
 
     @property
     def all_languages(self) -> list[str]:
@@ -281,6 +435,36 @@ class GovernanceProfile:
 
 
 @dataclass
+class LegalRisk:
+    """Legal-risk profile — P-020 / Gap R (2026-04-13).
+
+    Captures NDA status, contract coverage, and renewal requirements.
+    H-160 revealed the platform-vendor NDA may be expired since 2016
+    (signed 2013-08-18, no evidence of renewal). This matters because
+    the modernization implies transferring source code, credentials and
+    data between parties — without a valid NDA, that transfer carries
+    direct legal exposure.
+
+    Combined with H-159 (40% of facturación without contract, $3.4M of
+    uncovered spend), the legal surface is non-trivial and should
+    factor into phase gating decisions.
+    """
+
+    nda_signed_date: str = ""                    # ISO date of most recent NDA signature
+    nda_status: str = "current"                  # "current" | "possibly-expired" | "expired" | "missing"
+    nda_renewal_required: bool = False           # True if renewal required before transfer
+    nda_notes: str = ""
+    contract_coverage_pct: float = 100.0         # % of spend covered by formal contract
+    uncovered_spend_usd: float = 0.0             # absolute $ without coverage
+    paraguas_contract_name: str = ""             # umbrella contract name
+    paraguas_contract_signed_year: int = 0       # age measured for renewal planning
+
+    def blocks_sensitive_transfer(self) -> bool:
+        """True when NDA status requires escalation before transfer."""
+        return self.nda_status in ("possibly-expired", "expired", "missing")
+
+
+@dataclass
 class CommercialRiskProfile:
     """Tenant-wide commercial risk metadata.
 
@@ -296,6 +480,8 @@ class CommercialRiskProfile:
     contract_gap_pct: float = 0.0  # tenant-wide % of spend without contract coverage
     total_exposure_usd: float = 0.0  # sum of penalty caps
     narrative: str = ""
+    # P-020 / Gap R (2026-04-13) — legal posture (NDA + contract coverage).
+    legal_risk: LegalRisk | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -304,6 +490,7 @@ class CommercialRiskProfile:
             "contract_gap_pct": self.contract_gap_pct,
             "total_exposure_usd": self.total_exposure_usd,
             "narrative": self.narrative,
+            "legal_risk": asdict(self.legal_risk) if self.legal_risk else None,
         }
 
 
@@ -333,6 +520,28 @@ class PlatformVendor:
 
 
 @dataclass
+class EdgeSecurity:
+    """Edge-security profile for public-facing apps (P-011 / Gap N).
+
+    Captures corporate WAF + geo-blocking + pattern rules that sit in
+    front of public portals (e.g., ``app-03-arc``). Used by Mythos
+    calibration to downgrade effective severity when a vulnerability
+    is already blocked at the edge (e.g., XSS with a WAF → effective
+    severity high, not critical).
+
+    Sourced from H-119 (workshop platform-vendor 2026-04-13 W2):
+    WAF blocks Rusia/Corea del Sur + SQLi/XSS patterns + rate-limiting.
+    """
+
+    waf_present: bool = False
+    waf_provider: str = "none"             # "corporate" | "aws-waf" | "cloudflare" | "none"
+    geo_blocking: list[str] = field(default_factory=list)  # ISO country codes, e.g. ["RU", "KP"]
+    pattern_rules: list[str] = field(default_factory=list)  # e.g., ["sqli", "xss", "rate-limit"]
+    scan_cadence: str = "none"             # "continuous" | "periodic" | "on-demand" | "none"
+    remediation_channel: str = "none"      # "bidirectional-informal" | "formal-tickets" | "none"
+
+
+@dataclass
 class InfrastructureRisk:
     """Tenant-wide infrastructure risk factors.
 
@@ -349,6 +558,111 @@ class InfrastructureRisk:
     environments_on_same_server: bool = False  # True = Dev/QA/Prod on same instance
     redundancy_type: str = "none"          # "none" | "active-passive" | "cloud-native"
     capacity_planning_freq: str = "annual"
+
+    # P-011 (2026-04-13) — edge security layer (WAF, geo-blocking).
+    # Optional: when present, Mythos calibration uses it to downgrade
+    # effective severity of findings that the WAF already blocks.
+    edge_security: EdgeSecurity | None = None
+
+
+@dataclass
+class ExposureProfile:
+    """Network-exposure profile for an application (P-009 / Gap N).
+
+    Captures how a recipe is reachable from the outside world and what
+    auth layers stand between the Internet and the app. Used by:
+
+    - ``mythos-scanner`` calibration (public-internet + WAF → partial
+      mitigation of XSS/SQLi findings)
+    - ``strangler_planner`` phase risk scoring (public-internet apps
+      get higher-risk phases up front)
+
+    Sourced from workshop 2026-04-13 W1/W2:
+
+    - ``app-03-arc``: public-internet portal in e-commerce cliente, has
+      double back-end (public + internal-VPN), WAF edge_protection.
+    - ``app-03-special``: private-vpn only, 81 users, 2FA.
+    - ``app-01 (sicofav)``: aws-private (VPC), 5-6 users via VPN + 2FA.
+    """
+
+    surface: str = "internal-only"         # "public-internet" | "private-vpn" | "internal-only"
+    dual_backend: bool = False             # True if public + internal-VPN back-ends (H-029)
+    auth_layers: list[str] = field(default_factory=list)  # ["vpn", "2fa", "ip-whitelist", "sso"]
+    edge_protection: str = "none"          # "waf" | "api-gateway" | "none"
+    geo_restrictions: list[str] = field(default_factory=list)  # ISO country codes blocked
+    user_count: int = 0                    # approximate authorized user pool
+    mfa_required: bool = False
+
+
+@dataclass
+class RegionalPolicy:
+    """Policy-by-region pattern (P-014 / Gap O).
+
+    Models business rules that vary by jurisdiction — observed across
+    Reembolsos flows (Brazil / Russia / north-south exceptions), Facturas
+    Electrónicas (tax jurisdictions) and Medios de Pago (correspondents
+    per country).
+
+    Sourced from H-142 (workshop W1 + OBS3, reembolsos per-country rules)
+    and BSPLink which operates under IATA rules per country.
+
+    The ``externalization`` field drives refactoring recommendations:
+
+    - ``hardcoded`` → recommend moving rules out of code (blocks expansion)
+    - ``config-file`` → acceptable but not audit-friendly
+    - ``rules-engine`` → target state
+    - ``external-service`` → best for policy-heavy apps
+    """
+
+    region_scope: str = "country"           # "country" | "zone" | "iata-area"
+    regions: list[str] = field(default_factory=list)  # ISO codes or region tags
+    policy_type: str = ""                   # "refund-rules" | "tax-rules" | "payment-rules" | ...
+    externalization: str = "unknown"        # "hardcoded" | "config-file" | "rules-engine" | "external-service" | "unknown"
+    owner: str = ""                         # team/role responsible for rule updates
+
+    def refactor_recommendation(self) -> str:
+        """Concrete recommendation based on current externalization."""
+        if self.externalization == "hardcoded":
+            return (
+                "Extract regional rules to external configuration. "
+                "Hardcoded rules block expansion (adding a country = redeploy)."
+            )
+        if self.externalization == "config-file":
+            return (
+                "Move from config files to a versioned rules engine so "
+                "changes are auditable and testable independently of deploys."
+            )
+        if self.externalization == "rules-engine":
+            return "Target state reached — no change recommended."
+        if self.externalization == "external-service":
+            return "Target state reached — monitor service availability."
+        return "Determine current externalization before recommending changes."
+
+
+@dataclass
+class SecretManagement:
+    """Secret management posture for a tenant (P-010 / Gap M).
+
+    Models HOW an app (or the tenant as a whole) handles credentials at
+    runtime. This is critical for Mythos calibration: ``vault``-backed
+    apps that inject secrets as runtime env vars should NOT be flagged
+    as "credentials hardcoded" just because env vars appear in the
+    code.
+
+    Sourced from H-118 (platform-vendor arq. L.R., workshop 2026-04-13 W2):
+    platform-vendor uses HashiCorp Vault on-premise under the internal
+    alias "Bolt". Runtime hash → env var injection, per-app scope,
+    manual rotation for DB creds, external users rotated.
+    """
+
+    product: str = "env-vars"              # "hashicorp-vault" | "aws-secrets-manager" | "azure-keyvault" | "env-vars" | "config-files"
+    internal_alias: str = ""               # "Bolt" for platform-vendor's HashiCorp Vault
+    scope: str = "per-app"                 # "per-app" | "shared-vault" | "none"
+    rotation_policy: str = "manual"        # "automatic" | "manual" | "none"
+    hash_based_injection: bool = False     # True for Vault (runtime hash → env var)
+    on_premise: bool = False
+    rotates_users: bool = False            # external users rotated (workshop W2)
+    rotates_db_creds: bool = False         # DB credentials rotation policy
 
 
 @dataclass
@@ -459,6 +773,10 @@ class TenantProfile:
     modernization_program: ModernizationProgram | None = None
     orchestration_model: str = "unknown"  # "none" | "manual" | "semi-auto" | "fully-orchestrated"
     third_party_deps: list[ThirdPartyDep] = field(default_factory=list)
+    # P-010 / Gap M (2026-04-13) — secret management posture (Bolt/Vault).
+    # Optional: when present, Mythos calibration uses it to avoid flagging
+    # env vars injected by Vault as "hardcoded credentials".
+    secret_management: SecretManagement | None = None
     # Phase B scaffolding — non-scope apps emitted as discovery-
     # pending stubs only. These count toward ``total_apps`` but NOT
     # toward ``total_loc`` or ``total_vulnerabilities``.
@@ -511,17 +829,39 @@ def load_profile(path: str | Path) -> TenantProfile:
             pii_leak=vuln_raw.get("pii_leak", 0),
             suppressed_exceptions=vuln_raw.get("suppressed_exceptions", 0),
         )
-        sub_projects = [
-            SubProject(
+        sub_projects = []
+        for sp in raw_app.get("sub_projects", []):
+            op_raw = sp.get("operational")
+            operational = None
+            if op_raw:
+                windows = [
+                    OperationalWindow(
+                        start=str(w.get("start", "")),
+                        end=str(w.get("end", "")),
+                        region=str(w.get("region", "")),
+                    )
+                    for w in (op_raw.get("operational_windows") or [])
+                    if isinstance(w, dict)
+                ]
+                operational = OperationalProfile(
+                    user_count=int(op_raw.get("user_count", 0) or 0),
+                    user_roles=list(op_raw.get("user_roles") or []),
+                    daily_request_volume=int(op_raw.get("daily_request_volume", 0) or 0),
+                    historical_volume=int(op_raw.get("historical_volume", 0) or 0),
+                    operational_windows=windows,
+                    vpn_required=bool(op_raw.get("vpn_required", False)),
+                    mfa_required=bool(op_raw.get("mfa_required", False)),
+                    planned_integrations=list(op_raw.get("planned_integrations") or []),
+                )
+            sub_projects.append(SubProject(
                 name=sp["name"],
                 language=sp["language"],
                 loc_share=sp.get("loc_share", 1.0),
                 vuln_share=sp.get("vuln_share", 1.0),
                 modules=sp.get("modules", 6),
                 has_rpa=sp.get("has_rpa", False),
-            )
-            for sp in raw_app.get("sub_projects", [])
-        ]
+                operational=operational,
+            ))
         decision_raw = raw_app.get("decision")
         decision = None
         if decision_raw:
@@ -531,7 +871,52 @@ def load_profile(path: str | Path) -> TenantProfile:
                 rationale=decision_raw.get("rationale", ""),
                 validation_checklist=decision_raw.get("validation_checklist", []),
                 blockers=decision_raw.get("blockers", []),
+                gate_type=str(decision_raw.get("gate_type", "")),
+                evidence_for=list(decision_raw.get("evidence_for") or []),
+                evidence_against=list(decision_raw.get("evidence_against") or []),
+                blocker_to_resolve=str(decision_raw.get("blocker_to_resolve", "")),
+                estimated_savings_if_taken=str(decision_raw.get("estimated_savings_if_taken", "")),
+                stakeholders_to_confirm=list(decision_raw.get("stakeholders_to_confirm") or []),
             )
+        mr_raw = raw_app.get("multi_robot")
+        multi_robot = None
+        if mr_raw:
+            multi_robot = MultiRobotPipeline(
+                robot_count=int(mr_raw.get("robot_count", 1) or 1),
+                coordination=str(mr_raw.get("coordination", "none")),
+                stages=list(mr_raw.get("stages") or []),
+                compensation_transactions=bool(
+                    mr_raw.get("compensation_transactions", False)
+                ),
+                failure_detection=str(mr_raw.get("failure_detection", "none")),
+                scraping_based=bool(mr_raw.get("scraping_based", False)),
+                upstream_ui_owner=str(mr_raw.get("upstream_ui_owner", "")),
+                broker_location=str(mr_raw.get("broker_location", "")),
+                schedule=str(mr_raw.get("schedule", "")),
+            )
+        exp_raw = raw_app.get("exposure")
+        exposure = None
+        if exp_raw:
+            exposure = ExposureProfile(
+                surface=str(exp_raw.get("surface", "internal-only")),
+                dual_backend=bool(exp_raw.get("dual_backend", False)),
+                auth_layers=list(exp_raw.get("auth_layers") or []),
+                edge_protection=str(exp_raw.get("edge_protection", "none")),
+                geo_restrictions=list(exp_raw.get("geo_restrictions") or []),
+                user_count=int(exp_raw.get("user_count", 0) or 0),
+                mfa_required=bool(exp_raw.get("mfa_required", False)),
+            )
+        regional_policies: list[RegionalPolicy] = []
+        for rp_raw in (raw_app.get("regional_policies") or []):
+            if not isinstance(rp_raw, dict):
+                continue
+            regional_policies.append(RegionalPolicy(
+                region_scope=str(rp_raw.get("region_scope", "country")),
+                regions=list(rp_raw.get("regions") or []),
+                policy_type=str(rp_raw.get("policy_type", "")),
+                externalization=str(rp_raw.get("externalization", "unknown")),
+                owner=str(rp_raw.get("owner", "")),
+            ))
         apps.append(
             AppRecipe(
                 codename=raw_app["codename"],
@@ -550,6 +935,9 @@ def load_profile(path: str | Path) -> TenantProfile:
                 decision=decision,
                 inject_legacy_db_schema=raw_app.get("inject_legacy_db_schema", False),
                 inject_god_method_cc=raw_app.get("inject_god_method_cc", 0),
+                multi_robot=multi_robot,
+                exposure=exposure,
+                regional_policies=regional_policies,
             )
         )
 
@@ -585,10 +973,24 @@ def load_profile(path: str | Path) -> TenantProfile:
     commercial_risk = None
     raw_cr = raw.get("commercial_risk")
     if raw_cr:
+        raw_lr = raw_cr.get("legal_risk")
+        legal_risk = None
+        if raw_lr:
+            legal_risk = LegalRisk(
+                nda_signed_date=str(raw_lr.get("nda_signed_date", "")),
+                nda_status=str(raw_lr.get("nda_status", "current")),
+                nda_renewal_required=bool(raw_lr.get("nda_renewal_required", False)),
+                nda_notes=str(raw_lr.get("nda_notes", "")),
+                contract_coverage_pct=float(raw_lr.get("contract_coverage_pct", 100.0) or 100.0),
+                uncovered_spend_usd=float(raw_lr.get("uncovered_spend_usd", 0.0) or 0.0),
+                paraguas_contract_name=str(raw_lr.get("paraguas_contract_name", "")),
+                paraguas_contract_signed_year=int(raw_lr.get("paraguas_contract_signed_year", 0) or 0),
+            )
         commercial_risk = CommercialRiskProfile(
             contract_gap_pct=raw_cr.get("contract_gap_pct", 0.0),
             total_exposure_usd=raw_cr.get("total_exposure_usd", 0.0),
             narrative=raw_cr.get("narrative", ""),
+            legal_risk=legal_risk,
             vendors=[
                 VendorDependency(
                     name=v["name"],
@@ -698,6 +1100,17 @@ def load_profile(path: str | Path) -> TenantProfile:
     infrastructure_risk = None
     raw_ir = raw.get("infrastructure_risk")
     if raw_ir:
+        raw_es = raw_ir.get("edge_security")
+        edge_security = None
+        if raw_es:
+            edge_security = EdgeSecurity(
+                waf_present=bool(raw_es.get("waf_present", False)),
+                waf_provider=str(raw_es.get("waf_provider", "none")),
+                geo_blocking=list(raw_es.get("geo_blocking") or []),
+                pattern_rules=list(raw_es.get("pattern_rules") or []),
+                scan_cadence=str(raw_es.get("scan_cadence", "none")),
+                remediation_channel=str(raw_es.get("remediation_channel", "none")),
+            )
         infrastructure_risk = InfrastructureRisk(
             orchestrator=raw_ir.get("orchestrator", "none"),
             blueprint_exists=raw_ir.get("blueprint_exists", True),
@@ -706,6 +1119,21 @@ def load_profile(path: str | Path) -> TenantProfile:
             environments_on_same_server=raw_ir.get("environments_on_same_server", False),
             redundancy_type=raw_ir.get("redundancy_type", "none"),
             capacity_planning_freq=raw_ir.get("capacity_planning_freq", "annual"),
+            edge_security=edge_security,
+        )
+
+    secret_management = None
+    raw_sm = raw.get("secret_management")
+    if raw_sm:
+        secret_management = SecretManagement(
+            product=str(raw_sm.get("product", "env-vars")),
+            internal_alias=str(raw_sm.get("internal_alias", "")),
+            scope=str(raw_sm.get("scope", "per-app")),
+            rotation_policy=str(raw_sm.get("rotation_policy", "manual")),
+            hash_based_injection=bool(raw_sm.get("hash_based_injection", False)),
+            on_premise=bool(raw_sm.get("on_premise", False)),
+            rotates_users=bool(raw_sm.get("rotates_users", False)),
+            rotates_db_creds=bool(raw_sm.get("rotates_db_creds", False)),
         )
 
     modernization_program = None
@@ -747,5 +1175,6 @@ def load_profile(path: str | Path) -> TenantProfile:
         modernization_program=modernization_program,
         orchestration_model=raw.get("orchestration_model", "unknown"),
         third_party_deps=third_party_deps,
+        secret_management=secret_management,
         non_scope_apps=non_scope_apps,
     )

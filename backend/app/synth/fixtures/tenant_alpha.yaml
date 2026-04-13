@@ -156,6 +156,23 @@ commercial_risk:
     - category: integrity
       cap_usd: 500000
       driver: Annualized loss from data-integrity issues in the reconciliation pipeline.
+  # P-020 / Gap R (2026-04-13) — legal posture.
+  # H-160: NDA signed 2013-08-18, no evidence of renewal. Status flagged
+  # as "possibly-expired" until legal cliente confirms. Combined with
+  # H-159 (40% of facturación sin contrato, $3.4M uncovered, paraguas
+  # contract from 2013) this carries real legal surface during modernization.
+  legal_risk:
+    nda_signed_date: "2013-08-18"
+    nda_status: "possibly-expired"
+    nda_renewal_required: true
+    nda_notes: >
+      NDA firmado hace ~13 años, sin evidencia de renovación. Requiere
+      validación legal cliente antes de cualquier transferencia de
+      código, credenciales o data durante la modernización.
+    contract_coverage_pct: 60.0
+    uncovered_spend_usd: 3400000
+    paraguas_contract_name: "Consultoria 05072013"
+    paraguas_contract_signed_year: 2013
 
 # ─── Governance profile (Batch 3 follow-up) ───────────────────────────────
 # Organizational structure of the modernization program: steering
@@ -259,6 +276,16 @@ apps:
         - Stored procedures 67→20 via consolidation
         - Index optimization complete (slow queries 27→10)
         - Test coverage 0%→70% on critical paths
+    # P-009 (2026-04-13) — exposure profile for app-01.
+    # Small internal app (5-6 users), VPN + 2FA. WAF at site layer
+    # (app-01 workshop 2026-04-09 confirmed "WAF activo a nivel sitio").
+    exposure:
+      surface: "private-vpn"
+      dual_backend: false
+      auth_layers: ["vpn", "2fa", "sso"]
+      edge_protection: "waf"
+      user_count: 6
+      mfa_required: true
 
   # ─── app-02: Batch Sales Management ──────────────────────────────────
   # Lowest-risk app in the portfolio — well-documented, fewer findings,
@@ -316,6 +343,15 @@ apps:
         - Legal data endpoint authorization restored
         - Cyclomatic complexity reduced from 45→<15
         - Secrets centralization complete
+    # P-009 (2026-04-13) — exposure profile for app-02.
+    # Batch-oriented internal app, not exposed publicly.
+    exposure:
+      surface: "internal-only"
+      dual_backend: false
+      auth_layers: ["sso"]
+      edge_protection: "none"
+      user_count: 30
+      mfa_required: false
 
   # ─── app-03: Automated Refund Processing ─────────────────────────────
   # Multi-stack refund automation with an INACTIVE database (0% transactions
@@ -349,12 +385,60 @@ apps:
       # Gap B (2026-04-12): Reembolsos Especiales is a SEPARATE flow from
       # the automated refund processing above. Pattern: "modern UI over
       # legacy" (Python+Flask+React OVER praxis-ecosystem Core Cobol).
-      # Zenobio (developer) confirmed Python, NOT .NET as PM stated.
+      # platform-vendor dev (developer) confirmed Python, NOT .NET as PM stated.
       - name: reembolsos-especiales
         language: python
         loc_share: 0.05
         vuln_share: 0.05
         modules: 3
+        # P-012 (2026-04-13) — operational metrics from H-140 (workshop W2).
+        # 81 usuarios internos, ~500 solicitudes/día en 4 ventanas 8am-8pm,
+        # acceso VPN + 2FA obligatorio, plan de interconexión con RAM activo.
+        operational:
+          user_count: 81
+          user_roles:
+            - atencion-clientes
+            - camepa
+            - orden-al-cobro
+            - personal-ingresos
+          daily_request_volume: 500
+          operational_windows:
+            - start: "08:00"
+              end: "11:00"
+              region: MX
+            - start: "11:00"
+              end: "14:00"
+              region: MX
+            - start: "14:00"
+              end: "17:00"
+              region: MX
+            - start: "17:00"
+              end: "20:00"
+              region: MX
+          vpn_required: true
+          mfa_required: true
+          planned_integrations:
+            - ram-refunds
+    # P-019 (2026-04-13) — multi-robot orchestrated pattern.
+    # Models the BSP-style sub-project: 3 robots (download → validate →
+    # respond+status) coordinated via ZMQ broker, Playwright scraping
+    # against IATA BSPLink UI. No compensation transactions → partial
+    # failures leave the pipeline inconsistent. Strangler planner reads
+    # this field and boosts risk + emits refactor recommendations
+    # (health-check, contract tests, compensation).
+    multi_robot:
+      robot_count: 3
+      coordination: zmq-broker
+      stages:
+        - download
+        - validate
+        - respond-and-status-sabre
+      compensation_transactions: false
+      failure_detection: none
+      scraping_based: true
+      upstream_ui_owner: external-iata-bsplink
+      broker_location: on-premise-colocated-with-robots
+      schedule: "every 4h 08:00-20:00"
     databases:
       - engine: sqlite
         tables: 15
@@ -388,6 +472,50 @@ apps:
       blockers:
         - Legacy vendor has veto rights on decommission decisions
         - Business owner contact is ambiguous (no clear RACI)
+      # P-018 / Gap T (2026-04-13) — explicit decision-gate for app-03-arc RETIRE.
+      # H-149 confirms 0% activity since 2023-03. Report Out recommends RETIRE.
+      # Blocker: business owner has not confirmed; must be escalated before
+      # the team commits to retirement vs refactor.
+      gate_type: "retire-vs-refactor"
+      evidence_for:
+        - "0% transactional activity since 2023-03 (Report Out slide 110)"
+        - "Replaced de facto by ram-refunds + riffle in workflow"
+        - "Vendor (audit-vendor) recommends RETIRE"
+      evidence_against:
+        - "Business owner at cliente not yet confirmed (Q3 PARCIAL in workshop PDF)"
+        - "Possible regulatory retention obligations (SOX/PCI/GDPR) unconfirmed"
+      blocker_to_resolve: "Confirm business owner + validate compliance retention requirements"
+      estimated_savings_if_taken: "~4-6 weeks refactor effort avoided + on-premise infra released"
+      stakeholders_to_confirm:
+        - "cliente-business-owner-refunds"
+        - "compliance-office"
+        - "ram-product-owner"
+    # P-009 (2026-04-13) — exposure profile for app-03.
+    # Most exposed sub-project is ARC: public Internet via e-commerce
+    # with double back-end (public + internal-VPN). WAF at the edge
+    # (H-029 + H-119). BSP is internal (against YATA), Especiales is
+    # VPN-only. This block represents the outermost exposure of the
+    # recipe (the ARC sub-project).
+    exposure:
+      surface: "public-internet"
+      dual_backend: true
+      auth_layers: ["vpn"]           # for the internal back-end
+      edge_protection: "waf"
+      geo_restrictions: ["RU", "KP"]
+      user_count: 0                  # public portal — no fixed user pool
+      mfa_required: false
+    # P-014 / Gap O (2026-04-13) — regional policies.
+    # H-142 + workshop W1 confirmed refund rules vary per country (BR, RU,
+    # north-south exceptions). Externalization of these rules is NOT yet
+    # confirmed (Q B04 pending in workshop PDF). Modeled as "unknown"
+    # until platform-vendor clarifies whether they are hardcoded, in
+    # config files, or in a rules engine.
+    regional_policies:
+      - region_scope: "country"
+        regions: ["BR", "RU", "US", "MX"]
+        policy_type: "refund-rules"
+        externalization: "unknown"   # pending workshop Q B04
+        owner: "platform-vendor-refunds"
 
   # ─── app-04: Document Batch Ingestion ────────────────────────────────
   # NOT yet analyzed by the vendor assessment. Discovery phase required
@@ -427,6 +555,15 @@ apps:
       blockers:
         - External integration has no known test/sandbox environment
         - SMEs for the legacy document pipeline are scattered across teams
+    # P-009 (2026-04-13) — exposure profile for app-04.
+    # Document batch ingestion, internal-only scheduled job.
+    exposure:
+      surface: "internal-only"
+      dual_backend: false
+      auth_layers: ["sso"]
+      edge_protection: "none"
+      user_count: 10
+      mfa_required: false
 
   # ─── app-05: Commission Engine (the shared legacy nexus) ─────────────
   # The hardest case in the portfolio: on-premise, multi-language, multi-DB,
@@ -499,12 +636,22 @@ apps:
       blockers:
         - Shared core classes require sign-off from at least 2 external teams
         - Mainframe infrastructure is on a vendor-managed platform
+    # P-009 (2026-04-13) — exposure profile for app-05.
+    # Core Commission Engine, on-premise AS400 + AWS indirectas,
+    # consumed by multiple internal modules. No public surface.
+    exposure:
+      surface: "internal-only"
+      dual_backend: false
+      auth_layers: ["vpn", "sso"]
+      edge_protection: "none"
+      user_count: 50
+      mfa_required: true
 
 # ─── Discovery-sourced profiles (Gaps D, J, K, P-005 — 2026-04-12) ───────
 #
 # These fields come from the corpus analysis pipeline (90 hallazgos across
 # 31 transcribed discovery meetings). They capture infrastructure, program,
-# and dependency realities that the Softtek Report Out did NOT evaluate
+# and dependency realities that the audit-vendor Report Out did NOT evaluate
 # (which focused on code/vulnerabilities, not operations/governance).
 
 platform_vendor:
@@ -542,6 +689,36 @@ infrastructure_risk:
   environments_on_same_server: true
   redundancy_type: "none"
   capacity_planning_freq: "annual"
+  # P-011 / Gap N (2026-04-13) — edge_security for public-facing apps.
+  # Corporate WAF in front of app-03-arc + app-01, blocks geo + SQLi/XSS.
+  # Sourced from H-119 (workshop platform-vendor W2) + app-01 workshop 2026-04-09.
+  edge_security:
+    waf_present: true
+    waf_provider: "corporate"
+    geo_blocking:                   # ISO country codes explicitly blocked
+      - RU
+      - KP
+    pattern_rules:
+      - sqli
+      - xss
+      - rate-limit
+    scan_cadence: "continuous"      # ciberseguridad cliente escanea permanente
+    remediation_channel: "bidirectional-informal"
+
+# P-010 / Gap M (2026-04-13) — tenant-wide secret management posture.
+# Sourced from H-118 (platform-vendor arq. L.R., workshop W2): HashiCorp Vault on-premise
+# under internal alias "Bolt". Applies to all platform-vendor on-premise apps
+# (app-03-arc, app-03-bsp, app-03-special). app-01 uses encrypted config
+# instead (also captured as a mitigation in Mythos baseline YAML).
+secret_management:
+  product: "hashicorp-vault"
+  internal_alias: "Bolt"
+  scope: "per-app"
+  rotation_policy: "manual"         # workshop W2: rotation exists for users but not DB creds
+  hash_based_injection: true        # runtime hash → env var injection
+  on_premise: true
+  rotates_users: true               # external user credentials rotated
+  rotates_db_creds: false           # DB credentials NOT rotated automatically
 
 modernization_program:
   name: "dynamics"

@@ -1,0 +1,177 @@
+# Tenant-alpha ecosystem health metrics — baseline dataset (P-021)
+#
+# Purpose: quantitative baseline that NexusForge consumes to:
+#   1. Make Report Out simulator produce numbers consistent with a real
+#      ecosystem of this scale (not generic placeholders).
+#   2. Calibrate strangler_planner priority: apps with higher critical
+#      density + higher risk exposure get earlier phases.
+#   3. Validate NexusForge internal tests against a realistic baseline
+#      (behavior should match these shape/scale numbers).
+#
+# Sources (all from eng-partner canonical deliverables 2026-04-13):
+#   - Report Out audit-vendor (168 pages)
+#   - SonarQube CSV dumps (platform-vendor core COBOL)
+#   - Hallazgos_Trazabilidad_5_Apps.xlsx (Ecosistema PRAXIS sheet)
+#   - Panorama_Completo_5_Aplicativos.xlsx (Resumen Ejecutivo sheet)
+#
+# All names are generic codenames per docs/integration/01_agent_mapping.md.
+# This file is committed to the repo; it contains NO real client data.
+
+version: "1.0.0"
+generated: "2026-04-13"
+tenant_id: tenant-alpha
+
+# ── Ecosystem-wide totals ──────────────────────────────────────────────
+ecosystem:
+  total_loc: 5_634_738
+  total_apps: 31
+  total_components: 57
+  total_issues: 189_997           # 166,714 satellite + 23,283 core COBOL
+  satellite_issues: 166_714
+  core_cobol_issues: 23_283
+  critical_issues: 13_547         # 8.1% of satellite issues
+  critical_density_pct: 8.1
+
+  # Structural quality signals (systemic across ecosystem)
+  apps_without_tests: 12
+  apps_without_tests_total: 12    # 12/12 = 100%
+  apps_without_cicd: 11
+  apps_without_cicd_total: 12     # 11/12 = 92%
+  sql_concat_queries: 3_000
+  tables_without_fk_pct: 97.0
+
+  # PII signals
+  pii_items: 25
+  pii_inputs: 318
+  db_growth_monthly_pct: 17.5     # midpoint of observed 15-20% range
+
+# ── Risk exposure (USD) — used by Report Out simulator ────────────────
+risk_exposure_usd:
+  reputational: 13_000_000
+  pii: 5_000_000
+  integrity: 500_000
+  total: 18_500_000
+  basis: "Armor Project business case (Report Out + Risk Matrix v2)"
+
+# ── Commercial profile ────────────────────────────────────────────────
+commercial:
+  platform_vendor_facturacion_usd: 8_662_761
+  contract_coverage_pct: 60.0     # 40% of spend without contract
+  uncovered_spend_usd: 3_400_000
+  invoices_total: 286
+  contracts_total: 23
+  paraguas_contract:
+    name: "Consultoria 05072013"
+    signed_year: 2013
+    age_years: 13
+  bpo_size_min: 50
+  bpo_size_max: 70
+  client_revenue_share_of_vendor_pct: 65.0   # midpoint of 60-70%
+
+# ── Legal signals ──────────────────────────────────────────────────────
+legal:
+  nda:
+    signed_date: "2013-08-18"
+    status: "possibly-expired"
+    renewal_required_before_transfer: true
+    notes: >
+      NDA firmado hace 13 anios, sin evidencia de renovacion. Riesgo
+      legal directo para transferencia de codigo/credenciales durante
+      modernizacion. Requiere validacion legal cliente antes de
+      cualquier movimiento de artefactos sensibles.
+
+# ── Per-app critical density (ranked desc) ─────────────────────────────
+# Used by strangler_planner to decide phase ordering when discovery
+# context is attached. Density = critical_count / total_issues.
+per_app_critical:
+  - app: "app-01"
+    label: "app-01 / Transaction Reconciliation"
+    total_issues: 14
+    critical_issues: 3
+    critical_density_pct: 21.4      # highest proportional density
+    hosting: "aws-platform-vendor"
+    notes: "Small app, 3 CRITICAL (credenciales, acceso, descarga)."
+
+  - app: "app-02"
+    label: "SRG / Batch Sales Management"
+    total_issues: 5
+    critical_issues: 2
+    critical_density_pct: 40.0
+    hosting: "aws"
+
+  - app: "app-03-arc"
+    label: "ARC Public Refunds Portal"
+    total_issues: 13
+    critical_issues: 9               # 92% of ARC findings are security
+    critical_density_pct: 69.2
+    hosting: "on-premise"
+    notes: "Most vulnerable app. 9 CRITICAL confirmed by audit-vendor."
+
+  - app: "app-03-bsp"
+    label: "BSP YATA Refunds Robot"
+    total_issues: 195
+    critical_issues: 4
+    blocker_issues: 6
+    critical_density_pct: 2.1
+    hosting: "conflict-pending"     # AWS vs on-premise contradiction (H-154)
+    notes: "Large volume of issues (~195). 6 BLOCKER incl. Flask debug=True RCE (quick win)."
+
+  - app: "app-04"
+    label: "CFDI Bulk Download"
+    total_issues: 0                 # N/D — only BIA available
+    critical_issues: 0
+    critical_density_pct: 0.0
+    hosting: "on-premise-estimated"
+    notes: "Workshop pending. Only BIA covered."
+
+  - app: "app-05"
+    label: "Commission Engine (Directas + Indirectas)"
+    total_issues: 2_238             # largest by issue count
+    critical_issues: 9
+    high_issues: 7
+    critical_density_pct: 0.4
+    hosting: "hybrid-aws-as400"
+    notes: "161K LOC. ParametersContext god class with CC 50+ shared across 3 modules."
+
+# ── Baseline stack quality (systemic patterns) ────────────────────────
+systemic_patterns:
+  - pattern: "credentials-in-config"
+    prevalence: "8/12"
+    note: "Majority of ecosystem has credentials in web.config or env vars (app-01 is the exception: encrypted)."
+  - pattern: "zero-automated-tests"
+    prevalence: "12/12"
+    note: "100% of ecosystem without automated tests. Manual validation only."
+  - pattern: "no-ci-cd"
+    prevalence: "11/12"
+    note: "Deploy is manual in all but one app."
+  - pattern: "sql-concatenation-sqli-risk"
+    count: 3_000
+    note: "Injection potential systemic across ecosystem."
+  - pattern: "tables-without-fk"
+    prevalence_pct: 97.0
+    note: "No referential integrity at DB layer — integrity checks rest in application code."
+
+# ── Strangler prioritization hints ─────────────────────────────────────
+# Consumed by strangler_planner when this baseline is loaded alongside
+# a DiscoveryIndex. Higher priority_score = earlier phase.
+priority_hints:
+  # (critical_density_pct * 0.3) + (blocker_count * 5) + (risk_tier * 10)
+  # risk_tier: 3=exposed-public, 2=external-API, 1=internal
+  - app: "app-03-bsp"
+    priority_score: 40.6
+    rationale: "6 BLOCKERs + Flask debug RCE quick win + on-premise integration"
+  - app: "app-03-arc"
+    priority_score: 50.8
+    rationale: "9 CRITICAL + public-exposed + WAF partial mitigation"
+  - app: "app-01"
+    priority_score: 26.4
+    rationale: "3 CRITICAL with HIGH proportional density + financial conciliation"
+  - app: "app-05"
+    priority_score: 25.0
+    rationale: "God class cross-cutting 3 modules + 161K LOC"
+  - app: "app-02"
+    priority_score: 22.0
+    rationale: "2 BLOCKER in small codebase"
+  - app: "app-04"
+    priority_score: 10.0
+    rationale: "Low data. Pending workshop."
