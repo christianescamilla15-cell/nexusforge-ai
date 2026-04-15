@@ -533,20 +533,38 @@ class MythosScanner:
                         continue
                     endpoint_count += 1
 
-                    # Check next 15 lines for auth check
+                    # Check next 15 lines for auth check. Recognised
+                    # patterns: helper calls (_get_user_id, _require_*,
+                    # _current_user_id), dependency injection (Depends),
+                    # middleware state access (request.state.user),
+                    # explicit header / token verification, and the
+                    # rate-limit gate (which implicitly calls the auth
+                    # pipeline).
                     block = "\n".join(lines[i:i+15])
                     has_auth = any(p in block for p in [
-                        "_get_user_id", "get_user_id", "request.state.user",
+                        "_get_user_id", "get_user_id",
+                        "_require_admin", "_require_owner", "_require_auth",
+                        "_get_current_user", "_current_user_id",
+                        "require_admin", "require_owner",
+                        "request.state.user",
                         "verify_token", "Depends(", "check_rate_limit",
                         "Authorization",
                     ])
 
                     if not has_auth:
+                        # Include the endpoint signature in the description so
+                        # baseline calibration can match by route path (e.g.
+                        # "/showcase", "/health", "/examples") as well as by
+                        # file path.
+                        ep_line = line.strip()
                         self.findings.append(Finding(
                             severity="high",
                             category="auth",
                             title="Endpoint without auth check",
-                            description=f"Endpoint at line {i} has no visible auth verification",
+                            description=(
+                                f"Endpoint at line {i} has no visible auth "
+                                f"verification. Decorator: {ep_line}"
+                            ),
                             file_path=rel,
                             line_number=i,
                             remediation="Add _get_user_id(request) or auth dependency",

@@ -140,6 +140,68 @@ findings:
     note: "Documentation comment describing the pattern the fixer detects"
     source: "self-scan triage v3 2026-04-13"
 
+  # ── FP: public-by-design endpoints (health / metrics / showcase) ─────
+  # Paths that are intentionally unauthenticated:
+  # - /health endpoints are probed by Render for liveness
+  # - /metrics is scraped by Prometheus
+  # - /refactor/showcase/* is the public tenant-alpha demo
+  # - /examples endpoints serve canned sample data
+  # - auth.py login endpoint is pre-auth by definition
+  - id: "fp-public-health-endpoints"
+    app: "nexusforge"
+    category: "auth"
+    cwe: "CWE-862"
+    pattern_match: ["routes\\health.py", "routes/health.py"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "/health endpoints are public liveness probes for Render"
+    source: "self-scan triage batch 3 2026-04-13"
+
+  - id: "fp-public-metrics-endpoints"
+    app: "nexusforge"
+    category: "auth"
+    cwe: "CWE-862"
+    pattern_match: ["routes\\metrics.py", "routes/metrics.py"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "/metrics is scraped by Prometheus — must be public"
+    source: "self-scan triage batch 3 2026-04-13"
+
+  - id: "fp-public-showcase-endpoints"
+    app: "nexusforge"
+    category: "auth"
+    cwe: "CWE-862"
+    pattern_match: ["/showcase", "showcase/{tenant_id}"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "/refactor/showcase/* is the public tenant-alpha demo dashboard"
+    source: "self-scan triage batch 3 2026-04-13"
+
+  - id: "fp-public-examples-health-subroutes"
+    app: "nexusforge"
+    category: "auth"
+    cwe: "CWE-862"
+    pattern_match: ["/examples", "/health", "/status"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "Sample data / health / status endpoints are intentionally public"
+    source: "self-scan triage batch 3 2026-04-13"
+
+  - id: "fp-login-endpoint-pre-auth"
+    app: "nexusforge"
+    category: "auth"
+    cwe: "CWE-862"
+    pattern_match: ["routes\\auth.py", "routes/auth.py"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "Login / OAuth callback endpoints are pre-auth by definition"
+    source: "self-scan triage batch 3 2026-04-13"
+
 # ── Ecosystem context (NexusForge itself) ─────────────────────────────
 ecosystem_context:
   stack: "Python 3.12 + FastAPI + React 18 + Vite 8 + Postgres 16"
