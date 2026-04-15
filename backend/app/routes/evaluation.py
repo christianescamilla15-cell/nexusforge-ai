@@ -5,8 +5,9 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
+from app.auth.rate_limit import check_rate_limit
 from app.db.client import get_db_pool
 
 router = APIRouter(prefix="/evaluation", tags=["Evaluation"])
@@ -98,7 +99,7 @@ async def create_scenario(
 
 
 @router.post("/run")
-async def run_evaluation(scenario_name: str | None = None):
+async def run_evaluation(request: Request, scenario_name: str | None = None):
     """Execute evaluation scenarios and persist results.
 
     If *scenario_name* is provided, only that scenario is evaluated.
@@ -109,6 +110,7 @@ async def run_evaluation(scenario_name: str | None = None):
     2. Records basic timing metrics in ``evaluation_metrics``.
     3. Finalises the run row with status ``completed`` (or ``failed``).
     """
+    await check_rate_limit(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:

@@ -1,17 +1,19 @@
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from ..use_cases.portfolio_copilot.schemas import PortfolioCopilotInput, PortfolioCopilotFinalOutput
 from ..use_cases.portfolio_copilot.workflow import run_portfolio_copilot_workflow
 from ..use_cases.portfolio_copilot.services import load_interview_questions
 from ..integrations.email.notify import notify_workflow_complete
 from ..utils.run_tracker import start_run, record_step, complete_run
+from ..auth.rate_limit import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/portfolio-copilot", tags=["Portfolio Copilot"])
 
 @router.post("/run", response_model=PortfolioCopilotFinalOutput)
-async def run_portfolio_copilot(request: PortfolioCopilotInput):
+async def run_portfolio_copilot(request: PortfolioCopilotInput, http_request: Request):
+    await check_rate_limit(http_request)
     # Start tracking in workflow_runs
     run_id = None
     try:

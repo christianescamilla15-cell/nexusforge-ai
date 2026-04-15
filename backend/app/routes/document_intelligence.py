@@ -1,17 +1,19 @@
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from ..use_cases.document_intelligence.schemas import DocumentIntelligenceInput, DocumentIntelligenceFinalOutput
 from ..use_cases.document_intelligence.workflow import run_document_intelligence_workflow
 from ..use_cases.document_intelligence.services import load_sample_documents
 from ..integrations.email.notify import notify_workflow_complete
 from ..utils.run_tracker import start_run, record_step, complete_run
+from ..auth.rate_limit import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/document-intelligence", tags=["Document Intelligence"])
 
 @router.post("/run", response_model=DocumentIntelligenceFinalOutput)
-async def run_document_workflow(request: DocumentIntelligenceInput):
+async def run_document_workflow(request: DocumentIntelligenceInput, http_request: Request):
+    await check_rate_limit(http_request)
     # Start tracking in workflow_runs
     run_id = None
     try:

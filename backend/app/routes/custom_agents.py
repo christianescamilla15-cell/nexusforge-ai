@@ -104,6 +104,8 @@ async def list_agents(request: Request):
 @router.post("/{agent_id}/execute")
 async def execute_agent(agent_id: str, req: ExecuteAgentRequest, request: Request):
     """Execute a custom agent."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     user_id = _get_user_id(request)
 
     pool = await get_db_pool()

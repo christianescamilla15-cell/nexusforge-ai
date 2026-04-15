@@ -56,8 +56,12 @@ async def execute_swarm(req: SwarmExecuteRequest, request: Request):
     _get_user_id(request)  # require auth
     try:
         swarm = get_swarm(req.topology)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        logger.info("Swarm execute: unknown topology %r", req.topology)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown swarm topology: {req.topology!r}",
+        )
 
     if not req.agent_types:
         raise HTTPException(status_code=400, detail="agent_types must not be empty")

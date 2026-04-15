@@ -25,6 +25,8 @@ def _get_user_id(req: Request) -> str:
 @router.post("/process", response_model=OperationsResponse)
 async def process_operations_request(request: OperationsRequest, req: Request):
     """Process an enterprise operations request through the 8-agent workflow."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(req)
     user_id = _get_user_id(req)
 
     # Start tracking in workflow_runs

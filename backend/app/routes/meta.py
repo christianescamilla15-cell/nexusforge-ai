@@ -48,10 +48,13 @@ class OptimizeRequest(BaseModel):
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/pipeline")
-async def run_pipeline(body: PipelineRequest):
+async def run_pipeline(body: PipelineRequest, request: Request):
     """Run a multi-phase LLM pipeline (THINK → BUILD → VERIFY → DOCUMENT)."""
+    from app.auth.rate_limit import check_rate_limit
     from app.meta.pipeline import get_pipeline
     from app.meta.schemas import PipelinePhase
+
+    await check_rate_limit(request)
 
     phase_map = {p.value: p for p in PipelinePhase}
     phases = [phase_map[p] for p in body.phases if p in phase_map]

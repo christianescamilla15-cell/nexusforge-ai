@@ -70,9 +70,10 @@ async def ingest_repo(body: IngestRequest, request: Request):
     try:
         graph = await engine.ingest(body.path, body.name)
         return graph.to_dict()
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as exc:
+    except FileNotFoundError:
+        logger.info("Ingestion: path not found %s", body.path)
+        raise HTTPException(status_code=404, detail="Repository path not found")
+    except Exception:
         logger.exception("Ingestion failed")
         raise HTTPException(status_code=500, detail="Ingestion failed")
 
@@ -541,8 +542,12 @@ async def generate_compliance_middleware_endpoint(
             out_dir=_Path(body.out_dir),
             target=body.target,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except ValueError:
+        logger.warning("Compliance middleware: invalid request", exc_info=True)
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid compliance middleware request",
+        )
     return result.to_dict()
 
 

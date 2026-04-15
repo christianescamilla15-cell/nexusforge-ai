@@ -94,6 +94,8 @@ async def agent_recommendations(request: Request, workflow: str = ""):
 
 @router.post("/refresh")
 async def refresh_performance(request: Request):
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     _get_user_id(request)
     refresh_agent_performance()
     agents = get_agent_performance()
