@@ -202,6 +202,76 @@ findings:
     note: "Login / OAuth callback endpoints are pre-auth by definition"
     source: "self-scan triage batch 3 2026-04-13"
 
+  # ── Accepted-risk: JWT design decisions ──────────────────────────────
+  # HS256 symmetric signing is fine for single-issuer apps (we are the
+  # only issuer + verifier). RS256 migration is tracked but not urgent.
+  - id: "ar-jwt-hs256-symmetric"
+    app: "nexusforge"
+    category: "crypto"
+    cwe: "CWE-327"
+    pattern_match: ["HS256", "symmetric signing"]
+    severity: "medium"
+    effective_severity: "info"
+    remediation_status: "accepted-risk"
+    note: "Single-issuer setup — RS256 migration tracked but not urgent"
+    source: "self-scan triage batch 4 2026-04-13"
+
+  # No refresh tokens — app is a short-session tool, JWT expiry + re-auth
+  # is acceptable UX. Will revisit if long-running sessions become common.
+  - id: "ar-no-refresh-token"
+    app: "nexusforge"
+    category: "crypto"
+    cwe: "CWE-613"
+    pattern_match: ["No refresh token"]
+    severity: "medium"
+    effective_severity: "info"
+    remediation_status: "accepted-risk"
+    note: "Short-session app — JWT expiry + re-auth is the current UX contract"
+    source: "self-scan triage batch 4 2026-04-13"
+
+  # ── Accepted-risk: localStorage for auth token ───────────────────────
+  # Convenience > httpOnly cookie trade-off. The scanner correctly warns
+  # but we knowingly accept the XSS token-theft exposure.
+  - id: "ar-localstorage-auth-token"
+    app: "nexusforge"
+    category: "data"
+    cwe: "CWE-922"
+    pattern_match: ["localStorage", "Auth token stored"]
+    severity: "low"
+    effective_severity: "info"
+    remediation_status: "accepted-risk"
+    note: "Tradeoff: localStorage convenience vs httpOnly-cookie XSS safety"
+    source: "self-scan triage batch 4 2026-04-13"
+
+  # ── Info: Fernet encryption upgrade log from prior refactor ──────────
+  - id: "info-fernet-upgrade-log"
+    app: "nexusforge"
+    category: "crypto"
+    pattern_match: ["API key encryption upgraded to Fernet"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "One-line log marker — the Fernet migration is already complete"
+    source: "self-scan triage batch 4 2026-04-13"
+
+  # ── Accepted-risk: renderMarkdown with escapeHtml + whitelist ────────
+  # TenantShowcase.jsx uses dangerouslySetInnerHTML to render Report Out
+  # markdown. The input is trusted (backend-generated) AND passed through
+  # escapeHtml() before inline-markdown substitutions that re-introduce
+  # only a small whitelist of tags (<code>, <strong>, <em>, <h1>-<h3>,
+  # <ul>/<li>, <table>). Defense-in-depth: even a bad actor who could
+  # inject into the Report Out would get entity-escaped output.
+  - id: "ar-tenant-showcase-rendermarkdown"
+    app: "nexusforge"
+    category: "injection"
+    cwe: "CWE-79"
+    pattern_match: ["TenantShowcase", "renderMarkdown"]
+    severity: "high"
+    effective_severity: "info"
+    remediation_status: "accepted-risk"
+    note: "renderMarkdown runs escapeHtml before inline markdown tokens — scanner flags the API use, not a real injection"
+    source: "self-scan triage batch 4 2026-04-13"
+
 # ── Ecosystem context (NexusForge itself) ─────────────────────────────
 ecosystem_context:
   stack: "Python 3.12 + FastAPI + React 18 + Vite 8 + Postgres 16"

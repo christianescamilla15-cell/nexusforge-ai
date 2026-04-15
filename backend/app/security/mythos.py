@@ -641,7 +641,8 @@ class MythosScanner:
             except Exception:
                 pass
 
-        # Frontend: XSS
+        # Frontend: XSS — skip comment lines and safe patterns
+        # ("innerHTML = ''" / "innerHTML = \"\"" just CLEAR, no injection)
         for fpath in self.frontend.rglob("*.jsx"):
             if "node_modules" in str(fpath):
                 continue
@@ -652,18 +653,35 @@ class MythosScanner:
             try:
                 content = fpath.read_text(encoding="utf-8", errors="ignore")
                 for line_num, line in enumerate(content.splitlines(), 1):
+                    stripped = line.strip()
+
+                    # Skip single-line comments (// ...) and JSX block starts.
+                    # Matches the common JS/JSX comment styles but leaves
+                    # real code (including lines with inline comments) intact.
+                    if stripped.startswith("//") or stripped.startswith("*"):
+                        continue
+
                     for pattern, desc in self._XSS_PATTERNS:
-                        if re.search(pattern, line):
-                            self.findings.append(Finding(
-                                severity="high",
-                                category="injection",
-                                title=desc,
-                                description=f"Line: {line.strip()[:100]}",
-                                file_path=rel,
-                                line_number=line_num,
-                                remediation="Sanitize input or use React's default text escaping",
-                                cwe="CWE-79",
-                            ))
+                        if not re.search(pattern, line):
+                            continue
+
+                        # innerHTML = '' / "" / `` is a clear, not an injection.
+                        if re.search(
+                            r"\.innerHTML\s*=\s*(?:''|\"\"|``)\s*(?:;|$|//)",
+                            line,
+                        ):
+                            continue
+
+                        self.findings.append(Finding(
+                            severity="high",
+                            category="injection",
+                            title=desc,
+                            description=f"Line: {line.strip()[:100]}",
+                            file_path=rel,
+                            line_number=line_num,
+                            remediation="Sanitize input or use React's default text escaping",
+                            cwe="CWE-79",
+                        ))
             except Exception:
                 pass
 
@@ -831,9 +849,33 @@ class MythosScanner:
             try:
                 content = fpath.read_text(encoding="utf-8", errors="ignore")
                 for line_num, line in enumerate(content.splitlines(), 1):
-                    # Logging sensitive data
-                    if re.search(r'log.*\.(info|debug|warning|error).*(?:password|secret|token|api_key)', line, re.IGNORECASE):
-                        if "mask" not in line.lower() and "redact" not in line.lower():
+                    # Logging sensitive data — flag only when a sensitive
+                    # keyword appears AND the line looks like it actually
+                    # logs the value (format placeholder / fstring / concat)
+                    # AND no safe-context indicator suggests the value is
+                    # already masked or the keyword is part of a message
+                    # literal (config name, exception class, status code).
+                    lowered = line.lower()
+                    if re.search(
+                        r'log.*\.(info|debug|warning|error).*(?:password|secret|token|api_key)',
+                        line, re.IGNORECASE,
+                    ):
+                        has_placeholder = any(p in line for p in ("%s", "%r", "%d", "{}"))
+                        is_fstring = re.search(r'f["\']', line) is not None
+                        logs_value = has_placeholder or is_fstring
+
+                        safe_indicators = (
+                            "mask", "redact",          # explicit masking
+                            "prefix", "[:",            # sliced / prefix-only
+                            "type(", "exc).__name__",  # exception class only
+                            "status_code", ".status",  # HTTP status only
+                            "missing", "mismatch",     # config-name / condition
+                            "not configured", "not provided",
+                            "present", "absent",
+                        )
+                        has_safe_indicator = any(s in lowered for s in safe_indicators)
+
+                        if logs_value and not has_safe_indicator:
                             self.findings.append(Finding(
                                 severity="high",
                                 category="data",

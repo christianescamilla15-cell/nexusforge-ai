@@ -960,6 +960,22 @@ function GovernanceCard({ data, lang, isMobile }) {
  * lists, tables with pipes, and paragraphs. Safer than pulling in a
  * full markdown library for one view.
  */
+// Minimal HTML-entity escape for user-supplied markdown text.
+// Report Out markdown is backend-generated + confidence-trusted, but we
+// escape defensively before injecting into the DOM via dangerouslySetInnerHTML.
+// Runs BEFORE the inline markdown substitutions so the emitted tags remain
+// real HTML while any stray `<script>` / `<img onerror=…>` in the source
+// text turns into inert entities.
+function escapeHtml(s) {
+  if (s == null) return ''
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function renderMarkdown(md) {
   if (!md) return ''
   const lines = md.split('\n')
@@ -997,8 +1013,11 @@ function renderMarkdown(md) {
     }
   }
 
+  // Escape first, then apply markdown inline tokens. The whitelist of
+  // tokens we emit (<code>, <strong>, <em>) is intentionally small —
+  // everything else stays entity-encoded.
   const inline = (text) => {
-    return text
+    return escapeHtml(text)
       .replace(/`([^`]+)`/g, '<code style="background:#F3F4F6;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.9em">$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/_([^_]+)_/g, '<em>$1</em>')
