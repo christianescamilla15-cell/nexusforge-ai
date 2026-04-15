@@ -1,0 +1,153 @@
+# Mythos self-scan baseline — NexusForge itself
+#
+# Purpose: calibration for scanning the NexusForge codebase (not a tenant).
+# Captures the mitigations already in place + any known-accepted findings
+# so the scanner surfaces NEW issues instead of re-reporting documented
+# design decisions.
+#
+# This file is intentionally minimal at bootstrap — the first scan will
+# establish the true baseline. Add entries here as findings are triaged
+# and confirmed as accepted-risk or false-positive.
+
+version: "1.0.0"
+generated: "2026-04-13"
+
+# ── Mitigation layers in NexusForge ───────────────────────────────────
+mitigations:
+  fernet_encryption:
+    provider: "cryptography.fernet (AES-128-CBC + HMAC)"
+    applies_to: ["nexusforge"]
+    effect: "User API keys stored Fernet-encrypted at rest"
+  jwt_auth:
+    provider: "PyJWT"
+    applies_to: ["nexusforge"]
+    effect: "All /api endpoints protected by JWT middleware. JWT_SECRET env-var."
+  mythos_admin_gate:
+    provider: "HMAC-SHA512 derivation from JWT_SECRET"
+    applies_to: ["nexusforge"]
+    effect: "X-Mythos-Key admin gate — only the owner of JWT_SECRET can run scans"
+  google_oauth:
+    provider: "Google OAuth2"
+    applies_to: ["nexusforge"]
+    effect: "User identity federation — no password storage"
+  pydantic_v2_validation:
+    provider: "pydantic v2"
+    applies_to: ["nexusforge"]
+    effect: "Input validation on all FastAPI request bodies"
+
+# ── Known findings (accepted-risk or resolved) ────────────────────────
+# Calibrated from the 2026-04-13 self-scan. Entries here are pattern-
+# level filters for confirmed false positives.
+findings:
+  # ── FP: asyncio.create_subprocess_exec is NOT Python's exec() ─────
+  # The injection scanner matches the literal "exec(" but the async
+  # subprocess API is the SAFE way to launch processes in Python —
+  # it takes an argv list, not a shell string. 10 findings across
+  # agents/capabilities.py, meta/feature_predictor.py, refactor/*.
+  - id: "fp-asyncio-subprocess-exec"
+    app: "nexusforge"
+    category: "injection"
+    cwe: "CWE-78"
+    pattern_match: ["create_subprocess_exec", "asyncio.create_subprocess_exec"]
+    severity: "info"
+    effective_severity: "info"
+    mitigation_layer: "safe-python-api"
+    remediation_status: "accepted-risk"   # → Mythos filters it out
+    note: "asyncio.create_subprocess_exec takes argv list, not shell string — not a shell-injection vector"
+    source: "self-scan triage 2026-04-13"
+
+  # ── FP: synth/vulnerabilities/ is an INTENTIONAL vulnerability generator ──
+  # These files emit deliberately vulnerable code into tenant-alpha
+  # fixtures so our detectors can validate against them. The actual
+  # credentials are literals inside string templates. 8 findings.
+  - id: "fp-synth-vulnerabilities-generator"
+    app: "nexusforge"
+    category: "secrets"
+    pattern_match: ["hardcoded_creds.py", "synth\\vulnerabilities", "synth/vulnerabilities"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "Module generates synthetic vulnerable code on purpose for tenant-alpha fixtures"
+    source: "self-scan triage 2026-04-13"
+
+  # ── FP: test fixtures simulating SQLi detection ─────────────────────
+  # test_mythos_diff_scan.py writes f-string SQL INTENTIONALLY to
+  # verify Mythos catches it. 2 findings.
+  - id: "fp-test-sqli-fixtures"
+    app: "nexusforge"
+    category: "injection"
+    cwe: "CWE-89"
+    pattern_match: ["test_mythos_diff_scan", "test_sqli_fixture"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "Test file contains deliberately vulnerable SQL to validate detector"
+    source: "self-scan triage 2026-04-13"
+
+  # ── FP: synth_output/ is GENERATED synthetic code ───────────────────
+  # The synth generator writes tenant-alpha fixtures with fake creds
+  # that look like "synth-fake-*" or "admin:synth-fake-*" — these are
+  # NOT real credentials, they're synthetic input for tests. ~20 findings.
+  - id: "fp-synth-output-generated-code"
+    app: "nexusforge"
+    category: "secrets"
+    pattern_match: ["synth_output", "synth-fake", "synth\\output"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "synth_output/ is generator output with synthetic placeholder credentials"
+    source: "self-scan triage v2 2026-04-13"
+
+  # ── FP: K8s / infrastructure template placeholders ──────────────────
+  # infrastructure/k8s/base/secrets.yml uses "REPLACE_WITH_REAL_KEY" as
+  # template literal placeholders. Obvious non-secrets. 4 findings.
+  - id: "fp-k8s-template-placeholders"
+    app: "nexusforge"
+    category: "secrets"
+    pattern_match: ["REPLACE_WITH_REAL_KEY", "REPLACE_WITH_RANDOM", "PLACEHOLDER"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "Template literal placeholders — not real credentials"
+    source: "self-scan triage v2 2026-04-13"
+
+  # ── FP: postgres_ext DSN is parameter-safe (quote_plus on user+pwd) ──
+  # Detector flags `f"postgresql://{...}"` but user/password go through
+  # urllib.parse.quote_plus first. DSN is safe from URL injection.
+  # 1 finding at postgres_ext.py:52.
+  - id: "fp-postgres-dsn-quote-plus"
+    app: "nexusforge"
+    category: "secrets"
+    cwe: "CWE-798"
+    pattern_match: ["quote_plus(user)", "quote_plus(password)"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "accepted-risk"
+    note: "User/pwd passed through urllib.parse.quote_plus — URL-safe construction"
+    source: "self-scan triage v3 2026-04-13"
+
+  # ── FP: csharp_fixer.py pattern-comment for the fixer itself ─────────
+  # Line 165 is a COMMENT documenting the regex pattern the fixer
+  # searches for. Not an actual hardcoded password.
+  - id: "fp-csharp-fixer-comment-pattern"
+    app: "nexusforge"
+    category: "secrets"
+    cwe: "CWE-798"
+    pattern_match: ["csharp_fixer", "# Pattern:"]
+    severity: "info"
+    effective_severity: "info"
+    remediation_status: "by-design"
+    note: "Documentation comment describing the pattern the fixer detects"
+    source: "self-scan triage v3 2026-04-13"
+
+# ── Ecosystem context (NexusForge itself) ─────────────────────────────
+ecosystem_context:
+  stack: "Python 3.12 + FastAPI + React 18 + Vite 8 + Postgres 16"
+  deploy_backend: "Render (auto-deploy master)"
+  deploy_frontend: "Vercel"
+  total_loc_estimate: "~620 files (nexusforge)"
+  scan_target: "self"
+  purpose: "Periodic owner-only security audit of the platform itself"
+
+risk_exposure_usd:
+  note: "N/A — NexusForge is the scanner, not a tenant being scanned for revenue-risk purposes"
