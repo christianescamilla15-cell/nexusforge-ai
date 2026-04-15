@@ -269,6 +269,7 @@ class MythosScanner:
                 title=finding.title,
                 description=finding.description,
                 cwe=finding.cwe,
+                file_path=finding.file_path,
             )
             if not match.matched:
                 survivors.append(finding)

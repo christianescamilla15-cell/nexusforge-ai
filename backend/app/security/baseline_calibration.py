@@ -188,13 +188,16 @@ class BaselineCalibration:
         title: str = "",
         description: str = "",
         cwe: str = "",
+        file_path: str = "",
     ) -> CalibrationMatch:
         """Match a scanner finding against the baseline.
 
         Strategy (first hit wins):
-          1. If CWE is provided and matches an entry for the same app → hit.
-          2. Else, match on category + app + any pattern keyword found in
-             (title + description).
+          1. If CWE is provided and matches an entry for the same app →
+             hit (only if pattern_match is empty OR one of its patterns
+             also appears in the haystack — prevents CWE-only hijack).
+          2. Else, match on category + app + any pattern keyword found
+             in (title + description + file_path).
 
         Returns a ``CalibrationMatch`` describing the outcome and any
         downgrade/quick-win/remediation metadata.
@@ -202,7 +205,7 @@ class BaselineCalibration:
         if not self._loaded:
             return CalibrationMatch(matched=False)
 
-        haystack = f"{title} {description}".lower()
+        haystack = f"{title} {description} {file_path}".lower()
 
         # Narrow down by app (if provided) + category
         candidates = [e for e in self.entries if e.category == category]
@@ -216,7 +219,9 @@ class BaselineCalibration:
                 if e.cwe and e.cwe.upper().replace(" ", "") == cwe_norm:
                     return self._build_match(e)
 
-        # 2. Pattern keyword
+        # 2. Pattern keyword — matches against title + description +
+        # file_path. Lets calibration filter by file location (e.g.,
+        # synth/vulnerabilities/ intentional fixtures).
         for e in candidates:
             for pat in e.pattern_match:
                 if pat.lower() in haystack:
@@ -242,12 +247,21 @@ class BaselineCalibration:
     def should_filter(self, match: CalibrationMatch) -> bool:
         """Decide if a known finding should be filtered out entirely.
 
-        Current policy: filter only when the finding is **both** in active
-        remediation **and** of effective severity <= medium. Critical
-        in-remediation findings still surface (the team tracks progress).
+        Policy:
+          1. ``remediation_status ∈ {"by-design", "accepted-risk", "false-positive"}``
+             → ALWAYS filter, regardless of severity. These are known
+             non-issues that shouldn't consume triage bandwidth.
+          2. In-active-remediation + effective severity ≤ medium → filter.
+             Critical in-remediation findings still surface so the team
+             can track progress.
         """
         if not match.matched or not match.entry:
             return False
+
+        status = (match.entry.remediation_status or "").lower()
+        if status in ("by-design", "accepted-risk", "false-positive"):
+            return True
+
         sev_rank = _SEVERITY_ORDER.get(match.effective_severity, 2)
         return match.in_remediation and sev_rank >= 2  # medium/low
 
