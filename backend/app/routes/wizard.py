@@ -164,8 +164,10 @@ async def generate_workflow(req: WizardRequest, request: Request):
 
 
 @router.post("/questions")
-async def get_wizard_questions(req: WizardQuestionRequest):
+async def get_wizard_questions(req: WizardQuestionRequest, request: Request):
     """Get clarifying questions before generating workflow."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     questions = {
         "en": [
             {"id": "goal", "question": "What is the main goal of this workflow?", "type": "text"},

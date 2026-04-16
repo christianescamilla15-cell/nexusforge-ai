@@ -10,7 +10,7 @@ import json
 import logging
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -391,12 +391,14 @@ NexusForge AI is an enterprise automation platform with:
 
 
 @router.post("/chat")
-async def wizard_chat(body: ChatRequest):
+async def wizard_chat(body: ChatRequest, request: Request):
     """Stream AI Wizard response (builder).
 
     Fallback chain: gemma4:27b -> deepseek-r1:8b -> Groq -> Claude.
     Gemma 4 and deepseek-r1 both support native thinking mode.
     """
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
 
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
 
@@ -435,8 +437,10 @@ async def wizard_chat(body: ChatRequest):
 
 
 @router.post("/guide")
-async def wizard_guide(body: ChatRequest):
+async def wizard_guide(body: ChatRequest, request: Request):
     """Stream guide chat response. Always uses Groq (online 24/7)."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
 
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
 
