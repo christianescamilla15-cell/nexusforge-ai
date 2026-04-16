@@ -91,8 +91,10 @@ async def run_pipeline(body: PipelineRequest, request: Request):
 
 
 @router.post("/reason")
-async def reason_architecture(body: ReasonRequest):
+async def reason_architecture(body: ReasonRequest, request: Request):
     """Reason about an architecture decision using thinking mode."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     from app.meta.architecture_reasoner import ArchitectureReasoner
 
     reasoner = ArchitectureReasoner()
@@ -113,8 +115,10 @@ async def reason_architecture(body: ReasonRequest):
 
 
 @router.post("/generate-spec")
-async def generate_spec(body: SpecRequest):
+async def generate_spec(body: SpecRequest, request: Request):
     """Auto-generate a Kiro-compatible spec from a feature description."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     from app.meta.spec_generator import SpecGenerator
 
     generator = SpecGenerator()
@@ -137,15 +141,18 @@ async def generate_spec(body: SpecRequest):
         try:
             path = generator.write_to_disk(spec, ".")
             result["written_to"] = path
-        except Exception as e:
-            result["write_error"] = str(e)
+        except Exception:
+            logger.warning("generate-spec write_to_disk failed", exc_info=True)
+            result["write_error"] = "Failed to write spec to disk"
 
     return result
 
 
 @router.post("/predict-features")
-async def predict_features(body: PredictRequest):
+async def predict_features(body: PredictRequest, request: Request):
     """Predict next features, fixes, or improvements needed."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     from app.meta.feature_predictor import FeaturePredictor
 
     predictor = FeaturePredictor(".")
@@ -162,8 +169,10 @@ async def predict_features(body: PredictRequest):
 
 
 @router.post("/optimize-flow")
-async def optimize_flow(body: OptimizeRequest):
+async def optimize_flow(body: OptimizeRequest, request: Request):
     """Optimize a workflow DAG using predictive memory."""
+    from app.auth.rate_limit import check_rate_limit
+    await check_rate_limit(request)
     from app.meta.flow_optimizer import FlowOptimizer
 
     optimizer = FlowOptimizer()

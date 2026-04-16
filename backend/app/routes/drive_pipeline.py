@@ -114,7 +114,9 @@ async def drive_to_intelligence(request: DrivePipelineInput):
     if request.send_email:
         try:
             from ..integrations.email.client import send_email
-            email_to = request.email_to or "christianescamilla15@gmail.com"
+            email_to = request.email_to
+            if not email_to:
+                raise HTTPException(status_code=400, detail="email_to is required when send_email=true")
             subject = f"NexusForge: [{doc['document_type'].upper()}] {file_name}"
             html_body = f"<h2>Documento Procesado por NexusForge</h2>"
             html_body += f"<p><strong>Archivo:</strong> {file_name}</p>"

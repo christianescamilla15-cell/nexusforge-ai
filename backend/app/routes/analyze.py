@@ -241,7 +241,7 @@ async def analyze_document(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to extract text: {e}")
+        raise HTTPException(status_code=400, detail="Failed to extract text")
 
     # Step 2: Document Intelligence
     try:
@@ -254,7 +254,7 @@ async def analyze_document(
         doc_data = doc_result.model_dump()
         steps.append(f"intelligence: {doc_data['status']} (type: {doc_data['document_type']})")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Document intelligence failed: {e}")
+        raise HTTPException(status_code=500, detail="Document intelligence failed")
 
     # Step 3: Generate or parse questions
     if questions and questions.strip():
@@ -394,7 +394,7 @@ async def analyze_text(
         doc_data = doc_result.model_dump()
         steps.append(f"intelligence: {doc_data['status']}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Analysis failed")
 
     # Questions
     if questions and questions.strip():

@@ -73,7 +73,7 @@ async def execute_swarm(req: SwarmExecuteRequest, request: Request):
             config=req.config,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Swarm execution failed: {e}")
+        raise HTTPException(status_code=500, detail="Swarm execution failed")
 
     # Persist to workflow_runs via run_tracker (unified source)
     try:

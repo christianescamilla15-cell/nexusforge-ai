@@ -38,7 +38,7 @@ async def create_workflow(body: WorkflowCreate, request: Request):
     try:
         validate_dag(body.dag_definition)
     except DAGValidationError as exc:
-        raise HTTPException(status_code=422, detail=f"Invalid DAG: {exc}")
+        raise HTTPException(status_code=422, detail="Invalid workflow DAG")
 
     try:
         pool = await get_db_pool()
@@ -116,7 +116,7 @@ async def update_workflow(workflow_id: UUID, body: WorkflowUpdate, request: Requ
         try:
             validate_dag(body.dag_definition)
         except DAGValidationError as exc:
-            raise HTTPException(status_code=422, detail=f"Invalid DAG: {exc}")
+            raise HTTPException(status_code=422, detail="Invalid workflow DAG")
 
     try:
         pool = await get_db_pool()
