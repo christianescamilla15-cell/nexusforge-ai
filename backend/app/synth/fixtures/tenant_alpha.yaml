@@ -667,7 +667,7 @@ platform_vendor:
   exit_plan: >
     Code repatriation pending (Report Out p.162). If executed, direct
     code access possible without vendor. NDA possibly expired since
-    2016 — AMX Legal must verify. Miatech dependency on AMX revenue
+    2016 — client legal must verify. Platform-vendor dependency on client revenue
     is ~60-70% (asymmetric).
   dependent_apps:
     - app-01

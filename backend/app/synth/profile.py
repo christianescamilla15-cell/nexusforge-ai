@@ -499,8 +499,8 @@ class PlatformVendor:
     """A platform vendor that owns and operates part of the tenant's
     technology stack as a managed service.
 
-    Gap C (2026-04-12) — the corpus reveals that platform-vendor
-    (Miatech) is not just a commercial risk (already modeled in
+    Gap C (2026-04-12) — the corpus reveals that the platform vendor
+    is not just a commercial risk (already modeled in
     CommercialRiskProfile.vendors) — it is a **technical dependency**
     that controls hosting, deploys, credentials, monitoring, and
     the mainframe. The refactor engine needs to know which apps are
