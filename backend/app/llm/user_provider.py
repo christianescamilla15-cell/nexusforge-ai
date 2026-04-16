@@ -76,7 +76,7 @@ AVAILABLE_PROVIDERS = [
     {
         "id": "claude",
         "name": "Anthropic Claude",
-        "models": ["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
+        "models": ["claude-opus-4-7", "claude-haiku-4-5-20251001"],
         "pricing": {"input": 3.00, "output": 15.00},
         "speed": "medium",
         "key_placeholder": "sk-ant-...",

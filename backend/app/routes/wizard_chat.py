@@ -317,7 +317,7 @@ async def _stream_claude(api_key: str, messages: list[dict]):
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": "claude-sonnet-4-20250514",
+                        "model": "claude-opus-4-7",
                         "max_tokens": 2048,
                         "system": NEXUSFORGE_SYSTEM_PROMPT,
                         "messages": [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")],

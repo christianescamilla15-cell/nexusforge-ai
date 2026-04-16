@@ -107,7 +107,7 @@ async def get_providers_status():
         },
         "anthropic": {
             "configured": bool(anthropic_key),
-            "model": "claude-sonnet-4-20250514",
+            "model": "claude-sonnet-4-6",
             "role": "fallback",
         },
     }

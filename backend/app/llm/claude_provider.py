@@ -4,7 +4,8 @@
 - Prompt caching (90% savings on repeated system prompts)
 - Adaptive thinking (Claude decides reasoning depth)
 - Structured outputs (guaranteed JSON schema)
-- Updated to latest model IDs (Opus 4.6, Sonnet 4.6)
+- Updated to latest model IDs (Opus 4.7, Sonnet 4.6)
+- Opus 4.7: +13% coding, self-correcting planning, 3x cheaper ($5/$25 MTok)
 """
 
 import httpx
@@ -13,6 +14,7 @@ from app.config import settings
 from app.llm.provider import BaseLLMProvider, LLMResponse
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
+OPUS_MODEL = "claude-opus-4-7"
 
 
 class ClaudeProvider(BaseLLMProvider):

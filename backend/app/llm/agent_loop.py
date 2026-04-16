@@ -56,7 +56,9 @@ _BETA_HEADERS = ["context-management-2025-06-27"]
 _MEMORY_TOOL_DECLARATION = {"type": "memory_20250818", "name": "memory"}
 
 # Model default. Callers override via the ``model`` parameter.
+# Opus 4.7 available for complex tasks; Sonnet 4.6 stays default for speed/cost.
 _DEFAULT_MODEL = "claude-sonnet-4-6"
+_OPUS_MODEL = "claude-opus-4-7"
 
 # Safety: never run more than this many tool-use iterations, no matter
 # what the caller passed. Protects against runaway loops in the unlikely

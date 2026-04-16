@@ -115,7 +115,7 @@ async def _generate_questions(content: str, doc_type: str, language: str) -> lis
                         "content-type": "application/json",
                     },
                     json={
-                        "model": "claude-sonnet-4-20250514",
+                        "model": "claude-opus-4-7",
                         "max_tokens": 800,
                         "messages": [{"role": "user", "content": prompt}],
                     },
@@ -199,7 +199,7 @@ async def _answer_questions(content: str, questions: list[dict], language: str) 
                         "content-type": "application/json",
                     },
                     json={
-                        "model": "claude-sonnet-4-20250514",
+                        "model": "claude-opus-4-7",
                         "max_tokens": 1500,
                         "messages": [{"role": "user", "content": prompt}],
                     },
