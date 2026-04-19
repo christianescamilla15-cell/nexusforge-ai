@@ -1247,6 +1247,41 @@ def render_markdown(plan: StranglerPlan) -> str:
                 lines.append(f"- {ev}")
             lines.append("")
 
+    # P-012/P-014/P-019 — surface recipe priors as top-level sections so
+    # stakeholders see architectural / operational / regional constraints
+    # before the phase plan. The same information is also embedded in the
+    # narrative, but a dedicated section ensures it is not missed.
+    if plan.multi_robot_risk:
+        mr_icon = risk_icon.get(plan.multi_robot_risk, "⚪")
+        lines.append("## Multi-robot risk (P-019)")
+        lines.append("")
+        lines.append(f"**Architectural risk:** {mr_icon} {plan.multi_robot_risk.upper()}")
+        if plan.multi_robot_recommendations:
+            lines.append("")
+            lines.append("**Recommendations:**")
+            for rec in plan.multi_robot_recommendations:
+                lines.append(f"- {rec}")
+        lines.append("")
+
+    if plan.operational_windows_summary:
+        lines.append("## Operational windows (P-012)")
+        lines.append("")
+        for hit in plan.operational_windows_summary.split(" | "):
+            lines.append(f"- {hit}")
+        lines.append("")
+        lines.append(
+            "**Scheduling guidance:** avoid deployment / refactor during "
+            "active hours listed above."
+        )
+        lines.append("")
+
+    if plan.regional_policy_warnings:
+        lines.append("## Regional policies (P-014)")
+        lines.append("")
+        for w in plan.regional_policy_warnings:
+            lines.append(f"- {w}")
+        lines.append("")
+
     lines.append("## Narrative")
     lines.append("")
     lines.append(plan.narrative)

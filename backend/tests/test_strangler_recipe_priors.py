@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from app.refactor.ingestion import ModuleInfo, ProjectGraph
-from app.refactor.strangler_planner import StranglerPlanner, build_plan
+from app.refactor.strangler_planner import StranglerPlanner, build_plan, render_markdown
 from app.synth.profile import (
     AppRecipe,
     MultiRobotPipeline,
@@ -308,3 +308,62 @@ async def test_build_plan_without_tenant_profile_is_silent(tmp_path):
     assert plan.multi_robot_risk == ""
     assert plan.operational_windows_summary == ""
     assert plan.regional_policy_warnings == []
+
+
+# ── render_markdown surfaces recipe priors as dedicated sections ──────
+
+
+def test_render_markdown_surfaces_all_recipe_priors():
+    """All three priors should appear as top-level ## sections above Narrative."""
+    recipe = AppRecipe(
+        codename="app-03", label="Render test",
+        loc_target=80_000, primary_language="python",
+        multi_robot=MultiRobotPipeline(
+            robot_count=3, coordination="zmq-broker",
+            compensation_transactions=False, scraping_based=True,
+            upstream_ui_owner="external-iata-bsplink",
+        ),
+        sub_projects=[
+            SubProject(
+                name="special", language="python",
+                operational=OperationalProfile(
+                    user_count=81, daily_request_volume=500,
+                    operational_windows=[
+                        OperationalWindow(start="08:00", end="20:00", region="MX"),
+                    ],
+                    vpn_required=True, mfa_required=True,
+                ),
+            ),
+        ],
+        regional_policies=[
+            RegionalPolicy(
+                region_scope="country", regions=["BR", "RU", "MX"],
+                policy_type="refund-rules", externalization="hardcoded",
+            ),
+        ],
+    )
+    plan = StranglerPlanner(_make_graph(), app_recipe=recipe).plan()
+    md = render_markdown(plan)
+
+    # Each prior gets a dedicated top-level section
+    assert "## Multi-robot risk (P-019)" in md
+    assert "HIGH" in md
+    assert "## Operational windows (P-012)" in md
+    assert "81 users" in md
+    assert "Scheduling guidance" in md
+    assert "## Regional policies (P-014)" in md
+    assert "refund-rules" in md
+
+    # Ordering: priors appear before Narrative
+    assert md.index("## Multi-robot risk") < md.index("## Narrative")
+    assert md.index("## Operational windows") < md.index("## Narrative")
+    assert md.index("## Regional policies") < md.index("## Narrative")
+
+
+def test_render_markdown_omits_prior_sections_when_empty():
+    """No recipe → no dedicated prior sections."""
+    plan = StranglerPlanner(_make_graph()).plan()
+    md = render_markdown(plan)
+    assert "## Multi-robot risk" not in md
+    assert "## Operational windows" not in md
+    assert "## Regional policies" not in md
