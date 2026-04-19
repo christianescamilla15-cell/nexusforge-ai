@@ -303,7 +303,7 @@ class ComplianceCertification:
     name: str  # e.g., "SOC 2 Type II"
     framework: str  # e.g., "AICPA Trust Services Criteria"
     due_date: str  # ISO date, e.g., "2026-09-30"
-    status: str = "in_progress"  # in_progress / at_risk / blocked / complete
+    status: str = "in_progress"  # in_progress / at_risk / blocked / complete / non_compliant
     owner: str = "compliance"  # team that owns this certification
     description: str = ""
 
