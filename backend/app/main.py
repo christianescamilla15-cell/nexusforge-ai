@@ -24,6 +24,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # A-03 (2026-04-25): emit JWT_SECRET fingerprint at boot so a
+    # rotation is visible in stdout / log aggregator without leaking
+    # the secret itself. Pair with `docs/runbooks/key-rotation.md`
+    # — operators can confirm a rotation took effect by diffing
+    # this line across deploys.
+    try:
+        import hashlib as _hashlib
+        _fp = _hashlib.sha256(settings.jwt_secret.encode()).hexdigest()[:16]
+        print(f"JWT_SECRET fingerprint: {_fp}")
+        logger.info("JWT_SECRET fingerprint: %s", _fp)
+    except Exception:
+        # Don't block startup on a failing fingerprint computation.
+        pass
+
     # Startup — graceful: don't crash if DB/Redis unavailable
     try:
         get_tracer()

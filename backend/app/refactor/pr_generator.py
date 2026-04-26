@@ -8,17 +8,39 @@ Creates one PR per module/fix-type with:
 
 import asyncio
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# M-4 (2026-04-25): NexusForge's own repo root (resolved at import).
+# generate_pr refuses to operate against this path (or any subdir of
+# it) so a malicious or mistakenly-pointed call cannot dirty the
+# running server's git state.
+_NEXUSFORGE_ROOT = Path(__file__).resolve().parents[3]
+
+# Strict branch-suffix validation: only `[a-zA-Z0-9._-]` allowed, no
+# leading dash (avoids `--option` smuggling into git argv).
+_BRANCH_SAFE = re.compile(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]*$")
 
 
 class PRGenerator:
     """Generate git branches and PRs from refactoring results."""
 
     def __init__(self, repo_path: str):
-        self.repo = Path(repo_path)
+        self.repo = Path(repo_path).resolve()
+        # M-4: refuse to operate against NexusForge's own working tree
+        # — that would `git checkout -b` on the running server.
+        try:
+            self.repo.relative_to(_NEXUSFORGE_ROOT)
+        except ValueError:
+            pass  # repo is OUTSIDE NexusForge — safe
+        else:
+            raise RuntimeError(
+                f"PR generator refuses to operate inside the NexusForge "
+                f"repo itself (path={self.repo})"
+            )
 
     async def generate_pr(
         self,
@@ -40,6 +62,16 @@ class PRGenerator:
         if not fixed_files:
             return {"status": "no_fixes", "message": "No files were fixed"}
 
+        # M-4: validate `report.project_name` before splicing into git
+        # argv. project_name comes from `Path(repo).name` ultimately,
+        # but a path with shell-meta or git-ref-meta (`../`, ` -- `)
+        # could result in surprising git behavior.
+        if not _BRANCH_SAFE.match(report.project_name or ""):
+            return {
+                "status": "error",
+                "message": f"project_name {report.project_name!r} contains "
+                           "characters not allowed in a branch name",
+            }
         branch_name = f"{prefix}/{report.project_name}-security"
         commit_msg = self._build_commit_message(report)
         pr_body = self._build_pr_body(report)

@@ -112,8 +112,12 @@ async def execute_refactoring(body: RefactorRequest, request: Request):
         max_parallel=body.max_parallel,
     )
 
-    # Store result for PR generation
-    _jobs[body.project_path] = {
+    # M-3 (2026-04-25): key job storage by (user_id, project_path)
+    # so two users analyzing `/tmp/foo` can't overwrite or read each
+    # other's job. Was: keyed by `body.project_path` only — global
+    # collision across tenants.
+    user_id = _get_user_id(request)
+    _jobs[f"{user_id}:{body.project_path}"] = {
         "graph": graph.to_dict(),
         "report": report.to_dict(),
     }
@@ -124,9 +128,10 @@ async def execute_refactoring(body: RefactorRequest, request: Request):
 @router.post("/pr")
 async def generate_pr(body: PRRequest, request: Request):
     """Generate a PR-ready branch from refactoring results."""
-    _get_user_id(request)
+    user_id = _get_user_id(request)
 
-    job = _jobs.get(body.project_path)
+    # M-3 (2026-04-25): jobs are user-scoped — see /execute above.
+    job = _jobs.get(f"{user_id}:{body.project_path}")
     if not job:
         raise HTTPException(status_code=404, detail="No refactoring results found. Run /refactor/execute first.")
 

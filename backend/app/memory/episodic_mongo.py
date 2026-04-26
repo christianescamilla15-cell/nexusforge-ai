@@ -1,5 +1,21 @@
 """Episodic memory backed by MongoDB — demonstrates polyglot persistence.
-Falls back to Redis-based episodic memory if MongoDB is unavailable."""
+Falls back to Redis-based episodic memory if MongoDB is unavailable.
+
+M-8 (2026-04-25): added optional `org_id` scoping. Previously every
+read/write was keyed only by `agent_id`, which collides across
+tenants if the same agent type runs for two different orgs (the
+typical SaaS case). The new contract:
+
+- Writes: pass `org_id=...` to tag the episode with its tenant. Calls
+  that omit `org_id` land with `org_id=None` → "_legacy" bucket.
+- Reads: pass `org_id=...` to scope retrieval to that tenant. Calls
+  that omit `org_id` read across all tenants (existing behavior, kept
+  for back-compat during the migration window).
+
+After all callers are updated to pass `org_id`, the recall paths
+should be tightened to refuse `org_id=None` (followup commit). Until
+then, the legacy fan-out is preserved so nothing breaks.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +28,14 @@ from app.db.mongo_client import get_mongo_db
 logger = logging.getLogger(__name__)
 
 
+def _scope(agent_id: str, org_id: str | None) -> dict:
+    """Build the MongoDB filter for an agent_id (+ optional org_id)."""
+    base: dict = {"agent_id": agent_id}
+    if org_id is not None:
+        base["org_id"] = org_id
+    return base
+
+
 class MongoEpisodicMemory:
     """Medium-term memory stored in MongoDB with TTL index.
 
@@ -19,13 +43,14 @@ class MongoEpisodicMemory:
     Document schema:
     {
         agent_id: str,
-        episode_type: str,  # "task_complete", "error", "insight", "pattern"
+        org_id: str | None,        # M-8: tenant scoping (null = legacy)
+        episode_type: str,         # "task_complete", "error", "insight", "pattern"
         summary: str,
         context: dict,
-        outcome: str,  # "success" | "failure"
-        relevance_score: float,  # 0.0 - 1.0
+        outcome: str,              # "success" | "failure"
+        relevance_score: float,    # 0.0 - 1.0
         created_at: datetime,
-        expires_at: datetime,  # TTL: 30 days
+        expires_at: datetime,      # TTL: 30 days
     }
     """
 
@@ -39,6 +64,8 @@ class MongoEpisodicMemory:
         await collection.create_index("expires_at", expireAfterSeconds=0)
         await collection.create_index([("agent_id", 1), ("created_at", -1)])
         await collection.create_index([("agent_id", 1), ("episode_type", 1)])
+        # M-8: per-tenant index for the new scoped queries.
+        await collection.create_index([("org_id", 1), ("agent_id", 1), ("created_at", -1)])
         return collection
 
     async def store_episode(
@@ -48,12 +75,14 @@ class MongoEpisodicMemory:
         summary: str,
         context: dict[str, Any] | None = None,
         outcome: str = "success",
+        org_id: str | None = None,
     ) -> str | None:
         """Store a new episode in MongoDB."""
         try:
             collection = await self._get_collection()
             doc = {
                 "agent_id": agent_id,
+                "org_id": org_id,
                 "episode_type": episode_type,
                 "summary": summary,
                 "context": context or {},
@@ -68,12 +97,14 @@ class MongoEpisodicMemory:
             logger.warning("MongoEpisodicMemory.store_episode failed: %s", exc)
             return None  # Graceful fallback
 
-    async def recall_recent(self, agent_id: str, limit: int = 10) -> list[dict]:
-        """Retrieve most recent episodes for an agent."""
+    async def recall_recent(
+        self, agent_id: str, limit: int = 10, org_id: str | None = None,
+    ) -> list[dict]:
+        """Retrieve most recent episodes for an agent (optionally scoped to org)."""
         try:
             collection = await self._get_collection()
             cursor = collection.find(
-                {"agent_id": agent_id},
+                _scope(agent_id, org_id),
                 {"_id": 0},
             ).sort("created_at", -1).limit(limit)
             return await cursor.to_list(length=limit)
@@ -82,13 +113,16 @@ class MongoEpisodicMemory:
             return []
 
     async def recall_by_type(
-        self, agent_id: str, episode_type: str, limit: int = 10
+        self, agent_id: str, episode_type: str, limit: int = 10,
+        org_id: str | None = None,
     ) -> list[dict]:
-        """Retrieve episodes filtered by type."""
+        """Retrieve episodes filtered by type (optionally scoped to org)."""
         try:
             collection = await self._get_collection()
+            scope = _scope(agent_id, org_id)
+            scope["episode_type"] = episode_type
             cursor = collection.find(
-                {"agent_id": agent_id, "episode_type": episode_type},
+                scope,
                 {"_id": 0},
             ).sort("created_at", -1).limit(limit)
             return await cursor.to_list(length=limit)

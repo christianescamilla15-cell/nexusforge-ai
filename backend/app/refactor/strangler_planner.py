@@ -708,6 +708,64 @@ class StranglerPlanner:
                "## Regional policies" not in plan.narrative:
                 plan.narrative += "\n".join(narrative_lines)
 
+    @staticmethod
+    def _match_codename(
+        app_name: str,
+        app_path: str,
+        candidates: list[str],
+        kind: str = "match",
+    ) -> str | None:
+        """Find the codename for an app — exact-then-unique-substring.
+
+        F-03 (2026-04-25): the previous "first substring wins" matcher
+        was order-dependent. `"app-0"` would silently match the first
+        of `"app-01"`, `"app-02"`, etc., so the wrong app's discovery
+        findings + ecosystem metrics could attach to a plan.
+
+        Algorithm:
+          1. Exact match (case-insensitive) against `app_name` or the
+             last-path-component of `app_path`. Return immediately on
+             single hit. If multiple candidates exact-match (shouldn't
+             happen for codenames, but be defensive), return None.
+          2. Unique-substring match: `candidate.lower() in haystack`
+             where haystack is `app_name + " " + path_stem`. Return
+             only if exactly one candidate matches; ambiguous matches
+             return None and emit a debug log.
+
+        Returns None when no clear winner exists.
+        """
+        if not candidates:
+            return None
+
+        haystack_name = (app_name or "").lower().strip()
+        path_stem = Path(app_path).name.lower() if app_path else ""
+
+        # Step 1: exact match.
+        exact_hits = [c for c in candidates if c.lower() in (haystack_name, path_stem)]
+        if len(exact_hits) == 1:
+            return exact_hits[0]
+        if len(exact_hits) > 1:
+            logger.debug(
+                "%s: %d candidates exact-match app '%s' — ambiguous, returning None",
+                kind, len(exact_hits), app_name,
+            )
+            return None
+
+        # Step 2: unique substring.
+        haystack = f"{haystack_name} {path_stem}"
+        substring_hits = [c for c in candidates if c.lower() in haystack]
+        if len(substring_hits) == 1:
+            return substring_hits[0]
+        if len(substring_hits) > 1:
+            logger.debug(
+                "%s: %d candidates substring-match app '%s' (%s) — ambiguous, returning None",
+                kind, len(substring_hits), app_name, sorted(substring_hits),
+            )
+            return None
+
+        logger.debug("%s: no codename match for app '%s'", kind, app_name)
+        return None
+
     def _apply_ecosystem_metrics(self, plan: StranglerPlan) -> None:
         """Attach ecosystem priority hints + density signals to the plan.
 
@@ -717,26 +775,18 @@ class StranglerPlanner:
         if self._ecosystem is None or not getattr(self._ecosystem, "is_loaded", lambda: False)():
             return
 
-        # Find the codename to query the metrics. Reuse the same
-        # fuzzy-match logic as discovery so the two priors align on
-        # which codename they attach to.
-        app_name = plan.app_name.lower().strip()
-        codename = None
-        for candidate_app in self._ecosystem.per_app:
-            cand = candidate_app.app.lower()
-            if cand in app_name or app_name in cand:
-                codename = candidate_app.app
-                break
+        # F-03 (2026-04-25): exact-then-unique-substring match.
+        # Substring-only was order-dependent and could attach the
+        # wrong app's metrics (e.g. "app-0" matching "app-01" first).
+        # Reuse `_match_codename` so both ecosystem + discovery
+        # priors agree on which codename they target.
+        codename = self._match_codename(
+            plan.app_name,
+            plan.app_path,
+            [e.app for e in self._ecosystem.per_app],
+            kind="ecosystem",
+        )
         if codename is None:
-            path_stem = Path(plan.app_path).name.lower()
-            for candidate_app in self._ecosystem.per_app:
-                if candidate_app.app.lower() in path_stem:
-                    codename = candidate_app.app
-                    break
-        if codename is None:
-            logger.debug(
-                "Ecosystem: no matching codename for app '%s'", plan.app_name
-            )
             return
 
         density = self._ecosystem.app(codename)
@@ -783,28 +833,14 @@ class StranglerPlanner:
         if self._discovery is None:
             return
 
-        # Try to match the app name to a codename. The graph name may
-        # be "app-01", a colloquial label, or a filesystem path. We do
-        # a fuzzy match against all app codenames mentioned in the
-        # discovery index.
-        app_name = plan.app_name.lower().strip()
-        codename = None
-        for candidate in self._discovery.apps_mentioned:
-            if candidate.lower() in app_name or app_name in candidate.lower():
-                codename = candidate
-                break
-        # Also try matching by the last directory component of app_path
+        # F-03 (2026-04-25): exact-then-unique-substring match.
+        codename = self._match_codename(
+            plan.app_name,
+            plan.app_path,
+            list(self._discovery.apps_mentioned),
+            kind="discovery",
+        )
         if codename is None:
-            path_stem = Path(plan.app_path).name.lower()
-            for candidate in self._discovery.apps_mentioned:
-                if candidate.lower() in path_stem:
-                    codename = candidate
-                    break
-
-        if codename is None:
-            logger.debug(
-                "Discovery: no matching codename for app '%s'", plan.app_name
-            )
             return
 
         # Gather findings for this app
@@ -824,24 +860,25 @@ class StranglerPlanner:
             if f.is_correction:
                 plan.discovery_corrections.append(label)
 
-        # Risk boost: if there are discovery blockers, boost the risk
-        # of the highest-risk phase by one level
+        # F-04 (2026-04-25): apply discovery-blocker boost to ALL
+        # affected phases, not just the first one. Discovery blockers
+        # are app-wide concerns; the previous early-`break` made the
+        # boost position-biased — phases 2-5 were never boosted even
+        # if equally medium-risk. Now: every medium becomes high,
+        # every high gets an annotation. Cap on annotation count
+        # avoids runaway in pathological plans.
         if plan.discovery_blockers and plan.phases:
+            n_blockers = len(plan.discovery_blockers)
             for phase in plan.phases:
                 if phase.risk == "medium":
                     phase.risk = "high"
                     phase.rationale += (
-                        f" [RISK BOOSTED by {len(plan.discovery_blockers)} "
-                        f"discovery blocker(s)]"
+                        f" [RISK BOOSTED by {n_blockers} discovery blocker(s)]"
                     )
-                    break  # only boost one phase
                 elif phase.risk == "high":
-                    # Already high — add annotation only
                     phase.rationale += (
-                        f" [Discovery confirms {len(plan.discovery_blockers)} "
-                        f"blocker(s)]"
+                        f" [Discovery confirms {n_blockers} blocker(s)]"
                     )
-                    break
 
         # Narrative enrichment
         discovery_lines: list[str] = []

@@ -6,7 +6,7 @@ import time
 from uuid import UUID, uuid4
 
 from app.agents.registry import get_agent
-from app.auth.encryption import decrypt_api_key
+from app.auth.encryption import decrypt_api_key_for_tenant
 from app.db.client import get_db_pool
 from app.domain.tracking.events import ExecutionContext
 from app.engine.checkpoint import save_checkpoint
@@ -45,7 +45,13 @@ async def _load_user_agent_config(user_id: str | None, agent_type: str) -> dict:
             "max_tokens": row["max_tokens"],
             "system_prompt": row["system_prompt"],
             "tools": row["tools"] or [],
-            "user_api_key": decrypt_api_key(key_row["api_key_encrypted"]) if key_row else None,
+            # M-10: pass user_id so per-tenant Fernet keys can decrypt;
+            # legacy `fernet:` and XOR ciphers still decode via the
+            # router inside decrypt_api_key_for_tenant.
+            "user_api_key": (
+                decrypt_api_key_for_tenant(key_row["api_key_encrypted"], user_id)
+                if key_row else None
+            ),
         }
     except Exception as exc:
         logger.debug("Could not load user agent config for %s/%s: %s", user_id, agent_type, exc)

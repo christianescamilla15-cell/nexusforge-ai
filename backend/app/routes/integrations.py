@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from ..integrations.config import IntegrationConfig
 from ..auth.jwt_handler import verify_token
-from ..auth.encryption import encrypt_api_key, decrypt_api_key
+from ..auth.encryption import encrypt_api_key_for_tenant
 from ..db.client import get_db_pool
 from ..llm.user_provider import AVAILABLE_PROVIDERS
 
@@ -116,7 +116,11 @@ async def save_provider_key(req: SaveKeyRequest, request: Request):
             """INSERT INTO user_provider_keys (user_id, provider, api_key_encrypted, model)
                VALUES ($1::uuid, $2, $3, $4)
                ON CONFLICT (user_id, provider) DO UPDATE SET api_key_encrypted = $3, model = $4""",
-            user_id, req.provider, encrypt_api_key(req.api_key), req.model,
+            # M-10 (2026-04-25): per-tenant Fernet via HKDF — a DB
+            # dump no longer == universal decrypt across tenants.
+            user_id, req.provider,
+            encrypt_api_key_for_tenant(req.api_key, user_id),
+            req.model,
         )
     return {"saved": True, "provider": req.provider}
 
