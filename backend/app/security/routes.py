@@ -159,15 +159,21 @@ async def diff_security_scan(body: MythosDiffScanRequest, request: Request):
     }
 
 
-@router.get("/key")
-async def get_mythos_key(request: Request):
-    """Get Mythos admin key (only works from localhost).
-
-    This endpoint ONLY responds to requests from 127.0.0.1/localhost.
-    """
-    client_ip = request.client.host if request.client else ""
-    if client_ip not in ("127.0.0.1", "::1", "localhost"):
-        raise HTTPException(status_code=404, detail="Not found")
-
-    from app.security.mythos import _derive_mythos_key
-    return {"mythos_key": _derive_mythos_key(), "warning": "KEEP THIS KEY SECRET. Do not share or commit."}
+# H-3 (2026-04-25): the `GET /mythos/key` endpoint was removed.
+#
+# The previous implementation gated access on `request.client.host in
+# ("127.0.0.1", "::1", "localhost")`, but Render runs FastAPI behind a
+# proxy. With Uvicorn started with `--proxy-headers` (or equivalently
+# `forwarded_allow_ips="*"`, the default in the official Uvicorn Docker
+# image), the framework trusts the X-Forwarded-For header by default —
+# so an attacker over the public internet could send
+# `curl -H "X-Forwarded-For: 127.0.0.1" https://.../api/mythos/key`
+# and read the derived Mythos admin key.
+#
+# Operators retrieve the key out-of-band:
+#   render exec <service> -- python -c "from app.security.mythos import _derive_mythos_key; print(_derive_mythos_key())"
+# or, locally:
+#   python -c "from app.security.mythos import _derive_mythos_key; print(_derive_mythos_key())"
+#
+# Documented in the file header docstring and in
+# docs/audits/2026-04-25-internal-retro.md (H-3).
