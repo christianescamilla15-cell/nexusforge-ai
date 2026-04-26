@@ -154,8 +154,8 @@ async def list_executions(
         params = []
         idx = 1
 
-        # Show user's own runs + runs without a user (pipeline/public runs)
-        conditions.append(f"(wr.user_id = ${idx}::uuid OR wr.user_id IS NULL)")
+        # C-2 (2026-04-25): scope to caller-owned runs only.
+        conditions.append(f"wr.user_id = ${idx}::uuid")
         params.append(user_id)
         idx += 1
 

@@ -73,7 +73,7 @@ async def list_variables(automation_id: UUID, request: Request):
         async with pool.acquire() as conn:
             # Verify automation ownership
             auto = await conn.fetchrow(
-                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM automations WHERE id = $1 AND user_id = $2::uuid",
                 automation_id, user_id,
             )
             if not auto:
@@ -99,7 +99,7 @@ async def create_variable(body: CreateVariableRequest, request: Request):
         async with pool.acquire() as conn:
             # Verify automation ownership
             auto = await conn.fetchrow(
-                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM automations WHERE id = $1 AND user_id = $2::uuid",
                 body.automation_id, user_id,
             )
             if not auto:
@@ -140,7 +140,7 @@ async def update_variable(variable_id: UUID, body: UpdateVariableRequest, reques
             existing = await conn.fetchrow(
                 """SELECT av.* FROM automation_variables av
                    JOIN automations a ON a.id = av.automation_id
-                   WHERE av.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                   WHERE av.id = $1 AND a.user_id = $2::uuid""",
                 variable_id, user_id,
             )
             if not existing:
@@ -189,7 +189,7 @@ async def delete_variable(variable_id: UUID, request: Request):
             existing = await conn.fetchrow(
                 """SELECT av.key, av.automation_id FROM automation_variables av
                    JOIN automations a ON a.id = av.automation_id
-                   WHERE av.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                   WHERE av.id = $1 AND a.user_id = $2::uuid""",
                 variable_id, user_id,
             )
             if not existing:

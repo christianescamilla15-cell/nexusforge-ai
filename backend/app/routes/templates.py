@@ -125,13 +125,18 @@ async def deploy_template(slug: str, body: DeployRequest = DeployRequest(), requ
                 default_rules = json.loads(default_rules)
 
             # 2. Create workflow from dag_definition
+            # C-2 (2026-04-25): set user_id on the workflow so it is owned
+            # by the caller. Previously omitted → workflow row landed with
+            # NULL user_id, which the `OR user_id IS NULL` reads across
+            # the codebase exposed to every authenticated user.
             wf_row = await conn.fetchrow(
-                """INSERT INTO workflows (name, description, dag_definition, status)
-                   VALUES ($1, $2, $3::jsonb, 'active')
+                """INSERT INTO workflows (name, description, dag_definition, status, user_id)
+                   VALUES ($1, $2, $3::jsonb, 'active', $4::uuid)
                    RETURNING id""",
                 wf_name,
                 tpl["description"],
                 json.dumps(dag_def),
+                user_id,
             )
             workflow_id = wf_row["id"]
 

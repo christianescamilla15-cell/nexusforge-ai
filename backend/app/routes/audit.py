@@ -56,7 +56,7 @@ async def list_audit(
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            conditions = ["(user_id = $1::uuid OR user_id IS NULL)"]
+            conditions = ["user_id = $1::uuid"]
             params: list = [user_id]
             if entity_type:
                 conditions.append(f"entity_type = ${len(params) + 1}")
@@ -107,7 +107,7 @@ async def audit_for_entity(
             rows = await conn.fetch(
                 """SELECT * FROM audit_logs
                    WHERE entity_type = $1 AND entity_id = $2
-                     AND (user_id = $3::uuid OR user_id IS NULL)
+                     AND user_id = $3::uuid
                    ORDER BY created_at DESC
                    LIMIT $4 OFFSET $5""",
                 entity_type, entity_id, user_id, limit, offset,
@@ -115,7 +115,7 @@ async def audit_for_entity(
             count_row = await conn.fetchrow(
                 """SELECT COUNT(*) AS total FROM audit_logs
                    WHERE entity_type = $1 AND entity_id = $2
-                     AND (user_id = $3::uuid OR user_id IS NULL)""",
+                     AND user_id = $3::uuid""",
                 entity_type, entity_id, user_id,
             )
         return {
@@ -140,7 +140,7 @@ async def export_audit_csv(
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            conditions = ["(user_id = $1::uuid OR user_id IS NULL)"]
+            conditions = ["user_id = $1::uuid"]
             params: list = [user_id]
             if entity_type:
                 conditions.append(f"entity_type = ${len(params) + 1}")

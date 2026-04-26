@@ -98,7 +98,7 @@ async def list_rules(automation_id: UUID, request: Request):
         async with pool.acquire() as conn:
             # Verify automation ownership
             auto = await conn.fetchrow(
-                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM automations WHERE id = $1 AND user_id = $2::uuid",
                 automation_id, user_id,
             )
             if not auto:
@@ -124,7 +124,7 @@ async def create_rule(body: CreateRuleRequest, request: Request):
         async with pool.acquire() as conn:
             # Verify automation ownership
             auto = await conn.fetchrow(
-                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM automations WHERE id = $1 AND user_id = $2::uuid",
                 body.automation_id, user_id,
             )
             if not auto:
@@ -163,7 +163,7 @@ async def update_rule(rule_id: UUID, body: UpdateRuleRequest, request: Request):
             existing = await conn.fetchrow(
                 """SELECT ar.id FROM automation_rules ar
                    JOIN automations a ON a.id = ar.automation_id
-                   WHERE ar.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                   WHERE ar.id = $1 AND a.user_id = $2::uuid""",
                 rule_id, user_id,
             )
             if not existing:
@@ -206,7 +206,7 @@ async def delete_rule(rule_id: UUID, request: Request):
             existing = await conn.fetchrow(
                 """SELECT ar.id FROM automation_rules ar
                    JOIN automations a ON a.id = ar.automation_id
-                   WHERE ar.id = $1 AND (a.user_id = $2::uuid OR a.user_id IS NULL)""",
+                   WHERE ar.id = $1 AND a.user_id = $2::uuid""",
                 rule_id, user_id,
             )
             if not existing:
@@ -238,7 +238,7 @@ async def evaluate(body: EvaluateRequest, request: Request):
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             auto = await conn.fetchrow(
-                "SELECT id FROM automations WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM automations WHERE id = $1 AND user_id = $2::uuid",
                 body.automation_id, user_id,
             )
             if not auto:

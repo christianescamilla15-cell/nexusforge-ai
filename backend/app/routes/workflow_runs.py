@@ -28,7 +28,7 @@ async def _get_db_runs(limit: int = 50, user_id: str = None) -> list:
                               total_tokens, total_cost_usd, agents_used,
                               error_message, started_at, completed_at, metadata
                        FROM workflow_runs
-                       WHERE user_id = $1::uuid OR user_id IS NULL
+                       WHERE user_id = $1::uuid
                        ORDER BY started_at DESC LIMIT $2""",
                     user_id, limit,
                 )
@@ -94,7 +94,7 @@ async def _get_db_health(user_id: str = None) -> dict:
             user_filter = ""
             user_params: list = []
             if user_id:
-                user_filter = "WHERE user_id = $1::uuid OR user_id IS NULL"
+                user_filter = "WHERE user_id = $1::uuid"
                 user_params = [user_id]
 
             stats = await conn.fetchrow(f"""
@@ -114,7 +114,7 @@ async def _get_db_health(user_id: str = None) -> dict:
             # Per-agent metrics from agents_used JSONB + step_executions
             agent_filter = "WHERE agents_used IS NOT NULL AND agents_used != '[]'::jsonb"
             if user_id:
-                agent_filter += " AND (user_id = $1::uuid OR user_id IS NULL)"
+                agent_filter += " AND user_id = $1::uuid"
             agent_rows = await conn.fetch(f"""
                 SELECT agents_used, total_tokens, total_cost_usd,
                        EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000 as processing_time_ms,
@@ -247,7 +247,7 @@ async def get_run(run_id: str, request: Request):
         async with pool.acquire() as conn:
             import uuid
             row = await conn.fetchrow(
-                "SELECT * FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT * FROM workflow_runs WHERE id = $1 AND user_id = $2::uuid",
                 uuid.UUID(run_id), user_id,
             )
             if row:

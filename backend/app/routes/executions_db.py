@@ -36,7 +36,7 @@ async def list_executions(request: Request, limit: int = 50):
                        total_latency_ms, total_tokens, total_cost_usd,
                        fallback_used, retry_count
                 FROM workflow_runs
-                WHERE user_id = $1::uuid OR user_id IS NULL
+                WHERE user_id = $1::uuid
                 ORDER BY started_at DESC
                 LIMIT $2
                 """,
@@ -56,7 +56,7 @@ async def get_execution(run_id: str, request: Request):
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT * FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT * FROM workflow_runs WHERE id = $1 AND user_id = $2::uuid",
                 run_id, user_id,
             )
             if not row:
@@ -78,7 +78,7 @@ async def get_execution_steps(run_id: str, request: Request):
         async with pool.acquire() as conn:
             # Verify run ownership first
             owner_check = await conn.fetchrow(
-                "SELECT id FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM workflow_runs WHERE id = $1 AND user_id = $2::uuid",
                 run_id, user_id,
             )
             if not owner_check:
@@ -106,7 +106,7 @@ async def get_execution_events(run_id: str, request: Request):
         async with pool.acquire() as conn:
             # Verify run ownership first
             owner_check = await conn.fetchrow(
-                "SELECT id FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM workflow_runs WHERE id = $1 AND user_id = $2::uuid",
                 run_id, user_id,
             )
             if not owner_check:
@@ -135,7 +135,7 @@ async def get_execution_timeline(run_id: str, request: Request):
         async with pool.acquire() as conn:
             # Workflow lifecycle
             run = await conn.fetchrow(
-                "SELECT * FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT * FROM workflow_runs WHERE id = $1 AND user_id = $2::uuid",
                 run_id, user_id,
             )
             if not run:
@@ -276,7 +276,7 @@ async def get_execution_checkpoints(run_id: str, request: Request):
         async with pool.acquire() as conn:
             # Verify run ownership first
             owner_check = await conn.fetchrow(
-                "SELECT id FROM workflow_runs WHERE id = $1 AND (user_id = $2::uuid OR user_id IS NULL)",
+                "SELECT id FROM workflow_runs WHERE id = $1 AND user_id = $2::uuid",
                 run_id, user_id,
             )
             if not owner_check:

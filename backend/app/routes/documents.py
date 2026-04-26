@@ -81,7 +81,7 @@ async def list_documents(request: Request, skip: int = Query(0, ge=0), limit: in
             rows = await conn.fetch(
                 """SELECT id, title, content, file_type, language, status, created_at
                    FROM documents
-                   WHERE user_id = $1::uuid OR user_id IS NULL
+                   WHERE user_id = $1::uuid
                    ORDER BY created_at DESC
                    OFFSET $2 LIMIT $3""",
                 user_id, skip, limit,

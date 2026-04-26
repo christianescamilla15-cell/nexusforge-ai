@@ -70,7 +70,7 @@ async def list_workflows(request: Request, skip: int = Query(0, ge=0), limit: in
                 """SELECT id, name, description, dag_definition, version, status, created_at, updated_at
                    FROM workflows
                    WHERE status != 'archived'
-                     AND (user_id = $1::uuid OR user_id IS NULL)
+                     AND user_id = $1::uuid
                    ORDER BY created_at DESC
                    OFFSET $2 LIMIT $3""",
                 user_id,
