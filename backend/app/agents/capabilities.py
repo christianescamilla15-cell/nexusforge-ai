@@ -65,15 +65,84 @@ async def list_dir(path: str) -> dict:
         return {"error": str(exc)}
 
 
+# C-4 (2026-04-25): names/calls that, if present in submitted code,
+# refuse the whole snippet. Not a true sandbox — a real sandbox needs
+# nsjail/firejail/seccomp at the OS level. This blocklist raises the
+# cost of the obvious exfiltration patterns (env-var read, network
+# call, subprocess spawn, file system access outside CWD) and forces
+# any future expansion through code review.
+_RUN_CODE_BLOCKLIST = frozenset({
+    # Obvious exfil targets
+    "os.environ", "os.getenv", "environ",
+    # Process spawning
+    "subprocess", "popen", "system",
+    # Network
+    "socket", "urllib", "httpx", "requests", "aiohttp", "smtplib",
+    # File-system escape
+    "open(", "pathlib", "shutil",
+    # Reflection / dynamic loading
+    "__import__", "importlib", "ctypes",
+    # Eval / exec
+    "exec(", "eval(", "compile(",
+})
+
+
+def _run_code_scan(code: str) -> str | None:
+    """Return a rejection reason if the snippet looks dangerous, else None."""
+    lowered = code.lower()
+    for token in _RUN_CODE_BLOCKLIST:
+        if token in lowered:
+            return f"Disallowed token: {token!r}"
+    return None
+
+
 async def run_code(code: str, language: str = "python", timeout: int = 10) -> dict:
-    """Execute a code snippet in a subprocess sandbox."""
+    """Execute a code snippet in a subprocess.
+
+    C-4 hardening (2026-04-25):
+      1. Disabled by default. Set `ALLOW_CODE_EXEC=true` in env to
+         enable. Production deploys must keep this off until a real
+         sandbox (nsjail / firejail / gVisor) is in place.
+      2. AST-style blocklist scan rejects obvious exfiltration
+         patterns (env var reads, network libs, subprocess spawn,
+         filesystem escape, eval/exec/import).
+      3. Subprocess inherits a SCRUBBED env that omits all NexusForge
+         secrets — even if the blocklist is bypassed, JWT_SECRET /
+         STRIPE_SECRET_KEY / ANTHROPIC_API_KEY / DATABASE_URL are
+         not visible inside the snippet's `os.environ`.
+
+    None of the above replaces a real sandbox; treat this tool as
+    "enabled developer-debug only" until C-4-followup ships nsjail.
+    """
     if language != "python":
         return {"error": f"Only Python is supported, got: {language}"}
+
+    # Feature flag — default off.
+    if os.environ.get("ALLOW_CODE_EXEC", "").lower() not in ("true", "1", "yes"):
+        return {
+            "error": (
+                "run_code is disabled by default. "
+                "Set ALLOW_CODE_EXEC=true to enable (developer-debug only)."
+            ),
+        }
+
+    # Static blocklist scan — fail fast on obvious bad patterns.
+    rejection = _run_code_scan(code)
+    if rejection:
+        logger.warning("run_code rejected snippet: %s", rejection)
+        return {"error": f"Code rejected: {rejection}"}
+
+    # Scrub the env so the snippet cannot read NexusForge secrets
+    # via os.environ even if it imports `os` somehow.
+    safe_env_keys = {"PATH", "HOME", "USER", "LANG", "LC_ALL", "TZ"}
+    clean_env = {k: v for k, v in os.environ.items() if k in safe_env_keys}
+
     try:
         proc = await asyncio.create_subprocess_exec(
             "python", "-c", code,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=clean_env,
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return {
@@ -84,7 +153,7 @@ async def run_code(code: str, language: str = "python", timeout: int = 10) -> di
     except asyncio.TimeoutError:
         return {"error": f"Code execution timed out after {timeout}s"}
     except Exception as exc:
-        return {"error": str(exc)}
+        return {"error": type(exc).__name__}
 
 
 async def web_scrape(url: str) -> dict:
