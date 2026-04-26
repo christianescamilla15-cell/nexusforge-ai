@@ -18,11 +18,18 @@ PUBLIC_PATHS = {
     "/api/integrations/status",
 }
 
+# H-4 (2026-04-25): each entry MUST be the canonical namespace root
+# **without** a trailing slash. A request matches when its path equals
+# the entry exactly OR starts with `entry + "/"`. Substring `startswith`
+# was the prior bug — `/api/mythos` would otherwise also exempt
+# `/api/mythos-internal`, and `/api/refactor/showcase` would exempt
+# `/api/refactor/showcase-debug`. The new helper below enforces a
+# real path-segment boundary.
 PUBLIC_PREFIXES = [
-    "/api/auth/",
+    "/api/auth",
     "/api/templates",
-    "/api/automations/webhook/",
-    "/api/mythos",  # Self-protected via X-Mythos-Key (returns 404 without it)
+    "/api/automations/webhook",
+    "/api/mythos",            # Self-protected via X-Mythos-Key (returns 404 without it)
     "/api/refactor/showcase",  # Public read-only demo reports (static JSON)
     "/api/v1/refactor/showcase",
 ]
@@ -37,12 +44,32 @@ if _os.environ.get("NEXUSFORGE_ENV", "development") != "production":
 # In production, /docs requires auth — handled by AuthMiddleware (not in PUBLIC_PATHS)
 
 
+def _is_public(path: str) -> bool:
+    """Return True iff `path` is exempt from JWT auth.
+
+    Public when either:
+      - exact match against `PUBLIC_PATHS` (small set of single endpoints), or
+      - exact match OR proper child of any entry in `PUBLIC_PREFIXES`.
+
+    Proper child = `path == prefix OR path.startswith(prefix + "/")`.
+    A bare `path.startswith(prefix)` is unsafe because `/api/mythos`
+    would also match `/api/mythos-internal` — see H-4 in the
+    2026-04-25 retro.
+    """
+    if path in PUBLIC_PATHS:
+        return True
+    for prefix in PUBLIC_PREFIXES:
+        if path == prefix or path.startswith(prefix + "/"):
+            return True
+    return False
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path.rstrip("/")
 
         # Skip auth for public routes
-        if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
+        if _is_public(path):
             request.state.user = None
             request.state.user_id = None
             request.state.user_plan = "free"
