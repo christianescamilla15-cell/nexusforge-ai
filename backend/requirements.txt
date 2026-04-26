@@ -31,6 +31,13 @@ crawl4ai>=0.4.0
 # Encryption
 cryptography>=42.0.0
 
+# Google OAuth — H-1 (2026-04-25): swapped from the deprecated
+# tokeninfo HTTP endpoint to the official `google-auth` library which
+# verifies the id_token signature locally against Google's published
+# JWKs (no network call per verify, no replay window inside Google's
+# 1h debug-endpoint cache).
+google-auth>=2.27.0,<3.0.0
+
 # Error tracking
 sentry-sdk[fastapi]>=2.0.0
 

@@ -76,9 +76,13 @@ def test_run_code_scan_allows_simple_arithmetic():
 
 @pytest.mark.asyncio
 async def test_run_code_with_flag_on_still_blocks_dangerous(monkeypatch):
-    """Even with ALLOW_CODE_EXEC=true, blocklisted patterns refuse."""
+    """Even with ALLOW_CODE_EXEC=true, blocklisted patterns refuse.
+
+    Either of the env-related tokens (`os.environ` or `environ`)
+    is a valid rejection reason — frozenset iteration order is
+    unspecified."""
     monkeypatch.setenv("ALLOW_CODE_EXEC", "true")
     result = await run_code("import os; print(os.environ.get('JWT_SECRET'))")
     assert "error" in result
     assert "Code rejected" in result["error"]
-    assert "os.environ" in result["error"]
+    assert "environ" in result["error"]
