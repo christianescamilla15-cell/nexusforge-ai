@@ -39,9 +39,20 @@ async def _launch_run(automation_id: UUID, workflow_id: UUID, wf_name: str,
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        wf = await conn.fetchrow(
-            "SELECT dag_definition FROM workflows WHERE id = $1", workflow_id
-        )
+        # C-1 (2026-04-25): if a user_id is provided, verify the workflow
+        # belongs to it. Webhook + scheduler paths pass the automation's
+        # owning user_id (resolved upstream), so this guard catches a bad
+        # link even if `publish_automation`'s ownership check was somehow
+        # bypassed. Defense in depth.
+        if user_id:
+            wf = await conn.fetchrow(
+                "SELECT dag_definition FROM workflows WHERE id = $1 AND user_id = $2::uuid",
+                workflow_id, user_id,
+            )
+        else:
+            wf = await conn.fetchrow(
+                "SELECT dag_definition FROM workflows WHERE id = $1", workflow_id
+            )
         if not wf:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
@@ -197,7 +208,14 @@ async def publish_automation(body: PublishRequest, request: Request):
         webhook_secret = secrets.token_urlsafe(24) if body.trigger_type == "webhook" else None
 
         async with pool.acquire() as conn:
-            wf = await conn.fetchrow("SELECT id FROM workflows WHERE id = $1", body.workflow_id)
+            # C-1 (2026-04-25): caller must own the workflow being published.
+            # Without this, an attacker could publish another user's workflow
+            # as their own automation, capture the returned webhook_secret,
+            # and trigger arbitrary execution of victim DAGs.
+            wf = await conn.fetchrow(
+                "SELECT id FROM workflows WHERE id = $1 AND user_id = $2::uuid",
+                body.workflow_id, user_id,
+            )
             if not wf:
                 raise HTTPException(status_code=404, detail="Workflow not found")
 
@@ -537,7 +555,7 @@ async def handle_webhook_trigger(webhook_secret: str, request: Request):
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             auto = await conn.fetchrow(
-                """SELECT a.id, a.workflow_id, a.name, w.name AS wf_name
+                """SELECT a.id, a.workflow_id, a.name, a.user_id, w.name AS wf_name
                    FROM automations a JOIN workflows w ON w.id = a.workflow_id
                    WHERE a.webhook_secret = $1 AND a.is_active = true""",
                 webhook_secret,
@@ -561,13 +579,17 @@ async def handle_webhook_trigger(webhook_secret: str, request: Request):
         except Exception:
             input_data = {}
 
+        # C-2 (2026-04-25): inherit the automation owner so the resulting
+        # workflow_run row is owned by the automation owner. Previously
+        # passed user_id=None → run landed with NULL → world-readable to
+        # every account that hits executions_db with `OR user_id IS NULL`.
         run_id = await _launch_run(
             automation_id=auto["id"],
             workflow_id=auto["workflow_id"],
             wf_name=auto["wf_name"],
             auto_name=auto["name"],
             input_data=input_data if isinstance(input_data, dict) else {"data": input_data},
-            user_id=None,
+            user_id=str(auto["user_id"]) if auto["user_id"] else None,
         )
         return {"run_id": run_id, "status": "pending"}
     except HTTPException:
@@ -617,20 +639,23 @@ async def _scheduler_loop():
             pool = await get_db_pool()
             async with pool.acquire() as conn:
                 due = await conn.fetch(
-                    """SELECT a.id, a.workflow_id, a.name, a.schedule_cron, w.name AS wf_name
+                    """SELECT a.id, a.workflow_id, a.name, a.schedule_cron, a.user_id,
+                              w.name AS wf_name
                        FROM automations a JOIN workflows w ON w.id = a.workflow_id
                        WHERE a.trigger_type = 'schedule' AND a.is_active = true
                          AND a.next_run_at IS NOT NULL AND a.next_run_at <= now()""",
                 )
             for auto in due:
                 try:
+                    # C-2 (2026-04-25): same as webhook path — pass the
+                    # automation owner so scheduled runs are owned, not NULL.
                     run_id = await _launch_run(
                         automation_id=auto["id"],
                         workflow_id=auto["workflow_id"],
                         wf_name=auto["wf_name"],
                         auto_name=auto["name"],
                         input_data={},
-                        user_id=None,
+                        user_id=str(auto["user_id"]) if auto["user_id"] else None,
                     )
                     next_dt = _next_run(auto["schedule_cron"] or "0 9 * * *")
                     async with pool.acquire() as conn:
