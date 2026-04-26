@@ -505,16 +505,92 @@ class RepoIngestionEngine:
 
         return groups
 
+    # C-3 (2026-04-25): host allowlist for git clone targets.
+    # The previous implementation passed any string straight to
+    # `git clone`, allowing SSRF (e.g. http://169.254.169.254 — the
+    # Render container metadata service) and credential-bearing
+    # `git@github.com:victim/private` clones if the container had
+    # cached deploy keys. Restrict to a small set of public-host
+    # https URLs and refuse anything else with a clear error.
+    _ALLOWED_CLONE_HOSTS = frozenset({
+        "github.com",
+        "gitlab.com",
+        "bitbucket.org",
+        "codeberg.org",
+    })
+
+    @classmethod
+    def _validate_clone_url(cls, url: str) -> None:
+        """Reject anything that isn't an https URL on an allowlisted host.
+
+        Raises ValueError on rejection. Caller wraps with HTTPException
+        at the FastAPI boundary.
+        """
+        if not isinstance(url, str) or not url:
+            raise ValueError("Clone URL must be a non-empty string")
+        # Reject SSH-style and ssh:// scheme — credential bearing.
+        if url.startswith("git@") or url.startswith("ssh://"):
+            raise ValueError(
+                "SSH-style clone URLs are not allowed; use https://github.com/owner/repo"
+            )
+        # Reject anything but https — http exposes plaintext, file://
+        # is a path-traversal vector, and ftp/git:// have no auth.
+        if not url.startswith("https://"):
+            raise ValueError("Only https:// clone URLs are allowed")
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        # Strip "user:pass@" credential prefix from netloc; refuse
+        # if any was present (we never want to forward credentials).
+        if "@" in parsed.netloc:
+            raise ValueError("Embedded credentials in clone URL are not allowed")
+        host = parsed.hostname or ""
+        if host.lower() not in cls._ALLOWED_CLONE_HOSTS:
+            raise ValueError(
+                f"Host {host!r} is not allowlisted for cloning. "
+                f"Allowed: {sorted(cls._ALLOWED_CLONE_HOSTS)}"
+            )
+
     async def _git_clone(self, url: str) -> Path:
-        """Clone a git repo to a temp directory."""
+        """Clone a git repo to a temp directory.
+
+        C-3 hardening: validates host allowlist + scrubs git env so
+        no cached credentials, no global gitconfig, no interactive
+        prompts can affect the clone. The subprocess only sees the
+        bare git binary in a clean HOME.
+        """
+        self._validate_clone_url(url)
+
         import tempfile
         tmp = Path(tempfile.mkdtemp(prefix="nexusforge_"))
+
+        # Scrub the git environment: no terminal prompts (so a
+        # repo behind auth fails fast instead of hanging), no
+        # global/system gitconfig (no cached creds, no insteadOf
+        # rewrites), and an empty HOME so ~/.git-credentials is
+        # invisible. PATH inherited so `git` itself resolves.
+        clean_env = {
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "HOME": str(tmp / "_empty_home"),
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_SYSTEM": "/dev/null",
+            "GIT_ASKPASS": "/bin/false",
+        }
+        (tmp / "_empty_home").mkdir(exist_ok=True)
+
         proc = await asyncio.create_subprocess_exec(
             "git", "clone", "--depth", "1", url, str(tmp / "repo"),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=clean_env,
         )
-        await asyncio.wait_for(proc.communicate(), timeout=120)
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        except asyncio.TimeoutError:
+            proc.kill()
+            raise RuntimeError(f"Git clone timed out for {url}")
         if proc.returncode != 0:
-            raise RuntimeError(f"Git clone failed for {url}")
+            # Truncate stderr so we don't echo arbitrary git output.
+            tail = (stderr or b"").decode(errors="replace")[-200:]
+            raise RuntimeError(f"Git clone failed for {url}: {tail}")
         return tmp / "repo"
