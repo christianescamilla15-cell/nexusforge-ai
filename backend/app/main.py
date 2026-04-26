@@ -179,6 +179,14 @@ app.add_middleware(AuthMiddleware)
 
 # CORS — outermost middleware so ALL responses (including 401s) get CORS headers
 # Must be added LAST so it wraps everything, including AuthMiddleware 401 responses
+#
+# H-5 (2026-04-25): explicit method + header allowlist. Prior config
+# used `allow_methods=["*"]` and `allow_headers=["*"]`, which combined
+# with a stale Vercel preview alias in `ALLOWED_ORIGINS` made
+# preview-hijack class attacks (where a redeployed preview suddenly
+# satisfies CORS) more impactful. With `allow_credentials=False` the
+# wildcard origin remains acceptable as a fallback (browsers don't
+# auto-send credentials), but methods and headers are now bounded.
 _origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
 import os as _main_os
 if _origins == ["*"] and _main_os.environ.get("NEXUSFORGE_ENV") == "production":
@@ -187,8 +195,18 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-Mythos-Key",
+        "X-NexusForge-Signature",
+        "X-Request-ID",
+        "Accept",
+        "Accept-Language",
+    ],
+    expose_headers=["X-Request-ID"],
+    max_age=600,
 )
 
 # Auth + Billing + API Keys + Audit + Custom Agents + Slack

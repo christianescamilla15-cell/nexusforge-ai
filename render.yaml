@@ -24,8 +24,15 @@ services:
         sync: false
       - key: DEBUG
         value: "false"
+      # H-5 (2026-04-25): explicit allowlist of *current* frontend
+      # origins. Removed `frontend-silk-three-66.vercel.app` — that
+      # alias was a stale Vercel preview that anyone could redeploy
+      # over (Vercel preview hijack class). Canonical frontend is
+      # nexusforge-two.vercel.app per CLAUDE.md; the unsuffixed
+      # `nexusforge.vercel.app` is kept as a possible alias target.
+      # Add NEW origins here only after verifying ownership in Vercel.
       - key: ALLOWED_ORIGINS
-        value: "https://frontend-silk-three-66.vercel.app,https://nexusforge.vercel.app"
+        value: "https://nexusforge-two.vercel.app,https://nexusforge.vercel.app"
 
 databases:
   - name: nexusforge-db
