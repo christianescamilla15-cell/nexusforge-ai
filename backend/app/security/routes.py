@@ -15,7 +15,14 @@ from app.security.mythos import MythosScanner, verify_mythos_access
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/mythos", tags=["mythos-admin"])
+# M-7 (2026-04-25): hide Mythos endpoints from /openapi.json so an
+# attacker landing on a misconfigured staging deploy with DEBUG=true
+# cannot enumerate the internal scanner surface from the OpenAPI doc.
+router = APIRouter(
+    prefix="/mythos",
+    tags=["mythos-admin"],
+    include_in_schema=False,
+)
 
 
 def _verify_admin(request: Request):
@@ -86,7 +93,11 @@ async def category_scan(category: str, request: Request):
     filtered = [f for f in scanner.findings if f.category == category]
     scanner.findings = filtered
 
-    report = scanner.full_scan  # Use existing findings
+    # M-5 (2026-04-25): removed `report = scanner.full_scan` — that
+    # was a bound-method reference (missing `()`), not a call. The
+    # category-scan response builds its dict directly from `filtered`
+    # below, so the line was dead code masking what looked like an
+    # attempt to invoke a 9-scanner full pass.
     return {
         "category": category,
         "findings_count": len(filtered),

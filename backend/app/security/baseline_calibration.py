@@ -269,6 +269,22 @@ class BaselineCalibration:
 
         status = (match.entry.remediation_status or "").lower()
         if status in ("by-design", "accepted-risk", "false-positive"):
+            # F-05 (2026-04-25): when a CRITICAL or HIGH finding is
+            # filtered out as accepted-risk / by-design, log a WARNING
+            # so the entry remains visible in scan logs. Policy (filter
+            # silently from the report) is unchanged — but a wrong
+            # `accepted-risk` tag on a critical finding used to be
+            # entirely invisible. Now it appears in CloudWatch / stdout
+            # at WARN level for monthly review.
+            if match.effective_severity in ("critical", "high"):
+                logger.warning(
+                    "Mythos baseline filtered %s/%s finding: id=%s app=%s status=%s",
+                    match.effective_severity,
+                    match.entry.severity,
+                    match.entry.id,
+                    match.entry.app or "(any)",
+                    status,
+                )
             return True
 
         sev_rank = _SEVERITY_ORDER.get(match.effective_severity, 2)

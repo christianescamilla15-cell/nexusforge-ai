@@ -1,9 +1,9 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.0
 pydantic>=2.10.0,<3.0.0
-pydantic-settings>=2.5.0
+pydantic-settings>=2.5.0,<3.0.0
 httpx==0.27.0
-redis==5.0.0
+redis>=5.0.0,<7.0.0
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
 python-multipart==0.0.9
@@ -17,19 +17,26 @@ anthropic==0.94.0
 # - claude_provider.py and haiku_provider.py import and instantiate cleanly, no API surface changes.
 claude-agent-sdk>=0.1.58,<0.2.0
 voyageai==0.3.7
-motor>=3.6.0
-PyJWT>=2.8.0
-bcrypt>=4.1.0
-opentelemetry-api>=1.27.0
-opentelemetry-sdk>=1.27.0
-opentelemetry-instrumentation-fastapi>=0.48b0
+# M-6 (2026-04-25): upper bounds added to floating pins. A breaking
+# X+1 release of cryptography or motor would otherwise land on the
+# next deploy and silently brick Fernet decrypt or MongoDB queries.
+motor>=3.6.0,<4.0.0
+PyJWT>=2.8.0,<3.0.0
+bcrypt>=4.1.0,<5.0.0
+opentelemetry-api>=1.27.0,<2.0.0
+opentelemetry-sdk>=1.27.0,<2.0.0
+opentelemetry-instrumentation-fastapi>=0.48b0,<1.0.0
 pypdf2==3.0.1
 python-docx==1.1.2
 # --- Superagent upgrades ---
-tenacity>=8.2.0
-crawl4ai>=0.4.0
-# Encryption
-cryptography>=42.0.0
+tenacity>=8.2.0,<10.0.0
+# crawl4ai is pre-1.0, fast-moving, and used by web_scrape (which feeds
+# agent context — a malicious page returning crafted markdown is a
+# prompt-injection vector). Pin tightly until 1.0.
+crawl4ai>=0.4.0,<0.5.0
+# Encryption — Fernet API is critical (re-encryption migration
+# required if cryptography ever bumps incompatibly).
+cryptography>=42.0.0,<46.0.0
 
 # Google OAuth — H-1 (2026-04-25): swapped from the deprecated
 # tokeninfo HTTP endpoint to the official `google-auth` library which
@@ -38,8 +45,8 @@ cryptography>=42.0.0
 # 1h debug-endpoint cache).
 google-auth>=2.27.0,<3.0.0
 
-# Error tracking
-sentry-sdk[fastapi]>=2.0.0
+# Error tracking — capped at <3 since 3.x is a major rewrite.
+sentry-sdk[fastapi]>=2.0.0,<3.0.0
 
 # Testing
 pytest==8.3.0

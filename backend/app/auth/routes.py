@@ -108,8 +108,11 @@ async def register(req: RegisterRequest):
     """Register with email + password. Sends verification code via email."""
     from app.auth.codes import create_code
 
-    if len(req.password) < 6:
-        raise HTTPException(400, "Password must be at least 6 characters")
+    # M-2 (2026-04-25): bumped from 6 to 12 chars to clear NIST 800-63B
+    # baseline (8+) with a margin. No composition rules — length is
+    # the only entropy lever that matters.
+    if len(req.password) < 12:
+        raise HTTPException(400, "Password must be at least 12 characters")
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
@@ -161,9 +164,43 @@ async def verify_email(body: VerifyEmailRequest):
     return {"verified": True}
 
 
+# M-2 (2026-04-25): per-IP login throttle. /auth/login lives in
+# PUBLIC_PREFIXES so the per-user `check_rate_limit` doesn't apply
+# pre-auth — credential stuffing was wide open. We add a lightweight
+# Redis counter keyed by client IP. Fail-open if Redis is down so a
+# Redis blip doesn't lock everyone out.
+_LOGIN_MAX_ATTEMPTS = 10        # per IP
+_LOGIN_WINDOW_SECONDS = 60 * 5  # 5 minutes
+
+
+async def _check_login_rate_limit(client_ip: str) -> None:
+    if not client_ip:
+        return
+    try:
+        from app.db.client import get_redis
+        r = await get_redis()
+        if r is None:
+            return
+        key = f"nf:login_rate:{client_ip}"
+        count = await r.incr(key)
+        if count == 1:
+            await r.expire(key, _LOGIN_WINDOW_SECONDS)
+        if count > _LOGIN_MAX_ATTEMPTS:
+            raise HTTPException(429, "Too many login attempts; try again later")
+    except HTTPException:
+        raise
+    except Exception:
+        # Don't take down auth on a Redis blip.
+        return
+
+
 @router.post("/login", response_model=TokenResponse)
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
     """Login with email + password."""
+    # Per-IP throttle — see _check_login_rate_limit comment above.
+    client_ip = (request.client.host if request.client else "") or ""
+    await _check_login_rate_limit(client_ip)
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         user = await conn.fetchrow("SELECT * FROM nf_users WHERE email = $1", req.email)

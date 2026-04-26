@@ -154,7 +154,10 @@ async def _stream_ollama_model(messages: list[dict], model: str = "gemma4:27b", 
             yield f"data: {json.dumps({'type': 'done', 'provider': provider_label})}\n\n"
         except Exception as e:
             logger.error("Ollama %s stream error: %s", model, e)
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            # M-1 (2026-04-25): emit only the exception class name to
+            # the client; full exception (incl. URLs/credentials in
+            # httpx errors) is captured by the logger above.
+            yield f"data: {json.dumps({'type': 'error', 'content': type(e).__name__})}\n\n"
 
     return StreamingResponse(
         generate(),
@@ -213,7 +216,10 @@ async def _stream_ollama(messages: list[dict]):
                 yield f"data: {json.dumps({'type': 'done', 'provider': 'deepseek-r1:8b (local)'})}\n\n"
         except Exception as e:
             logger.warning("Ollama stream failed: %s", e)
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            # M-1 (2026-04-25): emit only the exception class name to
+            # the client; full exception (incl. URLs/credentials in
+            # httpx errors) is captured by the logger above.
+            yield f"data: {json.dumps({'type': 'error', 'content': type(e).__name__})}\n\n"
 
     return StreamingResponse(
         generate(),
@@ -292,7 +298,10 @@ async def _stream_groq(api_key: str, messages: list[dict]):
                 yield f"data: {json.dumps({'type': 'done', 'provider': 'Groq (llama-3.3-70b)'})}\n\n"
         except Exception as e:
             logger.warning("Groq streaming failed: %s", e)
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            # M-1 (2026-04-25): emit only the exception class name to
+            # the client; full exception (incl. URLs/credentials in
+            # httpx errors) is captured by the logger above.
+            yield f"data: {json.dumps({'type': 'error', 'content': type(e).__name__})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'provider': 'groq-error'})}\n\n"
 
     return StreamingResponse(
@@ -340,7 +349,10 @@ async def _stream_claude(api_key: str, messages: list[dict]):
                 yield f"data: {json.dumps({'type': 'done', 'provider': 'Claude (cloud)'})}\n\n"
         except Exception as e:
             logger.warning("Claude streaming failed: %s", e)
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            # M-1 (2026-04-25): emit only the exception class name to
+            # the client; full exception (incl. URLs/credentials in
+            # httpx errors) is captured by the logger above.
+            yield f"data: {json.dumps({'type': 'error', 'content': type(e).__name__})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'provider': 'claude-error'})}\n\n"
 
     return StreamingResponse(
