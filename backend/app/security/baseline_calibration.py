@@ -212,12 +212,21 @@ class BaselineCalibration:
         if app:
             candidates = [e for e in candidates if e.app == app or not e.app]
 
-        # 1. CWE first
+        # 1. CWE first — but only honor the match when the entry has no
+        # pattern_match (broad rule) OR at least one of its patterns
+        # also appears in the haystack. Without this guard a CWE-only
+        # hit on, say, CWE-798 in routes/auth.py would silently match a
+        # baseline entry intended for synth/vulnerabilities/*.cs and
+        # filter the real finding as "by-design". Documented in the
+        # docstring above; this is the implementation.
         if cwe:
             cwe_norm = cwe.upper().replace(" ", "")
             for e in candidates:
                 if e.cwe and e.cwe.upper().replace(" ", "") == cwe_norm:
-                    return self._build_match(e)
+                    if not e.pattern_match or any(
+                        p.lower() in haystack for p in e.pattern_match
+                    ):
+                        return self._build_match(e)
 
         # 2. Pattern keyword — matches against title + description +
         # file_path. Lets calibration filter by file location (e.g.,

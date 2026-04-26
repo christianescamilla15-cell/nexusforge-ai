@@ -75,16 +75,67 @@ def test_entries_for_app_filters_correctly():
 @pytest.mark.skipif(not _YAML_AVAILABLE, reason="PyYAML not installed")
 def test_match_by_cwe_arc_jwt():
     b = BaselineCalibration(BASELINE_YAML)
+    # CWE-798 + at least one of the entry's pattern_match keywords
+    # ("jwt-hardcoded", "jwt-secret-fallback", "hardcoded-secret") in
+    # the haystack — required after the F-01 hijack guard was added.
     m = b.match(
         category="auth",
         app="app-03-arc",
         title="Hardcoded secret detected",
-        description="JWT secret key fallback in code",
+        description="jwt-hardcoded fallback in auth code",
         cwe="CWE-798",
     )
     assert m.matched is True
     assert m.entry is not None
     assert m.entry.id == "arc-jwt-hardcoded"
+
+
+@pytest.mark.skipif(not _YAML_AVAILABLE, reason="PyYAML not installed")
+def test_cwe_only_match_does_not_hijack_when_no_pattern_present():
+    """F-01 regression: a finding whose CWE matches a baseline entry but
+    whose haystack contains none of that entry's pattern_match keywords
+    must NOT be filtered. Without the guard, a real CWE-798 finding in
+    routes/auth.py would silently match a baseline entry intended for
+    synth/vulnerabilities/*.cs and disappear into the by-design bucket.
+    """
+    b = BaselineCalibration(BASELINE_YAML)
+    # arc-jwt-hardcoded has CWE-798 + patterns
+    # ["jwt-hardcoded", "jwt-secret-fallback", "hardcoded-secret"].
+    # This finding has the same CWE but a description that mentions
+    # none of those literal tokens.
+    m = b.match(
+        category="auth",
+        app="app-03-arc",
+        title="Generic secret in code",
+        description="API key found in module body",
+        cwe="CWE-798",
+        file_path="src/api/keys.py",
+    )
+    assert m.matched is False, (
+        "CWE alone must not hijack: pattern must also appear in the haystack."
+    )
+
+
+@pytest.mark.skipif(not _YAML_AVAILABLE, reason="PyYAML not installed")
+def test_cwe_match_honored_when_pattern_match_is_empty():
+    """The guard exempts entries with empty pattern_match (broad CWE
+    rules). Synthesized inline because no current baseline entry has
+    both CWE set and pattern_match empty."""
+    b = BaselineCalibration(BASELINE_YAML)
+    broad = BaselineEntry(
+        id="broad-cwe-rule", app="app-03-arc", category="auth",
+        cwe="CWE-9999", pattern_match=[], severity="medium",
+    )
+    b.entries.append(broad)
+    try:
+        m = b.match(
+            category="auth", app="app-03-arc",
+            title="anything", description="anything", cwe="CWE-9999",
+        )
+        assert m.matched is True
+        assert m.entry is broad
+    finally:
+        b.entries.remove(broad)
 
 
 @pytest.mark.skipif(not _YAML_AVAILABLE, reason="PyYAML not installed")
