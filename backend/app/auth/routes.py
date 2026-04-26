@@ -200,6 +200,40 @@ async def google_login(req: GoogleLoginRequest):
     return {"token": token, "user": _user_to_safe(user)}
 
 
+@router.post("/logout")
+async def logout(request: Request):
+    """Revoke the caller's JWT (H-2 partial, 2026-04-25).
+
+    Adds the token's `jti` to the Redis revocation set with TTL =
+    remaining token lifetime. After this returns 200, the token will
+    be refused by `AuthMiddleware` even though it has not yet
+    expired. Idempotent — calling twice is a no-op.
+
+    If Redis is unreachable the call returns 200 with
+    `revoked=false` so the client doesn't surface a confusing error;
+    operators should monitor for that field in logs.
+    """
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Missing token")
+
+    token_data = verify_token(auth[7:])
+    if not token_data:
+        # Already invalid — nothing to revoke. Return 200 so the
+        # client logout flow stays simple.
+        return {"revoked": False, "reason": "token-already-invalid"}
+
+    jti = token_data.get("jti")
+    exp = token_data.get("exp", 0)
+    if not jti:
+        # Pre-H-2 token (issued before this commit) — nothing to revoke.
+        return {"revoked": False, "reason": "legacy-token-no-jti"}
+
+    from .revocation import revoke_jti
+    ok = await revoke_jti(jti, exp)
+    return {"revoked": ok}
+
+
 @router.get("/me")
 async def get_me(request: Request):
     """Get current user from JWT token."""

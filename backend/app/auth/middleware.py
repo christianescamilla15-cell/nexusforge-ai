@@ -84,6 +84,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if auth.startswith("Bearer "):
             token_data = verify_token(auth[7:])
             if token_data:
+                # H-2 (2026-04-25): refuse explicitly-revoked tokens.
+                # Fail-open on Redis errors (see revocation.py rationale).
+                jti = token_data.get("jti")
+                if jti:
+                    from .revocation import is_jti_revoked
+                    if await is_jti_revoked(jti):
+                        return JSONResponse(
+                            status_code=401,
+                            content={"detail": "Token revoked"},
+                        )
                 request.state.user = token_data
                 request.state.user_id = token_data.get("sub")
                 request.state.user_plan = token_data.get("plan", "free")
