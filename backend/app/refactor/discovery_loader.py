@@ -128,7 +128,7 @@ class DiscoveryIndex:
 
 # ── Parsing helpers ───────────────────────────────────────────────────
 
-# Matches "### H-001 — <title>" or "### H-SICOFAV-V2 — <title>"
+# Matches "### H-001 — <title>" or "### H-APP-01-V2 — <title>"
 _FINDING_HEADER_RE = re.compile(
     r"^###\s+(H-[\w-]+)\s*[—–-]\s*(.+)$", re.MULTILINE
 )
@@ -318,8 +318,13 @@ def _app_codename_from_label(label: str | None) -> list[str]:
     """Infer app codenames from a free-text label.
 
     Handles both explicit codenames ("app-03-arc") and colloquial labels
-    ("ARC", "BSP", "app-01", "SRG", "CFDIs") that `eng-partner` uses in
-    spreadsheet rows.
+    that the engineering-partner spreadsheets use in rows.
+
+    Naming convention: the IF-conditions below match incoming external
+    label text (parser inputs from third-party Excel deliverables) and
+    always emit our sanitized codenames. Real labels live here only as
+    *input keys*; outputs are codenames. Per the F-02 audit fix, do not
+    return any non-codename string from this function.
     """
     if not label:
         return []
@@ -437,10 +442,16 @@ def _parse_trazabilidad_xlsx(
 
 
 def _domain_from_sheet_name(sheet_name: str) -> str:
-    """Guess a domain from a spreadsheet sheet name."""
+    """Guess a domain tag from a spreadsheet sheet name.
+
+    Same naming convention as ``_app_codename_from_label``: the IF-test
+    strings on the left are incoming spreadsheet sheet names from
+    external Excel files; the returned strings are sanitized domain
+    tags, never real product/system names.
+    """
     s = sheet_name.lower()
     if "sicofav" in s or "p1" in s:
-        return "sicofav"
+        return "trazabilidad"
     if "srg" in s or "p2" in s:
         return "ventas"
     if "arc" in s or "bsp" in s or "reembolso" in s:
@@ -450,7 +461,7 @@ def _domain_from_sheet_name(sheet_name: str) -> str:
     if "comision" in s or "p5" in s:
         return "comisiones"
     if "praxis" in s or "ecosistema" in s:
-        return "miatech"
+        return "praxis-ecosystem"
     return ""
 
 

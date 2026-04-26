@@ -163,7 +163,7 @@ findings:
     source: "Kardex + Barrido servicios"
 
   # ── app-01 — 3 CRITICAL ────────────────────────────────────
-  - id: "sicofav-creds-webconfig"
+  - id: "app-01-creds-webconfig"
     app: "app-01"
     category: "secrets"
     cwe: "CWE-522"
@@ -174,7 +174,7 @@ findings:
     note: "Better than systemic 8/12 pattern — app-01 credentials are encrypted in web.config"
     source: "FindingsExamples.xlsx + workshop app-01 2026-04-09"
 
-  - id: "sicofav-onclick-no-auth"
+  - id: "app-01-onclick-no-auth"
     app: "app-01"
     category: "auth"
     cwe: "CWE-20"
@@ -182,7 +182,7 @@ findings:
     severity: "critical"
     source: "FindingsExamples.xlsx"
 
-  - id: "sicofav-downloadexcel-no-validation"
+  - id: "app-01-downloadexcel-no-validation"
     app: "app-01"
     category: "auth"
     cwe: "CWE-502"

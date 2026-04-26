@@ -582,7 +582,7 @@ class ExposureProfile:
     - ``app-03-arc``: public-internet portal in e-commerce cliente, has
       double back-end (public + internal-VPN), WAF edge_protection.
     - ``app-03-special``: private-vpn only, 81 users, 2FA.
-    - ``app-01 (sicofav)``: aws-private (VPC), 5-6 users via VPN + 2FA.
+    - ``app-01``: aws-private (VPC), 5-6 users via VPN + 2FA.
     """
 
     surface: str = "internal-only"         # "public-internet" | "private-vpn" | "internal-only"
@@ -604,7 +604,8 @@ class RegionalPolicy:
     per country).
 
     Sourced from H-142 (workshop W1 + OBS3, reembolsos per-country rules)
-    and BSPLink which operates under IATA rules per country.
+    and external-settlement-portal which operates under industry-body
+    rules per country.
 
     The ``externalization`` field drives refactoring recommendations:
 

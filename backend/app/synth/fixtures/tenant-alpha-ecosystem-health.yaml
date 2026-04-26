@@ -11,7 +11,7 @@
 # Sources (all from eng-partner canonical deliverables 2026-04-13):
 #   - Report Out audit-vendor (168 pages)
 #   - SonarQube CSV dumps (platform-vendor core COBOL)
-#   - Hallazgos_Trazabilidad_5_Apps.xlsx (Ecosistema PRAXIS sheet)
+#   - Hallazgos_Trazabilidad_5_Apps.xlsx (praxis-ecosystem sheet)
 #   - Panorama_Completo_5_Aplicativos.xlsx (Resumen Ejecutivo sheet)
 #
 # All names are generic codenames per docs/integration/01_agent_mapping.md.

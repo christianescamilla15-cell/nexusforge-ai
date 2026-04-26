@@ -34,17 +34,18 @@ compliance:
   # team) + R26 (modelo operaciones). The following narrative and cert
   # statuses reflect what the corpus actually found, not generic defaults.
   narrative: >
-    Publicly-traded enterprise (NYSE + BMV since Q4 2025) with a 4.5-month
-    modernization window. 16 ITGC SOX controls defined (seguridad lógica,
-    control de cambios, jobs, respaldos, DRP, políticas, segregación de
-    funciones, recertificación de accesos, segregación de ambientes,
-    ITACs). SOC I tipo II de platform-vendor NO cumple — faltantes: DRP,
-    vulnerabilidades, respuesta a incidentes. KPMG audita directo. SOC
-    1H-2025 no entregado al 23-oct. GRC tool: Workiva. IdP: Okta. 25
+    Publicly-traded enterprise (dual-exchange listing since Q4 2025)
+    with a 4.5-month modernization window. 16 ITGC SOX controls
+    defined (lógica de seguridad, control de cambios, jobs, respaldos,
+    DRP, políticas, segregación de funciones, recertificación de
+    accesos, segregación de ambientes, ITACs). SOC I tipo II de
+    platform-vendor NO cumple — faltantes: DRP, vulnerabilidades,
+    respuesta a incidentes. audit-firm audita directo. SOC 1H-2025 no
+    entregado al 23-oct. GRC tool: grc-tool. IdP: idp-provider. 25
     integraciones con PII innecesaria (data minimization pendiente).
-    Comité de incidentes cliente-platform-vendor descontinuado. Incidente
-    ciberseguridad reciente (servidor secundario, control fallido no
-    identificado).
+    Comité de incidentes cliente-platform-vendor descontinuado.
+    Incidente ciberseguridad reciente (servidor secundario, control
+    fallido no identificado).
   certifications:
     - name: SOX Section 404
       framework: Sarbanes-Oxley Act / PCAOB AS 2201
@@ -62,9 +63,9 @@ compliance:
       description: >
         Gap G (2026-04-12): corpus R23 confirms SOC 1 Type II of
         platform-vendor does NOT comply. Missing: DRP, vulnerability
-        management, incident response. KPMG audits directly. SOC
+        management, incident response. audit-firm audits directly. SOC
         1H-2025 report not delivered as of 23-oct-2025. Failure
-        risks customer-contract renewals and NYSE listing compliance.
+        risks customer-contract renewals and exchange listing compliance.
     - name: Data Privacy Regulation
       framework: Generic GDPR-style data protection
       due_date: "2026-09-30"
@@ -422,7 +423,7 @@ apps:
     # P-019 (2026-04-13) — multi-robot orchestrated pattern.
     # Models the BSP-style sub-project: 3 robots (download → validate →
     # respond+status) coordinated via ZMQ broker, Playwright scraping
-    # against IATA BSPLink UI. No compensation transactions → partial
+    # against external-settlement-portal UI. No compensation transactions → partial
     # failures leave the pipeline inconsistent. Strangler planner reads
     # this field and boosts risk + emits refactor recommendations
     # (health-check, contract tests, compensation).
@@ -662,7 +663,7 @@ platform_vendor:
     - credentials       # connection strings in config files
     - monitoring        # reactive (users report failures)
     - mainframe         # IBM Power 9000 (sole controller)
-    - database-admin    # DBA for all PRAXIS DBs
+    - database-admin    # DBA for all praxis-ecosystem DBs
   lock_in_level: "critical"
   exit_plan: >
     Code repatriation pending (Report Out p.162). If executed, direct
@@ -677,7 +678,7 @@ platform_vendor:
     - app-05
   controls_production: true
   controls_credentials: true
-  sla_hours: 24            # inherited from Praxis SLA
+  sla_hours: 24            # inherited from praxis-ecosystem SLA
 
 orchestration_model: "none"  # H-111: no Control-M, no Airflow. Humans + notifications.
 
@@ -792,20 +793,21 @@ non_scope_apps:
     category: integration
     notes: >
       Gap A (2026-04-12): corpus R3 (Interlineal session, 14-oct-2025)
-      confirms this is the IATA cash settlement gateway between airlines.
-      Handles Prorate, SRP/MPA/SPA calculations, ~150 SPAs, 8 IATA
-      resolutions. Renamed from "Partner Integration Gateway" to reflect
-      its actual domain. Candidate for promotion to full recipe if the
-      interline modernization enters scope.
+      confirms this is the industry-body cash settlement gateway between
+      partners. Handles Prorate, SRP/MPA/SPA calculations, ~150 SPAs,
+      8 industry-body resolutions. Renamed from "Partner Integration
+      Gateway" to reflect its actual domain. Candidate for promotion to
+      full recipe if the interline modernization enters scope.
   - codename: app-08
     label: Volado Revenue Recognition Module
     category: satellite
     notes: >
       Gap A (2026-04-12): corpus R2 (Volado session, 14-oct-2025) shows
-      this is the revenue recognition engine ("when the passenger flies").
-      PRAXIS Core Tier 0. Processes 63 BSP tapes. Depends on mainframe
-      DB2. Renamed from "Finance Reporting Pack" to reflect its actual
-      domain. Critical for SOX because it feeds the GL via Oracle EBS.
+      this is the revenue recognition engine ("when the trip closes").
+      praxis-ecosystem Core Tier 0. Processes 63 BSP tapes. Depends on
+      mainframe DB2. Renamed from "Finance Reporting Pack" to reflect
+      its actual domain. Critical for SOX because it feeds the GL via
+      Oracle EBS.
   - codename: app-09
     label: Viajero Frecuente (Loyalty Program)
     category: satellite

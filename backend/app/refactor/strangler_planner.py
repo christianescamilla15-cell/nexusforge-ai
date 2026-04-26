@@ -784,9 +784,9 @@ class StranglerPlanner:
             return
 
         # Try to match the app name to a codename. The graph name may
-        # be "app-01", "sicofav", "Transaction Reconciliation Service",
-        # or a filesystem path. We do a fuzzy match against all app
-        # codenames mentioned in the discovery index.
+        # be "app-01", a colloquial label, or a filesystem path. We do
+        # a fuzzy match against all app codenames mentioned in the
+        # discovery index.
         app_name = plan.app_name.lower().strip()
         codename = None
         for candidate in self._discovery.apps_mentioned:

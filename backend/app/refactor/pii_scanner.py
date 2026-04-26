@@ -102,7 +102,7 @@ PII_TYPES = {
         "severity": "high",
         "encryption": "AES-256",
         "mask": "***{last4}",
-        "retention": "IATA: 13 months",
+        "retention": "industry-body: 13 months",
     },
 
     # Medium — masking required
