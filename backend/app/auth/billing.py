@@ -110,9 +110,32 @@ async def create_checkout(req: CheckoutRequest, request: Request):
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
-    """Handle Stripe subscription and invoice events."""
+    """Handle Stripe subscription and invoice events.
+
+    C-5 hardening (2026-04-25):
+      1. Refuse to operate when `STRIPE_SECRET_KEY` is set but
+         `STRIPE_WEBHOOK_SECRET` is missing — prior behavior
+         silently returned 200 OK to any unsigned body.
+      2. Idempotency on `event["id"]` via `processed_stripe_events`
+         — Stripe retries are at-least-once, so without this an
+         attacker who captures a single valid event payload could
+         replay it forever.
+      3. Re-fetch the checkout session from Stripe before applying
+         state changes — the metadata in the webhook body comes
+         from the user's checkout call and is not authoritative.
+      4. Verify the metadata `org_id` belongs to `user_id` before
+         upgrading an organization's plan.
+    """
     if not STRIPE_SECRET:
-        return {"received": True}
+        # Billing disabled — accept silently for development.
+        return {"received": True, "mode": "billing-disabled"}
+
+    if not STRIPE_WEBHOOK_SECRET:
+        # Mis-configured prod: refuse to act on unsigned payloads.
+        # 503 (not 400) so Stripe retries until the operator fixes
+        # the env var, instead of dropping the event after 1 attempt.
+        logger.error("Stripe webhook hit but STRIPE_WEBHOOK_SECRET is unset")
+        raise HTTPException(503, "Webhook secret not configured")
 
     import stripe
     stripe.api_key = STRIPE_SECRET
@@ -125,34 +148,82 @@ async def stripe_webhook(request: Request):
     except Exception:
         raise HTTPException(400, "Invalid webhook signature")
 
+    event_id = event.get("id")
     event_type = event["type"]
+    if not event_id:
+        # All real Stripe events have ids; missing == malformed.
+        raise HTTPException(400, "Event id missing")
+
+    pool = await get_db_pool()
+
+    # Idempotency: fail-fast if we have already processed this event.
+    async with pool.acquire() as conn:
+        already = await conn.fetchrow(
+            """INSERT INTO processed_stripe_events (event_id, event_type)
+               VALUES ($1, $2)
+               ON CONFLICT (event_id) DO NOTHING
+               RETURNING event_id""",
+            event_id, event_type,
+        )
+        if already is None:
+            logger.info("Stripe event replay ignored: id=%s type=%s", event_id, event_type)
+            return {"received": True, "status": "replay-ignored"}
 
     if event_type == "checkout.session.completed":
-        session = event["data"]["object"]
-        user_id = session.get("metadata", {}).get("user_id")
-        plan = session.get("metadata", {}).get("plan")
-        org_id = session.get("metadata", {}).get("org_id")
+        # Re-fetch the canonical session from Stripe rather than
+        # trusting metadata in the webhook body. This blocks an
+        # attacker who controlled the original checkout call from
+        # smuggling forged metadata into a webhook payload.
+        session_id = event["data"]["object"].get("id")
+        if not session_id:
+            return {"received": True, "status": "no-session-id"}
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+        except Exception as exc:
+            logger.exception("Failed to re-fetch Stripe session %s", session_id)
+            raise HTTPException(502, "Could not validate session with Stripe")
+
+        meta = session.get("metadata") or {}
+        user_id = meta.get("user_id")
+        plan = meta.get("plan")
+        org_id = meta.get("org_id")
         subscription_id = session.get("subscription")
 
         if user_id and plan:
-            pool = await get_db_pool()
             async with pool.acquire() as conn:
                 await conn.execute(
                     "UPDATE nf_users SET plan = $1, stripe_subscription_id = $2 WHERE id = $3::uuid",
                     plan, subscription_id, user_id,
                 )
                 if org_id:
-                    await conn.execute(
-                        "UPDATE organizations SET plan = $1, stripe_subscription_id = $2 WHERE id = $3::uuid",
-                        plan, subscription_id, org_id,
+                    # Verify the user_id actually belongs to org_id
+                    # before upgrading the org. Without this guard, a
+                    # paying user could upgrade *another* org by
+                    # passing its id in checkout metadata.
+                    membership = await conn.fetchrow(
+                        """SELECT 1 FROM organization_members
+                           WHERE organization_id = $1::uuid AND user_id = $2::uuid""",
+                        org_id, user_id,
                     )
-            logger.info("Plan upgraded: user=%s org=%s plan=%s", user_id[:8], org_id[:8] if org_id else "none", plan)
+                    if membership:
+                        await conn.execute(
+                            "UPDATE organizations SET plan = $1, stripe_subscription_id = $2 WHERE id = $3::uuid",
+                            plan, subscription_id, org_id,
+                        )
+                    else:
+                        logger.warning(
+                            "Stripe metadata org_id=%s does not belong to user_id=%s — org plan NOT upgraded",
+                            org_id[:8], user_id[:8],
+                        )
+            logger.info(
+                "Plan upgraded: user=%s org=%s plan=%s",
+                user_id[:8], org_id[:8] if org_id else "none", plan,
+            )
 
     elif event_type == "customer.subscription.deleted":
         subscription = event["data"]["object"]
         customer_id = subscription.get("customer")
 
-        pool = await get_db_pool()
         async with pool.acquire() as conn:
             await conn.execute(
                 "UPDATE nf_users SET plan = 'free', stripe_subscription_id = NULL WHERE stripe_customer_id = $1",
