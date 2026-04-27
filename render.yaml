@@ -20,6 +20,23 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      # H-2 Phase 1+2+3 (2026-04-27): dedicated secrets per surface.
+      # Each is OPTIONAL — when unset, falls back to deriving from
+      # JWT_SECRET (back-compat, current behavior). Set them
+      # individually to enable per-surface rotation.
+      - key: JWT_SIGNING_SECRET   # JWT HS256 signing — rotate without bricking Fernet
+        sync: false
+      - key: MYTHOS_HMAC_SECRET   # /api/mythos/* X-Mythos-Key derivation
+        sync: false
+      - key: FERNET_KEY           # primary Fernet for nf_api_keys (44-char canonical)
+        sync: false
+      - key: FERNET_KEYS_OLD      # rotation-overlap secondary keys (comma-separated)
+        sync: false
+      # H-2 Phase 3: feature flag for the short-access + refresh
+      # token model. Default OFF (issue 8h JWTs). Flip to "true"
+      # after the frontend learns to call /auth/refresh.
+      - key: ENABLE_REFRESH_TOKENS
+        value: "false"
       - key: VOYAGE_API_KEY
         sync: false
       - key: DEBUG

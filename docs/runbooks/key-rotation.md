@@ -1,8 +1,132 @@
-# Runbook -- JWT_SECRET key rotation
+# Runbook -- key rotation (JWT signing / Mythos HMAC / Fernet)
 
 **Owner**: Christian Hernandez
-**Last updated**: 2026-04-25 (created in response to A-01 / M-9 from
+**Last updated**: 2026-04-27 (H-2 Phases 1-4 — split secrets +
+MultiFernet rotation overlap + re-encryption migration script)
+**History**: created 2026-04-25 (A-01 / M-9 from
 [2026-04-25 internal retro](../audits/2026-04-25-internal-retro.md))
+
+> **2026-04-27 update**: most of the original procedure (which
+> required a stop-the-world re-encryption window) is now obsolete.
+> The new flow uses MultiFernet overlap + an idempotent migration
+> script and does NOT require maintenance downtime. See
+> [Modern flow (H-2 Phases 1-4)](#modern-flow-h-2-phases-1-4).
+> The legacy procedure stays at the bottom for deploys that have
+> not yet adopted the dedicated env vars.
+
+---
+
+## Modern flow (H-2 Phases 1-4)
+
+The current code reads each cryptographic surface from its own
+dedicated env var and falls back to `JWT_SECRET` only when the
+dedicated var is unset:
+
+| Surface | Env var | What it does |
+|---|---|---|
+| JWT signing | `JWT_SIGNING_SECRET` | HS256 signing/verification of access tokens |
+| Mythos owner key | `MYTHOS_HMAC_SECRET` | HMAC input for `_derive_mythos_key()` |
+| Fernet (primary) | `FERNET_KEY` | Encrypts new rows in `nf_api_keys` |
+| Fernet (secondary) | `FERNET_KEYS_OLD` | Decrypt-only overlap window during rotation |
+
+Each can be rotated independently and -- crucially -- without
+bricking any other surface. Boot logs emit a `sha256[:16]`
+fingerprint per surface so an operator can verify a rotation took
+effect by diffing across deploys.
+
+### Rotate the JWT signing secret (no re-encryption needed)
+
+1. Generate the new secret:
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(48))"
+   ```
+2. Set `JWT_SIGNING_SECRET` to the new value on Render. Use the
+   dashboard (per the project's "NEVER use PUT on /env-vars without
+   ALL existing vars" rule).
+3. Render auto-redeploys. Existing JWTs become invalid; users get
+   401 on next request and re-login. **No data brick.**
+4. Confirm via boot log: `secret fingerprint jwt_signing: <new>` —
+   should differ from the previous deploy. The other three
+   fingerprints (mythos / fernet) should remain unchanged.
+
+### Rotate the Mythos HMAC secret
+
+1. Generate as above.
+2. Set `MYTHOS_HMAC_SECRET`. Render redeploys.
+3. The previously-derived X-Mythos-Key value is now invalid. Re-
+   derive from the running container:
+   ```
+   render exec <service> -- python -c \
+     "from app.security.mythos import _derive_mythos_key; print(_derive_mythos_key())"
+   ```
+4. Update any tooling / scripts that hit `/api/mythos/*` with the
+   new key.
+
+### Rotate the Fernet key (zero-downtime overlap flow)
+
+This is the dangerous one in the legacy flow because it bricks
+`nf_api_keys` if done naively. The Phase 2 + Phase 4 work adds an
+overlap window that makes it routine.
+
+1. Generate K2:
+   ```bash
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+2. **Single deploy that sets both env vars at once**:
+   - `FERNET_KEY=K2` (the new primary)
+   - `FERNET_KEYS_OLD=<current-K1>` (the previous primary as
+     decrypt-only secondary)
+
+   Render redeploys. The handler now runs `MultiFernet([K2, K1])`.
+   New writes use K2; old K1 ciphertexts continue to decrypt
+   transparently.
+3. Run the re-encryption migration script with the same env vars:
+   ```bash
+   render exec <service> -- python -m backend.scripts.rotate_fernet_keys
+   ```
+   The script iterates `user_provider_keys`, decrypts every row
+   with whichever key still works, re-encrypts with K2, writes
+   back. Idempotent — safe to re-run. Skips per-tenant
+   (`tfernet:`) and legacy XOR rows.
+4. Verify the script's final summary reports `migrated=0,
+   already_primary=<all>, failed=0`. If `failed > 0`, investigate
+   those rows manually before continuing — DO NOT drop
+   FERNET_KEYS_OLD yet.
+5. Drop `FERNET_KEYS_OLD` from Render env. Next redeploy runs
+   single-Fernet on K2; the rotation is complete.
+
+### Refresh-token rotation (kill all sessions)
+
+H-2 Phase 3 refresh tokens (`ENABLE_REFRESH_TOKENS=true` deploys)
+can be revoked en masse without rotating any secret:
+
+```python
+# render exec <service> -- python -c "..."
+import asyncio
+from app.auth.refresh import revoke_all_for_user
+asyncio.run(revoke_all_for_user("USER_UUID"))
+```
+
+For account compromise: call `revoke_all_for_user` for the affected
+user_id; their next access token expires within 15 minutes (the
+short-access TTL) and they cannot mint a new one without
+re-authenticating.
+
+For platform-wide forced re-login: there is no built-in "wipe all
+refresh tokens." The closest equivalent is rotating
+`JWT_SIGNING_SECRET` (kills all access tokens immediately) which
+forces every user to re-authenticate within minutes; their
+existing refresh tokens become orphaned and TTL out within 7 days.
+
+### Per-tenant Fernet rotation (M-10 followup, NOT yet shipped)
+
+The `tfernet:`-prefixed ciphertexts use HKDF derivation keyed on
+`JWT_SECRET`. There is no overlap mechanism for those rows yet.
+Rotating `JWT_SECRET` (the master) requires the legacy stop-the-
+world procedure documented at the bottom of this runbook. A
+followup commit will add `MultiHKDF`-style overlap for per-tenant
+keys; until then, prefer using dedicated `FERNET_KEY` rotation
+(which doesn't touch the per-tenant path).
 
 ---
 
@@ -131,24 +255,30 @@ before proceeding.
 
 ## What still needs to be built
 
-The current procedure has 3 known weaknesses, all tracked under
-**H-2 (full)** in the 2026-04-25 retro:
+The 3 weaknesses listed in the original runbook have ALL been
+addressed in the H-2 work (2026-04-27):
 
-1. **No `MultiFernet` overlap**: the re-encryption script is a
-   stop-the-world operation. A `MultiFernet(new, old)` window
-   would let us roll forward gradually.
-2. **No JWT secret split**: `JWT_SIGNING_SECRET` / `MYTHOS_HMAC_SECRET`
-   / `FERNET_KEY` should be three independent env vars so JWT
-   rotation doesn't cascade.
-3. **No fingerprint emission at boot**: there's no way to tell from
-   request logs which `JWT_SECRET` version a process was started
-   with. Logging `sha256(secret)[:16]` at app boot is a 5-line fix
-   (A-03 in the retro) and would make rotation auditable in
-   production.
+- ~~No `MultiFernet` overlap~~ → shipped in Phase 2 (`89d2949`).
+  See "Rotate the Fernet key" above for the new flow.
+- ~~No JWT secret split~~ → shipped in Phase 1 (`c0431bb`). Three
+  independent env vars + accessor module
+  (`backend/app/auth/secrets.py`).
+- ~~No fingerprint emission at boot~~ → shipped in A-03 (2026-04-25,
+  commit `b24f6ee`) and expanded in Phase 1 to per-surface
+  fingerprints. Look for `secret fingerprint <name>: <16-hex>`
+  lines in stdout / log aggregator at app startup.
 
-Until those land, treat key rotation as a planned-maintenance
-event with mandatory user-facing communication and the manual
-Step 2 migration above.
+Remaining limitations (tracked, lower priority):
+
+1. **Per-tenant Fernet rotation has no overlap window** — see
+   "Per-tenant Fernet rotation" section above. M-10 followup.
+2. **No `revoke_all_refresh_tokens` admin endpoint** — operators
+   currently have to drop into a Python shell via `render exec`.
+   A `/api/admin/refresh/revoke-all` route is straightforward
+   followup work.
+3. **No Mythos key fingerprint in scan reports** — would let
+   ops verify a Mythos rotation took effect without re-running
+   `_derive_mythos_key` on the container.
 
 ---
 
