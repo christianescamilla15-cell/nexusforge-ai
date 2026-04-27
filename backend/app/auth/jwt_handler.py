@@ -18,8 +18,12 @@ import jwt
 from app.auth.secrets import get_jwt_signing_secret
 
 ALGORITHM = 'HS256'
-TOKEN_EXPIRY = 3600 * 8  # 8 hours — see ACCESS_TOKEN_EXPIRY notes for the
-                        # forthcoming refresh-token split (Phase 3).
+TOKEN_EXPIRY = 3600 * 8  # 8 hours — legacy single-token deploys (default).
+# H-2 Phase 3 (2026-04-27): when ENABLE_REFRESH_TOKENS=true, the
+# login flow issues a short-lived access token paired with a
+# server-stored refresh token (see app.auth.refresh). The frontend
+# uses /auth/refresh to mint new access tokens.
+ACCESS_TOKEN_EXPIRY_SHORT = 60 * 15  # 15 minutes
 
 
 def _signing_secret() -> str:
@@ -35,15 +39,26 @@ def _signing_secret() -> str:
 SECRET = _signing_secret()
 
 
-def create_token(user_id: str, email: str, role: str = 'member') -> str:
-    """Issue a signed JWT with a fresh jti claim."""
+def create_token(
+    user_id: str,
+    email: str,
+    role: str = 'member',
+    expires_in: int | None = None,
+) -> str:
+    """Issue a signed JWT with a fresh jti claim.
+
+    `expires_in` overrides the default expiry — used by the Phase 3
+    refresh-token flow to issue 15-minute access tokens. When
+    omitted, falls back to the legacy 8h `TOKEN_EXPIRY`.
+    """
     now = int(time.time())
+    ttl = expires_in if expires_in is not None else TOKEN_EXPIRY
     payload = {
         'sub': user_id,
         'email': email,
         'role': role,
         'iat': now,
-        'exp': now + TOKEN_EXPIRY,
+        'exp': now + ttl,
         # H-2: jti is a 128-bit URL-safe random — used by
         # app.auth.revocation to invalidate this specific token.
         'jti': _secrets.token_urlsafe(16),

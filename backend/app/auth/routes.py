@@ -2,13 +2,17 @@
 
 import bcrypt
 import logging
+import os
 import uuid
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
-from .jwt_handler import create_token, verify_token
+from .jwt_handler import (
+    create_token, verify_token,
+    ACCESS_TOKEN_EXPIRY_SHORT,
+)
 from ..db.client import get_db_pool
 
 logger = logging.getLogger(__name__)
@@ -139,8 +143,9 @@ async def register(req: RegisterRequest):
     except Exception as exc:
         logger.warning("Verification email failed: %s", exc)
 
-    token = create_token(str(user["id"]), user["email"], user["role"])
-    return {"token": token, "user": _user_to_safe(user), "needs_verification": True}
+    resp = await _issue_login_response(user)
+    resp["needs_verification"] = True
+    return resp
 
 
 class VerifyEmailRequest(BaseModel):
@@ -171,6 +176,53 @@ async def verify_email(body: VerifyEmailRequest):
 # Redis blip doesn't lock everyone out.
 _LOGIN_MAX_ATTEMPTS = 10        # per IP
 _LOGIN_WINDOW_SECONDS = 60 * 5  # 5 minutes
+
+
+# H-2 Phase 3 (2026-04-27): refresh-token feature flag. Default OFF
+# so existing deploys keep issuing the legacy 8h JWTs unchanged. Set
+# `ENABLE_REFRESH_TOKENS=true` (or 1/yes) to opt this deployment into
+# the short-access + refresh model. Frontend must learn to call
+# /auth/refresh BEFORE this flag is flipped on.
+def _refresh_tokens_enabled() -> bool:
+    return os.environ.get("ENABLE_REFRESH_TOKENS", "").strip().lower() in ("true", "1", "yes")
+
+
+async def _issue_login_response(user: dict) -> dict:
+    """Build the response body returned by login / register / google.
+
+    Always returns `{token, user}`. When `ENABLE_REFRESH_TOKENS` is
+    on, also returns `{refresh_token, expires_in}` and shortens the
+    access token TTL to 15 minutes. Backwards-compatible — clients
+    that don't know about refresh_token simply ignore the extra
+    field.
+    """
+    user_id = str(user["id"])
+    email = user["email"]
+    role = user["role"]
+
+    if _refresh_tokens_enabled():
+        access = create_token(user_id, email, role, expires_in=ACCESS_TOKEN_EXPIRY_SHORT)
+        from .refresh import issue_refresh_token, REFRESH_TTL_SECONDS
+        refresh = await issue_refresh_token(user_id, email, role)
+        if refresh is None:
+            # Redis down → can't issue a refresh token. Fall back to
+            # an 8h access token so the user can still log in, but
+            # surface the degraded state in logs.
+            logger.warning(
+                "Refresh tokens enabled but Redis unavailable; falling back to 8h access token for user=%s",
+                user_id[:8],
+            )
+            return {"token": create_token(user_id, email, role), "user": _user_to_safe(user)}
+        return {
+            "token": access,
+            "refresh_token": refresh,
+            "expires_in": ACCESS_TOKEN_EXPIRY_SHORT,
+            "refresh_expires_in": REFRESH_TTL_SECONDS,
+            "user": _user_to_safe(user),
+        }
+
+    # Legacy single-token path.
+    return {"token": create_token(user_id, email, role), "user": _user_to_safe(user)}
 
 
 async def _check_login_rate_limit(client_ip: str) -> None:
@@ -215,8 +267,7 @@ async def login(req: LoginRequest, request: Request):
     # Auto-migrate legacy SHA-256 passwords to bcrypt
     await _rehash_if_legacy(req.email, req.password, user["password_hash"])
 
-    token = create_token(str(user["id"]), user["email"], user["role"])
-    return {"token": token, "user": _user_to_safe(dict(user))}
+    return await _issue_login_response(dict(user))
 
 
 @router.post("/google", response_model=TokenResponse)
@@ -233,18 +284,79 @@ async def google_login(req: GoogleLoginRequest):
         provider="google",
         provider_id=google_user["sub"],
     )
-    token = create_token(str(user["id"]), user["email"], user["role"])
-    return {"token": token, "user": _user_to_safe(user)}
+    return await _issue_login_response(user)
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh")
+async def refresh_access_token(body: RefreshRequest):
+    """Exchange a refresh token for a new access + refresh pair.
+
+    H-2 Phase 3 (2026-04-27). Single-use semantics: the submitted
+    refresh token is revoked atomically as part of the lookup, so a
+    replay (legitimate or attacker) hits an empty key. The response
+    carries a fresh access JWT (15min) and a NEW refresh token
+    (7d) — the client must persist the new refresh token and
+    discard the old one.
+
+    Returns 503 when `ENABLE_REFRESH_TOKENS` is off so misconfigured
+    clients fail loudly instead of silently accepting an empty
+    response. Returns 401 on any invalid/expired/revoked token.
+    """
+    if not _refresh_tokens_enabled():
+        raise HTTPException(503, "Refresh tokens are not enabled on this deployment")
+
+    from .refresh import consume_refresh_token, issue_refresh_token, REFRESH_TTL_SECONDS
+
+    claims = await consume_refresh_token(body.refresh_token)
+    if not claims:
+        raise HTTPException(401, "Invalid or expired refresh token")
+
+    user_id = claims["user_id"]
+    email = claims["email"]
+    role = claims.get("role", "member")
+
+    new_access = create_token(user_id, email, role, expires_in=ACCESS_TOKEN_EXPIRY_SHORT)
+    new_refresh = await issue_refresh_token(user_id, email, role)
+    if new_refresh is None:
+        # Redis flaked between consume and issue — return the new
+        # access token but no refresh, so the client at least keeps
+        # working until next access expiry. Caller can retry login.
+        logger.warning("Refresh issue failed for user=%s; returning access-only", user_id[:8])
+        return {
+            "token": new_access,
+            "expires_in": ACCESS_TOKEN_EXPIRY_SHORT,
+            "refresh_token": None,
+        }
+
+    return {
+        "token": new_access,
+        "refresh_token": new_refresh,
+        "expires_in": ACCESS_TOKEN_EXPIRY_SHORT,
+        "refresh_expires_in": REFRESH_TTL_SECONDS,
+    }
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
 
 
 @router.post("/logout")
-async def logout(request: Request):
+async def logout(request: Request, body: LogoutRequest | None = None):
     """Revoke the caller's JWT (H-2 partial, 2026-04-25).
 
     Adds the token's `jti` to the Redis revocation set with TTL =
     remaining token lifetime. After this returns 200, the token will
     be refused by `AuthMiddleware` even though it has not yet
     expired. Idempotent — calling twice is a no-op.
+
+    H-2 Phase 3 (2026-04-27): if the request body carries a
+    `refresh_token`, that refresh token is also revoked. Clients
+    using the refresh-token model should always pass it on logout
+    so the long-lived credential dies with the session.
 
     If Redis is unreachable the call returns 200 with
     `revoked=false` so the client doesn't surface a confusing error;
@@ -255,20 +367,34 @@ async def logout(request: Request):
         raise HTTPException(401, "Missing token")
 
     token_data = verify_token(auth[7:])
+
+    # Revoke the refresh token first if provided — this is independent
+    # of the access token's validity (the access token might already
+    # be expired but the refresh is still live).
+    refresh_revoked = False
+    if body and body.refresh_token:
+        from .refresh import revoke_refresh_token
+        refresh_revoked = await revoke_refresh_token(body.refresh_token)
+
     if not token_data:
-        # Already invalid — nothing to revoke. Return 200 so the
-        # client logout flow stays simple.
-        return {"revoked": False, "reason": "token-already-invalid"}
+        return {
+            "revoked": False,
+            "refresh_revoked": refresh_revoked,
+            "reason": "token-already-invalid",
+        }
 
     jti = token_data.get("jti")
     exp = token_data.get("exp", 0)
     if not jti:
-        # Pre-H-2 token (issued before this commit) — nothing to revoke.
-        return {"revoked": False, "reason": "legacy-token-no-jti"}
+        return {
+            "revoked": False,
+            "refresh_revoked": refresh_revoked,
+            "reason": "legacy-token-no-jti",
+        }
 
     from .revocation import revoke_jti
     ok = await revoke_jti(jti, exp)
-    return {"revoked": ok}
+    return {"revoked": ok, "refresh_revoked": refresh_revoked}
 
 
 @router.get("/me")
