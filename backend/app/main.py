@@ -24,16 +24,18 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # A-03 (2026-04-25): emit JWT_SECRET fingerprint at boot so a
-    # rotation is visible in stdout / log aggregator without leaking
-    # the secret itself. Pair with `docs/runbooks/key-rotation.md`
-    # — operators can confirm a rotation took effect by diffing
-    # this line across deploys.
+    # A-03 (2026-04-25) + H-2 Phase 1 (2026-04-27): emit fingerprints
+    # of EACH derived secret at boot. Operators diff across deploys
+    # to verify which secrets rotated. No secret is logged in clear
+    # — only its sha256[:16] digest. Per-secret view shows whether
+    # the deploy is using dedicated env vars or the legacy
+    # JWT_SECRET-derived fallback.
     try:
-        import hashlib as _hashlib
-        _fp = _hashlib.sha256(settings.jwt_secret.encode()).hexdigest()[:16]
-        print(f"JWT_SECRET fingerprint: {_fp}")
-        logger.info("JWT_SECRET fingerprint: %s", _fp)
+        from app.auth.secrets import boot_fingerprints
+        _fps = boot_fingerprints()
+        for _name, _fp in _fps.items():
+            print(f"secret fingerprint {_name}: {_fp}")
+            logger.info("secret fingerprint %s: %s", _name, _fp)
     except Exception:
         # Don't block startup on a failing fingerprint computation.
         pass

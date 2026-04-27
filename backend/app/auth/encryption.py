@@ -27,20 +27,39 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Legacy XOR derivation key — preserved as-is so existing
+# (very-back-compat) XOR ciphertexts still decrypt. JWT_SECRET[:32]
+# is documented sloppy (UTF-8 truncation edge case, L-1) but
+# changing it would brick those rows. Re-encrypt out of band if
+# needed.
 _KEY = settings.jwt_secret.encode()[:32]
 
-# Derive a proper Fernet key (32 bytes, base64-encoded = 44 chars)
-_FERNET_KEY = base64.urlsafe_b64encode(hashlib.sha256(_KEY).digest())
+# H-2 Phase 1 (2026-04-27): primary Fernet key now sourced from
+# `app.auth.secrets.get_primary_fernet_key()`, which reads
+# `FERNET_KEY` if set or falls back to sha256(JWT_SECRET) (matching
+# the legacy derivation). The legacy `_FERNET_KEY` constant is gone
+# — call `_primary_fernet_bytes()` instead so a rotation that
+# clears the lru_cache picks up the new key without re-import.
 
 _fernet = None
 
 
+def _primary_fernet_bytes() -> bytes:
+    from app.auth.secrets import get_primary_fernet_key
+    return get_primary_fernet_key()
+
+
 def _get_fernet():
+    """Return the primary Fernet (single key, decrypt + encrypt).
+
+    Phase 2 of the H-2 work upgrades this to MultiFernet for
+    rotation overlap; for now this is single-key.
+    """
     global _fernet
     if _fernet is None:
         try:
             from cryptography.fernet import Fernet
-            _fernet = Fernet(_FERNET_KEY)
+            _fernet = Fernet(_primary_fernet_bytes())
         except ImportError:
             logger.warning("cryptography package not installed — using legacy XOR encryption")
             _fernet = False  # Sentinel: unavailable

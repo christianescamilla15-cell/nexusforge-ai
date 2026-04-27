@@ -29,10 +29,17 @@ logger = logging.getLogger(__name__)
 # ── Access Control ──────────────────────────────────────────────────────────
 
 def _derive_mythos_key() -> str:
-    """Derive Mythos access key from JWT_SECRET. Only the owner knows JWT_SECRET."""
-    from app.config import settings
+    """Derive Mythos access key.
+
+    H-2 Phase 1 (2026-04-27): keying material now comes from
+    `app.auth.secrets.get_mythos_hmac_secret()`, which reads
+    `MYTHOS_HMAC_SECRET` if set or falls back to `JWT_SECRET`.
+    Rotating the dedicated env var rotates ONLY the Mythos key —
+    JWTs and Fernet keys are unaffected.
+    """
+    from app.auth.secrets import get_mythos_hmac_secret
     return hmac.new(
-        settings.jwt_secret.encode(),
+        get_mythos_hmac_secret(),
         b"mythos-nexusforge-admin-2026",
         hashlib.sha512,
     ).hexdigest()[:64]
