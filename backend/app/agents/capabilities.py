@@ -10,6 +10,13 @@ Capability registry:
     ExtractorAgent   → read_file, parse_pdf
     NormalizerAgent  → read_file, write_file
     MonitorAgent     → read_file, list_dir
+
+A-05 (2026-04-27): every content-egress tool below is wrapped
+with `@audited(...)` from `app.agents.tool_audit`. Each call emits
+a structured log line covering tool name, arg metadata (sizes,
+basenames, hostnames — never content), result size, latency, and
+outcome. Search the `nexusforge.tool_audit` logger to see the
+egress feed.
 """
 
 import asyncio
@@ -21,10 +28,13 @@ from pathlib import Path
 
 import httpx
 
+from app.agents.tool_audit import audited
+
 logger = logging.getLogger(__name__)
 
 # ── Tool implementations ─────────────────────────────────────────────────────
 
+@audited("read_file")
 async def read_file(path: str, max_bytes: int = 50_000) -> dict:
     """Read a file from the local filesystem."""
     try:
@@ -39,6 +49,7 @@ async def read_file(path: str, max_bytes: int = 50_000) -> dict:
         return {"error": str(exc)}
 
 
+@audited("write_file")
 async def write_file(path: str, content: str) -> dict:
     """Write content to a file."""
     try:
@@ -50,6 +61,7 @@ async def write_file(path: str, content: str) -> dict:
         return {"error": str(exc)}
 
 
+@audited("list_dir")
 async def list_dir(path: str) -> dict:
     """List files and directories at path."""
     try:
@@ -96,6 +108,7 @@ def _run_code_scan(code: str) -> str | None:
     return None
 
 
+@audited("run_code")
 async def run_code(code: str, language: str = "python", timeout: int = 10) -> dict:
     """Execute a code snippet in a subprocess.
 
@@ -156,6 +169,7 @@ async def run_code(code: str, language: str = "python", timeout: int = 10) -> di
         return {"error": type(exc).__name__}
 
 
+@audited("web_scrape")
 async def web_scrape(url: str) -> dict:
     """Scrape a URL using Crawl4AI or httpx fallback."""
     try:

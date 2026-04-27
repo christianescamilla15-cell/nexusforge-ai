@@ -471,17 +471,32 @@ class MythosScanner:
         (r'(?i)Bearer\s+[a-zA-Z0-9._-]{20,}', "Hardcoded bearer token"),
     ]
 
-    _SECRET_IGNORE_PATTERNS = [
-        r'\.env',           # env files are expected to have secrets
-        r'example',         # example files
-        r'test_',           # test files may have test tokens
+    # A-06 (2026-04-27): unified self-exclusion list. Both the
+    # secrets scanner and the injection scanner now use this list.
+    # Previously the injection scanner had a hardcoded `"security" in
+    # str(fpath)` blanket-exclude (too broad — masked any future bugs
+    # under app/security/), and neither scanner explicitly excluded
+    # synth/vulnerabilities (the deliberate SQL-injection fixture
+    # generator) or security/baselines (the YAML baseline files
+    # that document known patterns by example).
+    _SHARED_IGNORE_PATTERNS = [
+        r'\.env',                                     # env files
+        r'example',                                   # docs / examples
+        r'test_',                                     # test files
         r'conftest',
         r'__pycache__',
         r'node_modules',
         r'\.git/',
         r'dist/',
-        r'security[\\/]mythos\.py',  # Don't scan ourselves (pattern definitions)
+        r'security[\\/]mythos\.py',                   # Mythos pattern defs
+        r'security[\\/]baselines[\\/].*\.ya?ml',      # baseline YAML data
+        r'synth[\\/]vulnerabilities[\\/]',            # deliberate SQLi fixtures
+        r'tests[\\/]fixtures[\\/]',                   # test fixture data
     ]
+
+    # Kept under the historical name so older external integrations
+    # that monkey-patched this attribute keep working.
+    _SECRET_IGNORE_PATTERNS = _SHARED_IGNORE_PATTERNS
 
     def _scan_secrets(self) -> int:
         """Scan all source files for hardcoded secrets."""
@@ -612,11 +627,17 @@ class MythosScanner:
 
         # Backend: SQL + Command injection
         for fpath in self.backend.rglob("*.py"):
-            if "__pycache__" in str(fpath) or "security" in str(fpath):
+            rel = str(fpath.relative_to(self.root))
+            # A-06 (2026-04-27): apply the unified self-exclusion list
+            # instead of the previous hardcoded `"security" in path`
+            # blanket-exclude. The new list is narrower (excludes
+            # exactly Mythos's own pattern defs + baselines + synth
+            # vuln fixtures) so legitimate bugs under app/security/
+            # are no longer hidden from the scanner.
+            if any(re.search(p, rel) for p in self._SHARED_IGNORE_PATTERNS):
                 continue
             if not self._should_scan(fpath):
                 continue
-            rel = str(fpath.relative_to(self.root))
             count += 1
             try:
                 content = fpath.read_text(encoding="utf-8", errors="ignore")

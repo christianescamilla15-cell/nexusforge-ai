@@ -112,19 +112,35 @@ def _get_fernet():
 
 
 def encrypt_api_key(plaintext: str) -> str:
-    """Encrypt an API key for DB storage. Uses Fernet (AES) if available, falls back to XOR.
+    """Encrypt an API key for DB storage. Uses Fernet (AES) — refuses
+    to fall back to legacy XOR.
 
     DEPRECATED (M-10, 2026-04-25): prefer
     `encrypt_api_key_for_tenant(plaintext, tenant_id)` so a DB dump
     cannot be decrypted en masse with the single global key.
+
+    L-1 (2026-04-27): the legacy XOR encrypt path used a key
+    derivation that truncated the master at 32 raw bytes
+    (`jwt_secret.encode()[:32]`) — sloppy with non-ASCII secrets,
+    though never exploited because `cryptography` is required in
+    every production deploy. To remove the L-1 risk vector entirely,
+    new writes now refuse to fall back to XOR. If `cryptography` is
+    somehow unavailable at runtime the call raises so the misconfig
+    is loud. Decrypt of pre-existing XOR rows is unchanged (see
+    `_xor_decrypt` below).
     """
     if not plaintext:
         return ""
     f = _get_fernet()
     if f:
         return "fernet:" + f.encrypt(plaintext.encode()).decode()
-    # Legacy XOR fallback
-    return _xor_encrypt(plaintext)
+    # L-1: refuse to write new XOR ciphertexts. In prod this branch
+    # is unreachable because `cryptography` is in requirements.txt.
+    raise RuntimeError(
+        "encrypt_api_key: cryptography package unavailable; refusing "
+        "to fall back to legacy XOR. Install cryptography or use "
+        "encrypt_api_key_for_tenant which fails closed too."
+    )
 
 
 def decrypt_api_key(encrypted: str) -> str:
@@ -158,20 +174,41 @@ def decrypt_api_key(encrypted: str) -> str:
 
 
 # ── M-10: per-tenant Fernet via HKDF ────────────────────────────────────────
+#
+# M-10 followup (2026-04-27): added rotation overlap via
+# `TENANT_FERNET_IKM_OLD`. Each tenant's Fernet is derived from an
+# input keying material (IKM) — historically the master `JWT_SECRET`.
+# To rotate the IKM without bricking every `tfernet:` row, the
+# accessor returns a `MultiFernet` whose primary is derived from
+# the current IKM and whose secondaries are derived from each old
+# IKM listed in the env var. Standard MultiFernet semantics: write
+# uses primary, decrypt tries each in order.
+
+def _derive_tenant_fernet_for_ikm(tenant_id: str, ikm: bytes):
+    """HKDF(ikm, salt=tenant_id, info='api-keys-v1') → Fernet."""
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.fernet import Fernet
+    raw = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=tenant_id.encode(),
+        info=b"nexusforge-api-keys-v1",
+    ).derive(ikm)
+    return Fernet(base64.urlsafe_b64encode(raw))
+
 
 def _derive_tenant_fernet(tenant_id: str):
-    """HKDF(jwt_secret, salt=tenant_id, info='api-keys') → Fernet key.
+    """Per-tenant Fernet handler.
 
-    Each tenant gets a key that is computationally isolated from
-    every other tenant's, so a DB dump no longer == universal
-    decrypt. The master `JWT_SECRET` is still the input keying
-    material — rotating it still requires re-encryption (see
-    `docs/runbooks/key-rotation.md`).
+    When `TENANT_FERNET_IKM_OLD` is unset, returns a single Fernet
+    derived from the current `JWT_SECRET` (matches pre-M-10-followup
+    behavior byte-for-byte). When secondaries are configured,
+    returns a `MultiFernet([primary, *secondaries])` so old
+    `tfernet:` ciphertexts stay decryptable across an IKM rotation.
     """
     try:
-        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.fernet import Fernet
+        from cryptography.fernet import MultiFernet
     except ImportError:
         logger.error("cryptography package not installed — cannot derive tenant Fernet")
         return None
@@ -179,13 +216,17 @@ def _derive_tenant_fernet(tenant_id: str):
         logger.error("tenant_id required for per-tenant Fernet derivation")
         return None
 
-    raw = HKDF(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=tenant_id.encode(),
-        info=b"nexusforge-api-keys-v1",
-    ).derive(settings.jwt_secret.encode())
-    return Fernet(base64.urlsafe_b64encode(raw))
+    from app.auth.secrets import get_tenant_ikm_secondaries
+
+    primary = _derive_tenant_fernet_for_ikm(tenant_id, settings.jwt_secret.encode())
+    secondary_ikms = get_tenant_ikm_secondaries()
+    if not secondary_ikms:
+        return primary
+
+    secondary_fernets = [
+        _derive_tenant_fernet_for_ikm(tenant_id, ikm) for ikm in secondary_ikms
+    ]
+    return MultiFernet([primary, *secondary_fernets])
 
 
 def encrypt_api_key_for_tenant(plaintext: str, tenant_id: str) -> str:
@@ -208,7 +249,8 @@ def decrypt_api_key_for_tenant(encrypted: str, tenant_id: str) -> str:
     """Decrypt per-tenant or legacy-format ciphertext.
 
     Routing:
-      - `tfernet:...` → per-tenant Fernet (requires tenant_id).
+      - `tfernet:...` → per-tenant Fernet handler (single Fernet or
+        MultiFernet depending on `TENANT_FERNET_IKM_OLD` config).
       - `fernet:...`  → legacy global Fernet (back-compat).
       - bare base64   → legacy XOR (very-back-compat).
     """
@@ -228,12 +270,21 @@ def decrypt_api_key_for_tenant(encrypted: str, tenant_id: str) -> str:
 
 
 # ── Legacy XOR (backwards compatibility only) ───────────────────────────────
+#
+# L-1 (2026-04-27): `_KEY` truncates the secret bytes at 32, which
+# can split a multi-byte UTF-8 character. This produces a slightly
+# sloppy key stream but does NOT reduce entropy because the bytes
+# are then HMACed (sha256 absorbs any input losslessly into 256 bits).
+# The path was never exploited; new writes are now refused (see
+# `encrypt_api_key` above). The decrypt-only XOR helper below stays
+# for back-compat with whatever pre-Fernet rows might still exist.
 
-def _xor_encrypt(plaintext: str) -> str:
-    key_stream = hmac.new(_KEY, b"nexusforge-key-encrypt", hashlib.sha256).digest()
-    plaintext_bytes = plaintext.encode()
-    encrypted = bytes(b ^ key_stream[i % len(key_stream)] for i, b in enumerate(plaintext_bytes))
-    return base64.urlsafe_b64encode(encrypted).decode()
+def _xor_encrypt(_: str) -> str:
+    """L-1: kept for callers that import this directly (none in
+    production). Raises so unintentional use surfaces immediately."""
+    raise RuntimeError(
+        "_xor_encrypt is decrypt-only-supported now (L-1, 2026-04-27)"
+    )
 
 
 def _xor_decrypt(encrypted: str) -> str:

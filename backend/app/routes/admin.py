@@ -411,3 +411,38 @@ async def global_audit(
         }
         for r in rows
     ]
+
+
+# ── H-2 followup (2026-04-27): admin refresh-token revocation ───────────────
+#
+# When refresh tokens are enabled (`ENABLE_REFRESH_TOKENS=true`), an
+# admin needs a way to forcibly invalidate a user's long-lived refresh
+# credential — for account compromise response, plan downgrade, or any
+# forced sign-out. Until this commit operators had to drop into a
+# Python shell on the running container via `render exec`. Now there
+# is a real endpoint.
+
+@router.post("/users/{user_id}/refresh-tokens/revoke-all")
+async def admin_revoke_all_refresh_tokens(user_id: UUID, request: Request):
+    """Revoke every refresh token for a user. Admin-only.
+
+    Returns the count of tokens that were actually deleted. After
+    this call, the user's existing access JWT continues to work
+    until its 15-minute (or legacy 8-hour) expiry, but they cannot
+    mint a new access token — re-authentication is required.
+
+    For an immediate-cutoff response, pair this call with
+    `revoke_jti(...)` on every active access token for the user,
+    or rotate `JWT_SIGNING_SECRET` (kills ALL access tokens
+    platform-wide).
+    """
+    _require_admin(request)
+
+    from app.auth.refresh import revoke_all_for_user
+    deleted = await revoke_all_for_user(str(user_id))
+
+    logger.info(
+        "Admin revoked all refresh tokens for user=%s count=%d",
+        str(user_id)[:8], deleted,
+    )
+    return {"user_id": str(user_id), "revoked_count": deleted}

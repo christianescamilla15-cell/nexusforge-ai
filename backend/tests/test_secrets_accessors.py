@@ -136,14 +136,16 @@ def test_rotating_jwt_signing_does_not_change_mythos_or_fernet(monkeypatch):
 def test_boot_fingerprints_no_secret_leakage():
     fps = secrets_mod.boot_fingerprints()
     assert set(fps) == {
-        "jwt_signing", "mythos_hmac", "fernet_primary", "fernet_secondary_count",
+        "jwt_signing", "mythos_hmac", "fernet_primary",
+        "fernet_secondary_count", "tenant_ikm_secondary_count",
     }
     # Each digest is 16 hex chars (8 bytes of sha256).
     for name in ("jwt_signing", "mythos_hmac", "fernet_primary"):
         assert len(fps[name]) == 16
         assert all(c in "0123456789abcdef" for c in fps[name])
-    # Secondary count is a string-of-int, not a digest.
+    # Counts are strings-of-int, not digests.
     assert fps["fernet_secondary_count"].isdigit()
+    assert fps["tenant_ikm_secondary_count"].isdigit()
 
 
 def test_boot_fingerprints_change_when_rotated(monkeypatch):

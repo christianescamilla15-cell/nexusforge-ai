@@ -132,6 +132,32 @@ def get_primary_fernet_key() -> bytes:
 
 
 @lru_cache(maxsize=1)
+def get_tenant_ikm_secondaries() -> list[bytes]:
+    """Old master keying materials for per-tenant Fernet rotation
+    overlap (M-10 followup, 2026-04-27).
+
+    Reads `TENANT_FERNET_IKM_OLD` as comma-separated list. Each entry
+    is treated as raw bytes (encoded) and used as the IKM input to
+    HKDF in `auth/encryption._derive_tenant_fernet_for_ikm`.
+
+    Set during a master-IKM rotation: keep the previous JWT_SECRET
+    here as a secondary so per-tenant `tfernet:` rows stay decryptable
+    while the migration script runs. Drop after re-encryption.
+    """
+    raw = os.environ.get("TENANT_FERNET_IKM_OLD", "").strip()
+    if not raw:
+        return []
+    keys = []
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if entry:
+            keys.append(entry.encode())
+    if keys:
+        logger.info("Tenant Fernet IKM secondaries: %d loaded (rotation overlap)", len(keys))
+    return keys
+
+
+@lru_cache(maxsize=1)
 def get_fernet_secondary_keys() -> list[bytes]:
     """Secondary Fernet keys — decrypt-only (rotation overlap window).
 
@@ -176,4 +202,5 @@ def boot_fingerprints() -> dict[str, str]:
         "mythos_hmac": fp(get_mythos_hmac_secret()),
         "fernet_primary": fp(get_primary_fernet_key()),
         "fernet_secondary_count": str(len(get_fernet_secondary_keys())),
+        "tenant_ikm_secondary_count": str(len(get_tenant_ikm_secondaries())),
     }
