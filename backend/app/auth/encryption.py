@@ -12,9 +12,26 @@ writes should use the per-tenant variants; the legacy global-key
 functions stay for backwards compatibility (they're still the
 fallback decrypt path).
 
+H-2 Phase 1 (2026-04-27): primary Fernet key now sourced from the
+dedicated `FERNET_KEY` env var (with `JWT_SECRET` fallback) via
+`app.auth.secrets.get_primary_fernet_key()`.
+
+H-2 Phase 2 (2026-04-27): when `FERNET_KEYS_OLD` is set, the global
+`fernet:` handler upgrades to `MultiFernet` — new encrypts use the
+primary, decrypts try primary then each secondary in order. Lets
+operators rotate `FERNET_KEY` without bricking existing rows: keep
+the previous key in `FERNET_KEYS_OLD`, deploy the new key, run the
+re-encryption migration (Phase 4), then drop the secondary.
+
+The per-tenant `tfernet:` path still uses a single IKM
+(`jwt_secret`) — overlap-rotation for per-tenant keys is a separate
+M-10 followup tracked in the runbook. For now, rotating the
+master IKM that backs `_derive_tenant_fernet` requires a full
+re-encryption pass (no overlap).
+
 Cipher prefix taxonomy:
-  - `tfernet:`  per-tenant Fernet (new, M-10)
-  - `fernet:`   global Fernet (legacy)
+  - `tfernet:`  per-tenant Fernet (M-10, single IKM today)
+  - `fernet:`   global Fernet, MultiFernet-aware (H-2 Phase 2)
   - bare base64 XOR (very legacy, pre-Fernet rollout)
 """
 
@@ -49,17 +66,45 @@ def _primary_fernet_bytes() -> bytes:
     return get_primary_fernet_key()
 
 
-def _get_fernet():
-    """Return the primary Fernet (single key, decrypt + encrypt).
+def _secondary_fernet_keys() -> list[bytes]:
+    from app.auth.secrets import get_fernet_secondary_keys
+    return get_fernet_secondary_keys()
 
-    Phase 2 of the H-2 work upgrades this to MultiFernet for
-    rotation overlap; for now this is single-key.
+
+def reset_fernet_cache() -> None:
+    """Drop the cached MultiFernet so a runtime env-var change (or
+    test monkeypatch) takes effect on the next encrypt/decrypt."""
+    global _fernet
+    _fernet = None
+
+
+def _get_fernet():
+    """Return the global Fernet handler.
+
+    H-2 Phase 2 (2026-04-27): when `FERNET_KEYS_OLD` is set, returns
+    a `MultiFernet([primary, *secondary])` — primary signs new
+    encrypts, every key is tried for decrypt. This is the overlap
+    window during a `FERNET_KEY` rotation: keep the previous key in
+    `FERNET_KEYS_OLD` until all stored ciphertexts have been
+    re-encrypted with the new primary, then drop it.
+
+    With no secondaries, behavior is identical to the pre-Phase-2
+    single-Fernet path (back-compat for non-rotating deploys).
     """
     global _fernet
     if _fernet is None:
         try:
-            from cryptography.fernet import Fernet
-            _fernet = Fernet(_primary_fernet_bytes())
+            from cryptography.fernet import Fernet, MultiFernet
+            primary = Fernet(_primary_fernet_bytes())
+            secondary = [Fernet(k) for k in _secondary_fernet_keys()]
+            if secondary:
+                _fernet = MultiFernet([primary, *secondary])
+                logger.info(
+                    "Fernet handler: MultiFernet with %d secondary key(s) for rotation overlap",
+                    len(secondary),
+                )
+            else:
+                _fernet = primary
         except ImportError:
             logger.warning("cryptography package not installed — using legacy XOR encryption")
             _fernet = False  # Sentinel: unavailable
