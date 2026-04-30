@@ -1,10 +1,13 @@
 # Runbook -- key rotation (JWT signing / Mythos HMAC / Fernet)
 
 **Owner**: Christian Hernandez
-**Last updated**: 2026-04-27 (H-2 Phases 1-4 — split secrets +
-MultiFernet rotation overlap + re-encryption migration script)
+**Last updated**: 2026-04-30 (per-tenant Fernet migration script —
+M-10 followup complete; rotation overlap is now end-to-end for both
+global `fernet:` and per-tenant `tfernet:` rows)
 **History**: created 2026-04-25 (A-01 / M-9 from
-[2026-04-25 internal retro](../audits/2026-04-25-internal-retro.md))
+[2026-04-25 internal retro](../audits/2026-04-25-internal-retro.md));
+H-2 Phases 1-4 (split secrets + MultiFernet overlap + global
+migration script) shipped 2026-04-27
 
 > **2026-04-27 update**: most of the original procedure (which
 > required a stop-the-world re-encryption window) is now obsolete.
@@ -118,15 +121,59 @@ refresh tokens." The closest equivalent is rotating
 forces every user to re-authenticate within minutes; their
 existing refresh tokens become orphaned and TTL out within 7 days.
 
-### Per-tenant Fernet rotation (M-10 followup, NOT yet shipped)
+### Per-tenant Fernet rotation (`tfernet:` rows, zero-downtime overlap flow)
 
-The `tfernet:`-prefixed ciphertexts use HKDF derivation keyed on
-`JWT_SECRET`. There is no overlap mechanism for those rows yet.
-Rotating `JWT_SECRET` (the master) requires the legacy stop-the-
-world procedure documented at the bottom of this runbook. A
-followup commit will add `MultiHKDF`-style overlap for per-tenant
-keys; until then, prefer using dedicated `FERNET_KEY` rotation
-(which doesn't touch the per-tenant path).
+`tfernet:`-prefixed ciphertexts are derived per tenant via
+`HKDF(ikm=JWT_SECRET, salt=user_id, info="nexusforge-api-keys-v1")`.
+The IKM is the master `JWT_SECRET`, so rotating it changes the
+derivation for every tenant at once. The 2026-04-27 + 2026-04-30
+work added a `TENANT_FERNET_IKM_OLD` overlap env var plus a
+re-encryption script, mirroring the global Fernet flow.
+
+**Important pre-step**: rotating `JWT_SECRET` only affects the
+per-tenant IKM if the sibling surfaces are already on dedicated
+env vars. Otherwise it ALSO rotates JWT signing, Mythos HMAC, and
+the global Fernet primary fallback — set `JWT_SIGNING_SECRET`,
+`MYTHOS_HMAC_SECRET`, and `FERNET_KEY` first (one redeploy each)
+so `JWT_SECRET` stops being a master key and becomes ONLY the
+per-tenant IKM seed.
+
+1. Generate K2 (any high-entropy string ≥ 32 bytes works as IKM —
+   HKDF will hash it):
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(48))"
+   ```
+2. **Single deploy that sets both env vars at once**:
+   - `JWT_SECRET=K2` (the new master IKM)
+   - `TENANT_FERNET_IKM_OLD=<current-K1>` (the previous master,
+     comma-separated if you've rotated through several)
+
+   Render redeploys. The per-tenant handler now wraps each derived
+   tenant Fernet in `MultiFernet([primary_K2, secondary_K1])`.
+   New writes use K2; old K1 ciphertexts decrypt transparently
+   under each tenant's salt.
+3. Run the per-tenant migration script with the same env vars:
+   ```bash
+   render exec <service> -- python -m backend.scripts.rotate_tenant_fernet_keys
+   ```
+   The script iterates every `tfernet:` row in `user_provider_keys`,
+   tries the primary IKM first (no-op if already migrated), falls
+   through to each secondary IKM on `InvalidToken`, re-encrypts
+   under the primary IKM with the row's `user_id` as salt, and
+   writes back. Idempotent — safe to re-run. Skips global
+   `fernet:` rows (handled by the other script) and bare-base64
+   legacy XOR rows.
+4. Verify the script's final summary reports `migrated=0,
+   already_primary=<all>, failed=0` on a re-run. If `failed > 0`
+   or `no_user_id_skipped > 0`, investigate those rows manually
+   before continuing — DO NOT drop `TENANT_FERNET_IKM_OLD` yet.
+5. Drop `TENANT_FERNET_IKM_OLD` from Render env. Next redeploy
+   runs single-IKM per-tenant Fernet; the rotation is complete.
+
+**What this does NOT cover**: rotating `JWT_SECRET` while it is
+still the fallback for `FERNET_KEY` (no dedicated `FERNET_KEY` set)
+will brick global `fernet:` rows. Run the global Fernet rotation
+flow above first if your deploy hasn't yet set `FERNET_KEY`.
 
 ---
 
@@ -268,17 +315,19 @@ addressed in the H-2 work (2026-04-27):
   fingerprints. Look for `secret fingerprint <name>: <16-hex>`
   lines in stdout / log aggregator at app startup.
 
-Remaining limitations (tracked, lower priority):
+All three weaknesses listed in the original runbook have been
+addressed:
 
-1. **Per-tenant Fernet rotation has no overlap window** — see
-   "Per-tenant Fernet rotation" section above. M-10 followup.
-2. **No `revoke_all_refresh_tokens` admin endpoint** — operators
-   currently have to drop into a Python shell via `render exec`.
-   A `/api/admin/refresh/revoke-all` route is straightforward
-   followup work.
-3. **No Mythos key fingerprint in scan reports** — would let
-   ops verify a Mythos rotation took effect without re-running
-   `_derive_mythos_key` on the container.
+- ~~Per-tenant Fernet rotation has no overlap window~~ → shipped
+  2026-04-27 (`91c50bf`, `TENANT_FERNET_IKM_OLD` MultiFernet
+  wrapper) + 2026-04-30 (per-tenant migration script). See
+  "Per-tenant Fernet rotation" above.
+- ~~No `revoke_all_refresh_tokens` admin endpoint~~ → shipped
+  2026-04-27 (`91c50bf`,
+  `POST /api/admin/users/{id}/refresh-tokens/revoke-all`).
+- **No Mythos key fingerprint in scan reports** — still open.
+  Cosmetic; would let ops verify a Mythos rotation took effect
+  without re-running `_derive_mythos_key` on the container.
 
 ---
 
