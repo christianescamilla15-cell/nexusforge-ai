@@ -13,7 +13,7 @@
 ## 1. Current state snapshot
 
 ### Live URLs
-- **Frontend:** https://nexusforge-two.vercel.app (manual deploy via `vercel --prod`)
+- **Frontend:** https://07-nexusforge-ai.vercel.app (manual deploy via `vercel --prod`)
 - **Backend API:** https://nexusforge-api.onrender.com/api (auto-deploys from `master`)
 - **Portfolio:** https://ch65-portfolio.vercel.app
 - **Repo:** PRIVATE at `christianescamilla15-cell/nexusforge-ai`

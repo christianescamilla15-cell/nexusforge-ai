@@ -23,7 +23,7 @@ router = APIRouter(prefix="/billing", tags=["Billing"])
 
 STRIPE_SECRET = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://nexusforge-two.vercel.app")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://07-nexusforge-ai.vercel.app")
 
 PLAN_PRICES = {
     "pro": os.environ.get("STRIPE_PRICE_PRO", ""),

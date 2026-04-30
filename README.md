@@ -14,7 +14,7 @@ NexusForge coordinates **24 superagents** (each with deterministic + LLM layers)
 | Components | 43 custom |
 | Security features | 20 |
 
-**Live Demo:** [nexusforge-two.vercel.app](https://nexusforge-two.vercel.app)
+**Live Demo:** [07-nexusforge-ai.vercel.app](https://07-nexusforge-ai.vercel.app)
 **API Docs:** [nexusforge-api.onrender.com/docs](https://nexusforge-api.onrender.com/docs)
 **API Health:** [nexusforge-api.onrender.com/api/health](https://nexusforge-api.onrender.com/api/health)
 

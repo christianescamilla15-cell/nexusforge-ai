@@ -2,7 +2,7 @@
 
 **Target length**: 4-6 minute video
 **Audience**: potential clients, stakeholders, hiring managers
-**URL to open**: `https://nexusforge-two.vercel.app/showcase`
+**URL to open**: `https://07-nexusforge-ai.vercel.app/showcase`
 
 This script is designed for a screen-recorded walkthrough (Loom, OBS,
 or similar) of the `/showcase` page. It pairs narration beats with
@@ -14,7 +14,7 @@ section is timed and the numbers you read aloud match the live
 
 ## Pre-recording checklist (30 seconds before you hit record)
 
-- [ ] Open `https://nexusforge-two.vercel.app/showcase` in a clean browser window (incognito is fine, no extensions)
+- [ ] Open `https://07-nexusforge-ai.vercel.app/showcase` in a clean browser window (incognito is fine, no extensions)
 - [ ] Zoom in to **110-125%** so the hero band and cards are legible on 1080p
 - [ ] Close all other tabs — viewers will read the tab strip
 - [ ] Disable system notifications (macOS: Focus mode / Windows: Focus assist)
