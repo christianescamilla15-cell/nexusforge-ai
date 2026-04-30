@@ -98,21 +98,13 @@ async def lifespan(app: FastAPI):
 
     # Start zombie cleanup (every 5 minutes)
     import asyncio
+    from app.utils.cleanup import mark_stale_runs_as_zombies
+
     async def _zombie_cleanup_loop():
         while True:
             await asyncio.sleep(300)  # 5 minutes
             try:
-                pool = await get_db_pool()
-                async with pool.acquire() as conn:
-                    result = await conn.execute("""
-                        UPDATE workflow_runs SET status = 'failed',
-                            completed_at = NOW(),
-                            error_message = 'Execution timed out (zombie cleanup)'
-                        WHERE status IN ('pending', 'running')
-                        AND created_at < NOW() - INTERVAL '10 minutes'
-                    """)
-                    if result != "UPDATE 0":
-                        logger.info("Zombie cleanup: %s", result)
+                await mark_stale_runs_as_zombies()
             except Exception as exc:
                 logger.debug("Zombie cleanup skipped: %s", exc)
     _zombie_task = asyncio.create_task(_zombie_cleanup_loop())

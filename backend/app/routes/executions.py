@@ -118,20 +118,16 @@ async def trigger_execution(body: ExecutionTrigger, request: Request):
 
 @router.post("/cleanup-zombies", status_code=200)
 async def cleanup_zombie_runs(request: Request):
-    """Mark all stuck pending/running runs (>10 min old) as failed."""
+    """Mark all stuck pending/queued/running runs (>10 min old) as failed.
+
+    Shares its SQL with the background sweeper started in `main.py`
+    via `app.utils.cleanup.mark_stale_runs_as_zombies` (Tier 5 #1
+    refactor 2026-04-30 — the two implementations had drifted).
+    """
     _get_user_id(request)  # require auth
     try:
-        pool = await get_db_pool()
-        async with pool.acquire() as conn:
-            result = await conn.execute(
-                """UPDATE workflow_runs
-                   SET status = 'failed',
-                       completed_at = now(),
-                       error_message = 'Marked as failed: execution timed out (zombie cleanup)'
-                   WHERE status IN ('pending', 'queued', 'running')
-                     AND created_at < now() - interval '10 minutes'"""
-            )
-            count = int(result.split()[-1]) if result else 0
+        from app.utils.cleanup import mark_stale_runs_as_zombies
+        count = await mark_stale_runs_as_zombies()
         return {"detail": f"Cleaned up {count} zombie runs", "affected": count}
     except Exception as exc:
         logger.exception("Failed to cleanup zombies")
