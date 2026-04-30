@@ -1,4 +1,21 @@
-"""Audit trail — log every significant action for compliance."""
+"""Per-user activity log with token / cost attribution.
+
+Despite the historical "audit" naming, this module is NOT the
+compliance audit trail — that lives in `app/routes/audit.py` and
+writes to the `audit_logs` (plural) table with entity_type /
+entity_id / changes columns. This module writes to `audit_log`
+(singular) and serves as a per-user activity feed showing tokens
+consumed, dollar cost, and duration per action.
+
+The two systems share the unfortunate `/audit` prefix history:
+both modules used to mount at `/api/audit/`, with this one
+registering first and silently shadowing the compliance audit
+routes (a 404 / 500 from the SQL bug at line 67 is what users
+saw on the audit page in production). The 2026-04-30 fix moved
+this module's HTTP surface to `/api/activity/` so the two no
+longer collide. The `log_action()` helper signature is unchanged;
+existing callers in `custom_agents.py` keep working.
+"""
 
 import json
 import logging
@@ -8,7 +25,7 @@ from .jwt_handler import verify_token
 from ..db.client import get_db_pool
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/audit", tags=["Audit Trail"])
+router = APIRouter(prefix="/activity", tags=["Activity Log"])
 
 
 async def log_action(
@@ -64,7 +81,7 @@ async def get_audit_log(request: Request, limit: int = 50, action: Optional[str]
                 """SELECT id, action, resource_type, resource_id, details,
                           tokens_used, cost_usd, duration_ms, created_at
                    FROM audit_log WHERE user_id = $1::uuid
-                   ORDER BY created_at DESC LIMIT $1""",
+                   ORDER BY created_at DESC LIMIT $2""",
                 token_data["sub"], limit,
             )
 
