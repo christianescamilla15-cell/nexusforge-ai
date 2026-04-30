@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import secrets
+from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
@@ -601,37 +602,53 @@ async def handle_webhook_trigger(webhook_secret: str, request: Request):
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 
+
+def _compute_next_run(cron: str, now: datetime | None = None) -> datetime:
+    """Return the next UTC datetime that the given cron expression fires.
+
+    T3.2 (2026-04-30 triangulation): the previous homegrown parser
+    only honored minute and hour, ignoring DOW / DOM / month — so
+    a `30 9 * * 1-5` expression (9:30 weekdays) would fire on
+    Saturday and Sunday too. We now delegate to `croniter` which
+    is the de-facto Python cron library, handles ranges/lists/steps
+    on every field, and matches Vixie cron semantics.
+
+    Returns one hour from `now` if the expression is missing or
+    fails to parse — same fail-soft contract as the original so
+    a single bad row in `automations.schedule_cron` doesn't kill
+    the whole scheduler tick.
+    """
+    from datetime import datetime, timedelta, timezone
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    if not cron or not cron.strip():
+        return now + timedelta(hours=1)
+
+    try:
+        from croniter import croniter, CroniterBadCronError
+    except ImportError:
+        # Defensive: production has croniter pinned in requirements.txt;
+        # this branch only ever fires in environments that pruned the
+        # dep on purpose. Returning a 1-hour fallback keeps the loop
+        # alive instead of crashing.
+        logger.warning("croniter unavailable; falling back to 1h cadence for cron=%r", cron)
+        return now + timedelta(hours=1)
+
+    try:
+        iterator = croniter(cron.strip(), now)
+        return iterator.get_next(datetime)
+    except (CroniterBadCronError, ValueError, KeyError) as exc:
+        logger.warning("Invalid cron %r: %s — falling back to 1h", cron, exc)
+        return now + timedelta(hours=1)
+
+
 async def _scheduler_loop():
     """Background task: fire scheduled automations when next_run_at <= now()."""
-    import re
     from datetime import datetime, timedelta, timezone
 
     def _next_run(cron: str) -> datetime:
-        """Very simple cron: only handles */N minute patterns and fixed hour/day."""
-        now = datetime.now(timezone.utc)
-        parts = cron.strip().split()
-        if len(parts) != 5:
-            return now + timedelta(hours=1)
-        minute_part = parts[0]
-        # */N — every N minutes
-        if minute_part.startswith("*/"):
-            try:
-                n = int(minute_part[2:])
-                return now + timedelta(minutes=n)
-            except ValueError:
-                pass
-        # Fixed minute (e.g. "0 9 * * *" — daily at 9:00)
-        try:
-            minute = int(minute_part) if minute_part != "*" else 0
-            hour = int(parts[1]) if parts[1] != "*" else now.hour
-            next_dt = now.replace(minute=minute, second=0, microsecond=0)
-            if parts[1] != "*":
-                next_dt = next_dt.replace(hour=hour)
-            if next_dt <= now:
-                next_dt += timedelta(days=1)
-            return next_dt
-        except (ValueError, TypeError):
-            return now + timedelta(hours=1)
+        return _compute_next_run(cron)
 
     while True:
         await asyncio.sleep(60)
