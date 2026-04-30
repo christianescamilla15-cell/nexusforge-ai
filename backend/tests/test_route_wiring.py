@@ -116,3 +116,31 @@ def test_api_activity_summary_route_exists(client):
     lives at `/api/activity/summary`. Smoke test."""
     resp = client.get("/api/activity/summary")
     assert resp.status_code != 404
+
+
+# ─── Mythos key fingerprint in scan reports (2026-04-30) ─────────────
+
+
+def test_mythos_report_includes_key_fingerprint():
+    """AuditReport.to_dict() must include a `mythos_key_fingerprint`
+    field — 16-hex sha256 prefix of the active MYTHOS_HMAC_SECRET.
+    Lets operators correlate a scan to the key generation in effect.
+
+    Closes the last cosmetic item from the 2026-04-27 H-2 retro.
+    Asserted on a fresh AuditReport with no findings (the simplest
+    case) so we don't depend on scanner state."""
+    import hashlib
+    import re
+
+    from app.auth.secrets import get_mythos_hmac_secret
+    from app.security.mythos import AuditReport
+
+    out = AuditReport().to_dict()
+    fp = out.get("mythos_key_fingerprint")
+    assert isinstance(fp, str)
+    assert re.fullmatch(r"[0-9a-f]{16}", fp), f"not a 16-hex digest: {fp!r}"
+
+    # Matches sha256[:16] of the active HMAC secret. No leakage of
+    # the secret itself.
+    expected = hashlib.sha256(get_mythos_hmac_secret()).hexdigest()[:16]
+    assert fp == expected

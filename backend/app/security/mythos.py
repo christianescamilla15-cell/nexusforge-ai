@@ -51,6 +51,16 @@ def verify_mythos_access(provided_key: str) -> bool:
     return hmac.compare_digest(provided_key, expected)
 
 
+def _mythos_key_fingerprint() -> str:
+    """sha256[:16] of the active MYTHOS_HMAC_SECRET (or its JWT_SECRET
+    fallback). Surfaced in scan reports so operators can correlate a
+    finding to the key generation in effect when the scan ran. Same
+    digest format used by `boot_fingerprints()` in `app/auth/secrets.py`
+    — diff across deploys to verify a rotation took effect."""
+    from app.auth.secrets import get_mythos_hmac_secret
+    return hashlib.sha256(get_mythos_hmac_secret()).hexdigest()[:16]
+
+
 # ── Data Models ─────────────────────────────────────────────────────────────
 
 @dataclass
@@ -96,6 +106,12 @@ class AuditReport:
             "scanned_files": self.scanned_files,
             "scanned_endpoints": self.scanned_endpoints,
             "score": self._security_score(),
+            # 2026-04-30: 16-hex sha256 of the active MYTHOS_HMAC_SECRET
+            # (or its JWT_SECRET fallback). Lets an operator correlate a
+            # scan report to the deploy/key generation that produced it
+            # without ever exposing the secret itself. Closes the last
+            # cosmetic item from the 2026-04-27 H-2 retro.
+            "mythos_key_fingerprint": _mythos_key_fingerprint(),
         }
 
     def _count_by(self, attr: str) -> dict:
