@@ -260,9 +260,13 @@ def generate_xunit_test_class(
         return_type = method.get("return_type", "void")
         param_count = method.get("params", 0)
 
-        # Test: method returns expected result
+        # Scaffold test: method returns expected result.
+        # T5 #2 (2026-04-30): emit `[Fact(Skip="...")]` so the test
+        # appears in the runner as Skipped, NOT as a passing test
+        # with `Assert.True(true)` (which the previous version did
+        # — falsely inflating the green count).
         tests.append(f"""
-    [Fact]
+    [Fact(Skip = "scaffold: implement happy-path assertion for {name}")]
     public void {name}_ShouldReturnExpectedResult()
     {{
         // Arrange
@@ -273,13 +277,12 @@ def generate_xunit_test_class(
 
         // Assert
         // Assert.NotNull(result);
-        Assert.True(true); // TODO: implement real assertion
     }}""")
 
-        # Test: handles null input
+        # Scaffold test: handles null input.
         if param_count > 0:
             tests.append(f"""
-    [Fact]
+    [Fact(Skip = "scaffold: implement null-input handling for {name}")]
     public void {name}_WithNullInput_ShouldHandleGracefully()
     {{
         // Arrange
@@ -287,7 +290,6 @@ def generate_xunit_test_class(
 
         // Act & Assert
         // Assert.Throws<ArgumentNullException>(() => sut.{name}(null));
-        Assert.True(true); // TODO: implement
     }}""")
 
     test_methods = "\n".join(tests)

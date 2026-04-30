@@ -187,7 +187,12 @@ def _generate_csharp_tests(source_file: str, funcs: list[dict], imports: list[st
 
     for func in funcs:
         name = func["name"]
-        lines.append(f"    [Fact]")
+        # T5 #2 (2026-04-30): emit `[Fact(Skip = "...")]` instead of
+        # `[Fact]` + `Assert.True(true)`. Skipped tests appear in
+        # the xUnit runner output as Skipped rather than as a green
+        # pass with no assertion — the previous form misleadingly
+        # inflated the passing-test count.
+        lines.append(f'    [Fact(Skip = "scaffold: implement assertion for {name}")]')
         lines.append(f"    public void {name}_ShouldReturnExpectedResult()")
         lines.append(f"    {{")
         lines.append(f"        // Arrange")
@@ -198,7 +203,6 @@ def _generate_csharp_tests(source_file: str, funcs: list[dict], imports: list[st
         lines.append(f"        ")
         lines.append(f"        // Assert")
         lines.append(f"        // Assert.NotNull(result);")
-        lines.append(f"        Assert.True(true); // Placeholder")
         lines.append(f"    }}")
         lines.append(f"")
 
