@@ -18,6 +18,11 @@ from app.routes.templates import router as templates_router
 from app.routes.rules import router as rules_router
 from app.routes.variables import router as variables_router
 from app.routes.audit import router as audit_log_router
+from app.routes.portfolio_copilot import router as portfolio_copilot_router
+from app.routes.orchestrator import router as orchestrator_router
+from app.routes.evaluation import router as evaluation_router
+from app.routes.executions_db import router as executions_db_router
+from app.routes.meta import router as meta_router
 from app.observability.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
@@ -286,6 +291,16 @@ app.include_router(org_router, prefix="/api", tags=["organizations"])
 
 from app.routes.admin import router as admin_router
 app.include_router(admin_router, prefix="/api", tags=["admin"])
+
+# 2026-04-30: previously-unregistered route modules. Each was implemented
+# but never wired into the FastAPI app, so the documented endpoints 404'd.
+# `meta_router` already declares `prefix="/api/meta"` internally — register
+# WITHOUT an extra `/api` prefix or it becomes `/api/api/meta/*`.
+app.include_router(portfolio_copilot_router, prefix="/api", tags=["portfolio-copilot"])
+app.include_router(orchestrator_router, prefix="/api", tags=["orchestrator"])
+app.include_router(evaluation_router, prefix="/api", tags=["evaluation"])
+app.include_router(executions_db_router, prefix="/api", tags=["executions-db"])
+app.include_router(meta_router, tags=["meta-orchestration"])
 
 # Mythos — OWNER-ONLY security auditor (returns 404 without valid key)
 from app.security.routes import router as mythos_router

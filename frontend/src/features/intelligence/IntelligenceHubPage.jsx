@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchAPI } from '../../services/api'
+import { fetchAPI, getApiUrl } from '../../services/api'
 import { useIsMobile } from '../../shared/hooks/useIsMobile'
 
 const T = {
@@ -59,7 +59,7 @@ function EnterpriseOpsTab({ lang }) {
     setResult(null)
     const res = await fetchAPI('/enterprise-ops/process', {
       method: 'POST',
-      body: JSON.stringify({ text, language: lang }),
+      body: JSON.stringify({ message: text, language: lang }),
     })
     setLoading(false)
     if (res.error) { setError(res.error); return }
@@ -74,9 +74,9 @@ function EnterpriseOpsTab({ lang }) {
           <div style={{ padding: '8px 14px', borderRadius: 8, background: '#F0FDF4', fontSize: 12, color: '#166534' }}>
             {t.agents}: {health.agents?.length || 0}
           </div>
-          {health.supported_intents && (
+          {health.intents_supported && (
             <div style={{ padding: '8px 14px', borderRadius: 8, background: '#EFF6FF', fontSize: 12, color: '#1E40AF' }}>
-              {t.intents}: {health.supported_intents?.join(', ')}
+              {t.intents}: {health.intents_supported?.join(', ')}
             </div>
           )}
         </div>
@@ -152,7 +152,7 @@ function DocIntelTab({ lang }) {
     setResult(null)
     const res = await fetchAPI('/document-intelligence/run', {
       method: 'POST',
-      body: JSON.stringify({ text, language: lang }),
+      body: JSON.stringify({ content: text, language: lang, filename: 'text_input' }),
     })
     setLoading(false)
     if (res.error) { setError(res.error); return }
@@ -239,14 +239,23 @@ function AnalyzeTab({ lang }) {
     if (!text.trim()) return
     setLoading(true)
     setResult(null)
-    const res = await fetchAPI('/analyze/text', {
-      method: 'POST',
-      body: JSON.stringify({ text, language: lang }),
-    })
-    setLoading(false)
-    if (res.error) { setError(res.error); return }
-    setError(null)
-    if (res.data) setResult(res.data)
+    // /analyze/text is a Form endpoint (matches AnalyzePage.jsx). fetchAPI
+    // forces application/json which would 422 here, so use raw fetch +
+    // FormData so the browser sets multipart/form-data with a boundary.
+    const formData = new FormData()
+    formData.append('content', text)
+    formData.append('language', lang)
+    try {
+      const resp = await fetch(`${getApiUrl()}/analyze/text`, { method: 'POST', body: formData })
+      const data = await resp.json()
+      setLoading(false)
+      if (!resp.ok) { setError(data.detail || `HTTP ${resp.status}`); return }
+      setError(null)
+      setResult(data)
+    } catch (e) {
+      setLoading(false)
+      setError(e.message)
+    }
   }
 
   return (

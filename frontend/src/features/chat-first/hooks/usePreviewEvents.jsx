@@ -23,8 +23,11 @@ export function PreviewEventProvider({ children }) {
     if (event.type === 'workflow' && event.data?.runId) {
       if (wsRef.current) wsRef.current.close()
       setStepStatuses({})
-      const apiUrl = getApiUrl().replace(/^http/, 'ws')
-      const ws = new WebSocket(`${apiUrl}/ws/${event.data.runId}`)
+      // Backend mounts the WS handler at /api/executions/ws/{runId} —
+      // mirror the URL builder from useExecutionWS.js so chat-first
+      // preview actually receives step events.
+      const wsBase = getApiUrl().replace(/^http/, 'ws').replace(/\/api$/, '/api/executions')
+      const ws = new WebSocket(`${wsBase}/ws/${event.data.runId}`)
       ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data)
