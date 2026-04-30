@@ -39,7 +39,12 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Google login failed')
-      localStorage.setItem('nf_token', data.token)
+      // T5 #4 (2026-04-30): persist refresh_token too when the deploy
+      // has ENABLE_REFRESH_TOKENS=true. setTokens is null-safe — it
+      // simply skips the refresh slot when the field is absent (legacy
+      // single-token deployments work unchanged).
+      const { setTokens } = await import('../../services/api')
+      setTokens({ token: data.token, refresh_token: data.refresh_token })
       localStorage.setItem('nf_user', JSON.stringify(data.user))
       onLogin(data.user)
     } catch (err) {
@@ -161,7 +166,9 @@ export default function AuthPage({ onLogin, lang = 'es' }) {
       }
 
       if (data?.token) {
-        localStorage.setItem('nf_token', data.token)
+        // T5 #4 (2026-04-30): persist refresh_token too when present.
+        const { setTokens } = await import('../../services/api')
+        setTokens({ token: data.token, refresh_token: data.refresh_token })
         localStorage.setItem('nf_user', JSON.stringify(data.user))
         if (onLogin) onLogin(data.user)
       } else {
