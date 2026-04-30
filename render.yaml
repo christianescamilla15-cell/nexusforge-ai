@@ -44,12 +44,27 @@ services:
       # H-5 (2026-04-25): explicit allowlist of *current* frontend
       # origins. Removed `frontend-silk-three-66.vercel.app` — that
       # alias was a stale Vercel preview that anyone could redeploy
-      # over (Vercel preview hijack class). Canonical frontend is
-      # nexusforge-two.vercel.app per CLAUDE.md; the unsuffixed
-      # `nexusforge.vercel.app` is kept as a possible alias target.
+      # over (Vercel preview hijack class).
+      #
+      # 2026-04-30 update: corrected the canonical frontend URL.
+      # Pre-this-date docs claimed `nexusforge-two.vercel.app` was
+      # canonical, but the project actually deployed and used by
+      # users (Google OAuth allowlisted to it) is
+      # `07-nexusforge-ai.vercel.app`. The previous Vercel project
+      # (`nexusforge`, owns `nexusforge-two.vercel.app`) is an orphan
+      # awaiting cleanup. Both origins kept here so neither breaks
+      # while the orphan project is being deprecated.
       # Add NEW origins here only after verifying ownership in Vercel.
+      #
+      # NOTE: this blueprint default is only used on FIRST deploy.
+      # Runtime overrides via the Render env-vars dashboard take
+      # precedence. As of 2026-04-30 this var is NOT set on Render,
+      # so the backend falls back to wildcard CORS (allow_origins=["*"]
+      # with allow_credentials=False — see backend/app/main.py:203).
+      # Set ALLOWED_ORIGINS via the Render dashboard if you want to
+      # lock CORS down to specific origins.
       - key: ALLOWED_ORIGINS
-        value: "https://nexusforge-two.vercel.app,https://nexusforge.vercel.app"
+        value: "https://07-nexusforge-ai.vercel.app,https://nexusforge-two.vercel.app"
 
 databases:
   - name: nexusforge-db

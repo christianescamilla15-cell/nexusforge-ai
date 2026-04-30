@@ -130,12 +130,24 @@ Built for publicly-traded enterprise systems with multi-million-dollar risk expo
 - Quality over speed — read files before changing, build before pushing
 - Frontend .jsx required for files with JSX (Vite 8 strict)
 - Rollback immediately on deploy errors, don't fix forward
+- **Dual-Vercel-project trap (2026-04-30 incident)**: this repo has
+  TWO Vercel projects — `07-nexusforge-ai` (canonical, owns the
+  `07-nexusforge-ai.vercel.app` alias users actually hit, has Google
+  OAuth allowlisted to it) AND `nexusforge` (orphan, owns
+  `nexusforge-two.vercel.app`). Always `vercel link --project
+  07-nexusforge-ai` before `vercel --prod`. The orphan project is
+  scheduled for cleanup but DO NOT delete until verifying its
+  alias has no external citations.
 
 ## Deploy
-- Frontend: nexusforge-two.vercel.app (manual via vercel --prod)
+- Frontend: **`07-nexusforge-ai.vercel.app`** (manual via vercel --prod —
+  link to project `07-nexusforge-ai`, framework=vite, rootDir=frontend)
 - Backend: nexusforge-api.onrender.com (auto-deploy from master)
 - Portfolio: ch65-portfolio.vercel.app
 - Repo: PRIVATE (christianescamilla15-cell/nexusforge-ai)
+- Orphan Vercel project to clean up: `nexusforge` (alias
+  `nexusforge-two.vercel.app`) — pre-2026-04-30 docs incorrectly
+  identified this as canonical; users actually hit the other one.
 
 ## Conventions
 - English for code, Spanish for user-facing strings
