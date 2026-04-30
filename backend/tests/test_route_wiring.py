@@ -144,3 +144,22 @@ def test_mythos_report_includes_key_fingerprint():
     # the secret itself.
     expected = hashlib.sha256(get_mythos_hmac_secret()).hexdigest()[:16]
     assert fp == expected
+
+
+# ─── readiness probe (2026-04-30 Tier 4 #7) ──────────────────────────
+
+
+def test_health_ready_route_exists(client):
+    """`GET /api/health/ready` is documented in docs/DEPLOYMENT.md
+    as the K8s/Render readiness probe path. The route didn't exist
+    before today; any probe pointed at it returned 404 → pod
+    permanently NotReady. Smoke test: the route is mounted
+    (returns 200 if DB+Redis up, or 503 if degraded — never 404)."""
+    resp = client.get("/api/health/ready")
+    assert resp.status_code != 404
+    # The body shape is fixed regardless of dep state.
+    body = resp.json()
+    assert "ready" in body
+    assert "components" in body
+    assert "database" in body["components"]
+    assert "redis" in body["components"]

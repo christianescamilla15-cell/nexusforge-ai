@@ -2,6 +2,7 @@
 
 import logging
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 from app.db.client import get_db_pool, get_redis
 from app.agents.registry import list_agents
@@ -94,3 +95,48 @@ async def health_check():
         "agent_count": agent_count,
         "agent_health": agent_health,
     }
+
+
+@router.get("/health/ready")
+async def readiness_probe():
+    """Readiness probe — 200 only if every required dependency is up.
+
+    Tier 4 verification (2026-04-30 triangulation): docs/DEPLOYMENT.md
+    documented this path but the route didn't exist. K8s/Render
+    readiness probes pointed at it would have flagged the pod as
+    NotReady on every poll regardless of actual state.
+
+    Distinct from `/api/health` (which always returns 200 with a
+    body describing degradation) and `/api/ping` (which doesn't
+    touch DB or Redis at all). Use this one for orchestrators that
+    decide pod traffic eligibility on HTTP status code alone.
+    """
+    db_ok = False
+    redis_ok = False
+    redis_error = None
+
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        db_ok = True
+    except Exception as exc:
+        logger.warning("Readiness — DB unreachable: %s", exc)
+
+    try:
+        redis = await get_redis()
+        await redis.ping()
+        redis_ok = True
+    except Exception as exc:
+        redis_error = f"{type(exc).__name__}: {exc}"
+        logger.warning("Readiness — Redis unreachable: %s", redis_error)
+
+    body = {
+        "ready": db_ok and redis_ok,
+        "components": {
+            "database": "up" if db_ok else "down",
+            "redis": "up" if redis_ok else ("down: " + (redis_error or "unknown")),
+        },
+    }
+    status_code = 200 if (db_ok and redis_ok) else 503
+    return JSONResponse(content=body, status_code=status_code)

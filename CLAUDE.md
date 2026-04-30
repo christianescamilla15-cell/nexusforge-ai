@@ -58,16 +58,62 @@ Built for publicly-traded enterprise systems with multi-million-dollar risk expo
 - Tested on: vuln-test (4 files), dotnet-identity (1106 files), eShop (633 files), tenant-alpha synth (128 files), NexusForge (620 files)
 
 ## API Endpoints (active)
-- /api/health, /api/auth/*, /api/billing/*
-- /api/workflows/*, /api/executions/*, /api/automations/*
+> Updated 2026-04-30 after the gap-audit triangulation. Source of truth
+> is `app.include_router()` calls in `backend/app/main.py`. Endpoints
+> grouped by surface. The `/api/v1/*` mirror is a CURATED subset (see
+> `_V1_PUBLIC_ROUTERS` in main.py); v0 paths remain available.
+
+### Identity & accounts
+- /api/auth/* (login, register, oauth, me, logout, refresh)
+- /api/api-keys/* (generate, list, delete)
+- /api/billing/* (checkout, webhook, portal)
+- /api/organizations/* (org CRUD + memberships)
+
+### Workflow runtime
+- /api/workflows/* (CRUD + run)
+- /api/executions/* (create, get, WS at /ws/{run_id})
+- /api/runs/* (run history, reliability)
+- /api/automations/* (publish, schedule, webhook trigger)
 - /api/agents/*, /api/swarms/*, /api/documents/*
-- /api/wizard/chat, /api/wizard/generate
+
+### Wizard & SDK
+- /api/wizard/chat, /api/wizard/generate, /api/wizard/guide, /api/wizard/questions
 - /api/sdk/run, /api/sdk/review, /api/sdk/research, /api/sdk/batch
+
+### Refactor engine
 - /api/refactor/ingest, /execute, /triage, /batch-remediate
 - /api/refactor/analyze-csharp, /fix-csharp, /generate-cicd
 - /api/refactor/scan-pii, /scan-db, /scan-rpa, /generate-tests, /scan-multilang
 - /api/refactor/multi-repo, /pr, /status
-- /api/mythos/scan, /mythos/scan/{category}, /mythos/key
+
+### Use cases (analyze, intelligence)
+- /api/analyze/*, /api/analyze/text (Form-encoded)
+- /api/enterprise-ops/* (POST /process expects {message, language})
+- /api/document-intelligence/* (POST /run expects {content, language, filename})
+- /api/portfolio-copilot/run, /examples, /health  (wired 2026-04-30)
+- /api/evaluation/* (scenarios, runs, results — wired 2026-04-30)
+- /api/executions-db/* (DB-backed timeline + checkpoints — wired 2026-04-30)
+- /api/orchestrator/* (agent memory control plane — wired 2026-04-30)
+- /api/meta/* (pipeline, reason, generate-spec, predict-features, optimize-flow,
+  sdk/run, sdk/review, sdk/research — wired 2026-04-30)
+
+### Operational / integration
+- /api/integrations/*, /api/connectors/*, /api/templates/*, /api/rules/*, /api/variables/*
+- /api/feedback/*, /api/drive-pipeline/*
+- /api/audit/* (compliance audit log + entity trail + CSV export)
+- /api/activity/*, /api/activity/summary  (per-user token / cost feed —
+  formerly mounted at /api/audit/, moved 2026-04-30 to stop a
+  prefix-shadow bug; see app/auth/audit.py docstring)
+- /api/metrics/*, /api/health, /api/demo/*
+
+### Security (Mythos — owner-only)
+- /api/mythos/scan, /api/mythos/scan/{category}, /api/mythos/scan/diff
+- (no public /api/mythos/key — H-3 closed 2026-04-25)
+
+### Admin (admin-only, 404 to non-admin per info-leak guard)
+- /api/admin/dashboard, /api/admin/users, /api/admin/orgs, /api/admin/usage, /api/admin/audit
+- /api/admin/users/{id}/refresh-tokens/revoke-all
+- /api/admin/security/fernet-rotation/global, /api/admin/security/fernet-rotation/tenant
 
 ## Frontend Routes
 - / (ChatFirst), /automations, /wizard, /workflows, /executions

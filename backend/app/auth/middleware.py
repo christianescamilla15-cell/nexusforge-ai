@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 # Routes that don't require authentication
 PUBLIC_PATHS = {
     "/api/health",
+    "/api/health/ready",  # K8s/Render readiness probe — added 2026-04-30 (Tier 4 #7)
+    "/api/ping",          # Lightweight liveness probe (no DB/Redis touch)
+    "/api/version",       # Build info — used by frontend for cache-bust + by uptime checks
     "/api/auth/register",
     "/api/auth/login",
     "/api/auth/google",

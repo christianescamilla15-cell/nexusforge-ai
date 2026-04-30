@@ -308,10 +308,22 @@ app.include_router(mythos_router, prefix="/api", tags=["mythos"])
 
 
 # ── API Versioning ──────────────────────────────────────────────────────────
-# /api/v1/* mirrors /api/* for forward compatibility
-# Clients should migrate to /api/v1/ for stability guarantees
+# T2.1 (2026-04-30 triangulation): the original comment claimed that
+# /api/v1/* was a full mirror of /api/* and that clients should migrate.
+# In reality, only a CURATED PUBLIC-API SUBSET is mirrored — the
+# routers below — and that set is intentional, not exhaustive.
+# Internal/dev tooling (workflows, executions, agents, swarms, memory,
+# metrics, refactor-engine internals, connectors, templates, rules,
+# variables, audit, demo, mythos, meta, orchestrator, evaluation,
+# executions-db, portfolio-copilot, document-intelligence,
+# enterprise-ops, integrations, feedback, drive-pipeline,
+# workflow_runs) stays unversioned at /api/* and may break across
+# releases.
+#
+# If a router is added to the mirror below, it joins the v1 stability
+# contract: backwards-compatible shape changes only, deprecation
+# windows for breaking changes. Add to the list deliberately.
 from fastapi import APIRouter as _APIRouter
-from fastapi.responses import RedirectResponse
 
 _v1 = _APIRouter(prefix="/api/v1", tags=["v1"])
 
@@ -321,9 +333,12 @@ async def api_version():
 
 app.include_router(_v1)
 
-# Mount all existing routes under /api/v1/ as well
-for r in [auth_routes, billing_routes, api_keys_routes, wizard_routes,
-          results_router, analyze_router, automations_router, sdk_router,
-          refactor_router, org_router, admin_router]:
-    app.include_router(r, prefix="/api/v1")
+# Curated v1 public surface. Each router here is a stability contract.
+_V1_PUBLIC_ROUTERS = [
+    auth_routes, billing_routes, api_keys_routes, wizard_routes,
+    results_router, analyze_router, automations_router, sdk_router,
+    refactor_router, org_router, admin_router,
+]
+for _r in _V1_PUBLIC_ROUTERS:
+    app.include_router(_r, prefix="/api/v1")
 
