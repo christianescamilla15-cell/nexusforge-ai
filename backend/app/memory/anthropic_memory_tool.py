@@ -62,6 +62,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -87,22 +88,129 @@ MAX_DIR_BYTES = 10_000_000
 # The authoritative defense is the agent loop's system prompt which
 # tells Claude to treat memory contents as data, not instructions.
 #
+# L-3 hardening (2026-04-30, T5 #5): the previous list was
+# allowlist-of-known-strings and trivially bypassable via Unicode
+# homoglyphs (Cyrillic 'е' for Latin 'e'), zero-width chars, or any
+# synonym not enumerated. The current pattern raises the bar by
+# normalizing input first (NFKC + homoglyph fold + zero-width strip
+# + whitespace collapse) AND expanding the marker set to cover
+# common roleplay/jailbreak phrasings + LLM control tokens. It is
+# still defense-in-depth; the system-prompt discipline that tells
+# Claude to treat memory as data remains the primary protection.
+#
 # NOTE: case insensitivity is applied via re.IGNORECASE at compile
 # time. Do NOT embed ``(?i)`` inline — Python 3.11+ rejects inline
 # flags that are not at the start of the whole expression when they
 # appear inside an alternation.
 _POISONING_MARKERS = [
-    r"\bignore\s+previous\s+instructions\b",
-    r"\bignore\s+all\s+prior\s+instructions\b",
-    r"\bdisregard\s+(?:previous|all|prior)\s+instructions\b",
-    r"\bsystem\s*:\s*(?:you\s+are|act\s+as)",
+    # Override / disregard / forget instructions (with synonyms +
+    # qualifier-words covering "the/all/your/any/previous/prior/above").
+    r"\b(?:ignore|disregard|forget|override|skip|bypass|drop)\s+"
+    r"(?:the\s+|all\s+|your\s+|any\s+|previous\s+|prior\s+|above\s+|earlier\s+)+"
+    r"(?:instructions?|rules?|prompts?|guidelines?|system|directives?|constraints?)\b",
+
+    # "Disregard the above" without an explicit object is a common
+    # jailbreak hook. Caught when followed by a directive verb.
+    r"\b(?:disregard|ignore)\s+(?:everything|anything)\s+(?:above|before|prior|earlier)\b",
+
+    # Roleplay-persona jailbreak names paired with REQUIRED
+    # mode/prompt/persona/jailbreak qualifiers. The qualifier is
+    # mandatory because bare names like "AIM" or "DAN" appear in
+    # legitimate memory content (a project name, a person, "aim of
+    # the project"). Pairing them with "mode"/"persona" keeps the
+    # signal strong without false-positive on real words.
+    r"\b(?:DAN|STAN|DUDE|AIM|JAILBREAK|DEVMODE|EVILBOT)\s+"
+    r"(?:mode|prompt|persona|enabled|activated|now)\b",
+
+    # "you are now <X>" / "you are from now on" — the canonical
+    # role-redefinition opener. Tightened so plain mentions of "you
+    # are" don't false-match.
+    r"\byou\s+are\s+(?:now|from\s+now\s+on|hereby|going\s+to\s+act)\b",
+    r"\b(?:act|behave|pretend|roleplay)\s+as\s+(?:if\s+you\s+are\s+|though\s+you\s+are\s+)?"
+    r"(?:a|an|the)\s+\w+",
+
+    # Explicit role markers followed by a directive verb. Catches both
+    # `system: you are` and `system:\nyou are`.
+    r"(?:system|assistant|developer)\s*[:>\]]\s*"
+    r"(?:you\s+are|act\s+as|you\s+must|you\s+will|new\s+instructions)",
+
+    # LLM control tokens (Anthropic, OpenAI, Llama, etc.).
     r"\[INST\]",
     r"\[/INST\]",
+    r"<<\s*SYS\s*>>",
+    r"<</\s*SYS\s*>>",
     r"<\|im_start\|>",
+    r"<\|im_end\|>",
     r"<\|system\|>",
+    r"<\|user\|>",
+    r"<\|assistant\|>",
+    r"<\|endoftext\|>",
+    r"<\|tool_call\|>",
+    r"<\|response\|>",
+    r"<\|control_\d+\|>",
 ]
 
 _POISONING_RE = re.compile("|".join(_POISONING_MARKERS), re.IGNORECASE)
+
+
+# Common Cyrillic-to-Latin homoglyphs. Mapping is one-way (Cyrillic
+# code point → ASCII letter) so the regex can match canonical Latin
+# strings even when the attacker substituted lookalikes. Only the
+# letters that appear in the marker set are folded — keeping the map
+# tight reduces collateral damage to legitimate non-English memory
+# content (e.g., a Russian user note remains intact other than the 8
+# specific letters we collapse).
+_HOMOGLYPH_FOLD = str.maketrans({
+    "а": "a",  # Cyrillic а
+    "е": "e",  # Cyrillic е
+    "о": "o",  # Cyrillic о
+    "р": "p",  # Cyrillic р
+    "с": "c",  # Cyrillic с
+    "у": "y",  # Cyrillic у
+    "х": "x",  # Cyrillic х
+    "і": "i",  # Cyrillic і (Ukrainian)
+    "ԁ": "d",  # Komi De
+    # Greek lookalikes
+    "ο": "o",  # Greek omicron
+    "α": "a",  # Greek alpha
+    # Mathematical alphanumerics: most fall through NFKC, but
+    # full-width forms need explicit handling for the few NFKC misses.
+})
+
+# Zero-width / formatting characters that get stripped before matching
+# so an attacker can't break a marker mid-word (`igno​re`).
+_ZERO_WIDTH_RE = re.compile(r"[​‌‍⁠﻿]")
+
+
+def _normalize_for_poisoning_check(text: str) -> str:
+    """Canonicalize ``text`` so the poisoning regex can't be bypassed
+    by Unicode lookalikes, zero-width insertions, full-width forms,
+    or unusual whitespace. Pure function; doesn't mutate input.
+
+    Steps (in order):
+      1. NFKC — folds compatibility forms (full-width "ｉｇｎｏｒｅ"
+         becomes "ignore", ligatures decompose, etc.).
+      2. Strip combining marks (so "ignoré" → "ignore" before regex).
+      3. Strip zero-width chars (zero-width space / joiner / BOM).
+      4. Apply targeted Cyrillic + Greek → Latin homoglyph fold.
+      5. Collapse all Unicode whitespace runs to a single ASCII space
+         so `\s+` in the markers matches the same way regardless of
+         what whitespace the attacker used.
+      6. Lowercase (regex uses IGNORECASE but lowercasing once up
+         front is cheaper than per-match folding).
+    """
+    if not text:
+        return ""
+    # NFKD decomposes precomposed accents (é → e + combining acute)
+    # so the next step can drop the marks. NFKC would leave precomposed
+    # forms intact and miss "ignoré"-style attacks.
+    s = unicodedata.normalize("NFKD", text)
+    # Drop combining marks (category Mn = Mark, Nonspacing).
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = _ZERO_WIDTH_RE.sub("", s)
+    s = s.translate(_HOMOGLYPH_FOLD)
+    s = re.sub(r"\s+", " ", s)
+    return s.lower()
 
 
 # Safe characters for agent_id → directory path. Everything else stripped.
@@ -268,7 +376,11 @@ class MemoryToolHandler:
     def _assert_no_poisoning(self, content: str) -> None:
         if not self.check_poisoning:
             return
-        if _POISONING_RE.search(content):
+        # L-3 hardening (2026-04-30): normalize before matching so
+        # Unicode lookalikes and zero-width insertions can't bypass
+        # the markers. See `_normalize_for_poisoning_check` docstring.
+        normalized = _normalize_for_poisoning_check(content)
+        if _POISONING_RE.search(normalized):
             raise PoisoningDetectedError(
                 "Content contains a prompt injection marker; refusing to store"
             )
