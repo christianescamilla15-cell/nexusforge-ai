@@ -46,7 +46,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -64,25 +63,52 @@ logging.basicConfig(
 logger = logging.getLogger("rotate_fernet_keys")
 
 
-async def main() -> int:
-    # Lazy imports so the module can be run as `python -m` without
-    # FastAPI startup wiring.
+async def run_rotation_pass(pool) -> dict:
+    """Run one re-encryption pass over `user_provider_keys.api_key_encrypted`
+    for global `fernet:` rows.
+
+    Pure logic — accepts an asyncpg-style pool, returns a counts dict.
+    Kept separate from `main()` so admin HTTP handlers can call it
+    without invoking sys.exit / CLI logging.
+
+    Return shape:
+        {
+            "status": "no_op" | "complete" | "partial",
+            "total": int, "migrated": int, "already_primary": int,
+            "per_tenant_skipped": int, "legacy_xor_skipped": int,
+            "failed": int,
+            "primary_fingerprint": str,         # sha256[:16] of primary key
+            "secondary_count": int,             # 0 ⇒ status="no_op"
+        }
+    """
+    import hashlib
     from app.auth.secrets import (
         get_primary_fernet_key,
         get_fernet_secondary_keys,
     )
-    from app.db.client import get_db_pool
 
     primary_key = get_primary_fernet_key()
     secondary_keys = get_fernet_secondary_keys()
+    primary_fp = hashlib.sha256(primary_key).hexdigest()[:16]
 
     if not secondary_keys:
         logger.warning(
             "FERNET_KEYS_OLD is unset — nothing to migrate from. If you "
             "are MID-ROTATION, set FERNET_KEYS_OLD to the previous key(s) "
-            "before re-running this script."
+            "before re-running."
         )
-        return 0
+        return {
+            "status": "no_op",
+            "reason": "FERNET_KEYS_OLD unset",
+            "total": 0,
+            "migrated": 0,
+            "already_primary": 0,
+            "per_tenant_skipped": 0,
+            "legacy_xor_skipped": 0,
+            "failed": 0,
+            "primary_fingerprint": primary_fp,
+            "secondary_count": 0,
+        }
 
     primary_fernet = Fernet(primary_key)
     secondary_fernets = [Fernet(k) for k in secondary_keys]
@@ -90,11 +116,9 @@ async def main() -> int:
     logger.info(
         "Rotation context: primary key fingerprint sha256[:16]=%s, "
         "secondary count=%d",
-        __import__("hashlib").sha256(primary_key).hexdigest()[:16],
-        len(secondary_keys),
+        primary_fp, len(secondary_keys),
     )
 
-    pool = await get_db_pool()
     rows_total = 0
     rows_skipped_already_primary = 0
     rows_skipped_per_tenant = 0
@@ -103,7 +127,6 @@ async def main() -> int:
     rows_failed = 0
 
     async with pool.acquire() as conn:
-        # Stream by pkey to keep memory bounded on large tables.
         rows = await conn.fetch(
             "SELECT id, api_key_encrypted FROM user_provider_keys "
             "WHERE api_key_encrypted IS NOT NULL AND api_key_encrypted != ''"
@@ -114,31 +137,23 @@ async def main() -> int:
         for row in rows:
             ciphertext = row["api_key_encrypted"]
 
-            # Per-tenant ciphertexts are NOT in scope — they use a
-            # different key derivation. Skip silently.
             if ciphertext.startswith("tfernet:"):
                 rows_skipped_per_tenant += 1
                 continue
 
-            # Bare base64 = legacy XOR; a separate one-shot would
-            # migrate those, but XOR uses _KEY (jwt_secret[:32]),
-            # not Fernet, so this script doesn't touch them.
             if not ciphertext.startswith("fernet:"):
                 rows_skipped_legacy_xor += 1
                 continue
 
             cipher_bytes = ciphertext[len("fernet:"):].encode()
 
-            # Already on the primary? Try primary first; if it
-            # decrypts cleanly, no work needed.
             try:
                 primary_fernet.decrypt(cipher_bytes)
                 rows_skipped_already_primary += 1
                 continue
             except InvalidToken:
-                pass  # Falls through to the secondary trial below.
+                pass
 
-            # Try each secondary in order.
             plaintext = None
             for sf in secondary_fernets:
                 try:
@@ -156,7 +171,6 @@ async def main() -> int:
                 rows_failed += 1
                 continue
 
-            # Re-encrypt with the primary and write back.
             new_cipher = "fernet:" + primary_fernet.encrypt(plaintext).decode()
             await conn.execute(
                 "UPDATE user_provider_keys SET api_key_encrypted = $1 WHERE id = $2",
@@ -176,8 +190,25 @@ async def main() -> int:
             "after every row reports `already_primary` on the next pass.",
             rows_failed,
         )
-        return 1
-    return 0
+
+    return {
+        "status": "partial" if rows_failed else "complete",
+        "total": rows_total,
+        "migrated": rows_migrated,
+        "already_primary": rows_skipped_already_primary,
+        "per_tenant_skipped": rows_skipped_per_tenant,
+        "legacy_xor_skipped": rows_skipped_legacy_xor,
+        "failed": rows_failed,
+        "primary_fingerprint": primary_fp,
+        "secondary_count": len(secondary_keys),
+    }
+
+
+async def main() -> int:
+    from app.db.client import get_db_pool
+    pool = await get_db_pool()
+    result = await run_rotation_pass(pool)
+    return 1 if result.get("failed", 0) > 0 else 0
 
 
 if __name__ == "__main__":

@@ -446,3 +446,101 @@ async def admin_revoke_all_refresh_tokens(user_id: UUID, request: Request):
         str(user_id)[:8], deleted,
     )
     return {"user_id": str(user_id), "revoked_count": deleted}
+
+
+# ── 2026-04-30: Fernet rotation migration endpoints ─────────────────────────
+#
+# Wraps the CLI scripts (`backend/scripts/rotate_fernet_keys.py` and
+# `rotate_tenant_fernet_keys.py`) so an admin can trigger a rotation
+# re-encryption pass over HTTP instead of `render exec <service> --
+# python -m ...`. Each endpoint runs the script's `run_rotation_pass`
+# function synchronously and returns the structured result.
+#
+# Both are idempotent: re-running after a successful pass reports
+# `migrated=0, already_primary=N` and is safe.
+#
+# Pre-flight (same as the CLI scripts): the operator must have set
+# the corresponding overlap env var on the deploy:
+#   - global  : FERNET_KEYS_OLD must list the previous primary key.
+#   - tenant  : TENANT_FERNET_IKM_OLD must list the previous JWT_SECRET.
+# When the env var is unset the endpoint returns status="no_op" with
+# a `reason` field rather than an error — that lets the dashboard
+# distinguish "operator configuration incomplete" from "actual failure".
+
+@router.post("/security/fernet-rotation/global")
+async def admin_rotate_global_fernet(request: Request):
+    """Re-encrypt every global `fernet:` row from `FERNET_KEYS_OLD`
+    secondaries onto the current `FERNET_KEY` primary. Admin-only.
+
+    Mirrors `python -m backend.scripts.rotate_fernet_keys`. Use after
+    deploying with both `FERNET_KEY=<new>` and `FERNET_KEYS_OLD=<old>`
+    set so existing rows can still be decrypted.
+
+    Returns the script's structured result:
+        - status: "no_op" | "complete" | "partial"
+        - total / migrated / already_primary / failed (counts)
+        - per_tenant_skipped / legacy_xor_skipped (out-of-scope rows)
+        - primary_fingerprint: sha256[:16] of the current primary key
+        - secondary_count: number of secondaries configured
+
+    A `partial` status (`failed > 0`) means at least one row could
+    not be decrypted with any configured key — investigate before
+    dropping `FERNET_KEYS_OLD`.
+    """
+    user = _require_admin(request)
+
+    from scripts.rotate_fernet_keys import run_rotation_pass
+    pool = await get_db_pool()
+    result = await run_rotation_pass(pool)
+
+    logger.info(
+        "Admin triggered global Fernet rotation pass: actor=%s status=%s "
+        "migrated=%d failed=%d",
+        (user.get("email") or user.get("sub", ""))[:32],
+        result.get("status"),
+        result.get("migrated", 0),
+        result.get("failed", 0),
+    )
+    return result
+
+
+@router.post("/security/fernet-rotation/tenant")
+async def admin_rotate_tenant_fernet(request: Request):
+    """Re-encrypt every per-tenant `tfernet:` row from
+    `TENANT_FERNET_IKM_OLD` IKMs onto the current `JWT_SECRET` IKM.
+    Admin-only.
+
+    Mirrors `python -m backend.scripts.rotate_tenant_fernet_keys`.
+    Per-tenant Fernet keys are derived per row via HKDF with the
+    row's `user_id` as salt; the migration tries the primary IKM
+    first, falls through to each secondary IKM, and re-encrypts
+    under the primary.
+
+    Returns the script's structured result:
+        - status: "no_op" | "complete" | "partial"
+        - total / migrated / already_primary / failed (counts)
+        - global_fernet_skipped / legacy_xor_skipped (out-of-scope)
+        - no_user_id_skipped: tfernet: rows with NULL user_id
+          (cannot derive key; require manual investigation)
+        - primary_ikm_fingerprint: sha256[:16] of current JWT_SECRET
+        - secondary_ikm_count: number of secondaries configured
+
+    A `partial` status means rows with `failed` or `no_user_id_skipped`
+    counts > 0 — investigate before dropping `TENANT_FERNET_IKM_OLD`.
+    """
+    user = _require_admin(request)
+
+    from scripts.rotate_tenant_fernet_keys import run_rotation_pass
+    pool = await get_db_pool()
+    result = await run_rotation_pass(pool)
+
+    logger.info(
+        "Admin triggered per-tenant Fernet rotation pass: actor=%s status=%s "
+        "migrated=%d failed=%d no_user_id=%d",
+        (user.get("email") or user.get("sub", ""))[:32],
+        result.get("status"),
+        result.get("migrated", 0),
+        result.get("failed", 0),
+        result.get("no_user_id_skipped", 0),
+    )
+    return result

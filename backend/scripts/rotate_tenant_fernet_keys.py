@@ -88,33 +88,58 @@ logger = logging.getLogger("rotate_tenant_fernet_keys")
 _TFERNET_PREFIX = "tfernet:"
 
 
-async def main() -> int:
-    # Lazy imports so this module can be invoked via `python -m`
-    # without dragging FastAPI startup wiring.
+async def run_rotation_pass(pool) -> dict:
+    """Run one re-encryption pass over `tfernet:` rows in
+    `user_provider_keys.api_key_encrypted`.
+
+    Pure logic — accepts an asyncpg-style pool, returns a counts dict.
+    Kept separate from `main()` so admin HTTP handlers can call it
+    without invoking sys.exit / CLI logging.
+
+    Return shape:
+        {
+            "status": "no_op" | "complete" | "partial",
+            "total": int, "migrated": int, "already_primary": int,
+            "global_fernet_skipped": int, "legacy_xor_skipped": int,
+            "no_user_id_skipped": int, "failed": int,
+            "primary_ikm_fingerprint": str,     # sha256[:16] of current JWT_SECRET
+            "secondary_ikm_count": int,         # 0 ⇒ status="no_op"
+        }
+    """
     from app.auth.encryption import _derive_tenant_fernet_for_ikm
     from app.auth.secrets import get_tenant_ikm_secondaries
     from app.config import settings
-    from app.db.client import get_db_pool
 
     primary_ikm = settings.jwt_secret.encode()
     secondary_ikms = get_tenant_ikm_secondaries()
+    primary_fp = hashlib.sha256(primary_ikm).hexdigest()[:16]
 
     if not secondary_ikms:
         logger.warning(
             "TENANT_FERNET_IKM_OLD is unset — nothing to migrate from. "
             "If you are MID-ROTATION, set TENANT_FERNET_IKM_OLD to the "
-            "previous JWT_SECRET(s) before re-running this script."
+            "previous JWT_SECRET(s) before re-running."
         )
-        return 0
+        return {
+            "status": "no_op",
+            "reason": "TENANT_FERNET_IKM_OLD unset",
+            "total": 0,
+            "migrated": 0,
+            "already_primary": 0,
+            "global_fernet_skipped": 0,
+            "legacy_xor_skipped": 0,
+            "no_user_id_skipped": 0,
+            "failed": 0,
+            "primary_ikm_fingerprint": primary_fp,
+            "secondary_ikm_count": 0,
+        }
 
     logger.info(
         "Per-tenant rotation context: primary IKM fingerprint sha256[:16]=%s, "
         "secondary IKM count=%d",
-        hashlib.sha256(primary_ikm).hexdigest()[:16],
-        len(secondary_ikms),
+        primary_fp, len(secondary_ikms),
     )
 
-    pool = await get_db_pool()
     rows_total = 0
     rows_skipped_already_primary = 0
     rows_skipped_global_fernet = 0
@@ -134,12 +159,10 @@ async def main() -> int:
         for row in rows:
             ciphertext = row["api_key_encrypted"]
 
-            # Out-of-scope ciphers: this script only handles tfernet:.
             if ciphertext.startswith("fernet:"):
                 rows_skipped_global_fernet += 1
                 continue
             if not ciphertext.startswith(_TFERNET_PREFIX):
-                # Bare base64 = legacy XOR; pre-Fernet rows.
                 rows_skipped_legacy_xor += 1
                 continue
 
@@ -147,7 +170,7 @@ async def main() -> int:
             if not user_id:
                 logger.error(
                     "Row id=%s has tfernet: ciphertext but NULL user_id "
-                    "— manual investigation required (cannot derive tenant key).",
+                    "— manual investigation required.",
                     row["id"],
                 )
                 rows_skipped_no_user_id += 1
@@ -157,15 +180,13 @@ async def main() -> int:
 
             primary_fernet = _derive_tenant_fernet_for_ikm(tenant_id, primary_ikm)
 
-            # Already on the primary IKM? Skip.
             try:
                 primary_fernet.decrypt(cipher_bytes)
                 rows_skipped_already_primary += 1
                 continue
             except InvalidToken:
-                pass  # Falls through to secondary trials below.
+                pass
 
-            # Try each secondary IKM in order.
             plaintext = None
             for old_ikm in secondary_ikms:
                 old_fernet = _derive_tenant_fernet_for_ikm(tenant_id, old_ikm)
@@ -184,7 +205,6 @@ async def main() -> int:
                 rows_failed += 1
                 continue
 
-            # Re-encrypt under the primary IKM and write back.
             new_cipher = _TFERNET_PREFIX + primary_fernet.encrypt(plaintext).decode()
             await conn.execute(
                 "UPDATE user_provider_keys SET api_key_encrypted = $1 WHERE id = $2",
@@ -200,14 +220,34 @@ async def main() -> int:
         rows_skipped_global_fernet, rows_skipped_legacy_xor,
         rows_skipped_no_user_id, rows_failed,
     )
-    if rows_failed or rows_skipped_no_user_id:
+    bad = rows_failed + rows_skipped_no_user_id
+    if bad:
         logger.error(
             "%d row(s) could not be migrated. Drop TENANT_FERNET_IKM_OLD "
             "only after every row reports `already_primary` on a re-run.",
-            rows_failed + rows_skipped_no_user_id,
+            bad,
         )
-        return 1
-    return 0
+
+    return {
+        "status": "partial" if bad else "complete",
+        "total": rows_total,
+        "migrated": rows_migrated,
+        "already_primary": rows_skipped_already_primary,
+        "global_fernet_skipped": rows_skipped_global_fernet,
+        "legacy_xor_skipped": rows_skipped_legacy_xor,
+        "no_user_id_skipped": rows_skipped_no_user_id,
+        "failed": rows_failed,
+        "primary_ikm_fingerprint": primary_fp,
+        "secondary_ikm_count": len(secondary_ikms),
+    }
+
+
+async def main() -> int:
+    from app.db.client import get_db_pool
+    pool = await get_db_pool()
+    result = await run_rotation_pass(pool)
+    bad = result.get("failed", 0) + result.get("no_user_id_skipped", 0)
+    return 1 if bad > 0 else 0
 
 
 if __name__ == "__main__":

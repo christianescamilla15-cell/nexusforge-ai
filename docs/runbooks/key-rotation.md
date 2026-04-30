@@ -83,16 +83,29 @@ overlap window that makes it routine.
    Render redeploys. The handler now runs `MultiFernet([K2, K1])`.
    New writes use K2; old K1 ciphertexts continue to decrypt
    transparently.
-3. Run the re-encryption migration script with the same env vars:
+3. Run the re-encryption migration. Two options — both call the
+   same `run_rotation_pass` and are idempotent:
+
+   **Preferred: admin HTTP endpoint** (works from any machine with
+   admin credentials, no shell access required):
+   ```bash
+   curl -X POST https://nexusforge-api.onrender.com/admin/security/fernet-rotation/global \
+        -H "Authorization: Bearer <admin-jwt>"
+   ```
+   Returns a JSON summary: `{"status": "complete", "migrated": N,
+   "already_primary": M, "failed": 0, ...}`.
+
+   **Alternative: CLI via render exec** (when the endpoint is
+   unavailable or the deploy doesn't have an admin user yet):
    ```bash
    render exec <service> -- python -m backend.scripts.rotate_fernet_keys
    ```
-   The script iterates `user_provider_keys`, decrypts every row
-   with whichever key still works, re-encrypts with K2, writes
-   back. Idempotent — safe to re-run. Skips per-tenant
-   (`tfernet:`) and legacy XOR rows.
-4. Verify the script's final summary reports `migrated=0,
-   already_primary=<all>, failed=0`. If `failed > 0`, investigate
+
+   Both paths iterate `user_provider_keys`, decrypt every row with
+   whichever key still works, re-encrypt with K2, write back. Skip
+   per-tenant (`tfernet:`) and legacy XOR rows.
+4. Verify the response / log shows `failed=0` and a re-run reports
+   `migrated=0, already_primary=<all>`. If `failed > 0`, investigate
    those rows manually before continuing — DO NOT drop
    FERNET_KEYS_OLD yet.
 5. Drop `FERNET_KEYS_OLD` from Render env. Next redeploy runs
@@ -152,21 +165,32 @@ per-tenant IKM seed.
    tenant Fernet in `MultiFernet([primary_K2, secondary_K1])`.
    New writes use K2; old K1 ciphertexts decrypt transparently
    under each tenant's salt.
-3. Run the per-tenant migration script with the same env vars:
+3. Run the per-tenant migration. Two options — both idempotent:
+
+   **Preferred: admin HTTP endpoint**:
+   ```bash
+   curl -X POST https://nexusforge-api.onrender.com/admin/security/fernet-rotation/tenant \
+        -H "Authorization: Bearer <admin-jwt>"
+   ```
+   Returns a JSON summary: `{"status": "complete", "migrated": N,
+   "already_primary": M, "no_user_id_skipped": 0, "failed": 0, ...}`.
+
+   **Alternative: CLI via render exec**:
    ```bash
    render exec <service> -- python -m backend.scripts.rotate_tenant_fernet_keys
    ```
-   The script iterates every `tfernet:` row in `user_provider_keys`,
-   tries the primary IKM first (no-op if already migrated), falls
-   through to each secondary IKM on `InvalidToken`, re-encrypts
+
+   Both paths iterate every `tfernet:` row in `user_provider_keys`,
+   try the primary IKM first (no-op if already migrated), fall
+   through to each secondary IKM on `InvalidToken`, re-encrypt
    under the primary IKM with the row's `user_id` as salt, and
-   writes back. Idempotent — safe to re-run. Skips global
-   `fernet:` rows (handled by the other script) and bare-base64
-   legacy XOR rows.
-4. Verify the script's final summary reports `migrated=0,
-   already_primary=<all>, failed=0` on a re-run. If `failed > 0`
-   or `no_user_id_skipped > 0`, investigate those rows manually
-   before continuing — DO NOT drop `TENANT_FERNET_IKM_OLD` yet.
+   write back. Skip global `fernet:` rows (handled by the global
+   migration) and bare-base64 legacy XOR rows.
+4. Verify the response / log reports `failed=0` AND
+   `no_user_id_skipped=0`. A re-run should then show `migrated=0,
+   already_primary=<all>`. If either count is nonzero, investigate
+   manually before continuing — DO NOT drop `TENANT_FERNET_IKM_OLD`
+   yet.
 5. Drop `TENANT_FERNET_IKM_OLD` from Render env. Next redeploy
    runs single-IKM per-tenant Fernet; the rotation is complete.
 
