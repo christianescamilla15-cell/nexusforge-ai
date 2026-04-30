@@ -267,6 +267,80 @@ def test_tenant_endpoint_runs_when_secondary_set(monkeypatch, admin_client, fake
     assert enc.decrypt_api_key_for_tenant(new_cipher, str(user_id)) == "sk-needs-rotation"
 
 
+def test_showcase_seed_endpoint_rejects_non_admin(member_client):
+    """T5 #3: /admin/showcase/seed-tenant-alpha must 404 for non-admin."""
+    resp = member_client.post(
+        "/admin/showcase/seed-tenant-alpha",
+        json={"email": "test@example.com", "dry_run": True},
+    )
+    assert resp.status_code == 404
+
+
+def test_showcase_persist_endpoint_rejects_non_admin(member_client):
+    """T5 #3: /admin/showcase/persist must 404 for non-admin."""
+    resp = member_client.post(
+        "/admin/showcase/persist",
+        json={"tenant": "tenant-alpha", "dry_run": True},
+    )
+    assert resp.status_code == 404
+
+
+def test_showcase_seed_endpoint_admin_reaches_handler(admin_client, monkeypatch):
+    """Admin call should reach the handler (route is mounted). The
+    underlying `seed()` function will fail without DATABASE_URL,
+    surfacing as 500 — that's fine; we're testing wiring + auth.
+    Anything in (200, 500) means the router resolved past auth."""
+    async def _fake_seed(email, create_user, dry_run):
+        from scripts.seed_tenant_alpha import SeedResult
+        return SeedResult(
+            org_id="00000000-0000-0000-0000-000000000001",
+            org_created=False,
+            user_id="00000000-0000-0000-0000-000000000002",
+            user_created=False,
+            membership_created=False,
+        )
+    monkeypatch.setattr("scripts.seed_tenant_alpha.seed", _fake_seed)
+
+    resp = admin_client.post(
+        "/admin/showcase/seed-tenant-alpha",
+        json={"email": "test@example.com", "dry_run": True},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["dry_run"] is True
+    assert body["email"] == "test@example.com"
+    assert body["org_id"] == "00000000-0000-0000-0000-000000000001"
+
+
+def test_showcase_persist_endpoint_admin_reaches_handler(admin_client, monkeypatch):
+    """Admin call reaches the handler; persist() is faked to return
+    a canonical dry-run summary."""
+    async def _fake_persist(tenant, data_dir, dry_run):
+        return {
+            "tenant": tenant,
+            "source_dir": str(data_dir),
+            "apps": 5,
+            "files": 100,
+            "lines_of_code": 12345,
+            "findings": 42,
+            "compliance": True,
+            "strangler_plans": 3,
+            "dry_run": dry_run,
+            "run_id": None,
+        }
+    monkeypatch.setattr("scripts.persist_showcase.persist", _fake_persist)
+
+    resp = admin_client.post(
+        "/admin/showcase/persist",
+        json={"tenant": "tenant-alpha", "dry_run": True},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["tenant"] == "tenant-alpha"
+    assert body["dry_run"] is True
+    assert body["apps"] == 5
+
+
 def test_tenant_endpoint_partial_when_null_user_id(monkeypatch, admin_client, fake_pool_factory):
     """A `tfernet:` row with NULL user_id can't be migrated — endpoint
     surfaces this as `status='partial'` with `no_user_id_skipped=1`,

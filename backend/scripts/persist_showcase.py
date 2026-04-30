@@ -83,27 +83,45 @@ async def persist(
     tenant: str,
     data_dir: Path,
     dry_run: bool,
-) -> None:
-    """Main entry point — loads fixtures and writes the showcase_runs row."""
+) -> dict:
+    """Main entry point — loads fixtures and writes the showcase_runs row.
+
+    Returns a dict summary so callers (CLI + admin endpoint) can
+    surface the result. CLI prints the same data; the HTTP wrapper
+    returns it as JSON.
+    """
     report, compliance, strangler_plans = _load_tenant_fixtures(data_dir, tenant)
 
-    # Print a preview regardless of dry-run
     totals = report.get("totals", {})
+    summary = {
+        "tenant": tenant,
+        "source_dir": str(data_dir / tenant),
+        "apps": int(totals.get("apps", 0)),
+        "files": int(totals.get("files", 0)),
+        "lines_of_code": int(totals.get("lines_of_code", 0)),
+        "findings": int(totals.get("findings", 0)),
+        "compliance": bool(compliance),
+        "strangler_plans": len(strangler_plans),
+        "dry_run": dry_run,
+        "run_id": None,
+    }
+
+    # Print a preview regardless of dry-run
     print()
     print("=" * 60)
     print(f"Tenant:          {tenant}")
     print(f"Source dir:      {data_dir / tenant}")
-    print(f"Apps:            {totals.get('apps', 0)}")
-    print(f"Files:           {totals.get('files', 0):,}")
-    print(f"LOC:             {totals.get('lines_of_code', 0):,}")
-    print(f"Findings:        {totals.get('findings', 0):,}")
+    print(f"Apps:            {summary['apps']}")
+    print(f"Files:           {summary['files']:,}")
+    print(f"LOC:             {summary['lines_of_code']:,}")
+    print(f"Findings:        {summary['findings']:,}")
     print(f"Compliance:      {'yes' if compliance else 'no'}")
-    print(f"Strangler plans: {len(strangler_plans)}")
+    print(f"Strangler plans: {summary['strangler_plans']}")
     print("=" * 60)
 
     if dry_run:
         print("\nDRY-RUN: no database write.")
-        return
+        return summary
 
     if not os.environ.get("DATABASE_URL"):
         raise RuntimeError("DATABASE_URL environment variable is not set")
@@ -125,6 +143,8 @@ async def persist(
         source="seed",
     )
     print(f"\nPersisted showcase run: id={run_id}")
+    summary["run_id"] = str(run_id)
+    return summary
 
 
 def main() -> int:

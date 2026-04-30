@@ -544,3 +544,100 @@ async def admin_rotate_tenant_fernet(request: Request):
         result.get("no_user_id_skipped", 0),
     )
     return result
+
+
+# ── 2026-04-30 (T5 #3): showcase / tenant seed admin endpoints ──────────────
+#
+# Wraps the CLI scripts in `backend/scripts/` so an admin can trigger
+# them over HTTP instead of `render exec <service> -- python -m ...`.
+# These are NOT security-critical (they manipulate showcase fixture
+# data and synthetic-tenant org membership), but the rotation pattern
+# is well-established and the consistency with /admin/security/*
+# is worth the small surface area. Both endpoints are admin-only and
+# default to dry_run=True so an accidental click never writes.
+
+class _SeedTenantAlphaRequest(BaseModel):
+    email: str
+    create_user: bool = False
+    dry_run: bool = True
+
+
+class _PersistShowcaseRequest(BaseModel):
+    tenant: str = "tenant-alpha"
+    data_dir: Optional[str] = None  # None → default backend/showcase_data
+    dry_run: bool = True
+
+
+@router.post("/showcase/seed-tenant-alpha")
+async def admin_seed_tenant_alpha(req: _SeedTenantAlphaRequest, request: Request):
+    """Run the tenant-alpha seed script. Idempotent — every write is
+    guarded by ON CONFLICT in the underlying SQL.
+
+    Mirrors `python -m backend.scripts.seed_tenant_alpha --email ...`.
+    Default `dry_run=True` so an accidental call never writes — set
+    `dry_run=false` in the request body to actually persist.
+    """
+    user = _require_admin(request)
+
+    from scripts.seed_tenant_alpha import seed
+    result = await seed(
+        email=req.email,
+        create_user=req.create_user,
+        dry_run=req.dry_run,
+    )
+
+    logger.info(
+        "Admin triggered tenant-alpha seed: actor=%s email=%s "
+        "dry_run=%s org_created=%s user_created=%s membership_created=%s",
+        (user.get("email") or user.get("sub", ""))[:32],
+        req.email,
+        req.dry_run,
+        result.org_created,
+        result.user_created,
+        result.membership_created,
+    )
+
+    return {
+        "dry_run": req.dry_run,
+        "email": req.email,
+        "org_id": str(result.org_id),
+        "org_created": result.org_created,
+        "user_id": str(result.user_id),
+        "user_created": result.user_created,
+        "membership_created": result.membership_created,
+    }
+
+
+@router.post("/showcase/persist")
+async def admin_persist_showcase(req: _PersistShowcaseRequest, request: Request):
+    """Persist a tenant's showcase fixture JSON files into the
+    `showcase_runs` table.
+
+    Mirrors `python -m backend.scripts.persist_showcase --tenant ...`.
+    After a successful persist, `/api/refactor/showcase/*` returns
+    the DB row instead of the static fixture, so the frontend
+    reflects live changes without a deploy. Default
+    `dry_run=True` — set `dry_run=false` to actually persist.
+    """
+    user = _require_admin(request)
+
+    from pathlib import Path
+    from scripts.persist_showcase import persist, DEFAULT_DATA_DIR
+
+    data_dir = Path(req.data_dir) if req.data_dir else DEFAULT_DATA_DIR
+    summary = await persist(
+        tenant=req.tenant,
+        data_dir=data_dir,
+        dry_run=req.dry_run,
+    )
+
+    logger.info(
+        "Admin triggered showcase persist: actor=%s tenant=%s dry_run=%s "
+        "run_id=%s",
+        (user.get("email") or user.get("sub", ""))[:32],
+        req.tenant,
+        req.dry_run,
+        summary.get("run_id"),
+    )
+
+    return summary
