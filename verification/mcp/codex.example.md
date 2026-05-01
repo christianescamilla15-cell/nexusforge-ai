@@ -10,28 +10,14 @@ triangulation. Run it in a fresh Codex CLI session in your Ubuntu IDE.
 - This repo open as the working directory
 - Docker daemon running
 
-## Codex MCP wireup (optional but recommended)
+## Codex MCP wireup
 
-Codex's recent versions speak MCP. To give the GPT-5.5 session
-access to AIOS's tools (so you can cross-reference into AIOS memory
-inline), drop into `~/.codex/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "aios": {
-      "command": "aios",
-      "args": ["mcp", "serve"],
-      "env": {
-        "AIOS_PROJECT_ROOT": "/home/danny/Desktop/portafolio-completo/proyectos/07-nexusforge-ai"
-      }
-    }
-  }
-}
-```
-
-If Codex on your version doesn't have native MCP support, skip this
-— the harness scripts work without it.
+Not needed for this triangulation. AIOS is **not** an MCP server (see
+`aios.example.md` — it's a CLI tool). The GPT-5.5 node runs the
+harness via plain shell calls, same as Claude. The only MCP servers
+worth wiring for Codex here would be ones that give it richer
+filesystem / git / docker access if your Codex version doesn't have
+them natively — that's optional.
 
 ## Recommended session prompt
 

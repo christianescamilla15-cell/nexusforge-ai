@@ -85,7 +85,7 @@ Two strategies:
 
 See `verification/mcp/`:
 
-- `aios.example.json` — AIOS MCP server config snippet
+- `aios.example.md` — AIOS install + CLI invocation reference (NOT MCP — `aios` is a CLI tool, not an MCP server; install via `pip install aios-kiro-master`)
 - `claude_security.example.md` — how to launch a Claude Code session
   with the right skills + working directory
 - `codex.example.md` — Codex CLI invocation for the GPT-5.5 session

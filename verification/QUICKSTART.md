@@ -115,63 +115,77 @@ When done print 1 line:
 
 ---
 
-## Session 3 — AIOS plugin
+## Session 3 — AIOS (CLI shell-out, no MCP)
 
-Open a Claude Code session with AIOS MCP wired (see
-`verification/mcp/aios.example.json`) and paste:
+AIOS (`aios-kiro-master`) is **not** an MCP server — it is a CLI tool.
+The session calls `aios <subcommand>` via shell. Before running this
+session, in your Ubuntu:
+
+```bash
+pip install aios-kiro-master      # public PyPI, free download
+cd /home/chris/nexusforge-ai
+aios init                          # idempotent
+aios doctor                        # health check
+```
+
+Then open a Claude Code (or other agent) session in the repo and paste:
 
 ````
 Sos el nodo "AIOS" de una triangulación NexusForge AI de 3 fuentes
 (vos + Claude Security Review + GPT-5.5). Tu ventaja única sobre los
-otros 2 nodos: tenés acceso a la memoria persistente de AIOS via MCP,
-así que podés cruzar findings con decisiones históricas, sesiones
-previas, y steering docs.
+otros 2 nodos: AIOS tiene memoria persistente entre sesiones, así que
+podés cruzar findings nuevos contra decisiones, fixes y notas
+históricas que los otros nodos no ven.
+
+AIOS es UNA CLI, NO un MCP server. Invocala via la shell tool. Si
+`aios --help` falla, pará y avisá — el setup está incompleto.
 
 CORRER (copy-paste, capturando el run_id del step 1):
   bash verification/bootstrap.sh aios
-  # ↑ imprime el run_id. Usalo en los siguientes:
   bash verification/security_scan.sh aios <run_id>
   bash verification/functionality_smoke.sh aios <run_id>
 
-DESPUÉS:
-  Leé los JSON generados:
-    verification/reports/aios/<run_id>/security_findings.json
-    verification/reports/aios/<run_id>/functionality_findings.json
-    verification/reports/aios/<run_id>/run_metadata.json
+DESPUÉS, cross-ref con memoria AIOS:
+  RUN_DIR=verification/reports/aios/<run_id>
+  jq -r '.findings[] | select(.severity == "high" or .severity == "critical") | .title' \
+      $RUN_DIR/security_findings.json \
+      | while read -r f; do
+          echo "=== $f ==="
+          aios memory search "$f"
+          echo
+        done > $RUN_DIR/memory_crossref.txt
 
-  Para CADA finding automático con severidad ≥ medium:
-    Usá las MCP tools de AIOS para cruzar contra memoria:
-      - aios.memory_query "<finding title o file>"
-      - aios.steering_for "<file path>"
-      - aios.diff_against_memory "<finding>"
-    Si AIOS reconoce el finding como ya documentado/resuelto/aceptado,
-    anotalo en el report como "ya conocido — ver <memory_ref>".
+  También útil:
+    aios analyze          # arch summary del repo actual
+    aios refine           # specs completeness
+    aios diff             # qué cambió desde la última sesión
+    aios impact           # dependency graph
 
-  Escribí verification/reports/aios/<run_id>/report.md siguiendo
-  verification/templates/report.template.md. Tu foco único:
-    - Spec drift: ¿qué archivos cambiaron sin actualizar steering /
-      CLAUDE.md / memory?
-    - Findings que ya están resueltos en memoria pero el harness vuelve
-      a flaggear (false-positive validados históricamente)
-    - Findings nuevos que CONTRADICEN una decisión previa documentada
-      (esto es high-signal — algo regresó)
-    - Cross-session patterns: ¿hay 3+ sesiones distintas reportando el
-      mismo gap a lo largo del tiempo?
-    - Roadmap risks visibles desde memory pero no desde el código actual
-  Tag cada manual finding con [security] / [functionality] / [ux] /
-  [performance] / [ops] / [drift] / [historical].
+ESCRIBÍ $RUN_DIR/report.md (siguiendo verification/templates/report.template.md).
+Para CADA finding automático ≥ medium, marcalo en una de estas categorías
+basándote en lo que dijo memory_crossref.txt:
+  - "ya resuelto" — citá memory entry / commit
+  - "false positive conocido" — citá entry
+  - "risk documentado" — citá entry
+  - "genuinamente nuevo" — sin coincidencia en memoria
+
+Foco MANUAL único de este nodo:
+  - Spec drift: archivos cambiados sin actualizar steering / CLAUDE.md / memory
+  - Findings que el harness re-flaggea pero ya están resueltos en memoria
+  - Findings nuevos que CONTRADICEN una decisión documentada (high-signal: regresión)
+  - Cross-session patterns: 3+ sesiones reportando el mismo gap en el tiempo
+  - Roadmap risks visibles desde memory pero invisibles desde el código actual
+Tag manuales: [security] / [functionality] / [ux] / [performance] / [ops] / [drift] / [historical]
 
 CONSTRAINTS:
-- Usá SOLO .env.verify (el bootstrap lo genera). NUNCA el .env de prod.
-- Cero git push, cero cambios a config de prod.
-- Stack en puertos aislados: backend 18000, frontend 15173.
-- NO bajes el stack al final.
-- Si AIOS MCP no conecta, verificá la invocation en
-  verification/mcp/aios.example.json — quizás necesite ajuste para tu
-  versión.
+- Solo .env.verify, NUNCA el .env de prod
+- Cero git push, cero cambios a config de prod
+- Stack en puertos aislados: backend 18000, frontend 15173
+- NO bajes el stack al final
+- Si `aios` no está instalado, parar y avisar (no inventar findings)
 
 Al terminar imprimí 1 línea:
-  "aios run <run_id>: <N> automated + <M> manual findings + <K> historical-cross-refs"
+  "aios run <run_id>: <N> automated + <M> manual + <K> historical-cross-refs"
 ````
 
 ---
