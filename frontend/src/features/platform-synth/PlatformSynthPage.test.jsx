@@ -347,6 +347,166 @@ describe('PlatformSynthPage — template selection + build flow', () => {
     expect(buildCalledWith.target_dir).toMatch(/inventory-tracker/)
   })
 
+  it('build options checkboxes pass flags through to /build POST body', async () => {
+    let buildPayload = null
+    mockFetch({
+      'GET /platform-synth/templates': { templates: TEMPLATES },
+      'POST /platform-synth/chat': () => ({
+        assistant_message: 'ready',
+        spec: {
+          project_name: 'with-flags',
+          language: 'python',
+          backend_framework: 'fastapi',
+          features: [],
+          integrations: [],
+          notes: [],
+        },
+        template_suggestions: [
+          { template: TEMPLATES[0], score: 0.85, matched_signals: [] },
+        ],
+        next_question: null,
+      }),
+      'POST /platform-synth/build': (options) => {
+        buildPayload = JSON.parse(options.body)
+        return {
+          project_path: '/tmp/with-flags',
+          files_written: 13,
+          template_id: 'fastapi_react_postgres',
+          status: 'complete',
+          next_steps: [],
+          warnings: [],
+          git_initialized: true,
+          git_first_commit_sha: 'abc123def4560000000000000000000000000000',
+          github_repo_url: 'https://github.com/user/with-flags',
+          post_build_warnings: [],
+          mythos_ran: true,
+          mythos_score: 100,
+          mythos_critical_count: 0,
+          mythos_high_count: 0,
+          mythos_findings_summary: [],
+        }
+      },
+    })
+
+    render(<PlatformSynthPage lang="en" />)
+    await waitFor(() => screen.getByText('FastAPI + React + Postgres'))
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/Tell me what you're building/i),
+      { target: { value: 'flagged build' } }
+    )
+    fireEvent.click(screen.getByText('Send'))
+    await waitFor(() => screen.getByText('85%'))
+
+    fireEvent.click(screen.getAllByText('Use this')[0])
+
+    // Toggle all three flags ON.
+    fireEvent.click(screen.getByLabelText(/Initialize git repo/i))
+    // gh checkbox should be enabled now that git_init is true.
+    const ghCheckbox = screen.getByLabelText(/Create GitHub repo/i)
+    expect(ghCheckbox.disabled).toBe(false)
+    fireEvent.click(ghCheckbox)
+    // Visibility radio: pick public to verify it's not just the default.
+    const publicRadio = screen.getByLabelText('Public')
+    fireEvent.click(publicRadio)
+    fireEvent.click(screen.getByLabelText(/Mythos pre-flight/i))
+
+    fireEvent.click(screen.getByText('Build project'))
+    await waitFor(() => screen.getByText('Project generated'))
+
+    // The POST body received the toggled values, including the
+    // non-default visibility choice.
+    expect(buildPayload.git_init).toBe(true)
+    expect(buildPayload.github_repo_create).toBe(true)
+    expect(buildPayload.github_repo_visibility).toBe('public')
+    expect(buildPayload.mythos_preflight).toBe(true)
+
+    // Result card surfaces git/gh/mythos fields.
+    expect(screen.getByText('First commit:')).toBeTruthy()
+    expect(screen.getByText('abc123def456')).toBeTruthy()  // 12-char prefix
+    expect(screen.getByText('https://github.com/user/with-flags')).toBeTruthy()
+    expect(screen.getByText('100/100')).toBeTruthy()
+  })
+
+  it('GitHub repo checkbox is disabled when git_init is OFF', async () => {
+    mockFetch({
+      'GET /platform-synth/templates': { templates: TEMPLATES },
+    })
+
+    render(<PlatformSynthPage lang="en" />)
+    await waitFor(() => screen.getByText('FastAPI + React + Postgres'))
+
+    const ghCheckbox = screen.getByLabelText(/Create GitHub repo/i)
+    // Default state: git_init off, so gh is disabled (mirrors backend
+    // contract: github_repo_create requires git_init).
+    expect(ghCheckbox.disabled).toBe(true)
+
+    fireEvent.click(screen.getByLabelText(/Initialize git repo/i))
+    // Now gh becomes enabled.
+    expect(ghCheckbox.disabled).toBe(false)
+  })
+
+  it('build defaults send all flags as false when no toggles touched', async () => {
+    let buildPayload = null
+    mockFetch({
+      'GET /platform-synth/templates': { templates: TEMPLATES },
+      'POST /platform-synth/chat': () => ({
+        assistant_message: 'ready',
+        spec: {
+          project_name: 'no-flags',
+          features: [],
+          integrations: [],
+          notes: [],
+        },
+        template_suggestions: [
+          { template: TEMPLATES[0], score: 0.85, matched_signals: [] },
+        ],
+        next_question: null,
+      }),
+      'POST /platform-synth/build': (options) => {
+        buildPayload = JSON.parse(options.body)
+        return {
+          project_path: '/tmp/no-flags',
+          files_written: 13,
+          template_id: 'fastapi_react_postgres',
+          status: 'complete',
+          next_steps: [],
+          warnings: [],
+          git_initialized: false,
+          github_repo_url: null,
+          post_build_warnings: [],
+          mythos_ran: false,
+          mythos_score: null,
+          mythos_critical_count: 0,
+          mythos_high_count: 0,
+          mythos_findings_summary: [],
+        }
+      },
+    })
+
+    render(<PlatformSynthPage lang="en" />)
+    await waitFor(() => screen.getByText('FastAPI + React + Postgres'))
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/Tell me what you're building/i),
+      { target: { value: 'no flags here' } }
+    )
+    fireEvent.click(screen.getByText('Send'))
+    await waitFor(() => screen.getByText('85%'))
+
+    fireEvent.click(screen.getAllByText('Use this')[0])
+    fireEvent.click(screen.getByText('Build project'))
+    await waitFor(() => screen.getByText('Project generated'))
+
+    expect(buildPayload.git_init).toBe(false)
+    expect(buildPayload.github_repo_create).toBe(false)
+    // Visibility default is 'private' — must be sent even though
+    // gh is off, because the backend's BuildRequest schema accepts
+    // the field unconditionally.
+    expect(buildPayload.github_repo_visibility).toBe('private')
+    expect(buildPayload.mythos_preflight).toBe(false)
+  })
+
   it('disables incompatible templates ("Use this" button disabled when score=0)', async () => {
     mockFetch({
       'GET /platform-synth/templates': { templates: TEMPLATES },
