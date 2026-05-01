@@ -23,6 +23,7 @@ from app.routes.orchestrator import router as orchestrator_router
 from app.routes.evaluation import router as evaluation_router
 from app.routes.executions_db import router as executions_db_router
 from app.routes.meta import router as meta_router
+from app.routes.platform_synth import router as platform_synth_router
 from app.observability.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
@@ -293,6 +294,12 @@ app.include_router(orchestrator_router, prefix="/api", tags=["orchestrator"])
 app.include_router(evaluation_router, prefix="/api", tags=["evaluation"])
 app.include_router(executions_db_router, prefix="/api", tags=["executions-db"])
 app.include_router(meta_router, tags=["meta-orchestration"])
+
+# 2026-05-01: Platform Synthesizer — chat-driven project generator.
+# User describes desired stack/features in natural language; module
+# extracts a structured PlatformSpec, ranks matching templates, and
+# (on build) writes a runnable project tree under PLATFORM_SYNTH_ROOT.
+app.include_router(platform_synth_router, prefix="/api", tags=["platform-synth"])
 
 # Mythos — OWNER-ONLY security auditor (returns 404 without valid key)
 from app.security.routes import router as mythos_router

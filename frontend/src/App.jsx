@@ -41,6 +41,7 @@ const ExecutiveDashboard = lazy(() => import('./features/refactor/ExecutiveDashb
 const TenantShowcase = lazy(() => import('./features/refactor/TenantShowcase'))
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard'))
 const WelcomeWizard = lazy(() => import('./features/onboarding/WelcomeWizard'))
+const PlatformSynthPage = lazy(() => import('./features/platform-synth/PlatformSynthPage'))
 
 import TopLoadingBar from './shared/components/TopLoadingBar'
 import OfflineIndicator from './shared/components/OfflineIndicator'
@@ -254,6 +255,7 @@ function AppRoutes() {
           <Route path="/status" element={<StatusPage lang={lang} />} />
           <Route path="/docs" element={<ApiDocsPage lang={lang} />} />
           <Route path="/refactor" element={<RefactorDashboard lang={lang} />} />
+          <Route path="/platform-synth" element={<PlatformSynthPage lang={lang} />} />
           <Route path="/executive" element={<ExecutiveDashboard lang={lang} />} />
           <Route path="/showcase" element={<TenantShowcase lang={lang} />} />
           <Route path="/admin" element={<AdminDashboard lang={lang} />} />
