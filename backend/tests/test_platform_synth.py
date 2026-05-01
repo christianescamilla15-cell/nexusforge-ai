@@ -14,8 +14,6 @@ Bearer token).
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -35,22 +33,25 @@ from app.platform_synth.templates import (
 # ─── templates registry ─────────────────────────────────────────────
 
 
-def test_registry_has_fastapi_react_postgres():
-    """The shipped first template MUST be present."""
+def test_registry_has_all_four_templates():
+    """All four templates ship in the registry."""
     ids = {t.template_id for t in list_templates()}
-    assert "fastapi_react_postgres" in ids
+    assert ids == {
+        "fastapi_react_postgres",
+        "express_next_postgres",
+        "django_postgres",
+        "go_gin_postgres",
+    }
 
 
-def test_rank_returns_default_template_with_floor_score_for_empty_spec():
-    """Empty/blank spec → default template still appears with a
-    fallback score so the user always has at least one option."""
+def test_rank_floors_compatible_templates_at_ten_percent():
+    """Empty/blank spec → every compatible template floors at 0.10
+    so the UI never renders a row of zero-score (which looks broken)."""
     matches = rank_for_spec(PlatformSpec(description="building something"))
-    fastapi_match = next(
-        (m for m in matches if m.template.template_id == "fastapi_react_postgres"),
-        None,
-    )
-    assert fastapi_match is not None
-    assert fastapi_match.score >= 0.20
+    for m in matches:
+        # All templates compatible with no language picked → all
+        # at least 0.10.
+        assert m.score >= 0.10, f"{m.template.template_id} below floor"
 
 
 def test_rank_excludes_template_when_language_mismatch():
@@ -84,6 +85,142 @@ def test_rank_boosts_when_stack_aligns():
     # 0.30 (backend) + 0.20 (frontend) + 0.15 (db) + 0.10 (dashboard) = 0.75
     assert fastapi_match.score >= 0.70
     assert any("backend framework" in s for s in fastapi_match.matched_signals)
+
+
+# ─── synthesizer ────────────────────────────────────────────────────
+
+
+# ─── new templates (express+next, django, go+gin) ───────────────────
+
+
+def test_express_next_template_matches_typescript_spec():
+    """A typescript+express+next+postgres spec should rank
+    express_next_postgres significantly above fastapi_react_postgres
+    (which scores 0 due to language mismatch)."""
+    spec = PlatformSpec(
+        language="typescript",
+        backend_framework="express",
+        frontend_framework="next",
+        database="postgres",
+        description="ecommerce site with ssr",
+    )
+    matches = {m.template.template_id: m for m in rank_for_spec(spec)}
+    assert matches["express_next_postgres"].score >= 0.70
+    # FastAPI rejects: language mismatch.
+    assert matches["fastapi_react_postgres"].score == 0.0
+
+
+def test_django_template_matches_admin_use_case():
+    """A spec naming Python + Django should rank django above
+    fastapi when 'admin' or 'internal tool' is in features."""
+    spec = PlatformSpec(
+        language="python",
+        backend_framework="django",
+        database="postgres",
+        description="internal tool for the back office",
+        features=["admin"],
+    )
+    matches = {m.template.template_id: m for m in rank_for_spec(spec)}
+    # Django: 0.30 (backend) + 0.15 (db) + 0.10 (admin) + 0.10 (internal tool) = 0.65
+    # FastAPI: no backend match = 0.10 floor + 0.10 (internal tool) = 0.20
+    assert matches["django_postgres"].score > matches["fastapi_react_postgres"].score
+
+
+def test_go_gin_template_matches_microservice():
+    """Go + Gin spec should pick go_gin_postgres."""
+    spec = PlatformSpec(
+        language="go",
+        backend_framework="gin",
+        database="postgres",
+        description="high throughput microservice api",
+    )
+    matches = {m.template.template_id: m for m in rank_for_spec(spec)}
+    assert matches["go_gin_postgres"].score >= 0.55
+    # Python templates can't fit Go.
+    assert matches["fastapi_react_postgres"].score == 0.0
+    assert matches["django_postgres"].score == 0.0
+
+
+def test_render_express_next_emits_typescript_files(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    target = tmp_path / "express-app"
+    spec = PlatformSpec(
+        project_name="express-app",
+        language="typescript",
+        backend_framework="express",
+        frontend_framework="next",
+        database="postgres",
+    )
+    req = BuildRequest(
+        template_id="express_next_postgres",
+        spec=spec,
+        target_dir=str(target),
+    )
+    result = synthesize(req)
+    assert result.status == "complete"
+    assert (target / "backend" / "src" / "index.ts").is_file()
+    assert (target / "backend" / "tsconfig.json").is_file()
+    assert (target / "frontend" / "app" / "page.tsx").is_file()
+    assert (target / "frontend" / "next.config.js").is_file()
+    assert "express-app" in (target / "README.md").read_text(encoding="utf-8")
+
+
+def test_render_django_emits_settings_with_correct_module(tmp_path, monkeypatch):
+    """The Django settings.py must reference the project module
+    name (sanitized to a valid Python identifier)."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    target = tmp_path / "my-django-app"
+    spec = PlatformSpec(
+        project_name="my-django-app",
+        language="python",
+        backend_framework="django",
+        database="postgres",
+    )
+    req = BuildRequest(
+        template_id="django_postgres",
+        spec=spec,
+        target_dir=str(target),
+    )
+    result = synthesize(req)
+    assert result.status == "complete"
+    # Hyphen in project_name must be converted to underscore for
+    # the Python module dir.
+    py_module = "my_django_app"
+    assert (target / py_module / "settings.py").is_file()
+    assert (target / py_module / "urls.py").is_file()
+    assert (target / py_module / "wsgi.py").is_file()
+    assert (target / "core" / "models.py").is_file()
+    assert (target / "core" / "admin.py").is_file()
+    assert (target / "manage.py").is_file()
+    settings = (target / py_module / "settings.py").read_text(encoding="utf-8")
+    # ROOT_URLCONF must point to the sanitized module name.
+    assert f'ROOT_URLCONF = "{py_module}.urls"' in settings
+
+
+def test_render_go_emits_go_module_with_project_name(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    target = tmp_path / "go-microservice"
+    spec = PlatformSpec(
+        project_name="go-microservice",
+        language="go",
+        backend_framework="gin",
+        database="postgres",
+    )
+    req = BuildRequest(
+        template_id="go_gin_postgres",
+        spec=spec,
+        target_dir=str(target),
+    )
+    result = synthesize(req)
+    assert result.status == "complete"
+    assert (target / "main.go").is_file()
+    assert (target / "items.go").is_file()
+    assert (target / "db.go").is_file()
+    assert (target / "go.mod").is_file()
+    assert (target / "migrations" / "001_init.sql").is_file()
+    # go.mod's `module` directive must use the project name.
+    gomod = (target / "go.mod").read_text(encoding="utf-8")
+    assert "module go-microservice" in gomod
 
 
 # ─── synthesizer ────────────────────────────────────────────────────
