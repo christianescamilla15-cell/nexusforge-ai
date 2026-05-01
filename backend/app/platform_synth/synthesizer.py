@@ -141,6 +141,10 @@ async def synthesize(req: BuildRequest) -> BuildResult:
         "Set DATABASE_URL + JWT_SECRET in backend/.env",
         "Run backend/app/db/migrations/001_init.sql against your Postgres",
     ]
+    if "INTEGRATIONS.md" in files:
+        next_steps.append("Read INTEGRATIONS.md — env vars and wireup for the integrations the synthesizer detected in your spec")
+    if "docker-compose.yml" in files:
+        next_steps.append("Try the local stack: docker compose up --build (requires Docker)")
     if github_repo_url:
         next_steps.append(f"Visit your new repo: {github_repo_url}")
     elif git_initialized:

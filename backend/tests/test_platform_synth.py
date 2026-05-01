@@ -43,14 +43,17 @@ def synthesize(req):
 # ─── templates registry ─────────────────────────────────────────────
 
 
-def test_registry_has_all_four_templates():
-    """All four templates ship in the registry."""
+def test_registry_has_all_seven_templates():
+    """All seven templates ship in the registry."""
     ids = {t.template_id for t in list_templates()}
     assert ids == {
         "fastapi_react_postgres",
         "express_next_postgres",
         "django_postgres",
         "go_gin_postgres",
+        "rails_postgres",
+        "phoenix_postgres",
+        "spring_boot_postgres",
     }
 
 
@@ -544,6 +547,130 @@ def test_synthesize_refuses_gh_create_without_git_init(tmp_path, monkeypatch):
     assert any("git_init was False" in w for w in result.post_build_warnings)
 
 
+def test_rails_template_matches_ruby_spec():
+    """Ruby/Rails spec → rails_postgres tops; Python templates score 0."""
+    spec = PlatformSpec(
+        language="ruby",
+        backend_framework="rails",
+        database="postgres",
+        description="back office crud",
+    )
+    matches = {m.template.template_id: m for m in rank_for_spec(spec)}
+    assert matches["rails_postgres"].score >= 0.55
+    assert matches["fastapi_react_postgres"].score == 0.0
+    assert matches["django_postgres"].score == 0.0
+
+
+def test_phoenix_template_matches_real_time_use_case():
+    """Elixir + Phoenix + 'real-time' use case → phoenix_postgres tops."""
+    spec = PlatformSpec(
+        language="elixir",
+        backend_framework="phoenix",
+        database="postgres",
+        description="real-time chat with high concurrency",
+    )
+    matches = {m.template.template_id: m for m in rank_for_spec(spec)}
+    assert matches["phoenix_postgres"].score >= 0.55
+    # Other languages are excluded by language mismatch.
+    assert matches["go_gin_postgres"].score == 0.0
+    assert matches["rails_postgres"].score == 0.0
+
+
+def test_spring_boot_template_matches_java_enterprise():
+    """Java + Spring + 'enterprise' → spring_boot_postgres tops."""
+    spec = PlatformSpec(
+        language="java",
+        backend_framework="spring",
+        database="postgres",
+        description="enterprise saas back office",
+    )
+    matches = {m.template.template_id: m for m in rank_for_spec(spec)}
+    assert matches["spring_boot_postgres"].score >= 0.55
+    assert matches["fastapi_react_postgres"].score == 0.0
+    assert matches["rails_postgres"].score == 0.0
+
+
+def test_render_rails_emits_application_module_and_routes(tmp_path, monkeypatch):
+    """Rails template emits config/application.rb with module name
+    derived from project_name (snake → CamelCase)."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    target = tmp_path / "my-rails-app"
+    spec = PlatformSpec(
+        project_name="my-rails-app",
+        language="ruby",
+        backend_framework="rails",
+        database="postgres",
+    )
+    req = BuildRequest(template_id="rails_postgres", spec=spec, target_dir=str(target))
+    result = synthesize(req)
+    assert result.status == "complete"
+    assert (target / "Gemfile").is_file()
+    assert (target / "config" / "application.rb").is_file()
+    assert (target / "config" / "routes.rb").is_file()
+    assert (target / "app" / "controllers" / "api" / "items_controller.rb").is_file()
+    assert (target / "app" / "models" / "item.rb").is_file()
+    assert (target / "db" / "migrate" / "20260101000000_create_items.rb").is_file()
+    app_rb = (target / "config" / "application.rb").read_text(encoding="utf-8")
+    # CamelCased module from "my-rails-app" → "MyRailsApp"
+    assert "module MyRailsApp" in app_rb
+
+
+def test_render_phoenix_emits_module_paths_with_snake_name(tmp_path, monkeypatch):
+    """Phoenix template emits lib/<snake>/* and module names in
+    CamelCase derived from a hyphenated project_name."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    target = tmp_path / "real-time-chat"
+    spec = PlatformSpec(
+        project_name="real-time-chat",
+        language="elixir",
+        backend_framework="phoenix",
+        database="postgres",
+    )
+    req = BuildRequest(template_id="phoenix_postgres", spec=spec, target_dir=str(target))
+    result = synthesize(req)
+    assert result.status == "complete"
+    assert (target / "mix.exs").is_file()
+    assert (target / "lib" / "real_time_chat" / "application.ex").is_file()
+    assert (target / "lib" / "real_time_chat_web" / "router.ex").is_file()
+    assert (target / "lib" / "real_time_chat_web" / "controllers" / "item_controller.ex").is_file()
+    mix = (target / "mix.exs").read_text(encoding="utf-8")
+    # Module name is camelcased: RealTimeChat
+    assert "RealTimeChat.MixProject" in mix
+    assert "app: :real_time_chat" in mix
+
+
+def test_render_spring_boot_emits_main_class_and_jpa_entity(tmp_path, monkeypatch):
+    """Spring Boot template emits the application class + items
+    entity/repository/controller in the right Java package layout."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    target = tmp_path / "enterprise-svc"
+    spec = PlatformSpec(
+        project_name="enterprise-svc",
+        language="java",
+        backend_framework="spring",
+        database="postgres",
+    )
+    req = BuildRequest(
+        template_id="spring_boot_postgres",
+        spec=spec,
+        target_dir=str(target),
+    )
+    result = synthesize(req)
+    assert result.status == "complete"
+    assert (target / "build.gradle.kts").is_file()
+    assert (target / "src" / "main" / "resources" / "application.yaml").is_file()
+    assert (target / "src" / "main" / "resources" / "db" / "migration" / "V1__init.sql").is_file()
+    # Java package path = com/example/<sanitized>: hyphens stripped.
+    pkg_dir = target / "src" / "main" / "java" / "com" / "example" / "enterprisesvc"
+    assert (pkg_dir / "EnterpriseSvcApplication.java").is_file()
+    assert (pkg_dir / "items" / "Item.java").is_file()
+    assert (pkg_dir / "items" / "ItemRepository.java").is_file()
+    assert (pkg_dir / "items" / "ItemController.java").is_file()
+    main = (pkg_dir / "EnterpriseSvcApplication.java").read_text(encoding="utf-8")
+    assert "package com.example.enterprisesvc;" in main
+    assert "@SpringBootApplication" in main
+
+
 def test_render_go_emits_go_module_with_project_name(tmp_path, monkeypatch):
     monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
     target = tmp_path / "go-microservice"
@@ -568,6 +695,159 @@ def test_render_go_emits_go_module_with_project_name(tmp_path, monkeypatch):
     # go.mod's `module` directive must use the project name.
     gomod = (target / "go.mod").read_text(encoding="utf-8")
     assert "module go-microservice" in gomod
+
+
+# ─── feature addons (slack/stripe/ai/redis/email/docker) ───────────
+
+
+def test_addons_no_op_when_no_signals():
+    """Bare spec → no addon files emitted (other than what the
+    template itself ships)."""
+    from app.platform_synth.feature_addons import apply_addons
+    files: dict[str, str] = {"README.md": "x"}
+    detected = apply_addons(files, PlatformSpec(project_name="bare"), "fastapi_react_postgres")
+    assert detected == set()
+    # No new files added.
+    assert set(files) == {"README.md"}
+
+
+def test_addons_detects_signals_across_three_sources():
+    """Detection pulls from features, integrations, AND the
+    free-form description. Each source should trigger on its own."""
+    from app.platform_synth.feature_addons import _detect
+
+    # via integrations
+    assert "slack" in _detect(PlatformSpec(integrations=["slack"]))
+    # via features
+    assert "stripe" in _detect(PlatformSpec(features=["stripe billing"]))
+    # via description
+    assert "ai" in _detect(PlatformSpec(description="dashboard with Claude AI summarization"))
+
+
+def test_addons_writes_integrations_md_for_slack_stripe():
+    """Slack + Stripe in the spec → INTEGRATIONS.md gets both
+    sections, each with their canonical env var name."""
+    from app.platform_synth.feature_addons import apply_addons
+
+    files: dict[str, str] = {}
+    spec = PlatformSpec(
+        project_name="x",
+        integrations=["slack", "stripe"],
+    )
+    detected = apply_addons(files, spec, "fastapi_react_postgres")
+    assert "slack" in detected and "stripe" in detected
+    assert "INTEGRATIONS.md" in files
+    body = files["INTEGRATIONS.md"]
+    assert "SLACK_WEBHOOK_URL" in body
+    assert "STRIPE_SECRET_KEY" in body
+    assert "STRIPE_WEBHOOK_SECRET" in body
+    # AI/redis sections must NOT appear (not in the spec).
+    assert "ANTHROPIC_API_KEY" not in body
+    assert "REDIS_URL" not in body
+
+
+def test_addons_docker_emits_dockerfile_and_compose():
+    """`docker` in features → Dockerfile + docker-compose.yml + .dockerignore."""
+    from app.platform_synth.feature_addons import apply_addons
+
+    files: dict[str, str] = {}
+    spec = PlatformSpec(project_name="x", features=["dockerized"])
+    apply_addons(files, spec, "fastapi_react_postgres")
+    assert "Dockerfile" in files
+    assert "docker-compose.yml" in files
+    assert ".dockerignore" in files
+    assert "FROM python:3.12-slim" in files["Dockerfile"]
+    # Compose maps Postgres into the stack.
+    assert "postgres:16-alpine" in files["docker-compose.yml"]
+    assert "DATABASE_URL: postgres://app:app@db:5432/app" in files["docker-compose.yml"]
+
+
+def test_addons_docker_compose_includes_redis_when_both_present():
+    """If BOTH redis and docker are detected, compose includes a
+    redis service AND the app gets REDIS_URL pointing at it."""
+    from app.platform_synth.feature_addons import apply_addons
+
+    files: dict[str, str] = {}
+    spec = PlatformSpec(
+        project_name="x",
+        features=["docker"],
+        integrations=["redis"],
+    )
+    apply_addons(files, spec, "express_next_postgres")
+    compose = files["docker-compose.yml"]
+    assert "redis:7-alpine" in compose
+    assert "REDIS_URL: redis://redis:6379" in compose
+
+
+def test_addons_spring_boot_uses_jdbc_url_in_compose():
+    """Spring Boot reads SPRING_DATASOURCE_URL in JDBC format, not
+    a plain `postgres://` — compose must reflect that."""
+    from app.platform_synth.feature_addons import apply_addons
+
+    files: dict[str, str] = {}
+    spec = PlatformSpec(project_name="x", features=["docker"])
+    apply_addons(files, spec, "spring_boot_postgres")
+    compose = files["docker-compose.yml"]
+    assert "SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/app" in compose
+    assert "8080:8080" in compose  # spring boot default port
+
+
+def test_addons_django_dockerfile_substitutes_project_module():
+    """The Django Dockerfile's gunicorn CMD references the project
+    module path; sanitize hyphens → underscores."""
+    from app.platform_synth.feature_addons import apply_addons
+
+    files: dict[str, str] = {}
+    spec = PlatformSpec(project_name="my-django-app", features=["docker"])
+    apply_addons(files, spec, "django_postgres")
+    dockerfile = files["Dockerfile"]
+    assert "my_django_app.wsgi:application" in dockerfile
+    # The placeholder should NOT leak.
+    assert "PROJECT_MODULE" not in dockerfile
+
+
+def test_addons_idempotent_does_not_overwrite():
+    """If the template already wrote an INTEGRATIONS.md or
+    Dockerfile, the addon must NOT clobber it."""
+    from app.platform_synth.feature_addons import apply_addons
+
+    files = {
+        "INTEGRATIONS.md": "TEMPLATE-ORIGINAL",
+        "Dockerfile": "TEMPLATE-DOCKERFILE",
+    }
+    spec = PlatformSpec(
+        project_name="x",
+        integrations=["slack"],
+        features=["docker"],
+    )
+    apply_addons(files, spec, "fastapi_react_postgres")
+    assert files["INTEGRATIONS.md"] == "TEMPLATE-ORIGINAL"
+    assert files["Dockerfile"] == "TEMPLATE-DOCKERFILE"
+
+
+def test_addons_e2e_synthesize_writes_dockerfile_to_disk(tmp_path, monkeypatch):
+    """End-to-end: a spec with `docker` + `slack` makes the
+    synthesizer write Dockerfile + INTEGRATIONS.md to disk and
+    surfaces them in next_steps."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    target = tmp_path / "addon-app"
+    spec = PlatformSpec(
+        project_name="addon-app",
+        language="python",
+        backend_framework="fastapi",
+        database="postgres",
+        description="dockerized service with Slack alerts",
+    )
+    req = BuildRequest(template_id="fastapi_react_postgres", spec=spec, target_dir=str(target))
+    result = synthesize(req)
+    assert result.status == "complete"
+    assert (target / "Dockerfile").is_file()
+    assert (target / "docker-compose.yml").is_file()
+    assert (target / "INTEGRATIONS.md").is_file()
+    # next_steps should mention both signals.
+    joined = " ".join(result.next_steps)
+    assert "INTEGRATIONS.md" in joined
+    assert "docker compose up" in joined
 
 
 # ─── synthesizer ────────────────────────────────────────────────────

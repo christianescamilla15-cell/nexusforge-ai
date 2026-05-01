@@ -34,7 +34,9 @@ class PlatformSpec(BaseModel):
     )
 
     # Stack
-    language: Optional[Literal["python", "typescript", "javascript", "go", "rust"]] = None
+    language: Optional[
+        Literal["python", "typescript", "javascript", "go", "rust", "ruby", "elixir", "java"]
+    ] = None
     backend_framework: Optional[str] = None  # e.g. "fastapi", "express", "django", "gin"
     frontend_framework: Optional[Literal["react", "vue", "next", "svelte", "none"]] = None
     database: Optional[Literal["postgres", "mysql", "sqlite", "mongo", "none"]] = None

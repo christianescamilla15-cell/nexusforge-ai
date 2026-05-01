@@ -82,8 +82,9 @@ hasn't given you. Slots:
   ask them to confirm.
 - description: one sentence summary.
 - language: one of "python", "typescript", "javascript", "go",
-  "rust" (lowercase). NULL if unspecified.
-- backend_framework: e.g. "fastapi", "express", "django".
+  "rust", "ruby", "elixir", "java" (lowercase). NULL if unspecified.
+- backend_framework: e.g. "fastapi", "express", "django",
+  "rails", "phoenix", "spring".
 - frontend_framework: one of "react", "vue", "next", "svelte",
   "none". NULL if unspecified.
 - database: one of "postgres", "mysql", "sqlite", "mongo", "none".
