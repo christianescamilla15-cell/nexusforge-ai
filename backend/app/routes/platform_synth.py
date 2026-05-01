@@ -78,7 +78,7 @@ async def build_project(body: BuildRequest, request: Request):
     """
     user_id = _require_user(request)
     try:
-        result = synthesize(body)
+        result = await synthesize(body)
         logger.info(
             "platform-synth build by %s: template=%s path=%s files=%d",
             user_id[:8], body.template_id, result.project_path, result.files_written,

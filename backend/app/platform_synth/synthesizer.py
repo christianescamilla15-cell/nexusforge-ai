@@ -21,6 +21,8 @@ import logging
 import os
 from pathlib import Path
 
+from .mythos_preflight import run_preflight
+from .post_build import create_github_repo, init_git_repo
 from .schemas import BuildRequest, BuildResult
 from .templates import get_template
 
@@ -63,11 +65,15 @@ def _validate_target(target_dir: str) -> Path:
     return target
 
 
-def synthesize(req: BuildRequest) -> BuildResult:
+async def synthesize(req: BuildRequest) -> BuildResult:
     """Render the template against the spec and write to disk.
 
     Returns a BuildResult with the absolute project path, file
     count, and human-readable next_steps the UI can show.
+
+    Async because the optional Mythos pre-flight is async; the
+    file-write loop itself is synchronous (local FS I/O is fast
+    enough that asyncio.to_thread would just add overhead).
     """
     summary, render = get_template(req.template_id)
 
@@ -96,18 +102,87 @@ def synthesize(req: BuildRequest) -> BuildResult:
         out.write_text(content, encoding="utf-8")
         written += 1
 
+    # ── Post-build hooks (opt-in via flags) ─────────────────────
+    git_initialized = False
+    git_first_commit_sha = None
+    github_repo_url = None
+    post_build_warnings: list[str] = []
+
+    if req.git_init:
+        ok, sha, gw = init_git_repo(target, req.spec.project_name or "project")
+        git_initialized = ok
+        git_first_commit_sha = sha
+        post_build_warnings.extend(gw)
+
+        # Only attempt GH repo creation if git init succeeded —
+        # `gh repo create --source=. --push` requires a working git
+        # working tree.
+        if req.github_repo_create and ok:
+            url, gh_warn = create_github_repo(
+                target,
+                req.spec.project_name or "project",
+                req.github_repo_visibility,
+            )
+            github_repo_url = url
+            post_build_warnings.extend(gh_warn)
+        elif req.github_repo_create and not ok:
+            post_build_warnings.append(
+                "skipped GitHub repo creation because git init failed"
+            )
+    elif req.github_repo_create:
+        post_build_warnings.append(
+            "github_repo_create requested but git_init was False; "
+            "GitHub repo creation requires a local git repo first"
+        )
+
     next_steps = [
         f"cd {target}",
         "Read README.md (root of the project) for the full quick-start.",
         "Set DATABASE_URL + JWT_SECRET in backend/.env",
         "Run backend/app/db/migrations/001_init.sql against your Postgres",
     ]
+    if github_repo_url:
+        next_steps.append(f"Visit your new repo: {github_repo_url}")
+    elif git_initialized:
+        next_steps.append("git status — your initial commit is on `main`")
+
+    # ── Mythos pre-flight (opt-in via flag) ─────────────────────
+    mythos = {
+        "mythos_ran": False,
+        "mythos_score": None,
+        "mythos_critical_count": 0,
+        "mythos_high_count": 0,
+        "mythos_findings_summary": [],
+    }
+    if req.mythos_preflight:
+        mythos = await run_preflight(target)
+        if mythos["mythos_critical_count"] > 0:
+            post_build_warnings.append(
+                f"Mythos pre-flight: {mythos['mythos_critical_count']} CRITICAL "
+                f"finding(s). See mythos_findings_summary."
+            )
+        if mythos["mythos_high_count"] > 0:
+            post_build_warnings.append(
+                f"Mythos pre-flight: {mythos['mythos_high_count']} HIGH "
+                f"finding(s). See mythos_findings_summary."
+            )
+
+    # If post-build had warnings but the files are all on disk and
+    # decryptable, the build is "partial" not "failed". Failed
+    # only applies when the file write phase itself broke.
+    has_any_warning = bool(warnings or post_build_warnings)
+    overall_status = "complete" if not has_any_warning else "partial"
 
     return BuildResult(
         project_path=str(target),
         files_written=written,
         template_id=req.template_id,
-        status="complete" if not warnings else "partial",
+        status=overall_status,
         next_steps=next_steps,
         warnings=warnings,
+        git_initialized=git_initialized,
+        git_first_commit_sha=git_first_commit_sha,
+        github_repo_url=github_repo_url,
+        post_build_warnings=post_build_warnings,
+        **mythos,
     )

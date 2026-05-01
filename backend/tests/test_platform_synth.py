@@ -14,6 +14,8 @@ Bearer token).
 """
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -23,11 +25,19 @@ from app.platform_synth.schemas import (
     BuildRequest,
     PlatformSpec,
 )
-from app.platform_synth.synthesizer import synthesize
+from app.platform_synth.synthesizer import synthesize as _synthesize_async
 from app.platform_synth.templates import (
     list_templates,
     rank_for_spec,
 )
+
+
+def synthesize(req):
+    """Sync wrapper around the now-async synthesize so tests don't
+    need @pytest.mark.asyncio decorators on every case. Each call
+    runs in its own event loop — fine for tests, would never do
+    this in production code."""
+    return asyncio.run(_synthesize_async(req))
 
 
 # ─── templates registry ─────────────────────────────────────────────
@@ -195,6 +205,343 @@ def test_render_django_emits_settings_with_correct_module(tmp_path, monkeypatch)
     settings = (target / py_module / "settings.py").read_text(encoding="utf-8")
     # ROOT_URLCONF must point to the sanitized module name.
     assert f'ROOT_URLCONF = "{py_module}.urls"' in settings
+
+
+# ─── post-build (git init / gh repo create) ────────────────────────
+
+
+def test_post_build_sanitize_repo_name_accepts_normal():
+    from app.platform_synth.post_build import _sanitize_repo_name
+    assert _sanitize_repo_name("my-app") == "my-app"
+    assert _sanitize_repo_name("project_name_123") == "project_name_123"
+
+
+def test_post_build_sanitize_repo_name_rejects_path_traversal():
+    """The repo name is passed to gh CLI. Even though we use args
+    list (no shell), GitHub itself rejects these — fail fast on
+    our end with a clear error rather than relying on gh."""
+    from app.platform_synth.post_build import _sanitize_repo_name
+    assert _sanitize_repo_name("..") is None
+    assert _sanitize_repo_name("../etc/passwd") is None
+    assert _sanitize_repo_name("a..b") is None
+    assert _sanitize_repo_name(".hidden") is None
+    assert _sanitize_repo_name("trailing.") is None
+    assert _sanitize_repo_name("") is None
+    assert _sanitize_repo_name("name with spaces") is None
+    assert _sanitize_repo_name("name/slash") is None
+    assert _sanitize_repo_name("a" * 101) is None  # too long
+
+
+def test_post_build_init_git_repo_skips_when_git_missing(tmp_path, monkeypatch):
+    """If `git` isn't on PATH, init_git_repo returns warnings and
+    does NOT raise. Project on disk is unaffected."""
+    monkeypatch.setattr("app.platform_synth.post_build.shutil.which", lambda _: None)
+    ok, sha, warnings = __import__(
+        "app.platform_synth.post_build", fromlist=["init_git_repo"]
+    ).init_git_repo(tmp_path, "my-app")
+    assert ok is False
+    assert sha is None
+    assert any("git binary not found" in w for w in warnings)
+
+
+def test_post_build_init_git_repo_calls_correct_args(tmp_path, monkeypatch):
+    """Confirm the args we pass to `git init` / `git commit` —
+    pin the security-critical bits: --initial-branch=main,
+    NEVER shell=True (we use args list)."""
+    from app.platform_synth import post_build
+
+    monkeypatch.setattr(post_build.shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    calls = []
+
+    def fake_run(cmd, cwd, timeout=60):
+        calls.append((cmd, str(cwd)))
+        # Make every command "succeed" so the flow continues.
+        if cmd[:3] == ["git", "rev-parse", "HEAD"]:
+            return 0, "abc123def456" + "0" * 28 + "\n", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(post_build, "_run", fake_run)
+
+    ok, sha, warnings = post_build.init_git_repo(tmp_path, "my-app")
+    assert ok is True
+    assert sha and sha.startswith("abc123def456")
+    assert warnings == []
+
+    # First call must be `git init --initial-branch=main`.
+    assert calls[0][0] == ["git", "init", "--initial-branch=main"]
+    # Second `git add -A`.
+    assert calls[1][0] == ["git", "add", "-A"]
+    # Third call: commit. Must use args list, must include
+    # synthesizer identity to avoid leaking host's git config,
+    # must include project_name in commit message.
+    commit_cmd = calls[2][0]
+    assert commit_cmd[0] == "git"
+    assert "commit" in commit_cmd
+    assert "my-app" in " ".join(commit_cmd)
+
+
+def test_post_build_create_github_repo_skips_when_gh_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.platform_synth.post_build.shutil.which", lambda _: None)
+    from app.platform_synth.post_build import create_github_repo
+    url, warnings = create_github_repo(tmp_path, "my-app", "private")
+    assert url is None
+    assert any("gh CLI not found" in w for w in warnings)
+
+
+def test_post_build_create_github_repo_rejects_unsafe_name(tmp_path, monkeypatch):
+    """Bad repo name → fail fast, NEVER call gh with garbage."""
+    from app.platform_synth import post_build
+
+    monkeypatch.setattr(post_build.shutil, "which", lambda _: "/usr/bin/gh")
+    calls = []
+    monkeypatch.setattr(
+        post_build, "_run",
+        lambda *a, **kw: (calls.append(a) or (0, "", "")) or (0, "", ""),
+    )
+
+    url, warnings = post_build.create_github_repo(tmp_path, "../escape", "private")
+    assert url is None
+    assert any("not safe for GitHub repo name" in w for w in warnings)
+    # And critically: gh was NEVER invoked.
+    assert calls == []
+
+
+def test_post_build_create_github_repo_parses_url_from_stdout(tmp_path, monkeypatch):
+    """When `gh repo create --push` succeeds, parse the URL it
+    prints and surface it to the caller."""
+    from app.platform_synth import post_build
+
+    monkeypatch.setattr(post_build.shutil, "which", lambda _: "/usr/bin/gh")
+
+    def fake_run(cmd, cwd, timeout=60):
+        if cmd[:3] == ["gh", "auth", "status"]:
+            return 0, "logged in", ""
+        if cmd[:3] == ["gh", "repo", "create"]:
+            return 0, "https://github.com/christianescamilla15-cell/my-app\n", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(post_build, "_run", fake_run)
+
+    url, warnings = post_build.create_github_repo(tmp_path, "my-app", "private")
+    assert url == "https://github.com/christianescamilla15-cell/my-app"
+
+
+def test_synthesize_skips_post_build_when_flags_off(tmp_path, monkeypatch):
+    """With both flags False, the synthesizer never touches git/gh
+    even if they're available on PATH."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    from app.platform_synth import post_build
+
+    init_called = []
+    monkeypatch.setattr(
+        post_build, "init_git_repo",
+        lambda *a, **kw: init_called.append(a) or (False, None, []),
+    )
+
+    target = tmp_path / "no-git"
+    spec = PlatformSpec(project_name="no-git")
+    req = BuildRequest(
+        template_id="fastapi_react_postgres",
+        spec=spec,
+        target_dir=str(target),
+        # both flags default False
+    )
+    result = synthesize(req)
+    assert result.git_initialized is False
+    assert result.github_repo_url is None
+    assert init_called == []  # not called at all
+
+
+def test_synthesize_runs_git_init_when_flag_on(tmp_path, monkeypatch):
+    """With git_init=True, init_git_repo runs and the result
+    surfaces git_initialized + sha."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    from app.platform_synth import synthesizer as synth_mod
+
+    monkeypatch.setattr(
+        synth_mod, "init_git_repo",
+        lambda target, name: (True, "deadbeef" * 5, []),
+    )
+
+    target = tmp_path / "with-git"
+    spec = PlatformSpec(project_name="with-git")
+    req = BuildRequest(
+        template_id="fastapi_react_postgres",
+        spec=spec,
+        target_dir=str(target),
+        git_init=True,
+    )
+    result = synthesize(req)
+    assert result.git_initialized is True
+    assert result.git_first_commit_sha == "deadbeef" * 5
+
+
+# ─── Mythos pre-flight ─────────────────────────────────────────────
+
+
+def test_mythos_preflight_skipped_when_flag_off(tmp_path, monkeypatch):
+    """Without mythos_preflight=True, scanner is NEVER invoked
+    (saves 1-3s per build for the common path)."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    from app.platform_synth import synthesizer as synth_mod
+
+    called = []
+
+    async def fake_preflight(target):
+        called.append(target)
+        return {
+            "mythos_ran": True,
+            "mythos_score": 100,
+            "mythos_critical_count": 0,
+            "mythos_high_count": 0,
+            "mythos_findings_summary": [],
+        }
+
+    monkeypatch.setattr(synth_mod, "run_preflight", fake_preflight)
+
+    target = tmp_path / "no-preflight"
+    spec = PlatformSpec(project_name="no-preflight")
+    req = BuildRequest(
+        template_id="fastapi_react_postgres",
+        spec=spec,
+        target_dir=str(target),
+        # mythos_preflight defaults False
+    )
+    result = synthesize(req)
+    assert result.mythos_ran is False
+    assert called == []
+
+
+def test_mythos_preflight_runs_and_surfaces_clean_score(tmp_path, monkeypatch):
+    """Happy path: scanner runs, finds nothing, score=100, no
+    findings in summary, status remains 'complete'."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    from app.platform_synth import synthesizer as synth_mod
+
+    async def fake_preflight(target):
+        return {
+            "mythos_ran": True,
+            "mythos_score": 100,
+            "mythos_critical_count": 0,
+            "mythos_high_count": 0,
+            "mythos_findings_summary": [],
+        }
+
+    monkeypatch.setattr(synth_mod, "run_preflight", fake_preflight)
+
+    target = tmp_path / "clean-scan"
+    spec = PlatformSpec(project_name="clean-scan")
+    req = BuildRequest(
+        template_id="fastapi_react_postgres",
+        spec=spec,
+        target_dir=str(target),
+        mythos_preflight=True,
+    )
+    result = synthesize(req)
+    assert result.mythos_ran is True
+    assert result.mythos_score == 100
+    assert result.mythos_critical_count == 0
+    assert result.status == "complete"
+
+
+def test_mythos_preflight_with_critical_findings_marks_partial(tmp_path, monkeypatch):
+    """If Mythos finds critical/high issues, build status drops
+    to 'partial' and the findings appear in
+    mythos_findings_summary + post_build_warnings."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    from app.platform_synth import synthesizer as synth_mod
+
+    async def fake_preflight(target):
+        return {
+            "mythos_ran": True,
+            "mythos_score": 70,
+            "mythos_critical_count": 2,
+            "mythos_high_count": 1,
+            "mythos_findings_summary": [
+                "[critical] Hardcoded secret in backend/auth.py:15",
+                "[critical] SQL injection in backend/items.py:42",
+                "[high] Missing CSRF token on state-changing route",
+            ],
+        }
+
+    monkeypatch.setattr(synth_mod, "run_preflight", fake_preflight)
+
+    target = tmp_path / "scary-scan"
+    spec = PlatformSpec(project_name="scary-scan")
+    req = BuildRequest(
+        template_id="fastapi_react_postgres",
+        spec=spec,
+        target_dir=str(target),
+        mythos_preflight=True,
+    )
+    result = synthesize(req)
+    assert result.mythos_ran is True
+    assert result.mythos_critical_count == 2
+    assert result.mythos_high_count == 1
+    assert result.mythos_score == 70
+    assert len(result.mythos_findings_summary) == 3
+    # Build still completes (files written), but status reflects warnings.
+    assert result.status == "partial"
+    # Warnings include both severity buckets.
+    joined_warnings = " ".join(result.post_build_warnings)
+    assert "2 CRITICAL" in joined_warnings
+    assert "1 HIGH" in joined_warnings
+
+
+def test_mythos_preflight_handles_scanner_failure_gracefully(tmp_path, monkeypatch):
+    """Scanner import error / runtime crash → mythos_ran=False
+    with a warning. Build still completes."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+    from app.platform_synth import synthesizer as synth_mod
+
+    async def broken_preflight(target):
+        # Mimic mythos_preflight.run_preflight()'s graceful shape
+        # when something explodes inside.
+        return {
+            "mythos_ran": False,
+            "mythos_score": None,
+            "mythos_critical_count": 0,
+            "mythos_high_count": 0,
+            "mythos_findings_summary": ["scan errored: ImportError: missing dep"],
+        }
+
+    monkeypatch.setattr(synth_mod, "run_preflight", broken_preflight)
+
+    target = tmp_path / "broken-scan"
+    spec = PlatformSpec(project_name="broken-scan")
+    req = BuildRequest(
+        template_id="fastapi_react_postgres",
+        spec=spec,
+        target_dir=str(target),
+        mythos_preflight=True,
+    )
+    # Must NOT raise. Build completes (status complete because no
+    # high/critical counted), summary surfaces the error.
+    result = synthesize(req)
+    assert result.mythos_ran is False
+    assert result.status == "complete"  # no critical/high → no warning bump
+    assert any("scan errored" in s for s in result.mythos_findings_summary)
+
+
+def test_synthesize_refuses_gh_create_without_git_init(tmp_path, monkeypatch):
+    """github_repo_create=True + git_init=False → warning, not crash.
+    GitHub repo creation requires a local repo to push."""
+    monkeypatch.setenv("PLATFORM_SYNTH_ROOT", str(tmp_path))
+
+    target = tmp_path / "gh-without-git"
+    spec = PlatformSpec(project_name="gh-without-git")
+    req = BuildRequest(
+        template_id="fastapi_react_postgres",
+        spec=spec,
+        target_dir=str(target),
+        git_init=False,
+        github_repo_create=True,
+    )
+    result = synthesize(req)
+    assert result.git_initialized is False
+    assert result.github_repo_url is None
+    assert any("git_init was False" in w for w in result.post_build_warnings)
 
 
 def test_render_go_emits_go_module_with_project_name(tmp_path, monkeypatch):
