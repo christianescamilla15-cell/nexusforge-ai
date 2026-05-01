@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "AIOS MCP server registration for the triangulation session.",
+    "AIOS exposes its 30+ commands (memory query, spec scan, steering, etc.)",
+    "as MCP tools so a Claude/Codex/etc. session can invoke them.",
+    "",
+    "Drop this snippet into your IDE/CLI MCP config:",
+    "  - Claude Code: ~/.claude/settings.json under `mcpServers`",
+    "  - Codex CLI: ~/.codex/mcp.json (or wherever Codex reads MCP from)",
+    "  - VS Code Claude extension: workspace settings .vscode/settings.json",
+    "",
+    "Replace the placeholder paths/keys before use."
+  ],
+  "mcpServers": {
+    "aios": {
+      "command": "aios",
+      "args": ["mcp", "serve"],
+      "env": {
+        "AIOS_PROJECT_ROOT": "/home/danny/Desktop/portafolio-completo/proyectos/07-nexusforge-ai",
+        "AIOS_API_KEY": "<your-aios-key-here>",
+        "AIOS_VERIFICATION_MODE": "1"
+      }
+    }
+  },
+  "_usage": [
+    "Once registered, in the session you can ask AIOS to:",
+    "  - Query past memory:    'aios: what did we learn about CWE-798?'",
+    "  - Run a spec scan:      'aios: scan platform_synth/ for spec drift'",
+    "  - List steering docs:   'aios: list steering for backend/'",
+    "  - Diff against memory:  'aios: diff /api/auth/refresh against memory'",
+    "",
+    "The harness scripts (bootstrap.sh / security_scan.sh / functionality_smoke.sh)",
+    "do NOT depend on AIOS MCP — they run via plain shell. AIOS adds the",
+    "qualitative model-driven layer ON TOP of those automated outputs.",
+    "If you don't have AIOS installed, skip this file; the triangulator",
+    "still works with two sources, it just labels findings as 2/2 instead of 3/3."
+  ]
+}

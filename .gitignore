@@ -2,6 +2,10 @@
 .env
 .env.local
 .env.production
+# Verification environment — contains generated test secrets, never commit.
+# env.verify.example (no leading dot) IS committed as the template;
+# the leading-dot variant would trigger pre-commit secret-scan hooks.
+.env.verify
 
 # Python
 __pycache__/

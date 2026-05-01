@@ -1,0 +1,7 @@
+# Verification reports — local-only, never commit
+reports/
+!reports/.gitkeep
+
+# But DO commit the templates and scripts
+!templates/
+!mcp/

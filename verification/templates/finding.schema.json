@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexusforge.ai/verification/finding.schema.json",
+  "title": "Verification finding",
+  "description": "One issue raised by any scanner (security or functionality). Stable across tools so the triangulator can match across sources.",
+  "type": "object",
+  "required": ["id", "source_scanner", "category", "severity", "title"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "sha1(source_scanner|file|line|category|title)[:16]. Deterministic across runs of the SAME scanner; lets triangulator use exact match as a fast path before falling back to fuzzy match."
+    },
+    "source_scanner": {
+      "type": "string",
+      "enum": ["mythos", "pip_audit", "npm_audit", "gitleaks", "semgrep", "schemathesis", "smoke", "manual"],
+      "description": "Which scanner produced this finding. `manual` is reserved for human-added findings."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "secrets", "auth", "injection", "crypto", "config",
+        "rate_limit", "data", "deps", "frontend", "sast",
+        "fuzz", "functionality", "other"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low", "info"]
+    },
+    "file": {
+      "type": ["string", "null"],
+      "description": "Repo-relative path. NULL when the finding isn't tied to a specific file (e.g., dep CVE on requirements.txt is fine; but a Mythos config check might apply globally)."
+    },
+    "line": { "type": ["integer", "null"] },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "cwe": { "type": ["string", "null"] },
+    "cvss": { "type": ["number", "null"] }
+  }
+}

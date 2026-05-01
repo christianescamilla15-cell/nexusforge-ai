@@ -1,0 +1,128 @@
+# Verification stack — completely isolated from docker-compose.yml (dev).
+#
+# Differences from the dev compose:
+#   - Project name `nexusforge_verify` (set via `-p nexusforge_verify` or
+#     COMPOSE_PROJECT_NAME) so volumes / networks / containers don't
+#     collide with the dev stack on the same host.
+#   - Backend exposed on 18000, frontend on 15173, postgres 15432,
+#     redis 16379, ollama 11435 — no overlap with dev defaults
+#     (8000 / 5173 / 5432 / 6379 / 11434).
+#   - `env_file: .env.verify` (NOT .env). Forces verifiers to use
+#     test secrets, never accidentally lift prod creds.
+#   - Backend runs WITHOUT --reload (deterministic for E2E timings).
+#   - Health checks gated so `docker compose up --wait` blocks until
+#     every service answers.
+#   - Volumes prefixed `verify_` and tagged `verify-only` so a
+#     `docker volume prune --filter label=verify-only` cleans up
+#     after a triangulation pass without touching dev data.
+#
+# Bring up:
+#   docker compose -f docker-compose.verify.yml -p nexusforge_verify up --build --wait
+#
+# Tear down (with volumes):
+#   docker compose -f docker-compose.verify.yml -p nexusforge_verify down -v
+services:
+  backend:
+    build: ./backend
+    ports: ["18000:8000"]
+    env_file: .env.verify
+    environment:
+      DATABASE_URL: postgres://nexus:nexus_verify_2026@postgres:5432/nexusforge_verify
+      REDIS_URL: redis://redis:6379
+      MONGODB_URL: mongodb://mongodb:27017/nexusforge_verify
+      OLLAMA_BASE_URL: http://ollama:11434
+      ENVIRONMENT: verification
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      mongodb: { condition: service_healthy }
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/api/health', timeout=2); sys.exit(0)\" || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    labels: ["verify-only=1"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports: ["15173:80"]
+    environment:
+      VITE_API_URL: http://localhost:18000/api
+    depends_on:
+      backend: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost/ >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    labels: ["verify-only=1"]
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports: ["15432:5432"]
+    environment:
+      POSTGRES_DB: nexusforge_verify
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus_verify_2026
+    volumes:
+      - verify_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexusforge_verify"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+    labels: ["verify-only=1"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["16379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    labels: ["verify-only=1"]
+
+  mongodb:
+    image: mongo:7
+    ports: ["27018:27017"]
+    volumes:
+      - verify_mongo:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: nexusforge_verify
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    labels: ["verify-only=1"]
+
+  # Optional — slow to pull but useful when verifiers want to exercise
+  # the local-LLM fallback chain without burning cloud tokens. Pulls
+  # gemma3:4b on first start; comment out if you only want cloud LLM
+  # paths exercised.
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11435:11434"]
+    volumes:
+      - verify_ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:11434/api/tags >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    labels: ["verify-only=1"]
+
+volumes:
+  verify_pgdata:
+    labels: ["verify-only=1"]
+  verify_mongo:
+    labels: ["verify-only=1"]
+  verify_ollama:
+    labels: ["verify-only=1"]
