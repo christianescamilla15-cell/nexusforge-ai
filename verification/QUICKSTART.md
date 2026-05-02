@@ -190,7 +190,51 @@ Al terminar imprimí 1 línea:
 
 ---
 
-## Después de las 3 sesiones — triangulación
+---
+
+## Sesión 4-6 — nodos LOCALES (Ollama, secuenciales)
+
+Estos 3 nodos corren contra **Ollama nativo en tu host** (puerto 11434),
+NO contra el container del verify stack. Son secuenciales porque
+RTX 4050 6GB solo aguanta 1 modelo a la vez en GPU.
+
+Pre-requisito (una sola vez):
+
+```bash
+# 2 ya los tienes; descarga el upgrade del coder:
+ollama pull qwen3.6:8b      # ~5 GB
+ollama list | grep -E 'deepseek-r1:8b|qwen3.6:8b|llama3.1:8b'
+```
+
+Luego, **después de que claude_security y gpt55 generaron `<run_id>`**,
+los nodos locales reusan ese mismo `<run_id>` (o pasan uno nuevo
+generado con `date -u +%Y%m%dT%H%M%SZ`):
+
+```bash
+RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
+
+# Nodo 4 — DeepSeek R1 8B sobre security findings (~30s/finding)
+bash verification/local_llm_review.sh deepseek_local deepseek-r1:8b $RUN_ID security
+
+# Nodo 5 — Qwen 3.6 8B sobre tech/code findings (~30s/finding)
+bash verification/local_llm_review.sh qwen_local qwen3.6:8b $RUN_ID technical
+
+# Nodo 6 — Llama 3.1 8B sobre functionality (~30s/finding)
+bash verification/local_llm_review.sh llama_local llama3.1:8b $RUN_ID functional
+```
+
+Los scripts:
+- Reutilizan `security_findings.json` y `functionality_findings.json`
+  generados por la harness en sesiones previas
+- Si el tool_id no tiene su propio bootstrap, **fallback automático**
+  al run más reciente de cualquier otro tool
+- Llaman a Ollama con `format: "json"` para output parseable
+- Escriben `manual_findings_<focus>.json` + `local_review_<focus>.md`
+  en el mismo schema que los nodos cloud
+
+Tiempo estimado: 30-50 min los 3 juntos sobre ~30 findings cada uno.
+
+## Después de las N sesiones — triangulación
 
 En cualquier sesión (o terminal limpio):
 

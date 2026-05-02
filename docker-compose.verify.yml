@@ -102,12 +102,19 @@ services:
       retries: 15
     labels: ["verify-only=1"]
 
-  # Optional — slow to pull but useful when verifiers want to exercise
-  # the local-LLM fallback chain without burning cloud tokens. Pulls
-  # gemma3:4b on first start; comment out if you only want cloud LLM
-  # paths exercised.
+  # Optional — opt-in via profile so it doesn't compete for VRAM with
+  # whatever Ollama you're already running on the host (which is what
+  # local_llm_review.sh hits — the host's :11434, not this stack's
+  # :11435). Enable explicitly when you actually want a sandboxed LLM
+  # in the verify stack:
+  #
+  #   docker compose -f docker-compose.verify.yml --profile with-ollama \
+  #       -p nexusforge_verify up -d --build --wait
+  #
+  # Default `up` (no --profile) skips this service entirely.
   ollama:
     image: ollama/ollama:latest
+    profiles: ["with-ollama"]
     ports: ["11435:11434"]
     volumes:
       - verify_ollama:/root/.ollama
