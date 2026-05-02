@@ -1,8 +1,38 @@
 # Quickstart — paste-and-go prompts
 
-One prompt per session. Open a fresh agent/IDE window for each, paste
-the corresponding block, let it run end-to-end. After all three
-finish, run the triangulator (last section).
+The canonical triangulation pass uses **6 sources**:
+
+  1. `claude_security` — Claude security review (cloud)
+  2. `gpt55` — GPT-5.5 via Codex (cloud)
+  3. `aios` — AIOS persistent-memory cross-ref (local CLI)
+  4. `deepseek_local` — DeepSeek-R1 8B (Ollama, security focus)
+  5. `qwen_local` — Qwen 3.6 8B (Ollama, technical focus)
+  6. `llama_local` — Llama 3.1 8B (Ollama, functional focus)
+
+All 6 are **mandatory for a full pass**. Skipping a node degrades the
+triangulator's agreement scoring (3-source clusters become 2-source,
+etc.). Run subsets only when you knowingly want a partial pass.
+
+## Pre-requisitos (una sola vez por máquina)
+
+```bash
+# 1. Repo en sync
+cd /home/chris/nexusforge-ai
+git pull origin master
+
+# 2. AIOS CLI (público en PyPI)
+pip install aios-kiro-master
+aios init        # idempotent — crea ai-system/, ai-memory/, specs/
+aios doctor      # health check
+
+# 3. Modelos locales (los 2 que ya tienes + el upgrade de qwen)
+ollama pull qwen3.6:8b      # único download nuevo, ~5 GB
+ollama list | grep -E 'deepseek-r1:8b|qwen3.6:8b|llama3.1:8b'
+```
+
+Después abre 3 IDE windows distintas para Sesiones 1-3 (cloud + AIOS,
+una por motor de LLM), y los nodos locales corren secuencial en una
+4ta terminal.
 
 ---
 
@@ -234,20 +264,24 @@ Los scripts:
 
 Tiempo estimado: 30-50 min los 3 juntos sobre ~30 findings cada uno.
 
-## Después de las N sesiones — triangulación
+## Después de las 6 sesiones — triangulación
 
 En cualquier sesión (o terminal limpio):
 
 ```bash
 python3 verification/triangulate.py
+# Sin --tools usa el default canónico (los 6: claude_security, gpt55,
+# aios, deepseek_local, qwen_local, llama_local). Pasa --tools para
+# correr un subset.
 # → verification/reports/_triangulation/<ts>/triangulation.{json,md}
 ```
 
 Lee el `triangulation.md`. Triage en este orden:
 
-1. **3/3 HIGH-CONFIDENCE** — los 3 nodos lo flagearon. Esencialmente cierto. Fix primero.
-2. **2/3 likely real** — 2 fuentes coinciden. Alta probabilidad. Investigar.
-3. **1/3 investigate** — solo 1 fuente. Candidato a false positive, pero leelo: a veces el único que vio el bug es el que tenía el contexto correcto (ej. AIOS cruzando memoria histórica).
+1. **6/6 HIGH-CONFIDENCE** — todos los nodos lo flagearon. Casi certeza. Fix primero.
+2. **4-5/6 likely real** — mayoría coincide. Alta probabilidad. Investigar.
+3. **2-3/6 mixed** — diferentes familias dijeron cosas distintas. Lee descripciones por nodo, decide.
+4. **1/6 investigate** — solo 1 fuente. Candidato a false positive, pero leelo: a veces el único que vio el bug es el que tenía el contexto correcto (ej. AIOS cruzando memoria histórica, o DeepSeek razonando sobre exploitability que los otros 5 no notaron).
 
 ## Cleanup post-triangulación
 

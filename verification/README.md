@@ -1,12 +1,30 @@
 # Triangulation harness
 
-Three independent verification sessions (AIOS / GPT-5.5 / Claude
-security review) each spin up an isolated copy of the NexusForge
-stack, run the same security + functionality scans, and produce a
-report in the same shape. A separate triangulator merges all three
-and surfaces issues by **agreement**: 3/3 sources flagging the same
-thing is essentially certain; 1/3 is a single-source claim that
-warrants investigation but isn't load-bearing on its own.
+The canonical pass uses **6 independent verification sessions**, each
+producing findings in the same JSON shape so the triangulator can
+cross-reference them by agreement. None are optional — they're all
+mandatory for a full pass:
+
+| # | Tool id | Engine | Focus |
+|---|---|---|---|
+| 1 | `claude_security` | Claude Code (cloud) | Security analysis with model-driven manual findings |
+| 2 | `gpt55` | GPT-5.5 via Codex CLI (cloud) | Correctness / refactoring / API contract |
+| 3 | `aios` | AIOS CLI (`pip install aios-kiro-master`) | Persistent-memory cross-ref against historical decisions |
+| 4 | `deepseek_local` | DeepSeek-R1 8B via Ollama (host) | Security, CoT-reasoning visible |
+| 5 | `qwen_local` | Qwen 3.6 8B via Ollama (host) | Technical / code-quality |
+| 6 | `llama_local` | Llama 3.1 8B via Ollama (host) | Functional / UX / docs |
+
+Each cloud node bootstraps its own isolated stack via
+`docker-compose.verify.yml` (project name `nexusforge_verify`, ports
+shifted to avoid dev collisions). The AIOS and local-LLM nodes layer
+ON TOP of the existing run output (`security_findings.json` +
+`functionality_findings.json`) so they don't need their own bootstrap
+— they pick up findings from any prior tool's run.
+
+A separate triangulator merges all six and surfaces issues by
+**agreement**: 6/6 sources flagging the same thing is essentially
+certain; 1/6 is a single-source claim that warrants investigation but
+isn't load-bearing on its own.
 
 ## Why three sessions
 
@@ -19,15 +37,14 @@ de-prioritized as a false-positive candidate.
 
 ## Tool ids (used as report subdirs)
 
-| Tool id            | Session                                    |
-|---|---|
-| `aios`             | Christian's AIOS plugin (MCP)              |
-| `gpt55`            | GPT-5.5 via Codex CLI                       |
-| `claude_security`  | Claude Code with `/security-review` skill   |
+See the table at the top of this README. Each tool writes into
+`verification/reports/<tool_id>/<run_id>/`.
 
-Each tool writes into `verification/reports/<tool_id>/<run_id>/`.
+## What each session runs
 
-## What each session runs (identical for all 3)
+The cloud nodes (claude_security, gpt55) run the full harness; the
+AIOS and local-LLM nodes layer evaluations on top of the existing
+findings without bootstrapping their own stack.
 
 ```bash
 # Step 1 — bootstrap the verify stack and tools

@@ -190,8 +190,11 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument(
         "--tools",
-        default="aios,gpt55,claude_security",
-        help="Comma-separated tool ids to triangulate",
+        default="claude_security,gpt55,aios,deepseek_local,qwen_local,llama_local",
+        help="Comma-separated tool ids to triangulate. Canonical 6-source flow includes "
+             "the two cloud nodes (claude_security, gpt55), the AIOS persistent-memory "
+             "node, and the three local Ollama nodes (deepseek/qwen/llama). Override "
+             "to a subset for partial passes.",
     )
     p.add_argument(
         "--kinds",
