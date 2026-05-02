@@ -335,7 +335,44 @@ async def delete_or_cancel_execution(run_id: UUID, request: Request):
 
 @router.websocket("/ws/{run_id}")
 async def execution_websocket(websocket: WebSocket, run_id: str):
-    """Live stream execution events via WebSocket + Redis pub/sub."""
+    """Live stream execution events via WebSocket + Redis pub/sub.
+
+    Auth: caller must pass `?token=<JWT>` and own the run. On any
+    auth/ownership failure we close with 1008 (policy violation)
+    *before* connecting, collapsing 404/403 into the same response
+    so attackers cannot use the WS as an existence oracle.
+    """
+    # WebSocket upgrade strips most headers; standard pattern is to
+    # accept the token via query string. Browsers cannot set Authorization
+    # on a `new WebSocket(...)` call.
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+    token_data = verify_token(token)
+    if not token_data:
+        await websocket.close(code=1008)
+        return
+    user_id = token_data["sub"]
+
+    try:
+        run_uuid = UUID(run_id)
+    except ValueError:
+        await websocket.close(code=1008)
+        return
+
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        owner = await conn.fetchval(
+            "SELECT user_id FROM workflow_runs WHERE id = $1",
+            run_uuid,
+        )
+    # Combine "doesn't exist" and "exists but not yours" into one branch
+    # to avoid leaking which run_ids are valid to unauthorized callers.
+    if owner is None or str(owner) != str(user_id):
+        await websocket.close(code=1008)
+        return
+
     await manager.connect(run_id, websocket)
     listen_task = asyncio.create_task(manager.listen_redis(run_id))
     try:
