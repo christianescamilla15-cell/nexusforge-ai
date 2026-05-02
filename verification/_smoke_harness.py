@@ -128,7 +128,9 @@ def smoke_workflow(ctx: Context):
         json={
             "name": f"verify-{uuid.uuid4().hex[:6]}",
             "description": "smoke",
-            "spec": {"steps": [{"id": "s1", "agent": "echo", "input": {"text": "hi"}}]},
+            "dag_definition": {
+                "steps": [{"name": "s1", "type": "echo", "config": {"text": "hi"}}],
+            },
         },
     )
     if r.status_code not in (200, 201):
@@ -156,7 +158,12 @@ def smoke_wizard(ctx: Context):
     r = ctx.client.post(
         f"{ctx.base_url}/api/wizard/chat",
         headers={"Authorization": f"Bearer {ctx.access_token}"},
-        json={"user_message": "I want a simple dashboard for inventory tracking", "history": []},
+        json={
+            "messages": [
+                {"role": "user", "content": "I want a simple dashboard for inventory tracking"},
+            ],
+            "language": "en",
+        },
         timeout=30,
     )
     if r.status_code != 200:
@@ -230,7 +237,7 @@ def smoke_refactor(ctx: Context):
     r = ctx.client.post(
         f"{ctx.base_url}/api/refactor/ingest",
         headers={"Authorization": f"Bearer {ctx.access_token}"},
-        json={"source_path": sample, "languages": ["python"]},
+        json={"path": sample, "name": "verify-refactor-smoke"},
         timeout=30,
     )
     if r.status_code not in (200, 201):

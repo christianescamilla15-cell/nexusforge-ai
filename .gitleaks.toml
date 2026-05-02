@@ -1,0 +1,14 @@
+# gitleaks config — extends the default ruleset.
+# Scoped allowlist for verify-only artifacts: secrets in these files are
+# disposable test credentials regenerated on every bootstrap.sh run, NOT
+# production material.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Verify-only test credentials (regenerated each bootstrap)"
+paths = [
+    '''docker-compose\.verify\.yml''',
+    '''\.env\.verify''',
+    '''env\.verify\.example''',
+]
