@@ -11,7 +11,7 @@ mandatory for a full pass:
 | 2 | `gpt55` | GPT-5.5 via Codex CLI (cloud) | Correctness / refactoring / API contract |
 | 3 | `aios` | AIOS CLI (`pip install aios-kiro-master`) | Persistent-memory cross-ref against historical decisions |
 | 4 | `deepseek_local` | DeepSeek-R1 8B via Ollama (host) | Security, CoT-reasoning visible |
-| 5 | `qwen_local` | Qwen 3.6 8B via Ollama (host) | Technical / code-quality |
+| 5 | `qwen_local` | Qwen 3 8B via Ollama (host) | Technical / code-quality |
 | 6 | `llama_local` | Llama 3.1 8B via Ollama (host) | Functional / UX / docs |
 
 Each cloud node bootstraps its own isolated stack via

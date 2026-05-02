@@ -25,9 +25,10 @@ pip install aios-kiro-master
 aios init        # idempotent — crea ai-system/, ai-memory/, specs/
 aios doctor      # health check
 
-# 3. Modelos locales (los 2 que ya tienes + el upgrade de qwen)
-ollama pull qwen3.6:8b      # único download nuevo, ~5 GB
-ollama list | grep -E 'deepseek-r1:8b|qwen3.6:8b|llama3.1:8b'
+# 3. Modelos locales — descargar el upgrade de Qwen (último que cabe en 6GB VRAM)
+ollama pull qwen3:8b      # ~5 GB, ÚLTIMA generación Qwen con variante 8B
+                          # NOTA: qwen3.6 solo tiene 27B/35B → no cabe en RTX 4050
+ollama list | grep -E 'deepseek-r1:8b|qwen3:8b|llama3.1:8b'
 ```
 
 Después abre 3 IDE windows distintas para Sesiones 1-3 (cloud + AIOS,
@@ -232,8 +233,8 @@ Pre-requisito (una sola vez):
 
 ```bash
 # 2 ya los tienes; descarga el upgrade del coder:
-ollama pull qwen3.6:8b      # ~5 GB
-ollama list | grep -E 'deepseek-r1:8b|qwen3.6:8b|llama3.1:8b'
+ollama pull qwen3:8b      # ~5 GB
+ollama list | grep -E 'deepseek-r1:8b|qwen3:8b|llama3.1:8b'
 ```
 
 Luego, **después de que claude_security y gpt55 generaron `<run_id>`**,
@@ -247,7 +248,7 @@ RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)
 bash verification/local_llm_review.sh deepseek_local deepseek-r1:8b $RUN_ID security
 
 # Nodo 5 — Qwen 3.6 8B sobre tech/code findings (~30s/finding)
-bash verification/local_llm_review.sh qwen_local qwen3.6:8b $RUN_ID technical
+bash verification/local_llm_review.sh qwen_local qwen3:8b $RUN_ID technical
 
 # Nodo 6 — Llama 3.1 8B sobre functionality (~30s/finding)
 bash verification/local_llm_review.sh llama_local llama3.1:8b $RUN_ID functional
