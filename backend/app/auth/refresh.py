@@ -139,13 +139,13 @@ async def consume_refresh_token(token: str) -> dict[str, Any] | None:
     h = _hash_token(token)
     key = f"{_TOKEN_KEY_PREFIX}{h}"
     try:
-        raw = await r.get(key)
+        # Atomic single-use semantics: GETDEL fetches and deletes in one
+        # round-trip so two concurrent /auth/refresh calls cannot both
+        # observe the same token and fork the rotation chain. Requires
+        # Redis 6.2+ (Upstash + Redis 7 in our stack both qualify).
+        raw = await r.getdel(key)
         if not raw:
             return None
-        # Single-use semantics: delete the token immediately so a
-        # replay (legitimate or attacker) hits an empty key. The
-        # caller has the claims and will mint a new token.
-        await r.delete(key)
         claims = json.loads(raw)
         # Best-effort cleanup of the user-set entry.
         try:
