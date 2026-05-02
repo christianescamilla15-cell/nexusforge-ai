@@ -25,9 +25,12 @@ export function PreviewEventProvider({ children }) {
       setStepStatuses({})
       // Backend mounts the WS handler at /api/executions/ws/{runId} —
       // mirror the URL builder from useExecutionWS.js so chat-first
-      // preview actually receives step events.
+      // preview actually receives step events. Backend now requires
+      // ?token=<JWT> + ownership check; bail early if no token.
+      const token = typeof window !== 'undefined' ? localStorage.getItem('nf_token') : null
+      if (!token) return
       const wsBase = getApiUrl().replace(/^http/, 'ws').replace(/\/api$/, '/api/executions')
-      const ws = new WebSocket(`${wsBase}/ws/${event.data.runId}`)
+      const ws = new WebSocket(`${wsBase}/ws/${event.data.runId}?token=${encodeURIComponent(token)}`)
       ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data)

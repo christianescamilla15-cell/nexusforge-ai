@@ -29,7 +29,15 @@ export function useExecutionWS(runId, isActive) {
     const apiUrl = getApiUrl()
     if (!apiUrl) return
 
-    const wsUrl = apiUrl.replace(/^http/, 'ws').replace(/\/api$/, '/api/executions') + `/ws/${runId}`
+    // Backend now requires ?token=<JWT> on /api/executions/ws/{runId}
+    // and verifies caller owns the run. Without the token the server
+    // closes the upgrade with 1008 immediately, so don't bother
+    // opening the socket if we have no token.
+    const token = typeof window !== 'undefined' ? localStorage.getItem('nf_token') : null
+    if (!token) return
+
+    const wsUrl = apiUrl.replace(/^http/, 'ws').replace(/\/api$/, '/api/executions')
+      + `/ws/${runId}?token=${encodeURIComponent(token)}`
     let ws
 
     try {
