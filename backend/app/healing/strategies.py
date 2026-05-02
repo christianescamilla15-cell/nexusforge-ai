@@ -196,19 +196,33 @@ class FallbackStrategy(HealingStrategy):
                 message=f"Using cached result for step '{step_name}'",
             )
 
-        # 2. Query DB for last successful execution of same step type
+        # 2. Query DB for last successful execution of same step type.
+        # Tenant scope is mandatory: a fallback that pulled output_data
+        # from another tenant's run would leak data via a shared step_name
+        # like "fetch_user" or "calculate_total". We require run_id in
+        # context and join workflow_runs to constrain to the same owner.
         step_type = failed_step.get("step_type", "")
-        if step_type:
+        current_run_id = context.get("run_id")
+        if step_type and current_run_id:
             try:
                 from app.db.client import get_db_pool
                 pool = await get_db_pool()
                 async with pool.acquire() as conn:
                     row = await conn.fetchrow(
-                        """SELECT output_data FROM step_executions
-                           WHERE step_name = $1 AND status = 'completed'
-                             AND output_data IS NOT NULL
-                           ORDER BY completed_at DESC LIMIT 1""",
+                        """SELECT se.output_data
+                             FROM step_executions se
+                             JOIN workflow_runs wr ON se.run_id = wr.id
+                            WHERE se.step_name = $1
+                              AND se.status = 'completed'
+                              AND se.output_data IS NOT NULL
+                              AND wr.user_id IS NOT NULL
+                              AND wr.user_id = (
+                                  SELECT user_id FROM workflow_runs WHERE id = $2
+                              )
+                            ORDER BY se.completed_at DESC
+                            LIMIT 1""",
                         step_name,
+                        current_run_id,
                     )
                 if row and row["output_data"]:
                     output = _json.loads(row["output_data"]) if isinstance(row["output_data"], str) else row["output_data"]
