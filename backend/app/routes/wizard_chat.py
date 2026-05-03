@@ -515,13 +515,17 @@ def _is_architectural_prompt(messages: list[dict]) -> bool:
     if len(latest_user) > 500:
         return True
 
-    # 5+ numbered list items (e.g., "1. foo", "2) bar", "3] baz")
-    numbered = len(re.findall(r"^\s*\d+[.)\]]\s+", latest_user, re.MULTILINE))
+    # 5+ numbered list items. Match either at line-start (multi-line
+    # input) OR after whitespace (single-line input where the chat UI
+    # collapsed newlines into spaces). 2026-05-03 re-test caught a
+    # case where the UI sent "necesito: 1. foo 2. bar 3. baz 4. qux 5. quux"
+    # as one line, so the line-start anchor never fired.
+    numbered = len(re.findall(r"(?:^|\s)(\d+[.)\]])\s+\S", latest_user))
     if numbered >= 5:
         return True
 
-    # 5+ bullets
-    bullets = len(re.findall(r"^\s*[-*•]\s+", latest_user, re.MULTILINE))
+    # 5+ bullets, same dual-mode matching
+    bullets = len(re.findall(r"(?:^|\s)([-*•])\s+\S", latest_user))
     if bullets >= 5:
         return True
 
