@@ -203,7 +203,9 @@ async def _issue_login_response(user: dict) -> dict:
     if _refresh_tokens_enabled():
         access = create_token(user_id, email, role, expires_in=ACCESS_TOKEN_EXPIRY_SHORT)
         from .refresh import issue_refresh_token, REFRESH_TTL_SECONDS
-        refresh = await issue_refresh_token(user_id, email, role)
+        from .tenant import lookup_user_org
+        org_id = await lookup_user_org(user_id)
+        refresh = await issue_refresh_token(user_id, email, role, org_id=org_id)
         if refresh is None:
             # Redis down → can't issue a refresh token. Fall back to
             # an 8h access token so the user can still log in, but
@@ -318,9 +320,16 @@ async def refresh_access_token(body: RefreshRequest):
     user_id = claims["user_id"]
     email = claims["email"]
     role = claims.get("role", "member")
+    # Preserve tenant context across rotation. Tokens issued before this
+    # change won't have org_id — fall back to a fresh lookup so the new
+    # token gets the claim populated rather than carrying None forward.
+    org_id = claims.get("org_id")
+    if org_id is None:
+        from .tenant import lookup_user_org
+        org_id = await lookup_user_org(user_id)
 
     new_access = create_token(user_id, email, role, expires_in=ACCESS_TOKEN_EXPIRY_SHORT)
-    new_refresh = await issue_refresh_token(user_id, email, role)
+    new_refresh = await issue_refresh_token(user_id, email, role, org_id=org_id)
     if new_refresh is None:
         # Redis flaked between consume and issue — return the new
         # access token but no refresh, so the client at least keeps

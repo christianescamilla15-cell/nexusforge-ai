@@ -83,6 +83,7 @@ async def issue_refresh_token(
     user_id: str,
     email: str,
     role: str = "member",
+    org_id: str | None = None,
 ) -> str | None:
     """Issue a new refresh token. Returns the opaque string, or None
     if Redis is unavailable.
@@ -90,6 +91,12 @@ async def issue_refresh_token(
     The caller (login flow) is responsible for returning this token
     in the HTTP response. Once returned, it cannot be retrieved
     again — only used / revoked.
+
+    `org_id` is persisted in the token's claim payload so subsequent
+    `/auth/refresh` calls (and any downstream code that reads the
+    consumed claims) inherit tenant context without re-querying
+    organization_members on every refresh. Optional: pre-org users
+    or test fixtures pass None.
     """
     r = await _redis()
     if r is None:
@@ -103,6 +110,7 @@ async def issue_refresh_token(
         "user_id": user_id,
         "email": email,
         "role": role,
+        "org_id": org_id,
         "issued_at": int(time.time()),
     }
     try:

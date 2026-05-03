@@ -47,7 +47,12 @@ VALID_SCOPES = {
 
 
 async def validate_api_key(raw_key: str, required_scope: str = "") -> Optional[dict]:
-    """Validate API key, check rate limit, and enforce scopes. Returns None if invalid."""
+    """Validate API key, check rate limit, and enforce scopes. Returns None if invalid.
+
+    The returned dict includes `org_id` so route handlers can scope
+    queries to the calling tenant without an extra organization_members
+    lookup. Keys created before migration 031 may have NULL org_id.
+    """
     key_hash = _hash_key(raw_key)
     try:
         pool = await get_db_pool()
@@ -100,11 +105,13 @@ async def validate_api_key(raw_key: str, required_scope: str = "") -> Optional[d
                 row["id"],
             )
 
+            org_id_raw = row.get("org_id")
             return {
                 "user_id": str(row["user_id"]),
                 "email": row["email"],
                 "name": row["name"],
                 "role": row["role"],
+                "org_id": str(org_id_raw) if org_id_raw else None,
                 "plan": plan,
                 "scopes": row["scopes"],
                 "key_name": row["name"],
@@ -143,10 +150,15 @@ async def generate_key(req: CreateKeyRequest, request: Request):
         if count >= 5:
             raise HTTPException(400, "Maximum 5 active API keys per account")
 
+        # Pin tenant context at create-time so scope-by-org queries
+        # don't have to re-lookup organization_members on every API call.
+        from .tenant import lookup_user_org
+        org_id = await lookup_user_org(token_data["sub"])
+
         await conn.execute(
-            """INSERT INTO api_keys (user_id, key_hash, key_prefix, name)
-               VALUES ($1::uuid, $2, $3, $4)""",
-            token_data["sub"], key_hash, prefix, req.name,
+            """INSERT INTO api_keys (user_id, org_id, key_hash, key_prefix, name)
+               VALUES ($1::uuid, $2::uuid, $3, $4, $5)""",
+            token_data["sub"], org_id, key_hash, prefix, req.name,
         )
 
     logger.info("API key generated: %s (user %s)", prefix, token_data["sub"][:8])

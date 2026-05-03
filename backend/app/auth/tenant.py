@@ -36,6 +36,29 @@ logger = logging.getLogger(__name__)
 _RLS_DEGRADED_WARNED = False
 
 
+async def lookup_user_org(user_id: str | None) -> str | None:
+    """Resolve a user's primary org_id from organization_members.
+
+    Module-level so login / refresh / api-key flows can reuse the same
+    membership lookup without duplicating the SQL. Returns None if the
+    user has no membership rows or the DB is unreachable.
+    """
+    if not user_id:
+        return None
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """SELECT om.org_id FROM organization_members om
+                   WHERE om.user_id = $1::uuid
+                   ORDER BY om.joined_at ASC LIMIT 1""",
+                user_id,
+            )
+            return str(row["org_id"]) if row else None
+    except Exception:
+        return None
+
+
 class TenantMiddleware(BaseHTTPMiddleware):
     """Resolve and expose org_id on request.state for application-layer
     tenant filtering. Does NOT enforce DB-layer RLS — see module docstring.
@@ -48,7 +71,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
         if user:
             org_id = user.get("org_id")
             if not org_id:
-                org_id = await self._lookup_org(user.get("sub"))
+                org_id = await lookup_user_org(user.get("sub"))
 
         request.state.org_id = org_id
 
@@ -65,21 +88,8 @@ class TenantMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     async def _lookup_org(self, user_id: str | None) -> str | None:
-        """Look up user's primary organization from DB."""
-        if not user_id:
-            return None
-        try:
-            pool = await get_db_pool()
-            async with pool.acquire() as conn:
-                row = await conn.fetchrow(
-                    """SELECT om.org_id FROM organization_members om
-                       WHERE om.user_id = $1::uuid
-                       ORDER BY om.joined_at ASC LIMIT 1""",
-                    user_id,
-                )
-                return str(row["org_id"]) if row else None
-        except Exception:
-            return None
+        """Backward-compat wrapper. Use module-level lookup_user_org instead."""
+        return await lookup_user_org(user_id)
 
 
 async def get_user_org(request: Request) -> str | None:
