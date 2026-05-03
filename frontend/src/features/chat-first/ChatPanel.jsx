@@ -325,27 +325,57 @@ export default function ChatPanel({ lang = 'es' }) {
         padding: '12px 16px', borderBottom: '1px solid #E5E7EB',
         background: '#fff', flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 18,
-          }}>
-            {'\u2728'}
-          </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
-              {lang === 'es' ? 'Asistente IA' : 'AI Assistant'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontSize: 18,
+            }}>
+              {'\u2728'}
             </div>
-            <div style={{ fontSize: 11, color: chat.streaming ? '#059669' : '#9CA3AF' }}>
-              {chat.streaming
-                ? (chat.isThinking
-                  ? (lang === 'es' ? '\uD83E\uDDE0 Razonando...' : '\uD83E\uDDE0 Reasoning...')
-                  : (lang === 'es' ? 'Escribiendo...' : 'Typing...'))
-                : (chat.provider || (lang === 'es' ? 'Listo para ayudarte' : 'Ready to help'))}
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+                {lang === 'es' ? 'Asistente IA' : 'AI Assistant'}
+              </div>
+              <div style={{ fontSize: 11, color: chat.streaming ? '#059669' : '#9CA3AF' }}>
+                {chat.streaming
+                  ? (chat.isThinking
+                    ? (lang === 'es' ? '\uD83E\uDDE0 Razonando...' : '\uD83E\uDDE0 Reasoning...')
+                    : (lang === 'es' ? 'Escribiendo...' : 'Typing...'))
+                  : (chat.provider || (lang === 'es' ? 'Listo para ayudarte' : 'Ready to help'))}
+              </div>
             </div>
           </div>
+          {chat.messages.filter(m => m.role !== 'system').length > 0 && (
+            <button
+              onClick={() => {
+                const confirmMsg = lang === 'es'
+                  ? '\u00BFLimpiar la conversaci\u00F3n? Esto borra el historial actual y no se puede deshacer.'
+                  : 'Clear the conversation? This deletes the current history and cannot be undone.'
+                if (window.confirm(confirmMsg)) chat.clearMessages()
+              }}
+              disabled={chat.streaming}
+              title={lang === 'es' ? 'Limpiar conversaci\u00F3n' : 'Clear conversation'}
+              style={{
+                background: 'transparent',
+                border: '1px solid #E5E7EB',
+                borderRadius: 8,
+                padding: '6px 10px',
+                fontSize: 12,
+                color: '#6B7280',
+                cursor: chat.streaming ? 'not-allowed' : 'pointer',
+                opacity: chat.streaming ? 0.4 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              {'\uD83D\uDDD1\uFE0F'}
+              <span>{lang === 'es' ? 'Limpiar' : 'Clear'}</span>
+            </button>
+          )}
         </div>
       </div>
 

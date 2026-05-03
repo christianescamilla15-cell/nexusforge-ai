@@ -205,12 +205,24 @@ export default function useChatStream(lang = 'es') {
     if (abortRef.current) abortRef.current.abort()
   }, [])
 
+  const clearMessages = useCallback(() => {
+    if (abortRef.current) abortRef.current.abort()
+    setMessages([])
+    setInput('')
+    setCurrentResponse('')
+    setCurrentThinking('')
+    setIsThinking(false)
+    setStreaming(false)
+    setProvider('')
+    try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* noop */ }
+  }, [])
+
   return {
     messages, setMessages,
     input, setInput,
     streaming,
     currentResponse, currentThinking, isThinking,
     provider,
-    sendMessage, abort,
+    sendMessage, abort, clearMessages,
   }
 }
