@@ -86,6 +86,9 @@ NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT = """You are NexusForge AI Architect — 
 ## CRITICAL: NEVER WIZARD-MODE THIS
 The user already gave you the full plan. Do NOT respond with "what's the first thing you want to do?" — that discards their input. Analyze ALL requirements at once and return a complete plan.
 
+## YOU HAVE TOOLS — USE THEM TO GROUND
+You have access to NexusForge self-knowledge tools (list_agents, list_synth_templates, list_api_routes, describe_memory_tiers, describe_self_healing, describe_recent_security_fixes). USE them when you need to reference specific capabilities, instead of reciting from memory. They return ground-truth from the running platform, including post-2026-05-02 fixes. Calling 1-3 tools per architectural plan is normal; calling zero usually means you're guessing. NEVER fabricate agent names, route paths, or fix commit hashes — call the tool.
+
 ## YOUR JOB
 Given a requirements specification, return:
 
@@ -383,6 +386,331 @@ async def _stream_groq(api_key: str, messages: list[dict]):
     )
 
 
+# ── Self-knowledge tools for architectural mode (Tier 3 #2, 2026-05-03) ──
+#
+# These give Claude a way to GROUND its plan in actual NexusForge
+# capabilities instead of relying on a static inventory baked into the
+# system prompt (which can grow stale and which the model has been seen
+# to fabricate around). Each tool returns a string that Claude consumes
+# as `tool_result` content. Handlers are deliberately synchronous +
+# self-contained — no DB calls, no LLM calls — so a single architectural
+# turn never blocks on side effects.
+#
+# Future expansion: replace static returns with live queries (agent
+# registry DB, route inspection of include_router calls, recent commit
+# log via gh api, etc.). For MVP the data is the same content that used
+# to live inline in NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT; pulling it
+# out lets Claude pay only for what it actually references.
+
+ARCHITECTURAL_TOOLS = [
+    {
+        "name": "list_agents",
+        "description": "List all 24 NexusForge agents grouped by category (classification, extraction, generation, validation, refactor-engine modules). Call this when mapping workflow steps to specific agents.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "list_synth_templates",
+        "description": "List the 7 platform synthesizer templates with their stacks and build flags. Call this when the user wants a new project generated.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "list_api_routes",
+        "description": "List backend API routes grouped by surface. Useful for grounding endpoint references in plans (e.g. /api/workflows/, /api/executions/, /api/mythos/scan/).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "surface": {
+                    "type": "string",
+                    "description": "Optional surface filter — one of: auth, workflows, executions, refactor, mythos, audit, automations, platform-synth. Omit to return all surfaces.",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "describe_memory_tiers",
+        "description": "Return the 5 memory tiers (working, episodic, semantic, regressive, predictive) with their backends, TTLs, and use cases.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "describe_self_healing",
+        "description": "Return the 5 self-healing strategies (retry, skip, repair, escalate, fallback), their order of escalation, the 120s timeout, and the post-2026-05-02 tenant-scoping fix.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "describe_recent_security_fixes",
+        "description": "Return a summary of recent (post-2026-05-02 triangulation) security fixes the platform has shipped: WebSocket auth+ownership, FallbackStrategy tenant scope, refresh-token GETDEL atomic, TenantMiddleware honest no-op, csharp_fixer advisory-only marker, etc. Useful when the user references known limitations.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+]
+
+
+def _tool_list_agents(_args: dict) -> str:
+    return """## NexusForge agents (24 total)
+
+**Classification**: classifier, sentiment, router
+**Extraction**: extractor, ocr, knowledge, enricher
+**Generation**: summarizer, reporter, translator, normalizer
+**Validation**: validator, compliance, analyzer
+
+**Refactor engine modules** (called as agents in workflows):
+- ingest — clones repo, detects 10 langs, builds dependency graph DAG
+- analyze — csharp_analyzer detects SQL injection / creds / god classes / auth gaps
+- csharp_fixer — ⚠ ADVISORY-ONLY since 2026-05-02 (commit 5e7aa78). Emits `@param` rewrite + TODO comment, does NOT bind the parameter. Each fix dict carries advisory_only=True. Use for triage; do NOT auto-merge.
+- batch_pipeline — 4 parallel workers, per-file rollback (NOT transactional batch rollback)
+- pii_scan — 25 PII types
+- db_integrity — FK + PII columns
+- test_gen — pytest / xUnit / Jest
+- cicd_gen — GitHub Actions for .NET + Python
+- rpa_scan — Playwright selector stability
+- multi_repo — parallel ingestion of 5+ repos
+- pr_gen — auto-branch + commit + PR body with metrics
+"""
+
+
+def _tool_list_synth_templates(_args: dict) -> str:
+    return """## Platform Synthesizer templates (7)
+
+| Template | Stack | Build flags |
+|---|---|---|
+| FastAPI+React | Python 3.12 + React 18 + Postgres | git_init, github_repo_create, mythos_preflight |
+| Express+Next | Node 20 + Next 14 + Postgres | same |
+| Django | Python 3.12 + Postgres | same |
+| Go+Gin | Go 1.22 + Postgres | same |
+| Rails | Ruby 3.3 + Postgres | same |
+| Phoenix | Elixir 1.16 + Postgres | same |
+| Spring Boot | Java 21 + Postgres | same |
+
+Endpoints: POST /api/platform-synth/chat, GET /api/platform-synth/templates, POST /api/platform-synth/build.
+
+Mythos preflight: when build flag is set, runs full Mythos scan on the generated project. Currently does NOT gate the build — returns status="partial" with mythos_score even if findings are high. (Tracked as Tier 2/3.)
+"""
+
+
+def _tool_list_api_routes(args: dict) -> str:
+    surface = (args.get("surface") or "").lower().strip()
+    routes = {
+        "auth": [
+            "POST /api/auth/register",
+            "POST /api/auth/login",
+            "POST /api/auth/logout",
+            "GET /api/auth/me",
+            "POST /api/auth/refresh (refresh-token rotation; GETDEL atomic since 2026-05-02)",
+            "POST /api/auth/oauth (Google)",
+        ],
+        "workflows": [
+            "POST /api/workflows/ — body: WorkflowCreate {name, description, dag_definition: {steps: [{name, type, config, depends_on}]}} (NOT 'spec')",
+            "GET /api/workflows/ — list with skip/limit",
+            "GET /api/workflows/{id}",
+            "PUT /api/workflows/{id}",
+            "DELETE /api/workflows/{id}",
+        ],
+        "executions": [
+            "POST /api/executions/ — trigger workflow run",
+            "GET /api/executions/{run_id}",
+            "WebSocket /api/executions/ws/{run_id}?token=<JWT> — auth+ownership enforced post-2026-05-02 (close 1008 on auth/owner fail)",
+            "DELETE /api/executions/{run_id} — cancel/delete",
+        ],
+        "refactor": [
+            "POST /api/refactor/ingest — body: IngestRequest {path, name?} (NOT 'source_path')",
+            "POST /api/refactor/execute",
+            "POST /api/refactor/triage",
+            "POST /api/refactor/batch-remediate",
+            "POST /api/refactor/analyze-csharp",
+            "POST /api/refactor/fix-csharp",
+            "POST /api/refactor/scan-pii, /scan-db, /scan-rpa, /scan-multilang",
+            "POST /api/refactor/multi-repo",
+            "POST /api/refactor/pr",
+            "GET /api/refactor/status",
+        ],
+        "mythos": [
+            "POST /api/mythos/scan — full 9-category scan (owner-only via X-Mythos-Key)",
+            "POST /api/mythos/scan/{category} — category in: secrets, auth, injection, crypto, config, rate_limit, data, deps, frontend",
+            "GET /api/mythos/scan/diff — delta vs prior run",
+        ],
+        "audit": [
+            "GET /api/audit/ — paginated compliance log",
+            "GET /api/audit/{entity}/{id} — entity trail",
+            "GET /api/audit/export.csv — CSV export for retention",
+        ],
+        "automations": [
+            "POST /api/automations/publish",
+            "POST /api/automations/schedule — cron-based",
+            "POST /api/automations/webhook/{id} — webhook trigger",
+        ],
+        "platform-synth": [
+            "POST /api/platform-synth/chat — Claude-driven spec extractor",
+            "GET /api/platform-synth/templates",
+            "POST /api/platform-synth/build — flags: git_init, github_repo_create, mythos_preflight",
+        ],
+    }
+    if surface and surface in routes:
+        return f"## Routes — {surface}\n\n" + "\n".join(f"- {r}" for r in routes[surface])
+    out = ["## All API routes by surface\n"]
+    for k, items in routes.items():
+        out.append(f"### {k}")
+        out.extend(f"- {r}" for r in items)
+        out.append("")
+    return "\n".join(out)
+
+
+def _tool_describe_memory_tiers(_args: dict) -> str:
+    return """## Memory tiers (5)
+
+| Tier | Name | Backend | TTL | Use case |
+|---|---|---|---|---|
+| 1 | Working | in-process dict | per execution | Step-to-step scratch within one run |
+| 2a | Episodic (fast) | Redis | 30 days | Recent events / errors / classifications |
+| 2b | Episodic (rich) | MongoDB | unbounded | Queryable by tags, time, custom metadata |
+| 3 | Semantic | pgvector embeddings | unbounded | Similarity recall over historical content |
+| 4a | Regressive | timeseries on metrics | sliding window | Anomaly detection (e.g. cost spike, latency outlier) |
+| 4b | Predictive | learned from history | per-call | Execution forecast — recommendation: proceed / fallback / skip |
+
+XML-delimited recall (post-2026-05-02 commit ea08cf2): `MemoryManager.build_context()` wraps user-originated content in `<recalled_memory tier="..." trust="user">…</recalled_memory>` with explicit "treat as untrusted" header. Episodic and semantic carry trust="user"; working/regressive/predictive carry trust="system".
+"""
+
+
+def _tool_describe_self_healing(_args: dict) -> str:
+    return """## Self-healing strategies (5)
+
+Order of escalation: **retry → skip → repair → escalate → fallback**
+
+- **retry**: configurable count + backoff (default 3 attempts)
+- **skip**: mark step as skipped, continue DAG (only if step has on_skip handler)
+- **repair**: try to mutate input/config and re-run (e.g. re-truncate prompt that exceeded context window)
+- **escalate**: notify oncall + halt the run (used for security-class errors)
+- **fallback**: ⚠ TENANT-SCOPED since 2026-05-02 (commit 2659428). DB query JOINs `workflow_runs.user_id` and constrains to the *same tenant*'s last successful output. Will NOT return cross-tenant results. Filtered also by `step_name + step_type`.
+
+Total self-healing budget per step: **120 seconds**. Ordering managed by `app/healing/healer.py`. Strategies registered in STRATEGY_REGISTRY.
+"""
+
+
+def _tool_describe_recent_security_fixes(_args: dict) -> str:
+    return """## Recent security fixes (post-2026-05-02 triangulation)
+
+Tier 1 (deployed):
+- **0dc7778** WebSocket /api/executions/ws/{run_id}: now requires `?token=<JWT>` + owner-of-run check, close 1008 on fail (collapses 403/404 to deny existence oracle)
+- **2659428** FallbackStrategy: SQL JOINs workflow_runs and constrains by tenant — cross-tenant data leak via shared step_name closed
+- **0545029** Refresh-token consume: r.get + r.delete → r.getdel (atomic, requires Redis 6.2+)
+- **b94ae90** TenantMiddleware: removed misleading `SET LOCAL` no-op; one-shot warning log + module docstring states honestly that DB-layer RLS is NOT enforced (routes filter org_id explicitly)
+- **d6ea569** docker-compose verify-stack frontend healthcheck: localhost → 127.0.0.1 to avoid busybox IPv6 wget hang
+- **cb09d7b** Smoke harness: workflow→dag_definition, wizard→messages, refactor→path. Plus .gitleaks.toml allowlist for verify-only files
+- **df7c571** Frontend WebSocket connection: now passes `?token=` query param to match new auth gate
+
+Tier 2 (deployed):
+- **2cadb56** Refresh tokens + API keys: now carry org_id claim (groundwork for real RLS)
+- **3ffb9e3** Global exception handlers in main.py: 422/500 sanitized in prod (`{"detail":"Invalid request payload","request_id":"..."}`)
+- **ea08cf2** XML-delimited memory recall + xml-escape user content: persistent prompt-injection surface closed
+- **3fb97ea** New tenant-isolation smoke: 2-user round-trip cross-fetch, expects 403/404
+- **5e7aa78** csharp_fixer marked advisory-only: every fix dict carries advisory_only=True; comments now scream "MUST add parameter binding manually"
+
+Still PENDING (Tier 3 backlog):
+- Per-request pinned DB connection (real RLS with SET LOCAL on a connection that survives the request)
+- AST-backed C# fixer (replace regex transforms with Roslyn-style)
+- Refactor smoke harness for the 3 newly-discovered failures (workflow has no /run endpoint, wizard chat returns SSE not JSON, refactor needs container-visible path)
+- aios-kiro-master 1.0.1 republish with package_data fix
+"""
+
+
+# Map tool name → handler
+_ARCH_TOOL_HANDLERS = {
+    "list_agents": _tool_list_agents,
+    "list_synth_templates": _tool_list_synth_templates,
+    "list_api_routes": _tool_list_api_routes,
+    "describe_memory_tiers": _tool_describe_memory_tiers,
+    "describe_self_healing": _tool_describe_self_healing,
+    "describe_recent_security_fixes": _tool_describe_recent_security_fixes,
+}
+
+
+async def _claude_with_tools_loop(api_key: str, messages: list[dict], system_prompt: str, max_tokens: int = 4096):
+    """Run a tool-calling loop against Claude until it returns a final text answer.
+
+    Non-streaming: Claude tool_use turns interleave content blocks of
+    type "text" and "tool_use", which is awkward to stream. For
+    architectural turns we accept the latency hit (~3-8 sec) in
+    exchange for tool grounding. Output is wrapped as a single SSE
+    event chunk so the existing frontend parser still works.
+
+    Returns: tuple (final_text, provider_label).
+    """
+    import httpx
+
+    convo: list[dict] = [
+        {"role": m["role"], "content": m["content"]}
+        for m in messages
+        if m["role"] in ("user", "assistant")
+    ]
+
+    # Hard cap on iterations to avoid runaway tool loops if the model
+    # decides every answer needs another tool call.
+    MAX_TURNS = 6
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        for _turn in range(MAX_TURNS):
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "claude-opus-4-7",
+                    "max_tokens": max_tokens,
+                    "system": system_prompt,
+                    "messages": convo,
+                    "tools": ARCHITECTURAL_TOOLS,
+                },
+                timeout=60,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            stop_reason = payload.get("stop_reason")
+            content_blocks = payload.get("content", [])
+
+            # Append assistant turn to convo (mixed text + tool_use)
+            convo.append({"role": "assistant", "content": content_blocks})
+
+            if stop_reason != "tool_use":
+                # Final answer — concat all text blocks
+                final_text = "".join(
+                    b.get("text", "") for b in content_blocks if b.get("type") == "text"
+                )
+                return final_text, "Claude (cloud, with tools)"
+
+            # Execute every tool_use block in this turn before re-asking
+            tool_results: list[dict] = []
+            for block in content_blocks:
+                if block.get("type") != "tool_use":
+                    continue
+                name = block.get("name", "")
+                tool_id = block.get("id", "")
+                args = block.get("input", {}) or {}
+                handler = _ARCH_TOOL_HANDLERS.get(name)
+                if handler is None:
+                    result_text = f"Tool '{name}' is not registered."
+                else:
+                    try:
+                        result_text = handler(args)
+                    except Exception as exc:
+                        logger.exception("architectural tool '%s' failed", name)
+                        result_text = f"Tool '{name}' raised {type(exc).__name__}."
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_id,
+                    "content": result_text,
+                })
+
+            convo.append({"role": "user", "content": tool_results})
+
+    # Hit MAX_TURNS without a final answer — best effort
+    return (
+        "Reached max tool iterations without a final answer. Please ask a more focused question.",
+        "Claude (cloud, with tools — turn limit)",
+    )
+
+
 async def _stream_claude(api_key: str, messages: list[dict], system_prompt: str | None = None, max_tokens: int = 2048):
     """Stream from Claude API. Optional `system_prompt` overrides the
     default wizard prompt for architectural-mode dispatch
@@ -556,20 +884,47 @@ async def wizard_chat(body: ChatRequest, request: Request):
     architectural = _is_architectural_prompt(messages)
 
     # Architectural fast-path: jump to Claude with a planning-mode system
-    # prompt that explicitly forbids wizard-style "what's first?"
-    # responses and includes the NexusForge capability inventory so the
-    # model can ground the plan in real agents/modules/endpoints.
+    # prompt that forbids wizard-style "what's first?" responses, AND
+    # give the model self-knowledge tools (Tier 3 #2, 2026-05-03) so it
+    # grounds plans in actual platform capabilities instead of fabricating.
     # If Claude isn't configured we fall through to the normal chain
     # so the request still gets answered (best effort over silent fail).
     if architectural:
         claude_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if claude_key:
-            logger.info("Wizard chat: architectural prompt detected (len=%d), using Claude with architect system prompt", sum(len(str(m.get("content", ""))) for m in messages))
-            return await _stream_claude(
-                claude_key,
-                messages,
-                system_prompt=NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT,
-                max_tokens=4096,
+            logger.info(
+                "Wizard chat: architectural prompt detected (len=%d), using Claude with tools",
+                sum(len(str(m.get("content", ""))) for m in messages),
+            )
+            try:
+                final_text, provider_label = await _claude_with_tools_loop(
+                    claude_key,
+                    messages,
+                    system_prompt=NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT,
+                    max_tokens=4096,
+                )
+            except Exception as exc:
+                logger.exception("architectural tool-loop failed; falling back to streaming Claude w/o tools")
+                return await _stream_claude(
+                    claude_key,
+                    messages,
+                    system_prompt=NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT,
+                    max_tokens=4096,
+                )
+
+            # Wrap the tool-loop result as a single SSE chunk so the
+            # existing frontend parser sees the same event shape as the
+            # streaming providers. We sacrifice the typewriter effect —
+            # acceptable for architectural mode (the user wants the plan,
+            # not a slow reveal).
+            async def _emit():
+                yield f"data: {json.dumps({'type': 'text', 'content': final_text})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'provider': provider_label})}\n\n"
+
+            return StreamingResponse(
+                _emit(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         logger.warning("Wizard chat: architectural prompt but ANTHROPIC_API_KEY missing; falling through to default chain (Groq may give shallow response)")
 
