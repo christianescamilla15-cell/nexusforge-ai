@@ -156,8 +156,58 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.debug else None,
 )
 
-# Request ID middleware — adds X-Request-ID header for debugging
+
+# ── Global exception handlers (Tier 2 of 2026-05-02 triangulation) ──
+# FastAPI's default 422 leaks the full Pydantic field path tree, which
+# in this codebase often mirrors DB column names. Default 500 leaks the
+# traceback when uncaught exceptions reach the handler. Both surfaces
+# are valuable for attackers mapping the schema. We replace them with
+# a sanitized response that includes the X-Request-ID so legitimate
+# debugging via server logs still works, while denying the public any
+# internal structure.
 import uuid as _uuid
+from fastapi import Request as _Request
+from fastapi.exceptions import RequestValidationError as _RequestValidationError
+from fastapi.responses import JSONResponse as _JSONResponse
+
+
+def _request_id_for(request: _Request) -> str:
+    """Reuse the SecurityHeadersMiddleware request id so log + response match."""
+    return request.headers.get("X-Request-ID") or str(_uuid.uuid4())[:8]
+
+
+@app.exception_handler(_RequestValidationError)
+async def _validation_exception_handler(request: _Request, exc: _RequestValidationError):
+    rid = _request_id_for(request)
+    # Full validation detail goes to server logs only.
+    logger.warning(
+        "validation error rid=%s path=%s errors=%s",
+        rid, request.url.path, exc.errors(),
+    )
+    if settings.debug:
+        # In dev keep the rich body so contract-drift smoke tests still
+        # see the missing-field detail (e.g. 2026-05-02 harness work).
+        return _JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors(), "request_id": rid},
+        )
+    return _JSONResponse(
+        status_code=422,
+        content={"detail": "Invalid request payload", "request_id": rid},
+    )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: _Request, exc: Exception):
+    rid = _request_id_for(request)
+    # exception() emits stack trace to logs; client sees nothing internal.
+    logger.exception("unhandled exception rid=%s path=%s", rid, request.url.path)
+    return _JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "request_id": rid},
+    )
+
+# Request ID middleware — adds X-Request-ID header for debugging
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
