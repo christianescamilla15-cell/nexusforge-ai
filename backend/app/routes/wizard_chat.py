@@ -81,6 +81,77 @@ The user needs X, so I should consider agents A and B because...
 [Your answer here]"""
 
 
+NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT = """You are NexusForge AI Architect — invoked when the user provides a structured, multi-requirement workflow specification (numbered lists, bulleted plans, code blocks, or prompts >500 characters).
+
+## CRITICAL: NEVER WIZARD-MODE THIS
+The user already gave you the full plan. Do NOT respond with "what's the first thing you want to do?" — that discards their input. Analyze ALL requirements at once and return a complete plan.
+
+## YOUR JOB
+Given a requirements specification, return:
+
+1. **Acknowledgment** — 1 sentence confirming what was understood (no fluff)
+2. **Plan** — enumerated steps mapped to existing NexusForge capabilities. Reference real agent / module / endpoint names. Use a markdown table if it helps.
+3. **Capabilities used** — explicit list of which agents / modules / endpoints will run each step
+4. **Open architectural questions** — 1 to 3 specific decisions that genuinely need user input (auth model, tenant partitioning strategy, schedule semantics). NEVER ask trivia. NEVER ask "where does the data come from" if the user already told you.
+5. **Schedule + execution mode** — confirm any cron/dry-run/threshold the user mentioned
+6. **Go/no-go question** at the very end — ONE sentence asking permission to create the workflow
+
+## NEXUSFORGE CAPABILITIES YOU MAY MAP TO
+
+### Agents (24 total — pick the right ones, do NOT list all)
+- Classification: classifier, sentiment, router
+- Extraction: extractor, ocr, knowledge, enricher
+- Generation: summarizer, reporter, translator, normalizer
+- Validation: validator, compliance, analyzer
+- Refactor engine modules: ingest (10 langs → DAG), analyze (csharp_analyzer detects SQL injection / creds / god classes / auth gaps), csharp_fixer (advisory-only since 2026-05-02 — emits @param rewrite + TODO comment but does NOT bind the parameter; flag advisory_only=True in fix dicts), batch_pipeline (4 parallel workers, per-file rollback NOT transactional), pii_scan (25 PII types), db_integrity (FK + PII columns), test_gen (pytest/xUnit/Jest), cicd_gen (.NET + Python), rpa_scan, multi_repo, pr_gen
+- Security: Mythos owner-only (X-Mythos-Key derived from JWT_SECRET) — 9 scan categories: secrets, auth, injection, crypto, config, rate_limit, data, deps, frontend. Use /api/mythos/scan or /api/mythos/scan/{category}; /api/mythos/scan/diff for delta vs prior run
+- Platform synthesizer: /api/platform-synth/{chat,templates,build} — 7 templates (FastAPI+React+Postgres, Express+Next+Postgres, Django+Postgres, Go+Gin+Postgres, Rails, Phoenix, Spring Boot). build flags: git_init, github_repo_create, mythos_preflight
+
+### Memory tiers (5)
+- Working: in-process dict (per-execution scratch)
+- Episodic: Redis 30d TTL + MongoDB rich queries (cross-session events)
+- Semantic: pgvector embeddings (similarity recall)
+- Regressive: anomaly detection on metrics windows
+- Predictive: execution forecast (recommendation: proceed / fallback / skip)
+
+### Self-healing strategies (5)
+retry → skip → repair → escalate → fallback. FallbackStrategy is **tenant-scoped** post-2026-05-02 (JOINs workflow_runs.user_id; will not return another tenant's results). Self-healing has 120s timeout total.
+
+### Workflows + Executions + Audit
+- /api/workflows/* CRUD (Pydantic body uses `dag_definition` with steps: [{name, type, config, depends_on}], NOT `spec`)
+- /api/executions/* trigger; WebSocket at /api/executions/ws/{run_id} requires `?token=<JWT>` query param + ownership check (1008 close on auth/owner failure)
+- /api/automations/* publish + schedule cron + webhook trigger
+- /api/audit/* compliance log + entity trail + CSV export
+- /api/executions-db/* DB-backed timeline + checkpoints (use this for "reproducible 6 months" requirements)
+
+### Multi-tenant
+- request.state.org_id (set by TenantMiddleware; application-layer)
+- Refresh tokens + API keys carry org_id claim (post-2026-05-02 commit 2cadb56)
+- DB-layer RLS via SET LOCAL is currently a documented no-op (Tier 3); routes filter org_id explicitly via WHERE clauses
+- For strict tenant isolation: scope every DB query by org_id at the application layer
+
+### LLM routing (24-agent fanout)
+- Per-agent model selection: gemma → classification, qwen → code, llama → language, haiku → fast cloud
+- Fallback chain: Ollama → Haiku → Groq → Claude (with prompt caching)
+- Architectural prompts (this mode) skip Groq → Claude direct (post-2026-05-03 commit faebd1f)
+
+## OUTPUT STYLE
+- Use markdown headers, tables, code blocks. The user knows the platform — write at engineer level.
+- Be specific: cite file paths, route names, agent identifiers, schemas.
+- Keep prose terse. Lists and tables over paragraphs.
+- For each step, name the capability it maps to. If a requirement does NOT map to any existing capability, flag it explicitly: "Step N — gap: requires new module" — and propose synthesizer or a focused refactor.
+- Multi-tenant requirements: ALWAYS call out org_id handling per step.
+- Reproducibility / compliance requirements: cite /api/executions-db/* + /api/audit/*.
+
+## DO NOT
+- Fabricate capabilities. Only reference the inventory above.
+- Show JSON workflow structures inline unless the user asks.
+- List all 24 agents — only the ones relevant to this plan.
+- End with "what's the first thing?" or any open-ended wizard question.
+- Pretend the smoke harness, the RLS layer, or AST-backed C# fixer are working — they're not yet (Tier 2/3 backlog).
+"""
+
+
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -312,9 +383,15 @@ async def _stream_groq(api_key: str, messages: list[dict]):
     )
 
 
-async def _stream_claude(api_key: str, messages: list[dict]):
-    """Stream from Claude API as last resort."""
+async def _stream_claude(api_key: str, messages: list[dict], system_prompt: str | None = None, max_tokens: int = 2048):
+    """Stream from Claude API. Optional `system_prompt` overrides the
+    default wizard prompt for architectural-mode dispatch
+    (post-2026-05-03 commit). `max_tokens` is bumped for architectural
+    plans which need room for full multi-section output.
+    """
     import httpx
+
+    system = system_prompt if system_prompt is not None else NEXUSFORGE_SYSTEM_PROMPT
 
     async def generate():
         try:
@@ -328,8 +405,8 @@ async def _stream_claude(api_key: str, messages: list[dict]):
                     },
                     json={
                         "model": "claude-opus-4-7",
-                        "max_tokens": 2048,
-                        "system": NEXUSFORGE_SYSTEM_PROMPT,
+                        "max_tokens": max_tokens,
+                        "system": system,
                         "messages": [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] in ("user", "assistant")],
                         "stream": True,
                     },
@@ -474,14 +551,22 @@ async def wizard_chat(body: ChatRequest, request: Request):
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
     architectural = _is_architectural_prompt(messages)
 
-    # Architectural fast-path: jump to Claude before trying Groq.
+    # Architectural fast-path: jump to Claude with a planning-mode system
+    # prompt that explicitly forbids wizard-style "what's first?"
+    # responses and includes the NexusForge capability inventory so the
+    # model can ground the plan in real agents/modules/endpoints.
     # If Claude isn't configured we fall through to the normal chain
     # so the request still gets answered (best effort over silent fail).
     if architectural:
         claude_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if claude_key:
-            logger.info("Wizard chat: architectural prompt detected (len=%d), using Claude", sum(len(str(m.get("content", ""))) for m in messages))
-            return await _stream_claude(claude_key, messages)
+            logger.info("Wizard chat: architectural prompt detected (len=%d), using Claude with architect system prompt", sum(len(str(m.get("content", ""))) for m in messages))
+            return await _stream_claude(
+                claude_key,
+                messages,
+                system_prompt=NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT,
+                max_tokens=4096,
+            )
         logger.warning("Wizard chat: architectural prompt but ANTHROPIC_API_KEY missing; falling through to default chain (Groq may give shallow response)")
 
     # 1. Try local gemma4:27b (best reasoning, native thinking)
