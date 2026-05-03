@@ -623,16 +623,23 @@ _ARCH_TOOL_HANDLERS = {
 }
 
 
-async def _claude_with_tools_loop(api_key: str, messages: list[dict], system_prompt: str, max_tokens: int = 4096):
-    """Run a tool-calling loop against Claude until it returns a final text answer.
+async def _claude_with_tools_streaming(api_key: str, messages: list[dict], system_prompt: str, max_tokens: int = 4096):
+    """Async generator yielding SSE event dicts as the tool loop progresses.
 
-    Non-streaming: Claude tool_use turns interleave content blocks of
-    type "text" and "tool_use", which is awkward to stream. For
-    architectural turns we accept the latency hit (~3-8 sec) in
-    exchange for tool grounding. Output is wrapped as a single SSE
-    event chunk so the existing frontend parser still works.
+    Tier 3 #4 (preview-during-reasoning, 2026-05-03): each tool call
+    emits a 'thinking' event that the frontend renders in the live
+    indicator, so the user sees what NexusForge is consulting in
+    real time instead of staring at a blank panel for 10+ seconds.
 
-    Returns: tuple (final_text, provider_label).
+    Event shapes yielded:
+      {type: 'thinking', content: '...'}
+        — emitted at start, between turns, and around each tool call
+      {type: 'text', content: '...'}
+        — emitted ONCE at the end with the final answer
+      {type: 'done', provider: '...'}
+        — emitted last, signals the stream is over
+
+    On exception, yields {type: 'error', content: '<class>'} + done.
     """
     import httpx
 
@@ -642,73 +649,98 @@ async def _claude_with_tools_loop(api_key: str, messages: list[dict], system_pro
         if m["role"] in ("user", "assistant")
     ]
 
-    # Hard cap on iterations to avoid runaway tool loops if the model
-    # decides every answer needs another tool call.
     MAX_TURNS = 6
+    provider_label = "Claude (cloud, with tools)"
+    final_text = ""
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        for _turn in range(MAX_TURNS):
-            response = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "claude-opus-4-7",
-                    "max_tokens": max_tokens,
-                    "system": system_prompt,
-                    "messages": convo,
-                    "tools": ARCHITECTURAL_TOOLS,
-                },
-                timeout=60,
-            )
-            response.raise_for_status()
-            payload = response.json()
-            stop_reason = payload.get("stop_reason")
-            content_blocks = payload.get("content", [])
+    yield {"type": "thinking", "content": "🧠 Analizando requerimientos…"}
 
-            # Append assistant turn to convo (mixed text + tool_use)
-            convo.append({"role": "assistant", "content": content_blocks})
-
-            if stop_reason != "tool_use":
-                # Final answer — concat all text blocks
-                final_text = "".join(
-                    b.get("text", "") for b in content_blocks if b.get("type") == "text"
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            for turn in range(MAX_TURNS):
+                response = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": api_key,
+                        "anthropic-version": "2023-06-01",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "claude-opus-4-7",
+                        "max_tokens": max_tokens,
+                        "system": system_prompt,
+                        "messages": convo,
+                        "tools": ARCHITECTURAL_TOOLS,
+                    },
+                    timeout=60,
                 )
-                return final_text, "Claude (cloud, with tools)"
+                response.raise_for_status()
+                payload = response.json()
+                stop_reason = payload.get("stop_reason")
+                content_blocks = payload.get("content", [])
 
-            # Execute every tool_use block in this turn before re-asking
-            tool_results: list[dict] = []
-            for block in content_blocks:
-                if block.get("type") != "tool_use":
-                    continue
-                name = block.get("name", "")
-                tool_id = block.get("id", "")
-                args = block.get("input", {}) or {}
-                handler = _ARCH_TOOL_HANDLERS.get(name)
-                if handler is None:
-                    result_text = f"Tool '{name}' is not registered."
-                else:
-                    try:
-                        result_text = handler(args)
-                    except Exception as exc:
-                        logger.exception("architectural tool '%s' failed", name)
-                        result_text = f"Tool '{name}' raised {type(exc).__name__}."
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": tool_id,
-                    "content": result_text,
-                })
+                convo.append({"role": "assistant", "content": content_blocks})
 
-            convo.append({"role": "user", "content": tool_results})
+                if stop_reason != "tool_use":
+                    final_text = "".join(
+                        b.get("text", "") for b in content_blocks if b.get("type") == "text"
+                    )
+                    break
 
-    # Hit MAX_TURNS without a final answer — best effort
-    return (
-        "Reached max tool iterations without a final answer. Please ask a more focused question.",
-        "Claude (cloud, with tools — turn limit)",
-    )
+                # Execute every tool_use block, surfacing each one to the
+                # user as a thinking step before running the handler.
+                tool_results: list[dict] = []
+                tool_names_this_turn: list[str] = []
+                for block in content_blocks:
+                    if block.get("type") != "tool_use":
+                        continue
+                    name = block.get("name", "")
+                    tool_id = block.get("id", "")
+                    args = block.get("input", {}) or {}
+                    tool_names_this_turn.append(name)
+
+                    yield {
+                        "type": "thinking",
+                        "content": f"🔧 Consultando capacidad de NexusForge: `{name}`…",
+                    }
+
+                    handler = _ARCH_TOOL_HANDLERS.get(name)
+                    if handler is None:
+                        result_text = f"Tool '{name}' is not registered."
+                    else:
+                        try:
+                            result_text = handler(args)
+                        except Exception as exc:
+                            logger.exception("architectural tool '%s' failed", name)
+                            result_text = f"Tool '{name}' raised {type(exc).__name__}."
+
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": result_text,
+                    })
+
+                convo.append({"role": "user", "content": tool_results})
+                yield {
+                    "type": "thinking",
+                    "content": f"✅ Recibido ({len(tool_names_this_turn)} herramienta{'s' if len(tool_names_this_turn) != 1 else ''}). Tejiendo el plan…",
+                }
+            else:
+                # MAX_TURNS exhausted without a final answer
+                final_text = (
+                    "Llegué al límite de iteraciones de herramientas sin "
+                    "una respuesta final. Por favor reformula con menos "
+                    "requerimientos por turno."
+                )
+                provider_label = "Claude (cloud, with tools — turn limit)"
+
+        if final_text:
+            yield {"type": "text", "content": final_text}
+        yield {"type": "done", "provider": provider_label}
+    except Exception as exc:
+        logger.exception("Claude tool loop failed")
+        yield {"type": "error", "content": type(exc).__name__}
+        yield {"type": "done", "provider": "claude-tools-error"}
 
 
 async def _stream_claude(api_key: str, messages: list[dict], system_prompt: str | None = None, max_tokens: int = 2048):
@@ -893,36 +925,30 @@ async def wizard_chat(body: ChatRequest, request: Request):
         claude_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if claude_key:
             logger.info(
-                "Wizard chat: architectural prompt detected (len=%d), using Claude with tools",
+                "Wizard chat: architectural prompt detected (len=%d), using Claude with tools (streaming)",
                 sum(len(str(m.get("content", ""))) for m in messages),
             )
-            try:
-                final_text, provider_label = await _claude_with_tools_loop(
-                    claude_key,
-                    messages,
-                    system_prompt=NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT,
-                    max_tokens=4096,
-                )
-            except Exception as exc:
-                logger.exception("architectural tool-loop failed; falling back to streaming Claude w/o tools")
-                return await _stream_claude(
-                    claude_key,
-                    messages,
-                    system_prompt=NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT,
-                    max_tokens=4096,
-                )
 
-            # Wrap the tool-loop result as a single SSE chunk so the
-            # existing frontend parser sees the same event shape as the
-            # streaming providers. We sacrifice the typewriter effect —
-            # acceptable for architectural mode (the user wants the plan,
-            # not a slow reveal).
-            async def _emit():
-                yield f"data: {json.dumps({'type': 'text', 'content': final_text})}\n\n"
-                yield f"data: {json.dumps({'type': 'done', 'provider': provider_label})}\n\n"
+            # Stream tool-loop progress directly to the client. Each
+            # tool call surfaces as a `thinking` event the frontend
+            # already knows how to render in the live indicator —
+            # closes Tier 3 #4 (preview-during-reasoning).
+            async def _emit_arch():
+                try:
+                    async for event in _claude_with_tools_streaming(
+                        claude_key,
+                        messages,
+                        system_prompt=NEXUSFORGE_ARCHITECTURAL_SYSTEM_PROMPT,
+                        max_tokens=4096,
+                    ):
+                        yield f"data: {json.dumps(event)}\n\n"
+                except Exception as exc:
+                    logger.exception("Architectural streaming failed at outer wrapper")
+                    yield f"data: {json.dumps({'type': 'error', 'content': type(exc).__name__})}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'provider': 'claude-tools-error'})}\n\n"
 
             return StreamingResponse(
-                _emit(),
+                _emit_arch(),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
