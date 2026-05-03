@@ -1,5 +1,23 @@
 """C# SQL Injection Fixer — auto-convert string concatenation to parameterized queries.
 
+⚠ ADVISORY-ONLY remediation (2026-05-02 triangulation, gpt55 finding,
+Tier 2 #5). The current regex-based transforms rewrite the SQL literal
+to use a `@param` placeholder but ONLY emit a TODO comment for the
+matching `cmd.Parameters.AddWithValue(...)` call — they do not insert
+the actual parameter binding. As a result the modified file compiles
+but the SQL is still unparameterized at runtime: the `@param` token is
+sent to the database as an opaque string with no value bound, which
+either errors at execution or (worse, in some drivers) is silently
+treated as a literal token. **Do not rely on these transforms as a
+real SQL-injection fix.** Each fix dict emitted here carries
+`advisory_only: True` and `requires_manual_completion: True` so the
+batch pipeline (or any downstream consumer) can route them through a
+human-review queue instead of auto-committing.
+
+The proper remediation is an AST/Roslyn-backed transform that inserts
+the SqlParameter binding at the same call site. Tracked as Tier 3 work
+in session_2026_05_02_triangulation_findings.md.
+
 Handles patterns commonly found in legacy enterprise C# apps:
   1. "SELECT * FROM x WHERE id = " + variable  →  @param with SqlParameter
   2. $"SELECT * FROM x WHERE id = {variable}"  →  @param with SqlParameter
@@ -98,17 +116,37 @@ class CSharpFixer:
                 new_line = line[:m.start()] + new_sql
                 # Add parameter on next line (with proper indentation)
                 indent = re.match(r'^(\s*)', line).group(1)
-                param_line = f'{indent}// TODO: Add parameter: cmd.Parameters.AddWithValue("{param_name}", {var_name});'
-
-                fixed_lines.append(f"{indent}// FIXED by NexusForge: SQL injection → parameterized query")
+                # Loud, scannable banner so reviewers cannot miss that
+                # this fix is incomplete. CI lint can grep for the marker.
+                fixed_lines.append(
+                    f"{indent}// NEXUSFORGE_ADVISORY_FIX: SQL injection PARTIALLY rewritten."
+                )
+                fixed_lines.append(
+                    f"{indent}// MUST add parameter binding manually before deploy:"
+                )
+                fixed_lines.append(
+                    f'{indent}//     cmd.Parameters.AddWithValue("{param_name}", {var_name});'
+                )
+                fixed_lines.append(
+                    f"{indent}// Without the binding the query is still unsafe."
+                )
                 fixed_lines.append(new_line)
-                fixed_lines.append(param_line)
 
+                logger.warning(
+                    "csharp_fixer: advisory-only SQL fix applied at %s:%d "
+                    "(variable=%s) — manual parameter binding REQUIRED",
+                    file_path, i + 1, var_name,
+                )
                 fixes.append({
                     "type": "sql_injection_concat",
                     "line": i + 1,
                     "variable": var_name,
                     "file": file_path,
+                    "advisory_only": True,
+                    "requires_manual_completion": True,
+                    "manual_step": (
+                        f'cmd.Parameters.AddWithValue("{param_name}", {var_name});'
+                    ),
                 })
                 i += 1
                 continue
@@ -139,15 +177,35 @@ class CSharpFixer:
                 indent = re.match(r'^(\s*)', line).group(1)
                 new_line = line[:m.start()] + f'"{sql_before}{param_name}{sql_after}"' + line[m.end():]
 
-                fixed_lines.append(f"{indent}// FIXED by NexusForge: SQL interpolation → parameterized")
+                fixed_lines.append(
+                    f"{indent}// NEXUSFORGE_ADVISORY_FIX: SQL interpolation PARTIALLY rewritten."
+                )
+                fixed_lines.append(
+                    f"{indent}// MUST add parameter binding manually before deploy:"
+                )
+                fixed_lines.append(
+                    f'{indent}//     cmd.Parameters.AddWithValue("{param_name}", {var_name});'
+                )
+                fixed_lines.append(
+                    f"{indent}// Without the binding the query is still unsafe."
+                )
                 fixed_lines.append(new_line)
-                fixed_lines.append(f'{indent}// TODO: Add parameter: cmd.Parameters.AddWithValue("{param_name}", {var_name});')
 
+                logger.warning(
+                    "csharp_fixer: advisory-only SQL interpolation fix at %s:%d "
+                    "(variable=%s) — manual parameter binding REQUIRED",
+                    file_path, i + 1, var_name,
+                )
                 fixes.append({
                     "type": "sql_injection_interpolation",
                     "line": i + 1,
                     "variable": var_name,
                     "file": file_path,
+                    "advisory_only": True,
+                    "requires_manual_completion": True,
+                    "manual_step": (
+                        f'cmd.Parameters.AddWithValue("{param_name}", {var_name});'
+                    ),
                 })
                 continue
 
