@@ -415,26 +415,41 @@ def _is_architectural_prompt(messages: list[dict]) -> bool:
     plan over the full requirement set instead of collapsing into
     one-question-at-a-time wizard mode.
 
+    Evaluates ONLY the latest user message (not the whole conversation
+    history) so a casual follow-up after an architectural turn doesn't
+    inherit the previous turn's complexity. Without this scoping, every
+    message after a long prompt would route to Claude regardless of its
+    own content — a false positive observed in the 2026-05-03 re-test.
+
     See: stress_test_2026_05_03_chat_orchestration_gap memory entry.
     """
-    full_text = "\n".join(str(m.get("content", "")) for m in messages)
+    # Walk from the end to find the last user-role message. Anything
+    # earlier (assistant turns, prior user turns) is conversation
+    # history, not the current request being routed.
+    latest_user = ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            latest_user = str(m.get("content", ""))
+            break
+    if not latest_user:
+        return False
 
     # Large prompt → architectural by length alone
-    if len(full_text) > 500:
+    if len(latest_user) > 500:
         return True
 
     # 5+ numbered list items (e.g., "1. foo", "2) bar", "3] baz")
-    numbered = len(re.findall(r"^\s*\d+[.)\]]\s+", full_text, re.MULTILINE))
+    numbered = len(re.findall(r"^\s*\d+[.)\]]\s+", latest_user, re.MULTILINE))
     if numbered >= 5:
         return True
 
     # 5+ bullets
-    bullets = len(re.findall(r"^\s*[-*•]\s+", full_text, re.MULTILINE))
+    bullets = len(re.findall(r"^\s*[-*•]\s+", latest_user, re.MULTILINE))
     if bullets >= 5:
         return True
 
     # Code block — almost always needs depth (debugging, design, refactor)
-    if "```" in full_text:
+    if "```" in latest_user:
         return True
 
     return False
