@@ -260,6 +260,86 @@ def smoke_audit(ctx: Context):
     return None
 
 
+@smoke("tenant isolation: user B cannot read user A's workflow", "critical", "auth")
+def smoke_tenant_isolation(ctx: Context):
+    """Two-user round-trip cross-fetch.
+
+    Closes the IDOR class of bugs the 6 single-user scanners didn't model
+    (Tier 2 follow-up to the 2026-05-02 triangulation, claude_security
+    recommendation #9 / aios M-AIOS-2). Registers two fresh users (UUID-
+    suffixed emails so reruns don't collide), creates a workflow owned by
+    A, and confirms B's token gets 403 on GET / PUT / DELETE.
+    """
+    # ── Register user A ──────────────────────────────────────────────
+    a_email = f"a-{uuid.uuid4().hex[:8]}@verify.local"
+    r = ctx.client.post(
+        f"{ctx.base_url}/api/auth/register",
+        json={"email": a_email, "password": "verify-A-pw-2026", "name": "Alice"},
+        timeout=15,
+    )
+    if r.status_code not in (200, 201):
+        return f"register A → {r.status_code}, body={r.text[:200]}"
+    a_token = (r.json().get("access_token") or r.json().get("token"))
+    if not a_token:
+        return f"register A: no token in body keys={list(r.json().keys())}"
+
+    # ── Create a workflow owned by A ────────────────────────────────
+    r = ctx.client.post(
+        f"{ctx.base_url}/api/workflows/",
+        headers={"Authorization": f"Bearer {a_token}"},
+        json={
+            "name": f"alice-iso-{uuid.uuid4().hex[:6]}",
+            "description": "tenant-isolation smoke",
+            "dag_definition": {
+                "steps": [{"name": "s1", "type": "echo", "config": {"text": "hi"}}],
+            },
+        },
+        timeout=15,
+    )
+    if r.status_code not in (200, 201):
+        return f"A create workflow → {r.status_code}, body={r.text[:200]}"
+    wf_id = r.json().get("id") or r.json().get("workflow_id")
+    if not wf_id:
+        return f"A workflow created but no id: {r.json()}"
+
+    # ── Register user B ──────────────────────────────────────────────
+    b_email = f"b-{uuid.uuid4().hex[:8]}@verify.local"
+    r = ctx.client.post(
+        f"{ctx.base_url}/api/auth/register",
+        json={"email": b_email, "password": "verify-B-pw-2026", "name": "Bob"},
+        timeout=15,
+    )
+    if r.status_code not in (200, 201):
+        return f"register B → {r.status_code}"
+    b_token = (r.json().get("access_token") or r.json().get("token"))
+    if not b_token:
+        return f"register B: no token"
+
+    b_headers = {"Authorization": f"Bearer {b_token}"}
+
+    # ── B tries to GET A's workflow → expect 403 (or 404 if hardened) ─
+    r = ctx.client.get(f"{ctx.base_url}/api/workflows/{wf_id}", headers=b_headers, timeout=10)
+    if r.status_code not in (403, 404):
+        return f"IDOR — B GET A's workflow returned {r.status_code} (expected 403/404), body={r.text[:200]}"
+
+    # ── B tries to PUT (update) → expect 403/404 ─────────────────────
+    r = ctx.client.put(
+        f"{ctx.base_url}/api/workflows/{wf_id}",
+        headers=b_headers,
+        json={"name": "hijacked-by-bob"},
+        timeout=10,
+    )
+    if r.status_code not in (403, 404):
+        return f"IDOR — B PUT A's workflow returned {r.status_code} (expected 403/404)"
+
+    # ── B tries to DELETE → expect 403/404 ───────────────────────────
+    r = ctx.client.delete(f"{ctx.base_url}/api/workflows/{wf_id}", headers=b_headers, timeout=10)
+    if r.status_code not in (403, 404):
+        return f"IDOR — B DELETE A's workflow returned {r.status_code} (expected 403/404)"
+
+    return None
+
+
 # ── runner ───────────────────────────────────────────────────────────
 
 
