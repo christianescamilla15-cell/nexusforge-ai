@@ -9,6 +9,7 @@ LLM Fallback Chain:
 import json
 import logging
 import os
+import re
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -402,17 +403,71 @@ NexusForge AI is an enterprise automation platform with:
 # ── Main endpoints ──────────────────────────────────────────────────────────
 
 
+def _is_architectural_prompt(messages: list[dict]) -> bool:
+    """Detect prompts that require deep architectural reasoning.
+
+    Heuristics: large total text, multi-item numbered/bulleted lists,
+    code blocks, or explicit multi-step structure. These prompts hit
+    the failure mode discovered in the 2026-05-03 stress test
+    (12-requirement workflow → Groq llama-3.3-70b → "what's first?"
+    wizard reply that discarded the structured input). Architectural
+    prompts skip Groq and route directly to Claude/Haiku, which can
+    plan over the full requirement set instead of collapsing into
+    one-question-at-a-time wizard mode.
+
+    See: stress_test_2026_05_03_chat_orchestration_gap memory entry.
+    """
+    full_text = "\n".join(str(m.get("content", "")) for m in messages)
+
+    # Large prompt → architectural by length alone
+    if len(full_text) > 500:
+        return True
+
+    # 5+ numbered list items (e.g., "1. foo", "2) bar", "3] baz")
+    numbered = len(re.findall(r"^\s*\d+[.)\]]\s+", full_text, re.MULTILINE))
+    if numbered >= 5:
+        return True
+
+    # 5+ bullets
+    bullets = len(re.findall(r"^\s*[-*•]\s+", full_text, re.MULTILINE))
+    if bullets >= 5:
+        return True
+
+    # Code block — almost always needs depth (debugging, design, refactor)
+    if "```" in full_text:
+        return True
+
+    return False
+
+
 @router.post("/chat")
 async def wizard_chat(body: ChatRequest, request: Request):
     """Stream AI Wizard response (builder).
 
-    Fallback chain: gemma4:27b -> deepseek-r1:8b -> Groq -> Claude.
+    Default fallback chain: gemma4:27b -> deepseek-r1:8b -> Groq -> Claude.
     Gemma 4 and deepseek-r1 both support native thinking mode.
+
+    For architectural prompts (long, structured, code-heavy) the chain
+    skips Groq because llama-3.3-70b cannot reason over a 12-requirement
+    plan as a unit — it falls back to wizard-mode "what's first?"
+    responses that discard the input. Those prompts go directly to
+    Claude (or, when Haiku routing is wired, Haiku 4.5 first).
     """
     from app.auth.rate_limit import check_rate_limit
     await check_rate_limit(request)
 
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
+    architectural = _is_architectural_prompt(messages)
+
+    # Architectural fast-path: jump to Claude before trying Groq.
+    # If Claude isn't configured we fall through to the normal chain
+    # so the request still gets answered (best effort over silent fail).
+    if architectural:
+        claude_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if claude_key:
+            logger.info("Wizard chat: architectural prompt detected (len=%d), using Claude", sum(len(str(m.get("content", ""))) for m in messages))
+            return await _stream_claude(claude_key, messages)
+        logger.warning("Wizard chat: architectural prompt but ANTHROPIC_API_KEY missing; falling through to default chain (Groq may give shallow response)")
 
     # 1. Try local gemma4:27b (best reasoning, native thinking)
     if await _check_ollama("gemma4:27b"):
@@ -424,7 +479,7 @@ async def wizard_chat(body: ChatRequest, request: Request):
         logger.info("Wizard chat: using deepseek-r1:8b (local)")
         return await _stream_ollama(messages)
 
-    # 3. Fallback to Groq (free cloud)
+    # 3. Fallback to Groq (free cloud) — fine for casual prompts only
     groq_key = os.environ.get("GROQ_API_KEY", "")
     if groq_key:
         logger.info("Wizard chat: using Groq (cloud fallback)")
