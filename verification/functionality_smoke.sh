@@ -26,6 +26,18 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPORT_DIR="$REPO_ROOT/verification/reports/$TOOL_ID/$RUN_ID"
 mkdir -p "$REPORT_DIR"
 
+# Cross-platform Python detection (mirrors bootstrap.sh).
+if [[ -z "${PYTHON:-}" ]]; then
+    if command -v python3 >/dev/null 2>&1; then
+        PYTHON="$(command -v python3)"
+    elif command -v python >/dev/null 2>&1; then
+        PYTHON="$(command -v python)"
+    else
+        echo "MISSING: python3 or python"
+        exit 1
+    fi
+fi
+
 if [[ ! -f "$REPORT_DIR/run_metadata.json" ]]; then
     echo "✗ no metadata for $REPORT_DIR — run bootstrap.sh first"
     exit 1
@@ -33,14 +45,14 @@ fi
 
 echo "═══ functionality_smoke.sh — tool=$TOOL_ID run=$RUN_ID ═══"
 
-python3 "$REPO_ROOT/verification/_smoke_harness.py" \
+"$PYTHON" "$REPO_ROOT/verification/_smoke_harness.py" \
     --base-url http://localhost:18000 \
     --frontend-url http://localhost:15173 \
     --tool-id "$TOOL_ID" \
     --run-id "$RUN_ID" \
     --output "$REPORT_DIR/functionality_findings.json"
 
-PASS=$(python3 -c "
+PASS=$("$PYTHON" -c "
 import json
 data = json.load(open('$REPORT_DIR/functionality_findings.json'))
 total = data['summary']['total']

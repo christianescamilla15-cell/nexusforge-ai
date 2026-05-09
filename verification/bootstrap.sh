@@ -28,7 +28,18 @@ echo "════════════════════════�
 # ── 0. Sanity ───────────────────────────────────────────────────────
 need() { command -v "$1" >/dev/null 2>&1 || { echo "MISSING: $1 — install before continuing"; exit 1; }; }
 need docker
-need python3
+# Cross-platform Python detection: prefer python3 (Linux/Mac), fall back
+# to python (Windows). Export so child processes (this script, smoke
+# harness, etc.) all use the same interpreter.
+if command -v python3 >/dev/null 2>&1; then
+    PYTHON="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON="$(command -v python)"
+else
+    echo "MISSING: python3 or python — install before continuing"
+    exit 1
+fi
+export PYTHON
 
 # Compose v2 lives under `docker compose` (subcommand), not the legacy
 # `docker-compose` standalone binary. Detect either.
@@ -45,8 +56,8 @@ fi
 if [[ ! -f "$REPO_ROOT/.env.verify" ]]; then
     echo "→ .env.verify not found. Generating from env.verify.example with fresh secrets…"
     cp "$REPO_ROOT/env.verify.example" "$REPO_ROOT/.env.verify"
-    JWT="$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')"
-    FERNET="$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || echo 'GENERATE_MANUALLY')"
+    JWT="$("$PYTHON" -c 'import secrets;print(secrets.token_urlsafe(48))')"
+    FERNET="$("$PYTHON" -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || echo 'GENERATE_MANUALLY')"
     # Use sed -i with backup ext for cross-platform safety (Linux GNU sed
     # accepts empty ext; macOS sed needs a literal ''). The .bak gets
     # cleaned at the end.
@@ -79,7 +90,7 @@ echo "  ✓ backend healthy: $HEALTH"
 
 # ── 5. Install Python-side scanners (idempotent) ────────────────────
 echo "→ Installing scanner dependencies (pip user install)…"
-python3 -m pip install --quiet --user --upgrade \
+"$PYTHON" -m pip install --quiet --user --upgrade \
     pip-audit \
     semgrep \
     schemathesis \

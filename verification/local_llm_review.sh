@@ -45,6 +45,10 @@ esac
 
 echo "═══ local_llm_review.sh — tool=$TOOL_ID model=$MODEL focus=$FOCUS ═══"
 
+# Cross-platform Python detection (mirrors bootstrap.sh).
+PYTHON="${PYTHON:-$(command -v python3 || command -v python || true)}"
+[[ -n "$PYTHON" ]] || { echo "MISSING: python3 or python"; exit 1; }
+
 # ── 1. Quick health check on Ollama ─────────────────────────────────
 if ! curl -fsS "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
     echo "✗ Ollama not reachable at $OLLAMA_URL"
@@ -62,7 +66,7 @@ if ! curl -fsS "$OLLAMA_URL/api/tags" | grep -q "\"name\":\"${MODEL}\""; then
 fi
 
 # ── 3. Run the Python runner ────────────────────────────────────────
-python3 "$REPO_ROOT/verification/_local_llm_runner.py" \
+"$PYTHON" "$REPO_ROOT/verification/_local_llm_runner.py" \
     --tool-id "$TOOL_ID" \
     --run-id "$RUN_ID" \
     --model "$MODEL" \
