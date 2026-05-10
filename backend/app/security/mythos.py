@@ -508,6 +508,20 @@ class MythosScanner:
         r'security[\\/]baselines[\\/].*\.ya?ml',      # baseline YAML data
         r'synth[\\/]vulnerabilities[\\/]',            # deliberate SQLi fixtures
         r'tests[\\/]fixtures[\\/]',                   # test fixture data
+        # Third-party / vendor code. Mythos's scan root resolution is
+        # off-by-one in some envs (project_root = dirname^4(__file__)
+        # falls off into / inside the container, where __file__ lives at
+        # /app/app/security/routes.py instead of /repo/backend/app/...).
+        # When that happens, rglob("*.py") sweeps the entire container
+        # filesystem and surfaces ~120 false positives in third-party
+        # Python packages. These patterns make the scanner robust to the
+        # root-resolution bug AND the more common case (someone scans a
+        # repo with a vendored .venv directory).
+        r'site-packages[\\/]',                        # pip-installed deps
+        r'\.venv[\\/]',                               # local virtualenv
+        r'venv[\\/]',                                 # local virtualenv (alt)
+        r'usr[\\/]local[\\/]lib[\\/]',                # container Python lib
+        r'vendor[\\/]',                               # Go / Composer / Rust vendor dirs
     ]
 
     # Kept under the historical name so older external integrations
