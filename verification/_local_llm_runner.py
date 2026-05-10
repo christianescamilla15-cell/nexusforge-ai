@@ -406,24 +406,67 @@ def main() -> int:
 
     duration = time.time() - started
 
-    # Write manual_findings.json (unified shape)
+    # Write manual_findings.json (unified shape, per-focus detail file).
     findings_out = [
         evaluation_to_finding(orig, ev, args.tool_id, args.focus)
         for orig, ev in raw_evaluations
     ]
+    payload = {
+        "tool_id": args.tool_id,
+        "run_id": args.run_id,
+        "scan_kind": args.focus,
+        "model": args.model,
+        "duration_s": duration,
+        "finding_count": len(findings_out),
+        "findings": findings_out,
+    }
     json_path = run_dir / f"manual_findings_{args.focus}.json"
-    json_path.write_text(
-        json.dumps({
-            "tool_id": args.tool_id,
-            "run_id": args.run_id,
-            "scan_kind": args.focus,
-            "model": args.model,
-            "duration_s": duration,
-            "finding_count": len(findings_out),
-            "findings": findings_out,
-        }, indent=2),
-        encoding="utf-8",
-    )
+    json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    # ALSO write under the canonical name the triangulator looks for.
+    # `triangulate.py` reads `{kind}_findings.json` where kind is one
+    # of {security, functionality}. Map our focus values onto those:
+    #   security  -> security      (direct)
+    #   technical -> security      (technical review is part of the
+    #                               security cluster — same file pool)
+    #   functional -> functionality
+    _CANONICAL_KIND = {
+        "security": "security",
+        "technical": "security",
+        "functional": "functionality",
+    }
+    canonical_kind = _CANONICAL_KIND.get(args.focus)
+    if canonical_kind:
+        canonical_payload = dict(payload)
+        canonical_payload["scan_kind"] = canonical_kind
+        canonical_path = run_dir / f"{canonical_kind}_findings.json"
+        # If a previous focus already wrote this file with a DIFFERENT
+        # focus, merge (security + technical both contribute to the
+        # security pool, so re-running technical after security should
+        # add to the file, not replace). If the SAME focus already
+        # wrote it, overwrite (it's a re-run of the same node, the
+        # newer evaluation wins). We detect "same focus" by stashing
+        # `_focuses_contributing` in the canonical payload.
+        existing_focuses: list[str] = []
+        existing_findings: list[dict] = []
+        if canonical_path.exists():
+            try:
+                prior = json.loads(canonical_path.read_text(encoding="utf-8"))
+                existing_focuses = prior.get("_focuses_contributing") or []
+                existing_findings = prior.get("findings") or []
+            except (json.JSONDecodeError, OSError):
+                pass
+        if args.focus in existing_focuses:
+            # re-run of same focus: drop prior contribution, replace
+            existing_findings = []
+            existing_focuses = [f for f in existing_focuses if f != args.focus]
+        merged_findings = existing_findings + findings_out
+        canonical_payload["findings"] = merged_findings
+        canonical_payload["finding_count"] = len(merged_findings)
+        canonical_payload["_focuses_contributing"] = existing_focuses + [args.focus]
+        canonical_path.write_text(
+            json.dumps(canonical_payload, indent=2), encoding="utf-8"
+        )
 
     # Write per-focus markdown report so an analyst can skim
     md_path = run_dir / f"local_review_{args.focus}.md"
