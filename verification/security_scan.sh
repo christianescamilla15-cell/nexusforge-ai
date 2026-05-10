@@ -54,17 +54,23 @@ cd "$REPO_ROOT"
 # ── 1. Mythos — internal scanner across 9 categories ────────────────
 echo "→ Mythos (9 categories)…"
 # Mythos is exposed via the live backend; we hit it through the API
-# rather than re-importing in a host process. The HMAC key is
-# derived from MYTHOS_HMAC_SECRET in the env we generated.
-MYTHOS_KEY=$("$PYTHON" -c "
-import hmac, hashlib, os
-secret=open('.env.verify').read().split('MYTHOS_HMAC_SECRET=')[1].split('\n')[0].strip()
-print(hmac.new(secret.encode(), b'mythos-owner-v1', hashlib.sha256).hexdigest())
-")
-curl -fsS -H "X-Mythos-Key: $MYTHOS_KEY" \
-    http://localhost:18000/api/mythos/scan \
-    > "$RAW_DIR/mythos.json" 2>/dev/null \
-    || echo '{"error":"mythos endpoint unavailable","findings":[]}' > "$RAW_DIR/mythos.json"
+# rather than re-importing in a host process. The HMAC key is derived
+# inside the container by the actual `_derive_mythos_key()` function
+# (HMAC-SHA512(MYTHOS_HMAC_SECRET, "mythos-nexusforge-admin-2026")[:64])
+# — shelling out to the container avoids drift if the derivation algo
+# changes.
+MYTHOS_KEY=$(docker exec nexusforge_verify-backend-1 python -c \
+    "from app.security.mythos import _derive_mythos_key; print(_derive_mythos_key())" \
+    2>/dev/null | tr -d '\r\n')
+if [[ -z "$MYTHOS_KEY" ]]; then
+    echo "  ! could not derive Mythos key — emitting empty findings"
+    echo '{"error":"mythos key derivation failed","findings":[]}' > "$RAW_DIR/mythos.json"
+else
+    curl -fsS -X POST -H "X-Mythos-Key: $MYTHOS_KEY" \
+        http://localhost:18000/api/mythos/scan \
+        > "$RAW_DIR/mythos.json" 2>/dev/null \
+        || echo '{"error":"mythos endpoint unavailable","findings":[]}' > "$RAW_DIR/mythos.json"
+fi
 
 # ── 2. pip-audit — dep CVEs (Python) ────────────────────────────────
 echo "→ pip-audit…"

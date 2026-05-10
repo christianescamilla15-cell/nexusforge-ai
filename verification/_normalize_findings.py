@@ -62,7 +62,35 @@ def _norm_severity(raw: str | None) -> str:
 
 
 def normalize_mythos(raw: dict) -> list[dict]:
-    out = []
+    """Normalize Mythos scan output.
+
+    Supports two schemas:
+    1. Flat schema (current, from /api/mythos/scan as of 2026-04+):
+         {"findings": [{"severity": ..., "category": ..., ...}, ...]}
+    2. Grouped schema (legacy):
+         {"categories": [{"name": "secrets", "findings": [...]}, ...]}
+    """
+    out: list[dict] = []
+    # Schema 1 — flat list with category embedded in each finding
+    for f in raw.get("findings", []):
+        cat_name = f.get("category", "other")
+        file = f.get("file") or f.get("path") or "unknown"
+        line = f.get("line")
+        title = f.get("title") or f.get("rule") or "Mythos finding"
+        severity = _norm_severity(f.get("severity"))
+        out.append({
+            "id": _finding_id("mythos", file, line, cat_name, title),
+            "source_scanner": "mythos",
+            "category": cat_name,
+            "severity": severity,
+            "file": file,
+            "line": line,
+            "title": title,
+            "description": f.get("description") or f.get("detail") or "",
+            "cwe": f.get("cwe"),
+            "cvss": None,
+        })
+    # Schema 2 — categories-grouped (legacy fallback)
     for cat in raw.get("categories", []):
         cat_name = cat.get("name", "other")
         for f in cat.get("findings", []):
