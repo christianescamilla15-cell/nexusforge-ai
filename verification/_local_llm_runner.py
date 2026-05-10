@@ -37,6 +37,16 @@ from pathlib import Path
 
 import httpx
 
+# Windows console defaults to cp1252 which breaks on Unicode in print
+# statements (and Mythos finding titles often contain Unicode). Promote
+# stdout/stderr to UTF-8 with replacement so prints never crash the run.
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 
 # ── focus-specific prompts ──────────────────────────────────────────
 
@@ -391,7 +401,7 @@ def main() -> int:
             ev = call_ollama(client, cfg, prompt)
             elapsed = time.time() - t0
             verdict = ev.get("verdict") or ("ERR" if "_error" in ev else "?")
-            print(f"    [{i}/{len(findings)}] {finding.get('title', '?')[:60]}  → {verdict} ({elapsed:.1f}s)")
+            print(f"    [{i}/{len(findings)}] {finding.get('title', '?')[:60]}  -> {verdict} ({elapsed:.1f}s)")
             raw_evaluations.append((finding, ev))
 
     duration = time.time() - started
