@@ -282,22 +282,25 @@ async def get_run(run_id: str, request: Request):
 
 
 @router.get("/{run_id}/steps")
-async def get_run_steps(run_id: str):
+async def get_run_steps(run_id: str, request: Request):
     """Get all steps for a specific run."""
+    _get_user_id(request)  # auth required: per-run data could leak inter-tenant
     steps = collector.get_steps(run_id)
     return {"steps": [s.model_dump() for s in steps], "total": len(steps)}
 
 
 @router.get("/{run_id}/events")
-async def get_run_events(run_id: str):
+async def get_run_events(run_id: str, request: Request):
     """Get all events for a specific run."""
+    _get_user_id(request)  # auth required: per-run data could leak inter-tenant
     events = collector.get_events(run_id)
     return {"events": [e.model_dump() for e in events], "total": len(events)}
 
 
 @router.get("/{run_id}/metrics")
-async def get_run_metrics(run_id: str):
+async def get_run_metrics(run_id: str, request: Request):
     """Get aggregated metrics for a specific run."""
+    _get_user_id(request)  # auth required: per-run data could leak inter-tenant
     metrics = collector.get_metrics(run_id)
     if not metrics:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -305,8 +308,9 @@ async def get_run_metrics(run_id: str):
 
 
 @router.get("/{run_id}/timeline")
-async def get_run_timeline(run_id: str):
+async def get_run_timeline(run_id: str, request: Request):
     """Get unified timeline of all events for a run."""
+    _get_user_id(request)  # auth required: per-run data could leak inter-tenant
     run = collector.get_run(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")

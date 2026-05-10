@@ -1298,6 +1298,7 @@ async def get_strangler_plan(tenant_id: str, app_codename: str):
 @router.get("/status/{project_path:path}")
 async def get_status(project_path: str, request: Request):
     """Check status of a refactoring job."""
+    _get_user_id(request)  # auth required: status reveals job existence + cost
     job = _jobs.get(project_path)
     if not job:
         return {"status": "not_found"}

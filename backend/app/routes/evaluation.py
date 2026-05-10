@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from app.auth.deps import get_current_user_id
 from app.auth.rate_limit import check_rate_limit
 from app.db.client import get_db_pool
 
@@ -20,8 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/scenarios")
-async def list_scenarios():
+async def list_scenarios(request: Request):
     """List all evaluation scenarios from DB."""
+    get_current_user_id(request)  # auth required: scenario list is internal eval framework state
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -40,8 +42,9 @@ async def list_scenarios():
 
 
 @router.get("/scenarios/{scenario_id}")
-async def get_scenario(scenario_id: UUID):
+async def get_scenario(scenario_id: UUID, request: Request):
     """Get a single evaluation scenario by ID."""
+    get_current_user_id(request)  # auth required: same as listing
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -61,6 +64,7 @@ async def get_scenario(scenario_id: UUID):
 
 @router.post("/scenarios")
 async def create_scenario(
+    request: Request,
     scenario_name: str,
     workflow_name: str,
     input_payload: dict,
@@ -69,6 +73,7 @@ async def create_scenario(
     tags: dict | None = None,
 ):
     """Create a new evaluation scenario."""
+    get_current_user_id(request)  # auth required: mutating
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -219,8 +224,9 @@ async def run_evaluation(request: Request, scenario_name: str | None = None):
 
 
 @router.get("/results")
-async def list_evaluation_results(limit: int = Query(20, ge=1, le=200)):
+async def list_evaluation_results(request: Request, limit: int = Query(20, ge=1, le=200)):
     """List recent evaluation runs with metrics."""
+    get_current_user_id(request)  # auth required: results are internal eval state
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -243,8 +249,9 @@ async def list_evaluation_results(limit: int = Query(20, ge=1, le=200)):
 
 
 @router.get("/results/{eval_run_id}")
-async def get_evaluation_result(eval_run_id: UUID):
+async def get_evaluation_result(eval_run_id: UUID, request: Request):
     """Get detailed metrics for a specific evaluation run."""
+    get_current_user_id(request)  # auth required: same as listing
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
