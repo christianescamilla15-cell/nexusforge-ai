@@ -28,6 +28,44 @@ logger = logging.getLogger(__name__)
 
 # ── Access Control ──────────────────────────────────────────────────────────
 
+def resolve_project_root() -> Path:
+    """Walk up from this file until a NexusForge layout marker matches.
+
+    Two valid stop conditions:
+
+      1. **Host checkout**: a directory that contains BOTH `backend/`
+         and `frontend/` as subdirectories. That's the actual repo
+         root in a developer's local checkout (where this module
+         lives at `<root>/backend/app/security/mythos.py`).
+
+      2. **Container WORKDIR**: a directory that contains BOTH `app/`
+         and `Dockerfile`. The backend Dockerfile copies the
+         contents of the `backend/` build context into WORKDIR=/app,
+         so this module lives at `/app/app/security/mythos.py`. There
+         is no `backend/` subdir to find — the WORKDIR IS the backend.
+
+    Falls back to legacy `dirname^4(__file__)` if neither marker
+    matches (preserves prior behavior for any unusual layout).
+
+    The previous resolution (3 callers in security/routes.py used
+    `dirname^4(__file__)` directly) silently fell off into `/`
+    inside the container, causing rglob("*.py") to sweep the entire
+    container filesystem including site-packages — surfacing 100+
+    false-positive hits in third-party Python deps. See the
+    triangulation post-mortem on 2026-05-10.
+    """
+    here = Path(__file__).resolve().parent  # .../security/
+    for candidate in (here, *here.parents):
+        # Host: NexusForge repo root
+        if (candidate / "backend").is_dir() and (candidate / "frontend").is_dir():
+            return candidate
+        # Container: backend WORKDIR (after `WORKDIR /app + COPY . .`)
+        if (candidate / "app").is_dir() and (candidate / "Dockerfile").is_file():
+            return candidate
+    # Legacy fallback (unchanged dirname^4 behavior)
+    return Path(__file__).resolve().parent.parent.parent.parent
+
+
 def _derive_mythos_key() -> str:
     """Derive Mythos access key.
 
@@ -149,8 +187,27 @@ class MythosScanner:
         secret_management: "Any | None" = None,
     ):
         self.root = Path(project_root)
-        self.backend = self.root / "backend"
-        self.frontend = self.root / "frontend"
+        # Layout-aware backend/frontend resolution.
+        # Host checkout has `backend/` and `frontend/` as siblings under
+        # `self.root` (the NexusForge repo root). The Docker container,
+        # however, copies ONLY the backend directory into WORKDIR=/app,
+        # so the same file paths are served from `/app/app/...` not
+        # `/app/backend/app/...`. Detect both layouts and point
+        # self.backend / self.frontend at the right places (or at
+        # nothing, when the dir genuinely doesn't exist in this env).
+        if (self.root / "backend").is_dir():
+            self.backend = self.root / "backend"
+        else:
+            # Container case: WORKDIR IS the backend root.
+            self.backend = self.root
+        if (self.root / "frontend").is_dir():
+            self.frontend = self.root / "frontend"
+        else:
+            # Container case: frontend not present in this env. Point
+            # at a non-existent path; frontend-only scanners that
+            # rglob() over it will yield no matches, which is the
+            # correct behavior (no frontend to scan).
+            self.frontend = self.root / "_frontend_not_in_this_env"
         self.findings: list[Finding] = []
         # Phase 6 — diff-aware scan support. When set to a non-None
         # frozenset of resolved absolute Paths, file-based scanners

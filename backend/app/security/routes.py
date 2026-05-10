@@ -7,11 +7,10 @@ To get your key: python -c "from app.security.mythos import _derive_mythos_key; 
 """
 
 import logging
-import os
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, Field
 
-from app.security.mythos import MythosScanner, verify_mythos_access
+from app.security.mythos import MythosScanner, resolve_project_root, verify_mythos_access
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +44,7 @@ async def full_security_scan(request: Request):
     """
     _verify_admin(request)
 
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    scanner = MythosScanner(project_root)
+    scanner = MythosScanner(str(resolve_project_root()))
     report = await scanner.full_scan()
 
     logger.info(
@@ -73,8 +71,7 @@ async def category_scan(category: str, request: Request):
     if category not in valid_categories:
         raise HTTPException(status_code=400, detail=f"Invalid category. Valid: {valid_categories}")
 
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    scanner = MythosScanner(project_root)
+    scanner = MythosScanner(str(resolve_project_root()))
 
     # Run only the requested scanner
     scan_methods = {
@@ -151,8 +148,7 @@ async def diff_security_scan(body: MythosDiffScanRequest, request: Request):
     """
     _verify_admin(request)
 
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    scanner = MythosScanner(project_root)
+    scanner = MythosScanner(str(resolve_project_root()))
     report = await scanner.diff_scan(body.changed_files)
 
     logger.info(
