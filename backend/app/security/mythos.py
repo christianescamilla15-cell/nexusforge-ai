@@ -685,6 +685,14 @@ class MythosScanner:
         # network ACL / VPN at the infra layer, not session auth.
         r'/metrics/summary',
         r'/providers/status',
+        # Memory + self-healing tier counts. Aggregate data for the
+        # `/status` page in the frontend; no per-user information.
+        r'/memory/stats',
+        r'/healing/stats',
+        # Workflow execution reliability rollups (per-agent counts of
+        # success/fallback/healing rate). Read-only operational
+        # observability, no per-user data.
+        r'/reliability/',
     )
 
     # Helper / dependency / middleware patterns that count as auth
@@ -751,6 +759,26 @@ class MythosScanner:
                            if slot + 1 < len(decorator_lines)
                            else len(lines))
                     block = "\n".join(lines[i:end])
+
+                    # Per-endpoint escape hatch: authors can mark an
+                    # endpoint as intentionally public via an inline
+                    # comment in the function body or above the
+                    # decorator. Looked up case-insensitively, both
+                    # forms accepted:
+                    #     # mythos: public
+                    #     # noqa: mythos-auth
+                    # Prefer this over silent file-level allowlists —
+                    # the decision is documented next to the code.
+                    block_with_decorator_neighborhood = "\n".join(
+                        lines[max(0, i - 3):end]
+                    )
+                    if re.search(
+                        r'#\s*(?:mythos\s*:\s*public|noqa\s*:\s*mythos-auth)\b',
+                        block_with_decorator_neighborhood,
+                        re.IGNORECASE,
+                    ):
+                        continue
+
                     has_auth = any(p in block for p in self._AUTH_VERIFICATION_TOKENS)
 
                     if not has_auth:
