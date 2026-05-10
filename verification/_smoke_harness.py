@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import subprocess
 import sys
 import tempfile
 import time
@@ -140,14 +141,21 @@ def smoke_workflow(ctx: Context):
     if not wf_id:
         return f"workflow created but response missing id: {r.json()}"
 
-    # Run it
+    # Run it via the executions API (`POST /api/executions/`).
+    # The previously-tried `POST /api/workflows/{id}/run` was never implemented.
     r = ctx.client.post(
-        f"{ctx.base_url}/api/workflows/{wf_id}/run",
+        f"{ctx.base_url}/api/executions/",
         headers=headers,
+        json={
+            "workflow_id": wf_id,
+            "trigger_type": "manual",
+            "input_data": {},
+        },
     )
     if r.status_code not in (200, 201, 202):
-        return f"workflow run → {r.status_code}, body={r.text[:300]}"
+        return f"executions create → {r.status_code}, body={r.text[:300]}"
     ctx.artifacts["workflow_id"] = wf_id
+    ctx.artifacts["run_id"] = r.json().get("run_id") or r.json().get("id")
     return None
 
 
@@ -155,7 +163,12 @@ def smoke_workflow(ctx: Context):
 def smoke_wizard(ctx: Context):
     if not ctx.access_token:
         return "skipped: no auth token"
-    r = ctx.client.post(
+    # `/api/wizard/chat` is a StreamingResponse (SSE). We don't need to
+    # parse the full event stream here — accept any 200 with a non-empty
+    # body. The failure modes that matter (wrong status, dead pipe, empty
+    # body) are still caught.
+    with ctx.client.stream(
+        "POST",
         f"{ctx.base_url}/api/wizard/chat",
         headers={"Authorization": f"Bearer {ctx.access_token}"},
         json={
@@ -165,12 +178,16 @@ def smoke_wizard(ctx: Context):
             "language": "en",
         },
         timeout=30,
-    )
-    if r.status_code != 200:
-        return f"wizard/chat → {r.status_code}, body={r.text[:300]}"
-    body = r.json()
-    if not body.get("assistant_message") and not body.get("message"):
-        return f"wizard response shape unexpected: {list(body.keys())}"
+    ) as r:
+        if r.status_code != 200:
+            return f"wizard/chat → {r.status_code}"
+        bytes_seen = 0
+        for chunk in r.iter_bytes():
+            bytes_seen += len(chunk)
+            if bytes_seen >= 32:  # got at least one event
+                break
+        if bytes_seen == 0:
+            return "wizard/chat → 200 but empty stream"
     return None
 
 
@@ -229,11 +246,24 @@ def smoke_synthesizer(ctx: Context):
 def smoke_refactor(ctx: Context):
     if not ctx.access_token:
         return "skipped: no auth token"
-    # Create a 1-file sample on the backend's filesystem via the synth
-    # path (we own that dir). Then ingest from there.
+    # The backend container can't see the host filesystem, so creating the
+    # sample with `Path(...).mkdir()` on the host doesn't help — the API
+    # validates that the path exists from INSIDE the container. We write
+    # the sample directly into the container via `docker exec`. The path
+    # `/tmp/nexusforge_verify_synth/` already exists in the container
+    # (the platform-synth output dir), so we reuse it.
     sample = "/tmp/nexusforge_verify_synth/refactor_sample"
-    Path(sample).mkdir(parents=True, exist_ok=True)
-    Path(sample, "main.py").write_text("def hello():\n    print('hi')\n")
+    docker_setup = subprocess.run(
+        [
+            "docker", "exec", "nexusforge_verify-backend-1",
+            "sh", "-c",
+            f"mkdir -p {sample} && "
+            f"printf 'def hello():\\n    print(\"hi\")\\n' > {sample}/main.py",
+        ],
+        capture_output=True, text=True, timeout=10,
+    )
+    if docker_setup.returncode != 0:
+        return f"refactor: failed to create sample in container: {docker_setup.stderr[:200]}"
     r = ctx.client.post(
         f"{ctx.base_url}/api/refactor/ingest",
         headers={"Authorization": f"Bearer {ctx.access_token}"},
