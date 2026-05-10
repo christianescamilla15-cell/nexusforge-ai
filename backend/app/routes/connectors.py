@@ -69,7 +69,7 @@ class FetchRequest(BaseModel):
 
 # ── Public endpoints ─────────────────────────────────────────────────────────
 
-@router.get("/types")
+@router.get("/types")  # mythos: public — connector type catalog with schemas (no per-user data)
 async def list_types():
     """List all available connector types with their config schemas."""
     return {"types": list_connector_types()}

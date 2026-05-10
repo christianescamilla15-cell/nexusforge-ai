@@ -43,7 +43,7 @@ def _row_to_dict(row) -> dict:
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
-@router.get("/")
+@router.get("/")  # mythos: public — automation templates catalog (no per-user data)
 async def list_templates():
     """List all available automation templates."""
     try:
@@ -62,7 +62,7 @@ async def list_templates():
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/{slug}")
+@router.get("/{slug}")  # mythos: public — template lookup by slug (counterpart to GET /)
 async def get_template(slug: str):
     """Get a single template by slug."""
     try:

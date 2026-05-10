@@ -42,7 +42,7 @@ class SwarmResultResponse(BaseModel):
     duration_ms: int
 
 
-@router.get("/")
+@router.get("/")  # mythos: public — swarm topology catalog (POST /execute is auth-protected)
 async def get_topologies():
     """List all available swarm topologies."""
     return {"topologies": list_topologies()}

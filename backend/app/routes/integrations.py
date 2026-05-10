@@ -44,7 +44,7 @@ def _get_user_id(request: Request) -> str:
         raise HTTPException(status_code=401, detail="Login required")
     return uid
 
-@router.get("/status")
+@router.get("/status")  # mythos: public — global integration config status (no per-user data)
 async def integration_status():
     """Show status of all configured integrations."""
     return IntegrationConfig.status()
@@ -94,7 +94,7 @@ async def webhook_send(request: Request, event_type: str, payload: dict):
 
 # ── LLM Providers ────────────────────────────────────────────────────────────
 
-@router.get("/providers")
+@router.get("/providers")  # mythos: public — LLM provider + pricing catalog
 async def list_providers():
     """List available LLM providers with pricing."""
     return {"providers": AVAILABLE_PROVIDERS}
@@ -149,7 +149,7 @@ async def delete_provider_key(provider: str, request: Request):
 
 # ── Service Integrations ─────────────────────────────────────────────────────
 
-@router.get("/services")
+@router.get("/services")  # mythos: public — available integrations catalog
 async def list_services():
     """List all available integrations."""
     return {"services": AVAILABLE_SERVICES}

@@ -28,7 +28,7 @@ class FeedbackInput(BaseModel):
     agent_type: str = ""
     workflow_type: str = ""
 
-@router.post("/submit")
+@router.post("/submit")  # mythos: public — anonymous feedback intentional (run_id is the auth boundary)
 async def submit_run_feedback(fb: FeedbackInput, request: Request):
     # Validate UUID format
     import uuid as _uuid

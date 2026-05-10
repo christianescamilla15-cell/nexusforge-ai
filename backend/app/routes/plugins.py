@@ -6,7 +6,7 @@ from app.plugins.loader import list_plugins
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("/")  # mythos: public — loaded plugin manifests (read-only catalog)
 async def get_plugins():
     """Return all loaded plugins with their manifests."""
     plugins = list_plugins()

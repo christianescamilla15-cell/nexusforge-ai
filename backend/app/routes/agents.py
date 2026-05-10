@@ -149,7 +149,7 @@ AGENT_METADATA = {
 }
 
 
-@router.get("/blocks")
+@router.get("/blocks")  # mythos: public — visual builder catalog of triggers/transforms/actions
 async def list_composable_blocks():
     """Return all available triggers, transforms, and actions for the visual builder."""
     return {
@@ -160,7 +160,7 @@ async def list_composable_blocks():
     }
 
 
-@router.get("/skills")
+@router.get("/skills")  # mythos: public — read-only listing of repo-local Agent Skills (per docstring)
 async def list_agent_skills():
     """Phase 5a — list available Agent Skills loaded from
     ``backend/skills/<name>/SKILL.md``.
@@ -183,7 +183,7 @@ async def list_agent_skills():
     }
 
 
-@router.get("/")
+@router.get("/")  # mythos: public — registered-agents catalog (no per-user data)
 async def list_all_agents():
     """Return all registered agents with metadata."""
     registered = list_agents()
@@ -200,7 +200,7 @@ async def list_all_agents():
     return agents
 
 
-@router.get("/{agent_type}")
+@router.get("/{agent_type}")  # mythos: public — agent metadata lookup (counterpart to GET /)
 async def get_agent_details(agent_type: str):
     """Return details for a specific agent type."""
     try:

@@ -57,7 +57,7 @@ async def chat_turn(body: ChatTurnInput, request: Request):
         raise HTTPException(500, "Chat turn failed; see logs")
 
 
-@router.get("/templates")
+@router.get("/templates")  # mythos: public — synth template catalog (used pre-chat by frontend per docstring)
 async def list_available_templates(request: Request):
     """Return all registered template summaries.
 
