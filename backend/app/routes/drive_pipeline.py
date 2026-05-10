@@ -1,11 +1,17 @@
 """
 Drive-to-Intelligence Pipeline + WhatsApp/Email notifications
 Reads file from Drive -> Document Intelligence -> Notion -> Webhook -> WhatsApp/Email
+
+All endpoints require auth: the pipeline reads from Google Drive
+(needs to know whose Drive credentials to use), hits the LLM (cost
+path), and emits to user-specified webhook/email/WhatsApp targets.
 """
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from typing import Optional
 import time
+
+from ..auth.deps import get_current_user_id
 
 router = APIRouter(prefix="/workflows", tags=["Automated Workflows"])
 
@@ -22,8 +28,9 @@ class DrivePipelineInput(BaseModel):
 
 
 @router.post("/drive-to-intelligence")
-async def drive_to_intelligence(request: DrivePipelineInput):
+async def drive_to_intelligence(body: DrivePipelineInput, request: Request):
     """Full pipeline: Drive -> Intelligence -> Notion -> Webhook -> WhatsApp/Email."""
+    get_current_user_id(request)  # auth required: Drive + LLM + cost path
     start = time.time()
     steps = []
 
@@ -31,12 +38,12 @@ async def drive_to_intelligence(request: DrivePipelineInput):
     try:
         from ..integrations.google_drive.client import get_file_content, list_files
         files_result = await list_files(max_results=50)
-        file_meta = next((f for f in files_result.get("files", []) if f["id"] == request.file_id), None)
-        content_result = await get_file_content(request.file_id)
+        file_meta = next((f for f in files_result.get("files", []) if f["id"] == body.file_id), None)
+        content_result = await get_file_content(body.file_id)
         if content_result["status"] != "success":
             return {"status": "error", "pipeline_steps": [f"drive_read: failed - {content_result.get('message', '')}"]}
         content = content_result["content"]
-        file_name = file_meta["name"] if file_meta else request.file_id
+        file_name = file_meta["name"] if file_meta else body.file_id
         steps.append(f"drive_read: success ({len(content)} chars from {file_name})")
     except Exception as e:
         return {"status": "error", "pipeline_steps": [f"drive_read: {e}"]}
@@ -46,7 +53,7 @@ async def drive_to_intelligence(request: DrivePipelineInput):
         from ..use_cases.document_intelligence.workflow import run_document_intelligence_workflow
         from ..use_cases.document_intelligence.schemas import DocumentIntelligenceInput
         doc_result = await run_document_intelligence_workflow(
-            DocumentIntelligenceInput(content=content, filename=file_name, language=request.language)
+            DocumentIntelligenceInput(content=content, filename=file_name, language=body.language)
         )
         doc = doc_result.model_dump()
         steps.append(f"intelligence: {doc['status']} (type: {doc['document_type']}, {len(doc.get('agents_used', []))} agents)")
@@ -55,7 +62,7 @@ async def drive_to_intelligence(request: DrivePipelineInput):
 
     # Step 3: Notion
     notion_url = None
-    if request.save_to_notion:
+    if body.save_to_notion:
         try:
             from ..integrations.notion.client import write_page
             title = f"[{doc['document_type'].upper()}] {file_name}"
@@ -75,7 +82,7 @@ async def drive_to_intelligence(request: DrivePipelineInput):
 
     # Step 4: Webhook
     webhook_sent = False
-    if request.send_webhook:
+    if body.send_webhook:
         try:
             from ..integrations.webhooks.client import send_webhook
             wr = await send_webhook("document_processed", {
@@ -90,10 +97,10 @@ async def drive_to_intelligence(request: DrivePipelineInput):
     # Step 5: WhatsApp
     whatsapp_sent = False
     wa_link = None
-    if request.send_whatsapp:
+    if body.send_whatsapp:
         try:
             from ..integrations.whatsapp.client import send_whatsapp
-            phone = request.whatsapp_number or "525579605324"
+            phone = body.whatsapp_number or "525579605324"
             msg = f"*NexusForge - Documento Procesado*\n\n"
             msg += f"Archivo: {file_name}\n"
             msg += f"Tipo: {doc['document_type']}\n"
@@ -111,10 +118,10 @@ async def drive_to_intelligence(request: DrivePipelineInput):
 
     # Step 6: Email via Resend
     email_sent = False
-    if request.send_email:
+    if body.send_email:
         try:
             from ..integrations.email.client import send_email
-            email_to = request.email_to
+            email_to = body.email_to
             if not email_to:
                 raise HTTPException(status_code=400, detail="email_to is required when send_email=true")
             subject = f"NexusForge: [{doc['document_type'].upper()}] {file_name}"
@@ -147,7 +154,7 @@ async def drive_to_intelligence(request: DrivePipelineInput):
         run_id = await start_run(
             pipeline_name="drive-to-intelligence",
             trigger_type="api",
-            metadata={"file_id": request.file_id, "language": request.language, "file_name": file_name},
+            metadata={"file_id": body.file_id, "language": body.language, "file_name": file_name},
         )
         agents = doc.get("agents_used", [])
         agent_count = max(len(agents), 1)
@@ -183,7 +190,7 @@ async def drive_to_intelligence(request: DrivePipelineInput):
         "requires_human_review": doc.get("requires_human_review", False),
         "notion_url": notion_url,
         "webhook_sent": webhook_sent,
-        "whatsapp_link": wa_link if request.send_whatsapp else None,
+        "whatsapp_link": wa_link if body.send_whatsapp else None,
         "whatsapp_sent": whatsapp_sent,
         "email_sent": email_sent,
         "llm_used": doc.get("llm_used", False),
@@ -198,8 +205,9 @@ async def drive_to_intelligence(request: DrivePipelineInput):
 
 
 @router.get("/drive-to-intelligence/files")
-async def list_drive_files():
+async def list_drive_files(request: Request):
     """List available files from Google Drive."""
+    get_current_user_id(request)  # auth required: lists Drive files
     try:
         from ..integrations.google_drive.client import list_files
         result = await list_files(max_results=20)
@@ -211,12 +219,14 @@ async def list_drive_files():
 
 @router.post("/drive-to-intelligence/by-name")
 async def drive_to_intelligence_by_name(
+    request: Request,
     file_name: str = Query(..., description="File name or partial name to search"),
     language: str = Query("es"),
     save_to_notion: bool = Query(True),
     send_email: bool = Query(False),
 ):
     """Find a Drive file by name and process it."""
+    get_current_user_id(request)  # auth required: Drive + LLM + cost path
     try:
         from ..integrations.google_drive.client import list_files
         result = await list_files(max_results=50)
@@ -246,17 +256,19 @@ async def drive_to_intelligence_by_name(
             email_to: str = ""
 
         req = Req(file_id=match["id"], language=language, save_to_notion=save_to_notion, send_email=send_email)
-        return await drive_to_intelligence(req)
+        return await drive_to_intelligence(req, request)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
 @router.get("/drive-to-intelligence/runs")
 async def get_pipeline_runs(
+    request: Request,
     pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),
     limit: int = Query(20, ge=1, le=100),
 ):
     """List persisted run history from workflow_runs (unified source)."""
+    get_current_user_id(request)  # auth required: surfaces run history
     try:
         from ..utils.run_tracker import list_runs
         runs = await list_runs(pipeline_name=pipeline, limit=limit)

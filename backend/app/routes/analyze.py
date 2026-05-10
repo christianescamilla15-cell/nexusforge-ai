@@ -9,8 +9,9 @@ import os
 import time
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 
+from ..auth.deps import get_current_user_id
 from ..utils.run_tracker import start_run, record_step, complete_run
 
 router = APIRouter(tags=["Analyze"])
@@ -220,6 +221,7 @@ async def _answer_questions(content: str, questions: list[dict], language: str) 
 
 @router.post("/analyze")
 async def analyze_document(
+    request: Request,
     file: UploadFile = File(..., description="PDF, Word (.docx), or text file"),
     questions: Optional[str] = Form(None, description="Custom questions (comma-separated). If empty, auto-generates."),
     language: str = Form("es", description="Language: es or en"),
@@ -227,6 +229,7 @@ async def analyze_document(
     email_to: Optional[str] = Form(None, description="Recipient email (defaults to GMAIL_USER)"),
     save_to_notion: bool = Form(True, description="Save results to Notion"),
 ):
+    get_current_user_id(request)  # auth required: file upload + LLM call (cost path)
     """Upload a file, analyze it, auto-generate Q&A, and send results to Gmail.
 
     Supports: PDF, Word (.docx), TXT, CSV, Markdown.
@@ -369,6 +372,7 @@ async def analyze_document(
 
 @router.post("/analyze/text")
 async def analyze_text(
+    request: Request,
     content: str = Form(..., description="Text content to analyze"),
     questions: Optional[str] = Form(None, description="Custom questions (comma-separated)"),
     language: str = Form("es"),
@@ -377,6 +381,7 @@ async def analyze_text(
     save_to_notion: bool = Form(True),
 ):
     """Analyze raw text input (no file upload needed)."""
+    get_current_user_id(request)  # auth required: LLM call (cost path)
     start = time.time()
     steps = []
 
@@ -498,10 +503,12 @@ async def analyze_text(
 
 @router.get("/pipeline-runs")
 async def get_all_pipeline_runs(
+    request: Request,
     pipeline: Optional[str] = Query(None, description="Filter by pipeline name"),
     limit: int = Query(20, ge=1, le=100),
 ):
     """List all persisted run history from workflow_runs (unified source)."""
+    get_current_user_id(request)  # auth required: surfaces run history (potential per-user data)
     try:
         from ..utils.run_tracker import list_runs
         runs = await list_runs(pipeline_name=pipeline, limit=limit)

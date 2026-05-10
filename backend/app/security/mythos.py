@@ -702,13 +702,15 @@ class MythosScanner:
     _AUTH_VERIFICATION_TOKENS = (
         # User-id getters
         "_get_user_id", "get_user_id", "_current_user_id",
+        "get_current_user_id",
         # Helpers that raise on failure
-        "_require_admin", "_require_owner", "_require_auth",
-        "require_admin", "require_owner", "require_auth",
+        "_require_admin", "_require_owner", "_require_auth", "_require_user",
+        "require_admin", "require_owner", "require_auth", "require_user",
         "_verify_admin", "_verify_owner", "_verify_user", "_verify_token",
         # Async + standalone token verifiers
         "_get_current_user", "get_current_user",
         "verify_token", "verify_google_token", "verify_jwt",
+        "verify_automation_owner", "verify_workflow_owner",
         # FastAPI dependency injection
         "Depends(",
         # State / header access

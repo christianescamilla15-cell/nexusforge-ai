@@ -5,12 +5,21 @@ spec generation, and flow optimization via REST endpoints.
 """
 
 import logging
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Any
 
 router = APIRouter(prefix="/api/meta", tags=["meta-orchestration"])
 logger = logging.getLogger(__name__)
+
+
+def _require_admin(request: Request) -> dict:
+    """Admin-only guard. Mirrors the pattern in admin.py (404 not 403
+    so route presence isn't disclosed to non-admins)."""
+    user = getattr(request.state, "user", None)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(404, "Not found")
+    return user
 
 
 # ── Request/Response models ──────────────────────────────────────────────────
@@ -188,8 +197,9 @@ class SDKRequest(BaseModel):
 
 
 @router.post("/sdk/run")
-async def run_sdk(body: SDKRequest):
+async def run_sdk(body: SDKRequest, request: Request):
     """Run a task through the Claude Agent SDK (requires ANTHROPIC_API_KEY)."""
+    _require_admin(request)
     from app.meta.agent_sdk_bridge import get_sdk_bridge
 
     bridge = get_sdk_bridge()
@@ -205,16 +215,18 @@ async def run_sdk(body: SDKRequest):
 
 
 @router.post("/sdk/review")
-async def sdk_code_review(body: dict):
+async def sdk_code_review(body: dict, request: Request):
     """Use Agent SDK to review a file."""
+    _require_admin(request)
     from app.meta.agent_sdk_bridge import get_sdk_bridge
     bridge = get_sdk_bridge()
     return await bridge.code_review(body.get("file_path", ""))
 
 
 @router.post("/sdk/research")
-async def sdk_research(body: dict):
+async def sdk_research(body: dict, request: Request):
     """Use Agent SDK to research a topic."""
+    _require_admin(request)
     from app.meta.agent_sdk_bridge import get_sdk_bridge
     bridge = get_sdk_bridge()
     return await bridge.research(body.get("topic", ""))

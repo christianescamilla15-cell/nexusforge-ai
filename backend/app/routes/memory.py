@@ -3,11 +3,19 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from app.db.client import get_db_pool
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _require_admin(request: Request) -> dict:
+    """Admin-only guard. Mirrors admin.py pattern (404 not 403)."""
+    user = getattr(request.state, "user", None)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(404, "Not found")
+    return user
 
 
 # ── Memory stats ──────────────────────────────────────────────────────────────
@@ -140,8 +148,9 @@ async def get_healing_stats():
 
 
 @router.post("/healing/retry/{dead_letter_id}")
-async def retry_dead_letter(dead_letter_id: UUID):
+async def retry_dead_letter(dead_letter_id: UUID, request: Request):
     """Re-queue a dead letter for execution via the self-healer."""
+    _require_admin(request)
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
