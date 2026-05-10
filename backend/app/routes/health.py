@@ -62,19 +62,44 @@ async def health_check():
     except Exception:
         pass
 
-    # Migration count
+    # Migration state — applied vs pending. The migrator's runbook
+    # in `migrator.py` flags this exact landmine: `_migrations` count
+    # alone is NOT proof of "all migrations applied" because failed
+    # migrations are silently skipped (by design — one bad migration
+    # shouldn't block all later ones). The 2026-05-10 triangulation
+    # surfaced a 2-month-old bug where 002 + 015 had been silently
+    # failing on every boot, breaking POST /api/executions/. To make
+    # this kind of regression impossible to miss again, surface BOTH
+    # the applied count AND the list of pending filenames here.
     migration_count = 0
+    migration_total = 0
+    migrations_pending: list[str] = []
     if db_ok:
         try:
+            from app.db.migrator import MIGRATIONS_DIR
+            sql_files = sorted(
+                p.name for p in MIGRATIONS_DIR.iterdir()
+                if p.suffix == ".sql"
+            )
+            migration_total = len(sql_files)
             pool = await get_db_pool()
             async with pool.acquire() as conn:
-                migration_count = await conn.fetchval(
-                    "SELECT COUNT(*) FROM _migrations"
+                applied_rows = await conn.fetch(
+                    "SELECT filename FROM _migrations"
                 )
-        except Exception:
-            pass
+            applied = {row["filename"] for row in applied_rows}
+            migration_count = len(applied)
+            migrations_pending = [f for f in sql_files if f not in applied]
+        except Exception as exc:
+            logger.warning("Health check — migration state unreadable: %s", exc)
 
     overall = "healthy" if (db_ok and redis_ok) else "degraded"
+    # Pending migrations are a real degradation signal, not a binary
+    # outage. Mark `degraded` even when DB+Redis are fine, but never
+    # flip to `down` (the service still serves requests; ops just
+    # need to investigate).
+    if migrations_pending and overall == "healthy":
+        overall = "degraded"
 
     # Agent health scores from circuit breaker
     agent_health = {}
@@ -92,6 +117,8 @@ async def health_check():
             "redis": "up" if redis_ok else ("down: " + (redis_error or "unknown")),
         },
         "migrations_applied": migration_count,
+        "migrations_total": migration_total,
+        "migrations_pending": migrations_pending,
         "agent_count": agent_count,
         "agent_health": agent_health,
     }
