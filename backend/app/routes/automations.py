@@ -279,6 +279,9 @@ async def update_automation(automation_id: UUID, body: UpdateRequest, request: R
                 f"{k} = ${i+2}{'::jsonb' if k == 'input_config' else ''}"
                 for i, k in enumerate(data)
             )
+            # mythos: sqli-safe — explicit `_ALLOWED_COLS` whitelist is
+            # applied above (filters `data` to only known columns).
+            # Values use positional parameters.
             await conn.execute(
                 f"UPDATE automations SET {set_clauses}, updated_at = now() WHERE id = $1",
                 automation_id, *data.values(),

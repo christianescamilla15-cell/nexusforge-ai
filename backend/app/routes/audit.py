@@ -75,6 +75,9 @@ async def list_audit(
                 *params,
             )
 
+            # mythos: sqli-safe — `where` built from hardcoded conditions
+            # (`user_id = $1`, optional `entity_type = $N`); user input
+            # always parameterized.
             count_row = await conn.fetchrow(
                 f"SELECT COUNT(*) AS total FROM audit_logs {where}",
                 *(params[:idx]),

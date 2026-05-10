@@ -183,6 +183,9 @@ async def update_rule(rule_id: UUID, body: UpdateRuleRequest, request: Request):
                 f"{k} = ${i+2}{'::jsonb' if k in ('conditions', 'actions') else ''}"
                 for i, k in enumerate(data)
             )
+            # mythos: sqli-safe — keys come from body.model_dump(); the
+            # Pydantic class definition IS the column allowlist. Values
+            # are parameterized via positional $N placeholders.
             await conn.execute(
                 f"UPDATE automation_rules SET {set_clauses} WHERE id = $1",
                 rule_id, *data.values(),

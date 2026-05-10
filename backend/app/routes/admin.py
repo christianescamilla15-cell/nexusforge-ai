@@ -172,6 +172,9 @@ async def list_users(
             LIMIT ${idx} OFFSET ${idx + 1}
         """, *params)
 
+        # mythos: sqli-safe — `where` is built from hardcoded condition
+        # fragments above (`u.email ILIKE`, `u.plan =`); user input goes
+        # through positional parameters.
         total = await conn.fetchval(f"SELECT count(*) FROM nf_users u {where}", *params[:-2])
 
     return {

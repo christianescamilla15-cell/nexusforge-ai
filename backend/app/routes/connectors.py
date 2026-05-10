@@ -190,6 +190,8 @@ async def update_connector(connector_id: UUID, body: UpdateConnectorRequest, req
         updates = [u for u in updates if any(u.startswith(c) for c in _ALLOWED)]
         updates.append("updated_at = now()")
         set_clause = ", ".join(updates)
+        # mythos: sqli-safe — `_ALLOWED = {"name", "config", "is_active"}`
+        # whitelist is applied above; non-matching prefixes are dropped.
         await conn.execute(
             f"UPDATE connectors SET {set_clause} WHERE id = $1",
             connector_id, *values,

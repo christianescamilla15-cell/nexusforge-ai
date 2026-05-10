@@ -162,6 +162,9 @@ async def update_variable(variable_id: UUID, body: UpdateVariableRequest, reques
                 f"{k} = ${i+2}" for i, k in enumerate(data)
             )
             set_clauses += f", updated_at = now()"
+            # mythos: sqli-safe — keys come from body.model_dump(); the
+            # Pydantic class definition IS the column allowlist. Values
+            # are parameterized via positional $N placeholders.
             await conn.execute(
                 f"UPDATE automation_variables SET {set_clauses} WHERE id = $1",
                 variable_id, *data.values(),

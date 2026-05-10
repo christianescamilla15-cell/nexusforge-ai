@@ -863,9 +863,29 @@ class MythosScanner:
             count += 1
             try:
                 content = fpath.read_text(encoding="utf-8", errors="ignore")
-                for line_num, line in enumerate(content.splitlines(), 1):
+                lines_list = content.splitlines()
+                for line_num, line in enumerate(lines_list, 1):
                     for pattern, desc in self._SQL_INJECTION_PATTERNS:
                         if re.search(pattern, line, re.IGNORECASE):
+                            # Per-line escape hatch: `# mythos: sqli-safe`
+                            # (or `# noqa: mythos-sqli`) on the same line
+                            # OR within the 5 lines above the f-string.
+                            # Use case: the column-name fragment is built
+                            # from a Pydantic-validated body or an explicit
+                            # column allowlist, so the f-string is
+                            # interpolating from a closed set, not from
+                            # arbitrary user input. Document inline so a
+                            # reviewer can challenge if the comment is
+                            # wrong.
+                            sqli_neighborhood = "\n".join(
+                                lines_list[max(0, line_num - 6):line_num + 1]
+                            )
+                            if re.search(
+                                r'#\s*(?:mythos\s*:\s*sqli-safe|noqa\s*:\s*mythos-sqli)\b',
+                                sqli_neighborhood,
+                                re.IGNORECASE,
+                            ):
+                                continue
                             self.findings.append(Finding(
                                 severity="critical",
                                 category="injection",

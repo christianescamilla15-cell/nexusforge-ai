@@ -155,6 +155,10 @@ async def update_workflow(workflow_id: UUID, body: WorkflowUpdate, request: Requ
             sets.append("updated_at = now()")
             params.append(workflow_id)
 
+            # mythos: sqli-safe — `sets` is built from hardcoded checks
+            # on body.name / body.description / body.dag_definition /
+            # body.status above. Each entry is a constant `name = $N`
+            # fragment with parameterized values.
             query = f"""UPDATE workflows SET {', '.join(sets)}
                         WHERE id = ${idx}
                         RETURNING id, name, description, dag_definition, version, status, created_at, updated_at"""

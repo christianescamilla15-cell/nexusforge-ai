@@ -99,6 +99,10 @@ class PostgresExtConnector(ConnectorBase):
 
         # Build query from table if no raw query
         if not query:
+            # mythos: sqli-safe — `_validate_identifier(schema, ...)` and
+            # `_validate_identifier(table, ...)` ran above; only valid SQL
+            # identifiers (matching `^[A-Za-z_][A-Za-z0-9_]*$`) reach this
+            # point. `limit` is an int parameter (FastAPI Query coerces).
             query = f'SELECT * FROM "{schema}"."{table}" LIMIT {limit}'
 
         # Block semicolons to prevent multi-statement injection
@@ -185,6 +189,9 @@ class PostgresExtConnector(ConnectorBase):
                 return ConnectorResult(status="error", error=str(e)).to_dict()
         col_str = ", ".join(f'"{c}"' for c in columns)
         placeholders = ", ".join(f"${i+1}" for i in range(len(columns)))
+        # mythos: sqli-safe — every identifier (schema, table, each column)
+        # passed `_validate_identifier(...)` above. Value placeholders use
+        # positional `$N` parameters fed via `await conn.execute(insert_sql, *values)`.
         insert_sql = f'INSERT INTO "{schema}"."{table}" ({col_str}) VALUES ({placeholders})'
 
         try:
