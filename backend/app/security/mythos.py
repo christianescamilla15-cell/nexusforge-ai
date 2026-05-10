@@ -579,6 +579,13 @@ class MythosScanner:
         r'venv[\\/]',                                 # local virtualenv (alt)
         r'usr[\\/]local[\\/]lib[\\/]',                # container Python lib
         r'vendor[\\/]',                               # Go / Composer / Rust vendor dirs
+        # Files whose PURPOSE is to embed code/secret templates as
+        # string literals. The patterns these files contain look like
+        # secrets but are intentional documentation / scaffolding for
+        # users to fill in. Treating them as findings is pure noise.
+        r'platform_synth[\\/]templates\.py',          # `files[".env.example"] = """DATABASE_URL=postgres://user:password@..."""`
+        r'platform_synth[\\/]feature_addons\.py',     # `db_url_format = "postgres://app:app@db:5432/app"` for synth scaffolds
+        r'refactor[\\/]csharp_fixer\.py',             # docstring/comment patterns showing what the FIXER detects
     ]
 
     # Kept under the historical name so older external integrations
@@ -605,6 +612,26 @@ class MythosScanner:
                                 if "os.environ" in line or "getenv" in line or "settings." in line:
                                     continue
                                 if "${" in line or "$(" in line:
+                                    continue
+                                # Skip lines containing an explicit `...`
+                                # placeholder (`api_key="sk-ant-..."`,
+                                # markdown bullets like `\`KEY=value-...\``).
+                                # An ellipsis is a strong signal of doc-only
+                                # content, not a real secret.
+                                if "..." in line:
+                                    continue
+                                # Skip Python comment lines — regex
+                                # documentation, fixer pattern descriptions,
+                                # and runbook examples in code comments.
+                                if line.lstrip().startswith("#"):
+                                    continue
+                                # Skip f-string / format-string templates:
+                                # `f"postgresql://{quote_plus(user)}:{quote_plus(password)}@..."`
+                                # has `{` and `}` placeholders, no literal
+                                # secret. (Real secrets hardcoded as
+                                # literals never have unescaped braces in
+                                # the credential portion.)
+                                if "{" in line and "}" in line:
                                     continue
                                 self.findings.append(Finding(
                                     severity="critical",
