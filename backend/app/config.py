@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5-coder:7b"
 
+    # Mock LLM (terminal fallback for zero-cost offline demos / tests).
+    # When True, MockProvider is appended to every fallback chain and answers
+    # with a deterministic stub if all real providers fail or are unconfigured.
+    # Default OFF — explicit opt-in to avoid hiding real outages in prod.
+    mock_llm_enabled: bool = False
+
     # Embeddings
     voyage_api_key: str = ""
 

@@ -24,6 +24,7 @@ from app.llm.groq_provider import GroqProvider
 from app.llm.claude_provider import ClaudeProvider
 from app.llm.haiku_provider import HaikuProvider
 from app.llm.ollama_provider import OllamaProvider
+from app.llm.mock_provider import MockProvider
 from app.llm.token_tracker import calculate_cost
 from app.domain.tracking.events import ExecutionContext
 
@@ -126,11 +127,15 @@ class LLMRouter:
         self._groq = GroqProvider()
         self._claude = ClaudeProvider()
         self._haiku = HaikuProvider()
+        # Final fallback: deterministic mock for zero-cost/offline operation.
+        # Disabled by default — set settings.mock_llm_enabled = True to activate.
+        self._mock = MockProvider()
         self._breakers: dict[str, _CircuitBreaker] = {
             "ollama": _CircuitBreaker(),
             "groq": _CircuitBreaker(),
             "claude": _CircuitBreaker(),
             "haiku": _CircuitBreaker(),
+            "mock": _CircuitBreaker(),
         }
         # Predictive memory for smart pre-routing (lazy init)
         self._predictive = None
@@ -145,21 +150,29 @@ class LLMRouter:
         return self._predictive
 
     def _build_provider_chain(self, agent_name: str) -> list:
-        """Return ordered provider list based on agent type."""
+        """Return ordered provider list based on agent type.
+
+        Mock provider is appended as the FINAL fallback when enabled — keeps
+        the system answering for demos/tests when no real provider is reachable.
+        Disabled by default (settings.mock_llm_enabled = False).
+        """
         # Claude-only: skip everything else
         if agent_name in _CLAUDE_ONLY_AGENTS:
-            return [self._claude]
-
+            chain: list = [self._claude]
         # Haiku-eligible: fast/cheap classification — Ollama → Haiku → Groq → Claude
-        if agent_name in _HAIKU_ELIGIBLE_AGENTS:
-            return [self._ollama, self._haiku, self._groq, self._claude]
-
+        elif agent_name in _HAIKU_ELIGIBLE_AGENTS:
+            chain = [self._ollama, self._haiku, self._groq, self._claude]
         # Cloud-preferred: skip Ollama, go Groq → Claude
-        if agent_name in _CLOUD_PREFERRED_AGENTS:
-            return [self._groq, self._claude]
-
+        elif agent_name in _CLOUD_PREFERRED_AGENTS:
+            chain = [self._groq, self._claude]
         # Everyone else: Ollama → Groq → Claude
-        return [self._ollama, self._groq, self._claude]
+        else:
+            chain = [self._ollama, self._groq, self._claude]
+
+        # Append mock as terminal fallback when enabled. is_available() gates
+        # it, so a disabled mock is filtered out by the existing loop.
+        chain.append(self._mock)
+        return chain
 
     async def chat(
         self,
